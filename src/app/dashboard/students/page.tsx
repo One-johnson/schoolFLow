@@ -60,6 +60,7 @@ const generateStudentId = (grade: string): string => {
 
 export default function StudentsPage() {
   const { data: students, addDataWithId: addStudent, deleteData: deleteStudent } = useDatabase<Student>('students');
+  const { addData: addNotification } = useDatabase('notifications');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newStudentName, setNewStudentName] = useState("");
   const [newStudentGrade, setNewStudentGrade] = useState("");
@@ -78,6 +79,11 @@ export default function StudentsPage() {
         grade: parseInt(newStudentGrade, 10),
         email: newStudentEmail,
         status: 'Active',
+      });
+      await addNotification({
+        type: 'student_enrolled',
+        message: `New student "${newStudentName}" was enrolled.`,
+        read: false,
       });
       toast({ title: "Success", description: "Student added." });
       setNewStudentName("");
@@ -195,3 +201,5 @@ export default function StudentsPage() {
     </Card>
   );
 }
+
+    

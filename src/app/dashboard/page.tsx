@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Card,
   CardContent,
@@ -5,11 +7,29 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Activity, Users, UserCheck, Megaphone } from "lucide-react";
+import { Activity, Users, UserCheck, Megaphone, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { useDatabase } from "@/hooks/use-database";
+import { useMemo } from "react";
+
+type Student = { id: string };
+type Teacher = { id: string };
+type Announcement = { id: string; createdAt: number };
+type Class = { id: string };
 
 export default function DashboardPage() {
+  const { data: students } = useDatabase<Student>('students');
+  const { data: teachers } = useDatabase<Teacher>('teachers');
+  const { data: announcements } = useDatabase<Announcement>('announcements');
+  const { data: classes } = useDatabase<Class>('classes');
+
+  const newAnnouncementsThisWeek = useMemo(() => {
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    return announcements.filter(a => a.createdAt > oneWeekAgo.getTime()).length;
+  }, [announcements]);
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex-1 space-y-4">
@@ -26,8 +46,8 @@ export default function DashboardPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1,254</div>
-            <p className="text-xs text-muted-foreground">+20.1% from last month</p>
+            <div className="text-2xl font-bold">{students.length}</div>
+            <p className="text-xs text-muted-foreground">Currently enrolled</p>
           </CardContent>
         </Card>
         <Card>
@@ -36,8 +56,18 @@ export default function DashboardPage() {
             <UserCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">82</div>
-            <p className="text-xs text-muted-foreground">+5 since last year</p>
+            <div className="text-2xl font-bold">{teachers.length}</div>
+            <p className="text-xs text-muted-foreground">Active faculty members</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Classes</CardTitle>
+            <BookOpen className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{classes.length}</div>
+            <p className="text-xs text-muted-foreground">Across all grades</p>
           </CardContent>
         </Card>
         <Card>
@@ -46,20 +76,8 @@ export default function DashboardPage() {
             <Megaphone className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">5</div>
-            <p className="text-xs text-muted-foreground">2 new this week</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">System Status</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold flex items-center gap-2">
-              Operational <Badge className="bg-green-500 hover:bg-green-600"> </Badge>
-            </div>
-            <p className="text-xs text-muted-foreground">All systems running smoothly</p>
+            <div className="text-2xl font-bold">{announcements.length}</div>
+            <p className="text-xs text-muted-foreground">{newAnnouncementsThisWeek} new this week</p>
           </CardContent>
         </Card>
       </div>
@@ -67,38 +85,17 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="col-span-4">
           <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-            <CardDescription>
+            <CardTitle>System Status</CardTitle>
+             <CardDescription>
               A log of recent activities across the platform.
             </CardDescription>
           </CardHeader>
-          <CardContent className="pl-2">
-            <div className="space-y-4">
-              <div className="flex items-center">
-                <Users className="h-5 w-5 mr-3" />
-                <div className="ml-4 space-y-1">
-                  <p className="text-sm font-medium leading-none">New student enrolled</p>
-                  <p className="text-sm text-muted-foreground">John Doe has been added to Grade 10.</p>
-                </div>
-                <div className="ml-auto font-medium text-xs text-muted-foreground">5m ago</div>
-              </div>
-              <div className="flex items-center">
-                <Megaphone className="h-5 w-5 mr-3" />
-                <div className="ml-4 space-y-1">
-                  <p className="text-sm font-medium leading-none">New announcement posted</p>
-                  <p className="text-sm text-muted-foreground">"Parent-Teacher Meeting next week."</p>
-                </div>
-                <div className="ml-auto font-medium text-xs text-muted-foreground">1h ago</div>
-              </div>
-              <div className="flex items-center">
-                <UserCheck className="h-5 w-5 mr-3" />
-                <div className="ml-4 space-y-1">
-                  <p className="text-sm font-medium leading-none">Teacher profile updated</p>
-                  <p className="text-sm text-muted-foreground">Jane Smith updated her contact info.</p>
-                </div>
-                <div className="ml-auto font-medium text-xs text-muted-foreground">3h ago</div>
-              </div>
+          <CardContent className="pl-6 flex items-center gap-4">
+             <Activity className="h-5 w-5 mr-3 text-muted-foreground" />
+            <div className="text-2xl font-bold flex items-center gap-2">
+              Operational <Badge className="bg-green-500 hover:bg-green-600"> </Badge>
             </div>
+            <p className="text-sm text-muted-foreground">All systems running smoothly</p>
           </CardContent>
         </Card>
         <Card className="col-span-4 md:col-span-3">
@@ -127,3 +124,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    

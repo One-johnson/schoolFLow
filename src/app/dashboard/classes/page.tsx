@@ -84,6 +84,7 @@ export default function ClassesPage() {
   const { data: classes, addDataWithId: addClass, updateData: updateClass, deleteData: deleteClass } = useDatabase<Class>('classes');
   const { data: students } = useDatabase<Student>('students');
   const { data: teachers } = useDatabase<Teacher>('teachers');
+  const { addData: addNotification } = useDatabase('notifications');
   
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
@@ -106,6 +107,11 @@ export default function ClassesPage() {
     try {
       const classId = generateClassId(newClassName);
       await addClass(classId, { name: newClassName });
+      await addNotification({
+          type: 'class_created',
+          message: `New class "${newClassName}" was created.`,
+          read: false,
+      });
       toast({ title: "Success", description: "Class created." });
       setNewClassName("");
       setIsCreateDialogOpen(false);
@@ -336,3 +342,5 @@ function MultiSelectPopover({ options, selected, onChange }: {
     </Popover>
   )
 }
+
+    

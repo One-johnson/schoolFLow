@@ -60,6 +60,7 @@ const generateTeacherId = (department: string): string => {
 
 export default function TeachersPage() {
   const { data: teachers, addDataWithId: addTeacher, deleteData: deleteTeacher } = useDatabase<Teacher>('teachers');
+  const { addData: addNotification } = useDatabase('notifications');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newTeacherName, setNewTeacherName] = useState("");
   const [newTeacherDept, setNewTeacherDept] = useState("");
@@ -78,6 +79,11 @@ export default function TeachersPage() {
         department: newTeacherDept,
         email: newTeacherEmail,
         status: 'Active',
+      });
+      await addNotification({
+        type: 'teacher_added',
+        message: `New teacher "${newTeacherName}" was added.`,
+        read: false,
       });
       toast({ title: "Success", description: "Teacher added." });
       setNewTeacherName("");
@@ -195,3 +201,5 @@ export default function TeachersPage() {
     </Card>
   );
 }
+
+    
