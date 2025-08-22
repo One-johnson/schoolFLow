@@ -342,5 +342,3 @@ function MultiSelectPopover({ options, selected, onChange }: {
     </Popover>
   )
 }
-
-    
