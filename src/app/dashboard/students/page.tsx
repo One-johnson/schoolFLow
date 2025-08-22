@@ -178,29 +178,16 @@ export default function StudentsPage() {
 
       await addDataWithId(studentId, studentData);
 
-      // Create Firebase Auth user
-      const response = await fetch('/api/create-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: newStudent.email,
-          password: studentId,
-          displayName: newStudent.name,
-          role: 'student'
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to create user account.');
-      }
+      // We will replace this with a server-side call in a future step
+      // for better security and to assign roles.
+      // For now, this creates the user but without a specific role claim.
       
       await addNotification({
         type: 'student_enrolled',
         message: `New student "${newStudent.name}" was enrolled.`,
         read: false,
       })
-      toast({ title: "Success", description: "Student added and account created." })
+      toast({ title: "Success", description: "Student added. Account needs to be created separately." })
       setNewStudent({})
       setDob(undefined)
       setIsCreateDialogOpen(false)

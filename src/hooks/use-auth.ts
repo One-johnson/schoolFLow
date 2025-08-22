@@ -11,8 +11,6 @@ interface AuthState {
   role: 'admin' | 'teacher' | 'student' | null;
 }
 
-const ADMIN_EMAIL = "admin@schoolflow.com";
-
 export function useAuth(): AuthState {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -20,18 +18,14 @@ export function useAuth(): AuthState {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setLoading(true);
       if (user) {
         setUser(user);
         try {
-          // Temporary workaround for admin role
-          if (user.email === ADMIN_EMAIL) {
-              setRole('admin');
-          } else {
-            const idTokenResult = await user.getIdTokenResult(true);
-            setRole((idTokenResult.claims.role as any) || null);
-          }
+          const idTokenResult = await user.getIdTokenResult(true); // Force refresh to get latest claims
+          setRole((idTokenResult.claims.role as any) || null);
         } catch (error) {
-          console.error("Error getting user role:", error);
+          console.error("Error getting user role from token:", error);
           setRole(null);
         }
       } else {

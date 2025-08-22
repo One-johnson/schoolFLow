@@ -1,4 +1,29 @@
 
-// This file is temporarily removed to resolve a critical bug with server-side environment variable loading.
-// User creation for students and teachers will be re-implemented using a secure, server-based approach
-// after the initial admin user setup is unblocked.
+import { adminAuth } from '@/lib/firebase-admin';
+import { NextRequest, NextResponse } from 'next/server';
+import 'dotenv/config';
+
+export async function POST(req: NextRequest) {
+  try {
+    const { email, password, displayName } = await req.json();
+
+    if (!email || !password || !displayName) {
+      return NextResponse.json({ message: 'Missing required fields.' }, { status: 400 });
+    }
+
+    // Create user in Firebase Authentication
+    const userRecord = await adminAuth.createUser({
+      email,
+      password,
+      displayName,
+    });
+
+    // Set the custom claim for the admin role
+    await adminAuth.setCustomUserClaims(userRecord.uid, { role: 'admin' });
+
+    return NextResponse.json({ uid: userRecord.uid }, { status: 201 });
+  } catch (error: any) {
+    console.error('Error creating user:', error);
+    return NextResponse.json({ message: 'Error creating user: ' + error.message }, { status: 500 });
+  }
+}

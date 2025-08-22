@@ -3,8 +3,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -39,20 +37,36 @@ export default function RegisterPage() {
       });
       return;
     }
+    
+    if (email !== 'admin@schoolflow.com') {
+       toast({
+        title: 'Error',
+        description: 'Registration is currently only available for the admin account (admin@schoolflow.com).',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     setIsLoading(true);
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      
-      if(userCredential.user){
-        await updateProfile(userCredential.user, {
-            displayName: name
-        });
+      const response = await fetch('/api/create-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email,
+          password: password,
+          displayName: name,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create admin user.');
       }
 
       toast({
         title: 'Registration successful',
-        description: "You've been registered. Redirecting to login...",
+        description: "Admin account created. Redirecting to login...",
       });
       router.push('/');
     } catch (error: any) {
