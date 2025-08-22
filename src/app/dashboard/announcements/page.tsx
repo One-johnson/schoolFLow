@@ -1,5 +1,8 @@
 "use client"
 
+import { useState, useEffect } from "react"
+import { database } from "@/lib/firebase"
+import { ref, onValue, push, remove, serverTimestamp } from "firebase/database"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -22,32 +25,96 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { PlusCircle, Megaphone, Trash2, Pencil } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
-const announcements = [
-  {
-    id: 1,
-    title: "Parent-Teacher Meetings Next Week",
-    content: "We are pleased to announce the schedule for the upcoming parent-teacher meetings. Please check the school portal for your assigned time slot. We look forward to seeing you there.",
-    author: "Principal Evans",
-    date: "2023-10-15",
-  },
-  {
-    id: 2,
-    title: "Annual Sports Day Postponed",
-    content: "Due to the weather forecast, the Annual Sports Day originally scheduled for this Friday has been postponed. A new date will be announced shortly. We apologize for any inconvenience.",
-    author: "Admin Office",
-    date: "2023-10-14",
-  },
-  {
-    id: 3,
-    title: "Science Fair Submissions Open",
-    content: "Calling all young scientists! Submissions for the annual Science Fair are now open. The deadline for project proposals is November 1st. See Mr. Newton for more details.",
-    author: "Science Dept.",
-    date: "2023-10-12",
-  },
-]
+type Announcement = {
+  id: string,
+  title: string,
+  content: string,
+  author: string,
+  date: string,
+  createdAt: number,
+}
 
 export default function AnnouncementsPage() {
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [newTitle, setNewTitle] = useState("");
+  const [newContent, setNewContent] = useState("");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const announcementsRef = ref(database, 'announcements');
+    const unsubscribe = onValue(announcementsRef, (snapshot) => {
+      const data = snapshot.val();
+      const loadedAnnouncements: Announcement[] = [];
+      if (data) {
+        for (const key in data) {
+          loadedAnnouncements.push({
+            id: key,
+            date: new Date(data[key].createdAt).toLocaleDateString(),
+            ...data[key]
+          });
+        }
+      }
+      setAnnouncements(loadedAnnouncements.sort((a, b) => b.createdAt - a.createdAt));
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleCreateAnnouncement = async () => {
+    if (!newTitle.trim() || !newContent.trim()) {
+      toast({
+        title: "Error",
+        description: "Title and content cannot be empty.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const announcementsRef = ref(database, 'announcements');
+    try {
+      await push(announcementsRef, {
+        title: newTitle,
+        content: newContent,
+        author: "Admin", // Or get current user
+        createdAt: serverTimestamp(),
+      });
+      toast({
+        title: "Success",
+        description: "Announcement published.",
+      });
+      setNewTitle("");
+      setNewContent("");
+      setIsDialogOpen(false);
+    } catch (error) {
+       toast({
+        title: "Error",
+        description: "Failed to create announcement.",
+        variant: "destructive",
+      });
+      console.error("Firebase error:", error);
+    }
+  };
+
+  const handleDeleteAnnouncement = async (id: string) => {
+    const announcementRef = ref(database, `announcements/${id}`);
+    try {
+      await remove(announcementRef);
+      toast({
+        title: "Success",
+        description: "Announcement deleted.",
+      });
+    } catch (error) {
+       toast({
+        title: "Error",
+        description: "Failed to delete announcement.",
+        variant: "destructive",
+      });
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -57,7 +124,7 @@ export default function AnnouncementsPage() {
             Manage and publish school-wide information.
           </p>
         </div>
-        <Dialog>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button>
               <PlusCircle className="mr-2 h-4 w-4" />
@@ -76,17 +143,17 @@ export default function AnnouncementsPage() {
                 <Label htmlFor="title" className="text-right">
                   Title
                 </Label>
-                <Input id="title" placeholder="Announcement Title" className="col-span-3" />
+                <Input id="title" placeholder="Announcement Title" className="col-span-3" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="content" className="text-right">
                   Content
                 </Label>
-                <Textarea id="content" placeholder="Type your announcement content here." className="col-span-3" />
+                <Textarea id="content" placeholder="Type your announcement content here." className="col-span-3" value={newContent} onChange={(e) => setNewContent(e.target.value)} />
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit">Publish</Button>
+              <Button type="submit" onClick={handleCreateAnnouncement}>Publish</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -112,10 +179,10 @@ export default function AnnouncementsPage() {
               <p className="text-sm text-muted-foreground">{announcement.content}</p>
             </CardContent>
             <CardFooter className="flex justify-end gap-2">
-              <Button variant="outline" size="icon">
+              <Button variant="outline" size="icon" disabled>
                 <Pencil className="h-4 w-4" />
               </Button>
-              <Button variant="destructive" size="icon">
+              <Button variant="destructive" size="icon" onClick={() => handleDeleteAnnouncement(announcement.id)}>
                 <Trash2 className="h-4 w-4" />
               </Button>
             </CardFooter>
