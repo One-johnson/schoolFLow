@@ -71,8 +71,17 @@ type Class = {
   studentIds?: Record<string, boolean>;
 };
 
+// Function to generate a class ID
+const generateClassId = (className: string): string => {
+    const year = new Date().getFullYear().toString().slice(-2);
+    const classType = 'C'; // for Class
+    const nameChar = className.length > 0 ? className.charAt(0).toUpperCase() : 'X';
+    const randomPart = Math.random().toString().slice(2, 8);
+    return `${year}${classType}${nameChar}${randomPart}`;
+};
+
 export default function ClassesPage() {
-  const { data: classes, addData: addClass, updateData: updateClass, deleteData: deleteClass } = useDatabase<Class>('classes');
+  const { data: classes, addDataWithId: addClass, updateData: updateClass, deleteData: deleteClass } = useDatabase<Class>('classes');
   const { data: students } = useDatabase<Student>('students');
   const { data: teachers } = useDatabase<Teacher>('teachers');
   
@@ -95,7 +104,8 @@ export default function ClassesPage() {
       return;
     }
     try {
-      await addClass({ name: newClassName });
+      const classId = generateClassId(newClassName);
+      await addClass(classId, { name: newClassName });
       toast({ title: "Success", description: "Class created." });
       setNewClassName("");
       setIsCreateDialogOpen(false);
@@ -187,6 +197,9 @@ export default function ClassesPage() {
                   <div>
                     <CardTitle>{cls.name}</CardTitle>
                     <CardDescription>
+                      ID: {cls.id}
+                    </CardDescription>
+                     <CardDescription className="pt-1">
                       Teacher: {cls.teacherId ? teachersMap.get(cls.teacherId)?.name : 'Unassigned'}
                     </CardDescription>
                   </div>

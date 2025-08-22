@@ -29,6 +29,11 @@ export function useDatabase<T extends { id?: string }>(path: string) {
     return set(newRef, { ...newData, createdAt: serverTimestamp() });
   };
   
+  const addDataWithId = async (id: string, newData: Omit<T, 'id'>) => {
+    const dbRef = ref(database, `${path}/${id}`);
+    return set(dbRef, { ...newData, createdAt: serverTimestamp() });
+  }
+
   const updateData = async (id: string, updates: Partial<T>) => {
     const dbRef = ref(database, `${path}/${id}`);
     return update(dbRef, updates);
@@ -39,5 +44,5 @@ export function useDatabase<T extends { id?: string }>(path: string) {
     return remove(dbRef);
   };
 
-  return { data, addData, updateData, deleteData };
+  return { data, addData, addDataWithId, updateData, deleteData };
 }

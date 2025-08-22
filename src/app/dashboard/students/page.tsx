@@ -48,8 +48,18 @@ type Student = {
   status: "Active" | "Suspended" | "Withdrawn";
 };
 
+// Function to generate a student ID
+const generateStudentId = (grade: string): string => {
+    const year = new Date().getFullYear().toString().slice(-2);
+    const classType = 'S'; // for Student
+    const gradeChar = grade.padStart(1, '0');
+    const randomPart = Math.random().toString().slice(2, 8);
+    return `${year}${classType}${gradeChar}${randomPart}`;
+};
+
+
 export default function StudentsPage() {
-  const { data: students, addData: addStudent, deleteData: deleteStudent } = useDatabase<Student>('students');
+  const { data: students, addDataWithId: addStudent, deleteData: deleteStudent } = useDatabase<Student>('students');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newStudentName, setNewStudentName] = useState("");
   const [newStudentGrade, setNewStudentGrade] = useState("");
@@ -62,7 +72,8 @@ export default function StudentsPage() {
       return;
     }
     try {
-      await addStudent({
+      const studentId = generateStudentId(newStudentGrade);
+      await addStudent(studentId, {
         name: newStudentName,
         grade: parseInt(newStudentGrade, 10),
         email: newStudentEmail,
@@ -129,6 +140,7 @@ export default function StudentsPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>ID</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Grade</TableHead>
               <TableHead>Email</TableHead>
@@ -141,6 +153,7 @@ export default function StudentsPage() {
           <TableBody>
             {students.map((student) => (
               <TableRow key={student.id}>
+                <TableCell className="font-mono text-xs">{student.id}</TableCell>
                 <TableCell className="font-medium">{student.name}</TableCell>
                 <TableCell>{student.grade}</TableCell>
                 <TableCell>{student.email}</TableCell>

@@ -49,8 +49,17 @@ type Teacher = {
   status: "Active" | "On Leave" | "Retired";
 };
 
+// Function to generate a teacher ID
+const generateTeacherId = (department: string): string => {
+    const year = new Date().getFullYear().toString().slice(-2);
+    const classType = 'T'; // for Teacher
+    const deptChar = department.length > 0 ? department.charAt(0).toUpperCase() : 'X';
+    const randomPart = Math.random().toString().slice(2, 8);
+    return `${year}${classType}${deptChar}${randomPart}`;
+};
+
 export default function TeachersPage() {
-  const { data: teachers, addData: addTeacher, deleteData: deleteTeacher } = useDatabase<Teacher>('teachers');
+  const { data: teachers, addDataWithId: addTeacher, deleteData: deleteTeacher } = useDatabase<Teacher>('teachers');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newTeacherName, setNewTeacherName] = useState("");
   const [newTeacherDept, setNewTeacherDept] = useState("");
@@ -63,7 +72,8 @@ export default function TeachersPage() {
       return;
     }
     try {
-      await addTeacher({
+       const teacherId = generateTeacherId(newTeacherDept);
+      await addTeacher(teacherId, {
         name: newTeacherName,
         department: newTeacherDept,
         email: newTeacherEmail,
@@ -130,6 +140,7 @@ export default function TeachersPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>ID</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Department</TableHead>
               <TableHead>Email</TableHead>
@@ -142,6 +153,7 @@ export default function TeachersPage() {
           <TableBody>
             {teachers.map((teacher) => (
               <TableRow key={teacher.id}>
+                <TableCell className="font-mono text-xs">{teacher.id}</TableCell>
                 <TableCell className="font-medium">{teacher.name}</TableCell>
                 <TableCell>{teacher.department}</TableCell>
                 <TableCell>{teacher.email}</TableCell>
