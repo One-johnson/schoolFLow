@@ -1,3 +1,5 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -26,7 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { PlusCircle, MoreHorizontal } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Trash2, Pencil } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,16 +36,58 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useDatabase } from "@/hooks/use-database";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
-const teachers = [
-  { id: 'TCH-001', name: 'Dr. Evelyn Reed', department: 'Science', email: 'evelyn.r@school.edu', status: 'Active' },
-  { id: 'TCH-002', name: 'Mr. Samuel Carter', department: 'Mathematics', email: 'samuel.c@school.edu', status: 'Active' },
-  { id: 'TCH-003', name: 'Ms. Clara Oswald', department: 'History', email: 'clara.o@school.edu', status: 'On Leave' },
-  { id: 'TCH-004', name: 'Mr. Arthur Pendragon', department: 'Literature', email: 'arthur.p@school.edu', status: 'Active' },
-  { id: 'TCH-005', name: 'Ms. Gwen Stacy', department: 'Physical Education', email: 'gwen.s@school.edu', status: 'Retired' },
-];
+
+type Teacher = {
+  id: string;
+  name: string;
+  department: string;
+  email: string;
+  status: "Active" | "On Leave" | "Retired";
+};
 
 export default function TeachersPage() {
+  const { data: teachers, addData: addTeacher, deleteData: deleteTeacher } = useDatabase<Teacher>('teachers');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [newTeacherName, setNewTeacherName] = useState("");
+  const [newTeacherDept, setNewTeacherDept] = useState("");
+  const [newTeacherEmail, setNewTeacherEmail] = useState("");
+  const { toast } = useToast();
+
+  const handleAddTeacher = async () => {
+    if (!newTeacherName.trim() || !newTeacherDept.trim() || !newTeacherEmail.trim()) {
+      toast({ title: "Error", description: "All fields are required.", variant: "destructive" });
+      return;
+    }
+    try {
+      await addTeacher({
+        name: newTeacherName,
+        department: newTeacherDept,
+        email: newTeacherEmail,
+        status: 'Active',
+      });
+      toast({ title: "Success", description: "Teacher added." });
+      setNewTeacherName("");
+      setNewTeacherDept("");
+      setNewTeacherEmail("");
+      setIsDialogOpen(false);
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to add teacher.", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteTeacher = async (id: string) => {
+    try {
+      await deleteTeacher(id);
+      toast({ title: "Success", description: "Teacher deleted." });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to delete teacher.", variant: "destructive" });
+    }
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -51,7 +95,7 @@ export default function TeachersPage() {
           <CardTitle>Teacher Directory</CardTitle>
           <CardDescription>Manage teacher profiles and information.</CardDescription>
         </div>
-        <Dialog>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button>
               <PlusCircle className="mr-2 h-4 w-4" /> Add Teacher
@@ -65,19 +109,19 @@ export default function TeachersPage() {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="name" className="text-right">Name</Label>
-                <Input id="name" placeholder="Full Name" className="col-span-3" />
+                <Input id="name" placeholder="Full Name" className="col-span-3" value={newTeacherName} onChange={(e) => setNewTeacherName(e.target.value)} />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="department" className="text-right">Department</Label>
-                <Input id="department" placeholder="e.g., Science" className="col-span-3" />
+                <Input id="department" placeholder="e.g., Science" className="col-span-3" value={newTeacherDept} onChange={(e) => setNewTeacherDept(e.target.value)} />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="email" className="text-right">Email</Label>
-                <Input id="email" type="email" placeholder="teacher@school.edu" className="col-span-3" />
+                <Input id="email" type="email" placeholder="teacher@school.edu" className="col-span-3" value={newTeacherEmail} onChange={(e) => setNewTeacherEmail(e.target.value)} />
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit">Save Teacher</Button>
+              <Button type="submit" onClick={handleAddTeacher}>Save Teacher</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -86,7 +130,6 @@ export default function TeachersPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Teacher ID</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Department</TableHead>
               <TableHead>Email</TableHead>
@@ -99,8 +142,7 @@ export default function TeachersPage() {
           <TableBody>
             {teachers.map((teacher) => (
               <TableRow key={teacher.id}>
-                <TableCell className="font-medium">{teacher.id}</TableCell>
-                <TableCell>{teacher.name}</TableCell>
+                <TableCell className="font-medium">{teacher.name}</TableCell>
                 <TableCell>{teacher.department}</TableCell>
                 <TableCell>{teacher.email}</TableCell>
                 <TableCell>
@@ -122,9 +164,14 @@ export default function TeachersPage() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem>Edit</DropdownMenuItem>
-                      <DropdownMenuItem>View Profile</DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive focus:text-destructive">Delete</DropdownMenuItem>
+                      <DropdownMenuItem disabled>
+                         <Pencil className="mr-2 h-4 w-4" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => handleDeleteTeacher(teacher.id)}>
+                         <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>

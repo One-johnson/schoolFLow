@@ -1,3 +1,5 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -26,7 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { PlusCircle, MoreHorizontal } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Trash2, Pencil } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,16 +36,57 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useDatabase } from "@/hooks/use-database";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
-const students = [
-  { id: 'STU-001', name: 'Alice Johnson', grade: 10, email: 'alice.j@school.edu', status: 'Active' },
-  { id: 'STU-002', name: 'Bob Smith', grade: 11, email: 'bob.s@school.edu', status: 'Active' },
-  { id: 'STU-003', name: 'Charlie Brown', grade: 9, email: 'charlie.b@school.edu', status: 'Suspended' },
-  { id: 'STU-004', name: 'Diana Prince', grade: 12, email: 'diana.p@school.edu', status: 'Active' },
-  { id: 'STU-005', name: 'Ethan Hunt', grade: 10, email: 'ethan.h@school.edu', status: 'Withdrawn' },
-];
+type Student = {
+  id: string;
+  name: string;
+  grade: number;
+  email: string;
+  status: "Active" | "Suspended" | "Withdrawn";
+};
 
 export default function StudentsPage() {
+  const { data: students, addData: addStudent, deleteData: deleteStudent } = useDatabase<Student>('students');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [newStudentName, setNewStudentName] = useState("");
+  const [newStudentGrade, setNewStudentGrade] = useState("");
+  const [newStudentEmail, setNewStudentEmail] = useState("");
+  const { toast } = useToast();
+
+  const handleAddStudent = async () => {
+    if (!newStudentName.trim() || !newStudentGrade.trim() || !newStudentEmail.trim()) {
+      toast({ title: "Error", description: "All fields are required.", variant: "destructive" });
+      return;
+    }
+    try {
+      await addStudent({
+        name: newStudentName,
+        grade: parseInt(newStudentGrade, 10),
+        email: newStudentEmail,
+        status: 'Active',
+      });
+      toast({ title: "Success", description: "Student added." });
+      setNewStudentName("");
+      setNewStudentGrade("");
+      setNewStudentEmail("");
+      setIsDialogOpen(false);
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to add student.", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteStudent = async (id: string) => {
+    try {
+      await deleteStudent(id);
+      toast({ title: "Success", description: "Student deleted." });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to delete student.", variant: "destructive" });
+    }
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -51,7 +94,7 @@ export default function StudentsPage() {
           <CardTitle>Student Directory</CardTitle>
           <CardDescription>Manage student profiles and information.</CardDescription>
         </div>
-        <Dialog>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button>
               <PlusCircle className="mr-2 h-4 w-4" /> Add Student
@@ -65,19 +108,19 @@ export default function StudentsPage() {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="name" className="text-right">Name</Label>
-                <Input id="name" placeholder="Full Name" className="col-span-3" />
+                <Input id="name" placeholder="Full Name" className="col-span-3" value={newStudentName} onChange={(e) => setNewStudentName(e.target.value)} />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="grade" className="text-right">Grade</Label>
-                <Input id="grade" type="number" placeholder="10" className="col-span-3" />
+                <Input id="grade" type="number" placeholder="10" className="col-span-3" value={newStudentGrade} onChange={(e) => setNewStudentGrade(e.target.value)} />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="email" className="text-right">Email</Label>
-                <Input id="email" type="email" placeholder="student@school.edu" className="col-span-3" />
+                <Input id="email" type="email" placeholder="student@school.edu" className="col-span-3" value={newStudentEmail} onChange={(e) => setNewStudentEmail(e.target.value)} />
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit">Save Student</Button>
+              <Button type="submit" onClick={handleAddStudent}>Save Student</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -86,7 +129,6 @@ export default function StudentsPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Student ID</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Grade</TableHead>
               <TableHead>Email</TableHead>
@@ -99,8 +141,7 @@ export default function StudentsPage() {
           <TableBody>
             {students.map((student) => (
               <TableRow key={student.id}>
-                <TableCell className="font-medium">{student.id}</TableCell>
-                <TableCell>{student.name}</TableCell>
+                <TableCell className="font-medium">{student.name}</TableCell>
                 <TableCell>{student.grade}</TableCell>
                 <TableCell>{student.email}</TableCell>
                 <TableCell>
@@ -122,9 +163,14 @@ export default function StudentsPage() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem>Edit</DropdownMenuItem>
-                      <DropdownMenuItem>View Profile</DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive focus:text-destructive">Delete</DropdownMenuItem>
+                      <DropdownMenuItem disabled>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => handleDeleteStudent(student.id)}>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
