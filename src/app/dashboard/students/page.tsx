@@ -88,6 +88,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Calendar as CalendarIcon } from "lucide-react"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 
 type Student = {
@@ -96,6 +97,9 @@ type Student = {
   email: string
   status: "Active" | "Suspended" | "Withdrawn"
   dateOfBirth?: string
+  placeOfBirth?: string
+  nationality?: string
+  hometown?: string
   gender?: "Male" | "Female" | "Other"
   address?: string
   parentName?: string
@@ -109,6 +113,17 @@ const generateStudentId = (): string => {
   const classType = 'S' // for Student
   const randomPart = Math.random().toString().slice(2, 8)
   return `${year}${classType}${randomPart}`
+}
+
+const calculateAge = (dob: Date | undefined): number | undefined => {
+    if (!dob) return undefined;
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const m = today.getMonth() - dob.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+        age--;
+    }
+    return age;
 }
 
 
@@ -357,6 +372,8 @@ export default function StudentsPage() {
       rowSelection,
     },
   })
+  
+  const age = calculateAge(dob);
 
   return (
     <Card>
@@ -371,7 +388,7 @@ export default function StudentsPage() {
               <PlusCircle className="mr-2 h-4 w-4" /> Add Student
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-xl">
+          <DialogContent className="sm:max-w-2xl">
             <DialogHeader>
               <DialogTitle>Add New Student</DialogTitle>
               <DialogDescription>Fill in the details to add a new student to the system.</DialogDescription>
@@ -381,7 +398,8 @@ export default function StudentsPage() {
                     <TabsTrigger value="student-details">Student Details</TabsTrigger>
                     <TabsTrigger value="parent-details">Parent Details</TabsTrigger>
                 </TabsList>
-                <TabsContent value="student-details">
+                <ScrollArea className="h-96">
+                <TabsContent value="student-details" className="p-4">
                     <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="name" className="text-right">Full Name</Label>
@@ -416,6 +434,14 @@ export default function StudentsPage() {
                                 </PopoverContent>
                             </Popover>
                         </div>
+                         <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="age" className="text-right">Age</Label>
+                            <Input id="age" className="col-span-3" value={age !== undefined ? age : "Select DOB"} disabled />
+                        </div>
+                         <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="placeOfBirth" className="text-right">Place of Birth</Label>
+                            <Input id="placeOfBirth" placeholder="City, Country" className="col-span-3" value={newStudent.placeOfBirth || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                        </div>
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="gender" className="text-right">Gender</Label>
                             <Select onValueChange={(value) => setNewStudent(prev => ({ ...prev, gender: value as any}))} value={newStudent.gender}>
@@ -430,12 +456,20 @@ export default function StudentsPage() {
                             </Select>
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="nationality" className="text-right">Nationality</Label>
+                            <Input id="nationality" placeholder="e.g., American" className="col-span-3" value={newStudent.nationality || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="hometown" className="text-right">Hometown</Label>
+                            <Input id="hometown" placeholder="City, State" className="col-span-3" value={newStudent.hometown || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="address" className="text-right">Address</Label>
                             <Input id="address" placeholder="123 Main St, Anytown" className="col-span-3" value={newStudent.address || ""} onChange={(e) => handleInputChange(e, 'new')} />
                         </div>
                     </div>
                 </TabsContent>
-                <TabsContent value="parent-details">
+                <TabsContent value="parent-details" className="p-4">
                    <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="parentName" className="text-right">Parent's Name</Label>
@@ -451,6 +485,7 @@ export default function StudentsPage() {
                         </div>
                     </div>
                 </TabsContent>
+                </ScrollArea>
             </Tabs>
             <DialogFooter>
               <Button type="submit" onClick={handleAddStudent}>Save Student</Button>
@@ -583,7 +618,7 @@ export default function StudentsPage() {
 
       {/* Edit Student Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit Student</DialogTitle>
             <DialogDescription>Update the student's information below.</DialogDescription>
@@ -593,7 +628,8 @@ export default function StudentsPage() {
                     <TabsTrigger value="student-details">Student Details</TabsTrigger>
                     <TabsTrigger value="parent-details">Parent Details</TabsTrigger>
                 </TabsList>
-                <TabsContent value="student-details">
+                <ScrollArea className="h-96">
+                <TabsContent value="student-details" className="p-4">
                     <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="name" className="text-right">Full Name</Label>
@@ -629,6 +665,14 @@ export default function StudentsPage() {
                             </Popover>
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="age" className="text-right">Age</Label>
+                            <Input id="age" className="col-span-3" value={age !== undefined ? age : "Select DOB"} disabled />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="placeOfBirth" className="text-right">Place of Birth</Label>
+                            <Input id="placeOfBirth" placeholder="City, Country" className="col-span-3" value={editStudent.placeOfBirth || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="gender" className="text-right">Gender</Label>
                             <Select onValueChange={(value) => setEditStudent(prev => ({ ...prev, gender: value as any}))} value={editStudent.gender}>
                                 <SelectTrigger className="col-span-3">
@@ -640,6 +684,14 @@ export default function StudentsPage() {
                                     <SelectItem value="Other">Other</SelectItem>
                                 </SelectContent>
                             </Select>
+                        </div>
+                         <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="nationality" className="text-right">Nationality</Label>
+                            <Input id="nationality" placeholder="e.g., American" className="col-span-3" value={editStudent.nationality || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="hometown" className="text-right">Hometown</Label>
+                            <Input id="hometown" placeholder="City, State" className="col-span-3" value={editStudent.hometown || ""} onChange={(e) => handleInputChange(e, 'edit')} />
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="address" className="text-right">Address</Label>
@@ -660,7 +712,7 @@ export default function StudentsPage() {
                         </div>
                     </div>
                 </TabsContent>
-                <TabsContent value="parent-details">
+                <TabsContent value="parent-details" className="p-4">
                    <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="parentName" className="text-right">Parent's Name</Label>
@@ -676,6 +728,7 @@ export default function StudentsPage() {
                         </div>
                     </div>
                 </TabsContent>
+                </ScrollArea>
             </Tabs>
           <DialogFooter>
             <Button type="submit" onClick={handleUpdateStudent}>Save Changes</Button>
@@ -685,3 +738,6 @@ export default function StudentsPage() {
     </Card>
   )
 }
+
+
+    
