@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -6,6 +7,7 @@ import { ref, onValue, push, remove, set, serverTimestamp, update } from 'fireba
 
 export function useDatabase<T extends { id?: string }>(path: string) {
   const [data, setData] = useState<T[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const dbRef = ref(database, path);
@@ -18,6 +20,7 @@ export function useDatabase<T extends { id?: string }>(path: string) {
         }
       }
       setData(loadedData);
+      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -44,5 +47,5 @@ export function useDatabase<T extends { id?: string }>(path: string) {
     return remove(dbRef);
   };
 
-  return { data, addData, addDataWithId, updateData, deleteData };
+  return { data, loading, addData, addDataWithId, updateData, deleteData };
 }
