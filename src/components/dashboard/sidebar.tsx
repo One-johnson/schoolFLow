@@ -31,7 +31,9 @@ import {
 } from "lucide-react";
 import { auth } from "@/lib/firebase";
 
-export function DashboardSidebar() {
+type Role = 'admin' | 'teacher' | 'student' | null;
+
+export function DashboardSidebar({ role }: { role: Role }) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -44,86 +46,92 @@ export function DashboardSidebar() {
     router.push("/");
   };
 
-  const menuItems = [
+  const allMenuItems = [
     {
       path: "/dashboard",
       icon: LayoutGrid,
       label: "Dashboard",
-      disabled: false,
+      roles: ['admin', 'teacher', 'student'],
     },
     {
       path: "/dashboard/students",
       icon: Users,
       label: "Students",
-      disabled: false,
+      roles: ['admin'],
     },
     {
       path: "/dashboard/teachers",
       icon: UserCheck,
       label: "Teachers",
-      disabled: false,
+      roles: ['admin'],
     },
      {
       path: "/dashboard/classes",
       icon: Book,
       label: "Classes",
-      disabled: false,
+      roles: ['admin'],
     },
     {
       path: "/dashboard/subjects",
       icon: BookCopy,
       label: "Subjects",
-      disabled: false,
+      roles: ['admin', 'teacher'],
     },
     {
       path: "/dashboard/terms",
       icon: CalendarClock,
       label: "Terms",
-      disabled: false,
+      roles: ['admin'],
     },
     {
       path: "/dashboard/announcements",
       icon: Megaphone,
       label: "Announcements",
-      disabled: false,
+      roles: ['admin', 'teacher', 'student'],
     },
     {
       path: "/dashboard/attendance",
       icon: ClipboardCheck,
       label: "Attendance",
-      disabled: false,
+      roles: ['admin', 'teacher'],
     },
     {
       path: "/dashboard/exams",
       icon: FileText,
       label: "Exams",
+      roles: ['admin', 'teacher', 'student'],
       disabled: true,
     },
     {
       path: "/dashboard/fees",
       icon: DollarSign,
       label: "Fees",
+      roles: ['admin', 'student'],
       disabled: true,
     },
     {
       path: "/dashboard/timetable",
       icon: CalendarDays,
       label: "Timetable",
+      roles: ['admin', 'teacher', 'student'],
       disabled: true,
     },
     {
       path: "/dashboard/reports",
       icon: BarChart3,
       label: "Reports",
+      roles: ['admin'],
       disabled: true,
     },
     {
       path: "/dashboard/summarize",
       icon: Sparkles,
       label: "AI Summarizer",
-      disabled: false,
+      roles: ['admin', 'teacher', 'student'],
     },
   ];
+
+  const menuItems = allMenuItems.filter(item => item.roles.includes(role || ''));
 
   return (
     <Sidebar>

@@ -2,9 +2,9 @@
 "use client"
 
 import * as React from "react"
-import { format, parse } from "date-fns"
+import { format } from "date-fns"
 import { Calendar as CalendarIcon, CheckCircle, XCircle, Clock, Loader2 } from "lucide-react"
-
+import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
@@ -12,7 +12,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
@@ -50,21 +49,30 @@ type Class = {
   id: string;
   name: string;
   studentIds?: Record<string, boolean>;
+  teacherId?: string;
 };
 
 type AttendanceStatus = "Present" | "Absent" | "Late";
 type AttendanceRecord = Record<string, AttendanceStatus>; // { [studentId]: status }
 
 export default function AttendancePage() {
+  const { user, role } = useAuth();
   const [date, setDate] = React.useState<Date>(new Date())
   const [selectedClassId, setSelectedClassId] = React.useState<string | undefined>()
   const [attendance, setAttendance] = React.useState<AttendanceRecord>({})
   const [isLoading, setIsLoading] = React.useState(false)
   const [isFetching, setIsFetching] = React.useState(false)
 
-  const { data: classes } = useDatabase<Class>('classes')
+  const { data: all_classes } = useDatabase<Class>('classes')
   const { data: allStudents } = useDatabase<Student>('students')
   const { toast } = useToast()
+
+  const classes = React.useMemo(() => {
+    if (role === 'teacher') {
+      return all_classes.filter(c => c.teacherId === user?.uid)
+    }
+    return all_classes
+  }, [all_classes, role, user]);
 
   const { data: savedAttendance, updateData: updateAttendance } = useDatabase<Record<string, AttendanceRecord>>(`attendance/${format(date, 'yyyy-MM-dd')}`);
 
@@ -79,6 +87,8 @@ export default function AttendancePage() {
         setAttendance({})
       }
       setIsFetching(false)
+    } else {
+      setAttendance({});
     }
   }, [selectedClassId, savedAttendance])
 
@@ -105,7 +115,6 @@ export default function AttendancePage() {
         return
     }
     
-    // Ensure all students have a status
     if (classStudents.some(s => !attendance[s.id])) {
         toast({ title: "Error", description: "Please mark attendance for all students.", variant: "destructive" })
         return
@@ -243,11 +252,11 @@ export default function AttendancePage() {
                 </div>
               </>
             ) : (
-              <p className="text-center text-muted-foreground py-8">No students found in this class.</p>
+              <p className="text-center text-muted-foreground py-8">No students found in this class or this is not a class assigned to you.</p>
             )
           )}
         </CardContent>
-        {selectedClassId && (
+        {selectedClassId && classStudents.length > 0 && (
            <CardFooter className="border-t px-6 py-4">
               <Button onClick={handleSaveAttendance} disabled={isLoading}>
                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

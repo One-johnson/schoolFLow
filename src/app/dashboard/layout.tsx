@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { ReactNode } from "react";
@@ -11,7 +12,7 @@ import { Loader2 } from "lucide-react";
 import { ThemeProvider } from "@/components/theme-provider";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, role } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -38,7 +39,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     >
       <SidebarProvider>
         <Sidebar>
-          <DashboardSidebar />
+          <DashboardSidebar role={role} />
         </Sidebar>
         <SidebarInset>
           <DashboardHeader />
@@ -48,5 +49,3 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     </ThemeProvider>
   );
 }
-
-    
