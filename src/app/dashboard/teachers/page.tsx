@@ -102,6 +102,10 @@ type Teacher = {
   avatarUrl?: string
   contact?: string
   employmentType?: "Full Time" | "Part Time" | "Contract"
+  gender?: "Male" | "Female" | "Other"
+  nationality?: string
+  address?: string
+  religion?: string
 }
 
 // Function to generate a teacher ID
@@ -493,6 +497,31 @@ export default function TeachersPage() {
                     <Label htmlFor="avatarUrl" className="text-right">Avatar URL</Label>
                     <Input id="avatarUrl" placeholder="https://example.com/avatar.png" className="col-span-3" value={newTeacher.avatarUrl || ""} onChange={(e) => handleInputChange(e, 'new')} />
                   </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="gender" className="text-right">Gender</Label>
+                    <Select onValueChange={(value) => setNewTeacher(prev => ({ ...prev, gender: value as any}))} value={newTeacher.gender}>
+                        <SelectTrigger className="col-span-3">
+                            <SelectValue placeholder="Select gender" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Male">Male</SelectItem>
+                            <SelectItem value="Female">Female</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="nationality" className="text-right">Nationality</Label>
+                    <Input id="nationality" placeholder="e.g., Nigerian" className="col-span-3" value={newTeacher.nationality || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="address" className="text-right">Address</Label>
+                    <Input id="address" placeholder="123 Main St, Anytown" className="col-span-3" value={newTeacher.address || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="religion" className="text-right">Religion</Label>
+                    <Input id="religion" placeholder="e.g., Christianity" className="col-span-3" value={newTeacher.religion || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                  </div>
                 </div>
             </ScrollArea>
             <DialogFooter>
@@ -703,6 +732,31 @@ export default function TeachersPage() {
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="avatarUrl" className="text-right">Avatar URL</Label>
                         <Input id="avatarUrl" placeholder="https://example.com/avatar.png" className="col-span-3" value={editTeacher.avatarUrl || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                    </div>
+                     <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="gender" className="text-right">Gender</Label>
+                        <Select onValueChange={(value) => setEditTeacher(prev => ({...prev, gender: value as any}))} value={editTeacher.gender}>
+                            <SelectTrigger className="col-span-3">
+                                <SelectValue placeholder="Select gender" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Male">Male</SelectItem>
+                                <SelectItem value="Female">Female</SelectItem>
+                                <SelectItem value="Other">Other</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="nationality" className="text-right">Nationality</Label>
+                        <Input id="nationality" placeholder="e.g., Nigerian" className="col-span-3" value={editTeacher.nationality || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="address" className="text-right">Address</Label>
+                        <Input id="address" placeholder="123 Main St, Anytown" className="col-span-3" value={editTeacher.address || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="religion" className="text-right">Religion</Label>
+                        <Input id="religion" placeholder="e.g., Christianity" className="col-span-3" value={editTeacher.religion || ""} onChange={(e) => handleInputChange(e, 'edit')} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="status" className="text-right">Status</Label>
