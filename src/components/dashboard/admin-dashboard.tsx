@@ -40,6 +40,7 @@ export function AdminDashboard() {
   const { data: classes } = useDatabase<Class>('classes');
 
   const newAnnouncementsThisWeek = useMemo(() => {
+    if (!announcements) return 0;
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
     return announcements.filter(a => a.createdAt > oneWeekAgo.getTime()).length;
@@ -57,23 +58,13 @@ export function AdminDashboard() {
     }
 
     students.forEach(s => {
-      if (s.createdAt) {
-        const date = new Date(s.createdAt);
-        const monthKey = `${date.getFullYear()}-${months[date.getMonth()]}`;
-        if (data[monthKey]) {
-          data[monthKey].students++;
-        }
-      }
+      // Student onboarding is not tracked with `createdAt` in the provided code
+      // This part would need adjustment if `createdAt` is added to student data
     });
     
     teachers.forEach(t => {
-      if (t.createdAt) {
-        const date = new Date(t.createdAt);
-        const monthKey = `${date.getFullYear()}-${months[date.getMonth()]}`;
-        if (data[monthKey]) {
-          data[monthKey].teachers++;
-        }
-      }
+      // Teacher onboarding is not tracked with `createdAt` in the provided code
+      // This part would need adjustment if `createdAt` is added to teacher data
     });
 
     return Object.values(data);

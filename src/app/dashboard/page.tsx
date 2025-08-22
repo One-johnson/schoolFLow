@@ -26,6 +26,10 @@ export default function DashboardPage() {
         case 'student':
             return <StudentDashboard />;
         default:
-            return <p>Unknown role. Please contact support.</p>;
+             return (
+                <div className="flex h-[calc(100vh-100px)] items-center justify-center">
+                   <p>No role assigned or still loading. Please contact support if this persists.</p>
+                </div>
+            );
     }
 }
