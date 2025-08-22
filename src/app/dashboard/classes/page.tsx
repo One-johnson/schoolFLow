@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
@@ -42,7 +51,7 @@ import {
 } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge";
-import { PlusCircle, Trash2, UserPlus, BookOpen, ChevronsUpDown, Check } from "lucide-react";
+import { PlusCircle, Trash2, UserPlus, BookOpen, ChevronsUpDown, Check, MoreHorizontal, Pencil } from "lucide-react";
 import { useDatabase } from "@/hooks/use-database";
 import { useState, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -69,6 +78,7 @@ type Class = {
   name: string;
   teacherId?: string;
   studentIds?: Record<string, boolean>;
+  status: "Active" | "Inactive";
 };
 
 // Function to generate a class ID
@@ -88,7 +98,10 @@ export default function ClassesPage() {
   
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
+  const [editClassState, setEditClassState] = useState<Partial<Class>>({});
 
   const [newClassName, setNewClassName] = useState("");
   const [selectedTeacherId, setSelectedTeacherId] = useState<string | undefined>(undefined);
@@ -106,7 +119,7 @@ export default function ClassesPage() {
     }
     try {
       const classId = generateClassId(newClassName);
-      await addClass(classId, { name: newClassName });
+      await addClass(classId, { name: newClassName, status: "Active" });
       await addNotification({
           type: 'class_created',
           message: `New class "${newClassName}" was created.`,
@@ -134,6 +147,27 @@ export default function ClassesPage() {
     setSelectedTeacherId(cls.teacherId);
     setSelectedStudentIds(cls.studentIds ? Object.keys(cls.studentIds) : []);
     setIsAssignDialogOpen(true);
+  };
+  
+  const openEditDialog = (cls: Class) => {
+    setSelectedClass(cls);
+    setEditClassState(cls);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateClass = async () => {
+    if (!selectedClass || !editClassState) return;
+    try {
+        await updateClass(selectedClass.id, {
+            name: editClassState.name,
+            status: editClassState.status
+        });
+        toast({ title: "Success", description: "Class updated." });
+        setIsEditDialogOpen(false);
+        setSelectedClass(null);
+    } catch (error) {
+        toast({ title: "Error", description: "Failed to update class.", variant: "destructive" });
+    }
   };
 
   const handleAssign = async () => {
@@ -202,15 +236,39 @@ export default function ClassesPage() {
                    </div>
                   <div>
                     <CardTitle>{cls.name}</CardTitle>
-                    <CardDescription>
-                      ID: {cls.id}
-                    </CardDescription>
-                     <CardDescription className="pt-1">
-                      Teacher: {cls.teacherId ? teachersMap.get(cls.teacherId)?.name : 'Unassigned'}
-                    </CardDescription>
+                    <CardDescription>ID: {cls.id}</CardDescription>
                   </div>
                 </div>
+                 <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button aria-haspopup="true" size="icon" variant="ghost">
+                        <MoreHorizontal className="h-4 w-4" />
+                        <span className="sr-only">Toggle menu</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                      <DropdownMenuItem onClick={() => openEditDialog(cls)}>
+                        <Pencil className="mr-2 h-4 w-4" /> Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => openAssignDialog(cls)}>
+                        <UserPlus className="mr-2 h-4 w-4" /> Assign
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => handleDeleteClass(cls.id)}>
+                         <Trash2 className="mr-2 h-4 w-4" /> Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
               </div>
+               <div className="flex justify-between items-center pt-4">
+                  <span className="text-sm text-muted-foreground">
+                    Teacher: {cls.teacherId ? teachersMap.get(cls.teacherId)?.name : 'Unassigned'}
+                  </span>
+                  <Badge variant={cls.status === "Active" ? "default" : "secondary"} className={cls.status === "Active" ? "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300" : "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300"}>
+                    {cls.status}
+                  </Badge>
+                </div>
             </CardHeader>
             <CardContent className="flex-grow">
               <p className="text-sm font-medium mb-2">Students ({cls.studentIds ? Object.keys(cls.studentIds).length : 0})</p>
@@ -218,21 +276,51 @@ export default function ClassesPage() {
                 {cls.studentIds && Object.keys(cls.studentIds).map(id => (
                   <Badge key={id} variant="secondary">{studentsMap.get(id)?.name}</Badge>
                 ))}
+                {(!cls.studentIds || Object.keys(cls.studentIds).length === 0) && (
+                  <p className="text-xs text-muted-foreground">No students assigned.</p>
+                )}
               </div>
             </CardContent>
-            <CardFooter className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => openAssignDialog(cls)}>
-                <UserPlus className="mr-2 h-4 w-4" />
-                Assign
-              </Button>
-              <Button variant="destructive" size="icon" onClick={() => handleDeleteClass(cls.id)}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
+             <CardFooter className="flex justify-end gap-2">
+                {/* Footer can be used for other actions in future */}
             </CardFooter>
           </Card>
         ))}
       </div>
+      
+      {/* Edit Class Dialog */}
+       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Class</DialogTitle>
+              <DialogDescription>Update the class details.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="name" className="text-right">Class Name</Label>
+                <Input id="name" className="col-span-3" value={editClassState?.name || ''} onChange={(e) => setEditClassState({...editClassState, name: e.target.value})} />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="status" className="text-right">Status</Label>
+                 <Select value={editClassState?.status} onValueChange={(value: "Active" | "Inactive") => setEditClassState(prev => ({...prev, status: value}))}>
+                    <SelectTrigger className="col-span-3">
+                        <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="Active">Active</SelectItem>
+                        <SelectItem value="Inactive">Inactive</SelectItem>
+                    </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit" onClick={handleUpdateClass}>Save Changes</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
+
+      {/* Assign Dialog */}
       <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -342,3 +430,5 @@ function MultiSelectPopover({ options, selected, onChange }: {
     </Popover>
   )
 }
+
+    
