@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Sidebar,
@@ -20,12 +20,19 @@ import {
   School,
   LogOut,
 } from "lucide-react";
+import { auth } from "@/lib/firebase";
 
 export function DashboardSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
 
   const isActive = (path: string) => {
     return pathname === path;
+  };
+
+  const handleLogout = async () => {
+    await auth.signOut();
+    router.push("/");
   };
 
   const menuItems = [
@@ -86,12 +93,10 @@ export function DashboardSidebar() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-             <Link href="/">
-              <SidebarMenuButton tooltip="Logout">
+             <SidebarMenuButton tooltip="Logout" onClick={handleLogout}>
                 <LogOut />
                 <span>Logout</span>
               </SidebarMenuButton>
-            </Link>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

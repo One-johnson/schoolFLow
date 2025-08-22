@@ -1,6 +1,6 @@
 'use client';
 
-import { BookOpen, School } from 'lucide-react';
+import { School } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -14,10 +14,12 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Link from 'next/link';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { useToast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
-  const [role, setRole] = useState('admin');
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
@@ -30,7 +32,7 @@ export default function LoginPage() {
             Your all-in-one school management solution.
           </p>
         </div>
-        <Tabs defaultValue="admin" className="w-full" onValueChange={setRole}>
+        <Tabs defaultValue="admin" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="admin">Admin</TabsTrigger>
             <TabsTrigger value="teacher">Teacher</TabsTrigger>
@@ -52,6 +54,26 @@ export default function LoginPage() {
 }
 
 function LoginForm({ role }: { role: string }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const router = useRouter();
+  const { toast } = useToast();
+
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      toast({ title: 'Success', description: 'Signed in successfully.' });
+      router.push('/dashboard');
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <Card>
       <CardHeader className="text-center">
@@ -61,22 +83,41 @@ function LoginForm({ role }: { role: string }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" placeholder="m@example.com" required />
+        <form onSubmit={handleSignIn}>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="m@example.com"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input id="password" type="password" required />
-          </div>
-        </div>
-        <Link href="/dashboard" passHref>
           <Button type="submit" className="mt-6 w-full">
             Sign In
           </Button>
-        </Link>
+        </form>
         <div className="mt-4 text-center text-sm">
+          Don&apos;t have an account?{' '}
+          <Link href="/register" className="underline">
+            Register
+          </Link>
+        </div>
+        <div className="mt-2 text-center text-sm">
           <a href="#" className="underline">
             Forgot your password?
           </a>
