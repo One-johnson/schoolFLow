@@ -398,8 +398,8 @@ export default function StudentsPage() {
                     <TabsTrigger value="student-details">Student Details</TabsTrigger>
                     <TabsTrigger value="parent-details">Parent Details</TabsTrigger>
                 </TabsList>
-                <ScrollArea className="h-96">
-                <TabsContent value="student-details" className="p-4">
+                <ScrollArea className="h-96 p-4">
+                <TabsContent value="student-details">
                     <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="name" className="text-right">Full Name</Label>
@@ -469,7 +469,7 @@ export default function StudentsPage() {
                         </div>
                     </div>
                 </TabsContent>
-                <TabsContent value="parent-details" className="p-4">
+                <TabsContent value="parent-details">
                    <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="parentName" className="text-right">Parent's Name</Label>
@@ -628,8 +628,8 @@ export default function StudentsPage() {
                     <TabsTrigger value="student-details">Student Details</TabsTrigger>
                     <TabsTrigger value="parent-details">Parent Details</TabsTrigger>
                 </TabsList>
-                <ScrollArea className="h-96">
-                <TabsContent value="student-details" className="p-4">
+                <ScrollArea className="h-96 p-4">
+                <TabsContent value="student-details">
                     <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="name" className="text-right">Full Name</Label>
@@ -712,7 +712,7 @@ export default function StudentsPage() {
                         </div>
                     </div>
                 </TabsContent>
-                <TabsContent value="parent-details" className="p-4">
+                <TabsContent value="parent-details">
                    <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="parentName" className="text-right">Parent's Name</Label>
@@ -738,6 +738,5 @@ export default function StudentsPage() {
     </Card>
   )
 }
-
 
     
