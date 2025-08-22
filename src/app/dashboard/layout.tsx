@@ -2,7 +2,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { SidebarProvider, Sidebar, SidebarInset } from "@/components/ui/sidebar";
@@ -30,6 +30,16 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     );
   }
 
+  // Pass role to children
+  const childrenWithProps = React.Children.map(children, child => {
+    if (React.isValidElement(child)) {
+      // @ts-ignore
+      return React.cloneElement(child, { role });
+    }
+    return child;
+  });
+
+
   return (
     <ThemeProvider
       attribute="class"
@@ -43,7 +53,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         </Sidebar>
         <SidebarInset>
           <DashboardHeader />
-          <main className="p-4 lg:p-6">{children}</main>
+          <main className="p-4 lg:p-6">{childrenWithProps}</main>
         </SidebarInset>
       </SidebarProvider>
     </ThemeProvider>

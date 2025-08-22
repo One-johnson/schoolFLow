@@ -1,19 +1,21 @@
 
 "use client";
 
-import { useAuth } from "@/hooks/use-auth";
 import { AdminDashboard } from "@/components/dashboard/admin-dashboard";
 import { TeacherDashboard } from "@/components/dashboard/teacher-dashboard";
 import { StudentDashboard } from "@/components/dashboard/student-dashboard";
 import { Loader2 } from "lucide-react";
 
-export default function DashboardPage() {
-    const { role, loading } = useAuth();
+type DashboardPageProps = {
+  role: 'admin' | 'teacher' | 'student' | null;
+}
 
-    if (loading) {
+export default function DashboardPage({ role }: DashboardPageProps) {
+    if (!role) {
         return (
             <div className="flex h-[calc(100vh-100px)] items-center justify-center">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                 <p className="ml-4">No role assigned or still loading. Please contact support if this persists.</p>
             </div>
         );
     }
@@ -28,7 +30,7 @@ export default function DashboardPage() {
         default:
              return (
                 <div className="flex h-[calc(100vh-100px)] items-center justify-center">
-                   <p>No role assigned or still loading. Please contact support if this persists.</p>
+                   <p>Invalid role. Please contact support.</p>
                 </div>
             );
     }
