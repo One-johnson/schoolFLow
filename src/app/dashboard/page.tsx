@@ -7,14 +7,29 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend
+} from 'recharts';
 import { Activity, Users, UserCheck, Megaphone, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { useDatabase } from "@/hooks/use-database";
 import { useMemo } from "react";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart"
 
-type Student = { id: string };
-type Teacher = { id: string };
+type Student = { id: string; createdAt: number };
+type Teacher = { id: string; createdAt: number };
 type Announcement = { id: string; createdAt: number };
 type Class = { id: string };
 
@@ -29,6 +44,51 @@ export default function DashboardPage() {
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
     return announcements.filter(a => a.createdAt > oneWeekAgo.getTime()).length;
   }, [announcements]);
+
+  const onboardingData = useMemo(() => {
+    const data: { [key: string]: { month: string; students: number; teachers: number } } = {};
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const today = new Date();
+
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const monthKey = `${d.getFullYear()}-${months[d.getMonth()]}`;
+      data[monthKey] = { month: months[d.getMonth()], students: 0, teachers: 0 };
+    }
+
+    students.forEach(s => {
+      if (s.createdAt) {
+        const date = new Date(s.createdAt);
+        const monthKey = `${date.getFullYear()}-${months[date.getMonth()]}`;
+        if (data[monthKey]) {
+          data[monthKey].students++;
+        }
+      }
+    });
+    
+    teachers.forEach(t => {
+      if (t.createdAt) {
+        const date = new Date(t.createdAt);
+        const monthKey = `${date.getFullYear()}-${months[date.getMonth()]}`;
+        if (data[monthKey]) {
+          data[monthKey].teachers++;
+        }
+      }
+    });
+
+    return Object.values(data);
+  }, [students, teachers]);
+
+  const chartConfig = {
+    students: {
+      label: "Students",
+      color: "hsl(var(--chart-1))",
+    },
+    teachers: {
+      label: "Teachers",
+      color: "hsl(var(--chart-2))",
+    },
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -85,17 +145,31 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="col-span-4">
           <CardHeader>
-            <CardTitle>System Status</CardTitle>
-             <CardDescription>
-              A log of recent activities across the platform.
-            </CardDescription>
+            <CardTitle>Onboarding Overview</CardTitle>
+            <CardDescription>New students and teachers from the last 6 months.</CardDescription>
           </CardHeader>
-          <CardContent className="pl-6 flex items-center gap-4">
-             <Activity className="h-5 w-5 mr-3 text-muted-foreground" />
-            <div className="text-2xl font-bold flex items-center gap-2">
-              Operational <Badge className="bg-green-500 hover:bg-green-600"> </Badge>
-            </div>
-            <p className="text-sm text-muted-foreground">All systems running smoothly</p>
+          <CardContent className="pl-2">
+            <ChartContainer config={chartConfig} className="h-[300px] w-full">
+              <ResponsiveContainer>
+                <BarChart data={onboardingData}>
+                  <CartesianGrid vertical={false} />
+                  <XAxis
+                    dataKey="month"
+                    tickLine={false}
+                    tickMargin={10}
+                    axisLine={false}
+                  />
+                  <YAxis />
+                  <Tooltip
+                    cursor={false}
+                    content={<ChartTooltipContent indicator="dot" />}
+                  />
+                  <Legend />
+                  <Bar dataKey="students" fill="var(--color-students)" radius={4} />
+                  <Bar dataKey="teachers" fill="var(--color-teachers)" radius={4} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartContainer>
           </CardContent>
         </Card>
         <Card className="col-span-4 md:col-span-3">
@@ -124,5 +198,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
