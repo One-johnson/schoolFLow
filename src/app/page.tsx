@@ -1,3 +1,4 @@
+
 'use client';
 
 import { School, Eye, EyeOff, Loader2 } from 'lucide-react';
@@ -65,7 +66,9 @@ function LoginForm({ role }: { role: string }) {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      // This is the key change: force a token refresh to get custom claims immediately.
+      await userCredential.user.getIdTokenResult(true);
       toast({ title: 'Success', description: 'Signed in successfully. Redirecting...' });
       router.push('/dashboard');
     } catch (error: any) {
