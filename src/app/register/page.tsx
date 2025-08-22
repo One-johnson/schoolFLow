@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { School } from 'lucide-react';
+import { School, Eye, EyeOff, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 
@@ -23,11 +23,24 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (password.length < 8) {
+      toast({
+        title: 'Error',
+        description: 'Password must be at least 8 characters long.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(
         auth,
@@ -55,6 +68,8 @@ export default function RegisterPage() {
         description: error.message,
         variant: 'destructive',
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -89,6 +104,7 @@ export default function RegisterPage() {
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
+                    disabled={isLoading}
                   />
                 </div>
                 <div className="space-y-2">
@@ -100,20 +116,38 @@ export default function RegisterPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    disabled={isLoading}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      disabled={isLoading}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 text-muted-foreground"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </div>
-              <Button type="submit" className="mt-6 w-full">
+              <Button type="submit" className="mt-6 w-full" disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Register
               </Button>
             </form>
