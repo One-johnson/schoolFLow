@@ -13,37 +13,29 @@ interface AuthState {
 
 export function useAuth(): AuthState {
   const [user, setUser] = useState<User | null>(null);
-  const [tokenClaims, setTokenClaims] = useState<any>(null);
-  const [_loading, _setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [role, setRole] = useState<'admin' | 'teacher' | 'student' | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      _setLoading(true);
       if (user) {
         setUser(user);
         try {
-          const idTokenResult = await user.getIdTokenResult();
-          setTokenClaims(idTokenResult.claims);
+          const idTokenResult = await user.getIdTokenResult(true); // Force refresh
+          setRole((idTokenResult.claims.role as any) || null);
         } catch (error) {
           console.error("Error getting user role:", error);
-          setTokenClaims(null);
+          setRole(null);
         }
       } else {
         setUser(null);
-        setTokenClaims(null);
+        setRole(null);
       }
-       _setLoading(false);
+      setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
-
-  const role = useMemo(() => (tokenClaims?.role as 'admin' | 'teacher' | 'student') || null, [tokenClaims]);
   
-  // The hook is loading if the initial auth state hasn't been determined,
-  // or if a user is logged in but we haven't fetched their role yet.
-  const loading = _loading || (user != null && tokenClaims === null);
-
-
   return { user, loading, role };
 }
