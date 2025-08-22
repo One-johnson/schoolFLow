@@ -19,6 +19,7 @@ import {
   Sparkles,
   School,
   LogOut,
+  Book,
 } from "lucide-react";
 import { auth } from "@/lib/firebase";
 
@@ -50,6 +51,11 @@ export function DashboardSidebar() {
       path: "/dashboard/teachers",
       icon: UserCheck,
       label: "Teachers",
+    },
+     {
+      path: "/dashboard/classes",
+      icon: Book,
+      label: "Classes",
     },
     {
       path: "/dashboard/announcements",

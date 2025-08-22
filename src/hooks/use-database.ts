@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { database } from '@/lib/firebase';
-import { ref, onValue, push, remove, set, serverTimestamp } from 'firebase/database';
+import { ref, onValue, push, remove, set, serverTimestamp, update } from 'firebase/database';
 
 export function useDatabase<T extends { id?: string }>(path: string) {
   const [data, setData] = useState<T[]>([]);
@@ -28,11 +28,16 @@ export function useDatabase<T extends { id?: string }>(path: string) {
     const newRef = push(dbRef);
     return set(newRef, { ...newData, createdAt: serverTimestamp() });
   };
+  
+  const updateData = async (id: string, updates: Partial<T>) => {
+    const dbRef = ref(database, `${path}/${id}`);
+    return update(dbRef, updates);
+  };
 
   const deleteData = async (id: string) => {
     const dbRef = ref(database, `${path}/${id}`);
     return remove(dbRef);
   };
 
-  return { data, addData, deleteData };
+  return { data, addData, updateData, deleteData };
 }
