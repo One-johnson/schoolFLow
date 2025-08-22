@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 
@@ -10,6 +10,8 @@ interface AuthState {
   loading: boolean;
   role: 'admin' | 'teacher' | 'student' | null;
 }
+
+const ADMIN_EMAIL = "admin@schoolflow.com";
 
 export function useAuth(): AuthState {
   const [user, setUser] = useState<User | null>(null);
@@ -21,8 +23,13 @@ export function useAuth(): AuthState {
       if (user) {
         setUser(user);
         try {
-          const idTokenResult = await user.getIdTokenResult(true); // Force refresh
-          setRole((idTokenResult.claims.role as any) || null);
+          // Temporary workaround for admin role
+          if (user.email === ADMIN_EMAIL) {
+              setRole('admin');
+          } else {
+            const idTokenResult = await user.getIdTokenResult(true);
+            setRole((idTokenResult.claims.role as any) || null);
+          }
         } catch (error) {
           console.error("Error getting user role:", error);
           setRole(null);

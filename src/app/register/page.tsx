@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import {
@@ -42,31 +42,19 @@ export default function RegisterPage() {
 
     setIsLoading(true);
     try {
-       // Use the API route to create user with custom claims
-      const response = await fetch('/api/create-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          password,
-          displayName: name,
-          role: 'admin'
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to create admin user.');
-      }
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
-      // After successful creation via API, sign the user in
-      await signInWithEmailAndPassword(auth, email, password);
+      if(userCredential.user){
+        await updateProfile(userCredential.user, {
+            displayName: name
+        });
+      }
 
       toast({
         title: 'Registration successful',
-        description: "You've been registered as an admin. Redirecting...",
+        description: "You've been registered. Redirecting to login...",
       });
-      router.push('/dashboard');
+      router.push('/');
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -94,7 +82,7 @@ export default function RegisterPage() {
           <CardHeader>
             <CardTitle>Create Admin Account</CardTitle>
             <CardDescription>
-              Sign up to manage your school.
+              Sign up to manage your school. Use 'admin@schoolflow.com' for admin access.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -117,7 +105,7 @@ export default function RegisterPage() {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="admin@school.com"
+                    placeholder="admin@schoolflow.com"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
