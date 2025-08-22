@@ -170,22 +170,42 @@ export default function TeachersPage() {
     setIsLoading(true);
     try {
       const teacherId = generateTeacherId(newTeacher.department)
-      await addDataWithId(teacherId, {
+      const teacherData = {
         ...newTeacher,
         status: 'Active',
         dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
         dateOfEmployment: doe ? format(doe, "yyyy-MM-dd") : undefined,
-      })
+      } as Omit<Teacher, 'id'>
+
+      await addDataWithId(teacherId, teacherData)
+
+      // Create Firebase Auth user
+      const response = await fetch('/api/create-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: newTeacher.email,
+          password: teacherId,
+          displayName: newTeacher.name,
+          role: 'teacher'
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create user account.');
+      }
+
       await addNotification({
         type: 'teacher_added',
         message: `New teacher "${newTeacher.name}" was added.`,
         read: false,
       })
-      toast({ title: "Success", description: "Teacher added." })
+      toast({ title: "Success", description: "Teacher added and account created." })
       resetFormStates();
       setIsCreateDialogOpen(false)
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to add teacher.", variant: "destructive" })
+    } catch (error: any) {
+      toast({ title: "Error", description: `Failed to add teacher: ${error.message}`, variant: "destructive" })
     } finally {
       setIsLoading(false);
     }

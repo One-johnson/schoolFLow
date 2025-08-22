@@ -170,22 +170,42 @@ export default function StudentsPage() {
     setIsLoading(true);
     try {
       const studentId = generateStudentId()
-      await addDataWithId(studentId, {
+      const studentData = {
         ...newStudent,
         status: 'Active',
         dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
-      })
+      } as Omit<Student, 'id'>;
+
+      await addDataWithId(studentId, studentData);
+
+      // Create Firebase Auth user
+      const response = await fetch('/api/create-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: newStudent.email,
+          password: studentId,
+          displayName: newStudent.name,
+          role: 'student'
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create user account.');
+      }
+      
       await addNotification({
         type: 'student_enrolled',
         message: `New student "${newStudent.name}" was enrolled.`,
         read: false,
       })
-      toast({ title: "Success", description: "Student added." })
+      toast({ title: "Success", description: "Student added and account created." })
       setNewStudent({})
       setDob(undefined)
       setIsCreateDialogOpen(false)
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to add student.", variant: "destructive" })
+    } catch (error: any) {
+      toast({ title: "Error", description: `Failed to add student: ${error.message}`, variant: "destructive" })
     } finally {
       setIsLoading(false);
     }
@@ -416,7 +436,7 @@ export default function StudentsPage() {
               <DialogTitle>Add New Student</DialogTitle>
               <DialogDescription>Fill in the details to add a new student to the system.</DialogDescription>
             </DialogHeader>
-            <ScrollArea className="h-[60vh] p-0 pr-6">
+            <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto px-2">
                 <Tabs defaultValue="student-details" className="w-full">
                     <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="student-details">Student Details</TabsTrigger>
@@ -510,7 +530,7 @@ export default function StudentsPage() {
                         </div>
                     </TabsContent>
                 </Tabs>
-            </ScrollArea>
+            </div>
             <DialogFooter>
               <Button type="submit" onClick={handleAddStudent} disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -650,7 +670,7 @@ export default function StudentsPage() {
             <DialogTitle>Edit Student</DialogTitle>
             <DialogDescription>Update the student's information below.</DialogDescription>
           </DialogHeader>
-           <ScrollArea className="h-[60vh] p-0 pr-6">
+           <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto px-2">
               <Tabs defaultValue="student-details" className="w-full">
                     <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="student-details">Student Details</TabsTrigger>
@@ -758,7 +778,7 @@ export default function StudentsPage() {
                         </div>
                     </TabsContent>
                 </Tabs>
-          </ScrollArea>
+          </div>
           <DialogFooter>
             <Button type="submit" onClick={handleUpdateStudent} disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
