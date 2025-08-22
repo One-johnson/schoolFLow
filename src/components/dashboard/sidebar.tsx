@@ -26,6 +26,8 @@ import {
   DollarSign,
   CalendarDays,
   BarChart3,
+  BookCopy,
+  CalendarClock
 } from "lucide-react";
 import { auth } from "@/lib/firebase";
 
@@ -65,6 +67,18 @@ export function DashboardSidebar() {
       path: "/dashboard/classes",
       icon: Book,
       label: "Classes",
+      disabled: false,
+    },
+    {
+      path: "/dashboard/subjects",
+      icon: BookCopy,
+      label: "Subjects",
+      disabled: false,
+    },
+    {
+      path: "/dashboard/terms",
+      icon: CalendarClock,
+      label: "Terms",
       disabled: false,
     },
     {
