@@ -20,6 +20,11 @@ import {
   School,
   LogOut,
   Book,
+  ClipboardCheck,
+  FileText,
+  DollarSign,
+  CalendarDays,
+  BarChart3,
 } from "lucide-react";
 import { auth } from "@/lib/firebase";
 
@@ -41,31 +46,67 @@ export function DashboardSidebar() {
       path: "/dashboard",
       icon: LayoutGrid,
       label: "Dashboard",
+      disabled: false,
     },
     {
       path: "/dashboard/students",
       icon: Users,
       label: "Students",
+      disabled: false,
     },
     {
       path: "/dashboard/teachers",
       icon: UserCheck,
       label: "Teachers",
+      disabled: false,
     },
      {
       path: "/dashboard/classes",
       icon: Book,
       label: "Classes",
+      disabled: false,
     },
     {
       path: "/dashboard/announcements",
       icon: Megaphone,
       label: "Announcements",
+      disabled: false,
+    },
+    {
+      path: "/dashboard/attendance",
+      icon: ClipboardCheck,
+      label: "Attendance",
+      disabled: true,
+    },
+    {
+      path: "/dashboard/exams",
+      icon: FileText,
+      label: "Exams",
+      disabled: true,
+    },
+    {
+      path: "/dashboard/fees",
+      icon: DollarSign,
+      label: "Fees",
+      disabled: true,
+    },
+    {
+      path: "/dashboard/timetable",
+      icon: CalendarDays,
+      label: "Timetable",
+      disabled: true,
+    },
+    {
+      path: "/dashboard/reports",
+      icon: BarChart3,
+      label: "Reports",
+      disabled: true,
     },
     {
       path: "/dashboard/summarize",
       icon: Sparkles,
       label: "AI Summarizer",
+      disabled: false,
     },
   ];
 
@@ -83,10 +124,13 @@ export function DashboardSidebar() {
         <SidebarMenu>
           {menuItems.map((item) => (
             <SidebarMenuItem key={item.path}>
-              <Link href={item.path}>
+              <Link href={item.disabled ? "#" : item.path} passHref legacyBehavior>
                 <SidebarMenuButton
-                  isActive={isActive(item.path)}
+                  isActive={!item.disabled && isActive(item.path)}
                   tooltip={item.label}
+                  disabled={item.disabled}
+                  aria-disabled={item.disabled}
+                  className={item.disabled ? "cursor-not-allowed opacity-50" : ""}
                 >
                   <item.icon />
                   <span>{item.label}</span>
