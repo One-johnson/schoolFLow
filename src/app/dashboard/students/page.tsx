@@ -95,7 +95,7 @@ type Student = {
   id: string
   name: string
   email: string
-  status: "Active" | "Suspended" | "Withdrawn"
+  status: "Active" | "Inactive" | "Graduated" | "Continuing"
   dateOfBirth?: string
   placeOfBirth?: string
   nationality?: string
@@ -292,14 +292,24 @@ export default function StudentsPage() {
       header: "Status",
       cell: ({ row }) => {
         const status = row.getValue("status") as Student["status"]
+        const variant = {
+          "Active": "default",
+          "Inactive": "destructive",
+          "Graduated": "secondary",
+          "Continuing": "outline",
+        }[status] as "default" | "destructive" | "secondary" | "outline" | undefined;
+
+        const className = {
+            "Active": "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300",
+            "Inactive": "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300",
+            "Graduated": "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300",
+            "Continuing": "bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300",
+        }[status];
+        
         return (
           <Badge
-            variant={
-              status === 'Active' ? 'default' : status === 'Suspended' ? 'destructive' : 'secondary'
-            }
-            className={
-              status === 'Active' ? 'bg-green-500/20 text-green-700' : ''
-            }
+            variant={variant}
+            className={cn("border-transparent", className)}
           >
             {status}
           </Badge>
@@ -705,8 +715,9 @@ export default function StudentsPage() {
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="Active">Active</SelectItem>
-                                        <SelectItem value="Suspended">Suspended</SelectItem>
-                                        <SelectItem value="Withdrawn">Withdrawn</SelectItem>
+                                        <SelectItem value="Inactive">Inactive</SelectItem>
+                                        <SelectItem value="Graduated">Graduated</SelectItem>
+                                        <SelectItem value="Continuing">Continuing</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -738,3 +749,5 @@ export default function StudentsPage() {
     </Card>
   )
 }
+
+    
