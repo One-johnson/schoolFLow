@@ -1,10 +1,10 @@
+
 'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { auth, database } from '@/lib/firebase';
-import { ref, set } from 'firebase/database';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -42,24 +42,29 @@ export default function RegisterPage() {
 
     setIsLoading(true);
     try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-      const user = userCredential.user;
-      await updateProfile(user, { displayName: name });
-      
-      // Add user to the database with 'admin' role
-      await set(ref(database, 'users/' + user.uid), {
-        name: name,
-        email: email,
-        role: 'admin',
+       // Use the API route to create user with custom claims
+      const response = await fetch('/api/create-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          password,
+          displayName: name,
+          role: 'admin'
+        }),
       });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create admin user.');
+      }
+      
+      // After successful creation via API, sign the user in
+      await signInWithEmailAndPassword(auth, email, password);
 
       toast({
         title: 'Registration successful',
-        description: "You've been registered as an admin.",
+        description: "You've been registered as an admin. Redirecting...",
       });
       router.push('/dashboard');
     } catch (error: any) {
