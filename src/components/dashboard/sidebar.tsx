@@ -1,3 +1,4 @@
+
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
@@ -124,8 +125,9 @@ export function DashboardSidebar() {
         <SidebarMenu>
           {menuItems.map((item) => (
             <SidebarMenuItem key={item.path}>
-              <Link href={item.disabled ? "#" : item.path} passHref legacyBehavior>
+              <Link href={item.disabled ? "#" : item.path} passHref>
                 <SidebarMenuButton
+                  as="a"
                   isActive={!item.disabled && isActive(item.path)}
                   tooltip={item.label}
                   disabled={item.disabled}
