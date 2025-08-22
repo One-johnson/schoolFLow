@@ -82,23 +82,35 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
+import { cn } from "@/lib/utils"
+import { format } from "date-fns"
+import { Calendar as CalendarIcon } from "lucide-react"
+
 
 type Student = {
   id: string
   name: string
-  grade: number
   email: string
   status: "Active" | "Suspended" | "Withdrawn"
+  dateOfBirth?: string
+  gender?: "Male" | "Female" | "Other"
+  address?: string
+  parentName?: string
+  parentPhone?: string
+  parentEmail?: string
 }
 
 // Function to generate a student ID
-const generateStudentId = (grade: string): string => {
+const generateStudentId = (): string => {
   const year = new Date().getFullYear().toString().slice(-2)
   const classType = 'S' // for Student
-  const gradeChar = grade.padStart(1, '0')
   const randomPart = Math.random().toString().slice(2, 8)
-  return `${year}${classType}${gradeChar}${randomPart}`
+  return `${year}${classType}${randomPart}`
 }
+
 
 export default function StudentsPage() {
   const [sorting, setSorting] = React.useState<SortingState>([])
@@ -120,37 +132,39 @@ export default function StudentsPage() {
   const { addData: addNotification } = useDatabase("notifications")
   const { toast } = useToast()
 
-  const [newStudentName, setNewStudentName] = React.useState("")
-  const [newStudentGrade, setNewStudentGrade] = React.useState("")
-  const [newStudentEmail, setNewStudentEmail] = React.useState("")
-  
-  const [editStudentName, setEditStudentName] = React.useState("")
-  const [editStudentGrade, setEditStudentGrade] = React.useState("")
-  const [editStudentEmail, setEditStudentEmail] = React.useState("")
-  const [editStudentStatus, setEditStudentStatus] = React.useState<Student["status"]>("Active")
+  const [newStudent, setNewStudent] = React.useState<Partial<Omit<Student, 'id' | 'status'>>>({});
+  const [editStudent, setEditStudent] = React.useState<Partial<Student>>({});
+  const [dob, setDob] = React.useState<Date | undefined>();
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, form: 'new' | 'edit') => {
+      const { id, value } = e.target;
+      if (form === 'new') {
+        setNewStudent(prev => ({...prev, [id]: value}));
+      } else {
+        setEditStudent(prev => ({...prev, [id]: value}));
+      }
+  }
 
   const handleAddStudent = async () => {
-    if (!newStudentName.trim() || !newStudentGrade.trim() || !newStudentEmail.trim()) {
-      toast({ title: "Error", description: "All fields are required.", variant: "destructive" })
+    if (!newStudent.name?.trim() || !newStudent.email?.trim()) {
+      toast({ title: "Error", description: "Student name and email are required.", variant: "destructive" })
       return
     }
     try {
-      const studentId = generateStudentId(newStudentGrade)
+      const studentId = generateStudentId()
       await addDataWithId(studentId, {
-        name: newStudentName,
-        grade: parseInt(newStudentGrade, 10),
-        email: newStudentEmail,
+        ...newStudent,
         status: 'Active',
+        dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
       })
       await addNotification({
         type: 'student_enrolled',
-        message: `New student "${newStudentName}" was enrolled.`,
+        message: `New student "${newStudent.name}" was enrolled.`,
         read: false,
       })
       toast({ title: "Success", description: "Student added." })
-      setNewStudentName("")
-      setNewStudentGrade("")
-      setNewStudentEmail("")
+      setNewStudent({})
+      setDob(undefined)
       setIsCreateDialogOpen(false)
     } catch (error) {
       toast({ title: "Error", description: "Failed to add student.", variant: "destructive" })
@@ -159,29 +173,31 @@ export default function StudentsPage() {
   
   const openEditDialog = (student: Student) => {
     setSelectedStudent(student)
-    setEditStudentName(student.name)
-    setEditStudentGrade(String(student.grade))
-    setEditStudentEmail(student.email)
-    setEditStudentStatus(student.status)
+    setEditStudent(student)
+    if (student.dateOfBirth) {
+        setDob(new Date(student.dateOfBirth))
+    } else {
+        setDob(undefined)
+    }
     setIsEditDialogOpen(true)
   }
 
   const handleUpdateStudent = async () => {
-    if (!selectedStudent) return
-    if (!editStudentName.trim() || !editStudentGrade.trim() || !editStudentEmail.trim()) {
-      toast({ title: "Error", description: "All fields are required.", variant: "destructive" })
+    if (!selectedStudent || !editStudent) return
+    if (!editStudent.name?.trim() || !editStudent.email?.trim()) {
+      toast({ title: "Error", description: "Student name and email are required.", variant: "destructive" })
       return
     }
     try {
       await updateData(selectedStudent.id, {
-        name: editStudentName,
-        grade: parseInt(editStudentGrade, 10),
-        email: editStudentEmail,
-        status: editStudentStatus,
+        ...editStudent,
+        dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
       })
       toast({ title: "Success", description: "Student updated." })
       setIsEditDialogOpen(false)
       setSelectedStudent(null)
+      setEditStudent({})
+      setDob(undefined)
     } catch (error) {
       toast({ title: "Error", description: "Failed to update student.", variant: "destructive" })
     }
@@ -255,11 +271,6 @@ export default function StudentsPage() {
         )
       },
       cell: ({ row }) => <div className="lowercase">{row.getValue("email")}</div>,
-    },
-    {
-      accessorKey: "grade",
-      header: "Grade",
-      cell: ({ row }) => <div>{row.getValue("grade")}</div>,
     },
     {
       accessorKey: "status",
@@ -356,29 +367,91 @@ export default function StudentsPage() {
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button onClick={() => { setNewStudent({}); setDob(undefined) }}>
               <PlusCircle className="mr-2 h-4 w-4" /> Add Student
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-xl">
             <DialogHeader>
               <DialogTitle>Add New Student</DialogTitle>
               <DialogDescription>Fill in the details to add a new student to the system.</DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name" className="text-right">Name</Label>
-                <Input id="name" placeholder="Full Name" className="col-span-3" value={newStudentName} onChange={(e) => setNewStudentName(e.target.value)} />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="grade" className="text-right">Grade</Label>
-                <Input id="grade" type="number" placeholder="10" className="col-span-3" value={newStudentGrade} onChange={(e) => setNewStudentGrade(e.target.value)} />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="email" className="text-right">Email</Label>
-                <Input id="email" type="email" placeholder="student@school.edu" className="col-span-3" value={newStudentEmail} onChange={(e) => setNewStudentEmail(e.target.value)} />
-              </div>
-            </div>
+            <Tabs defaultValue="student-details">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="student-details">Student Details</TabsTrigger>
+                    <TabsTrigger value="parent-details">Parent Details</TabsTrigger>
+                </TabsList>
+                <TabsContent value="student-details">
+                    <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="name" className="text-right">Full Name</Label>
+                            <Input id="name" placeholder="John Doe" className="col-span-3" value={newStudent.name || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                        </div>
+                         <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="email" className="text-right">Email</Label>
+                            <Input id="email" type="email" placeholder="student@school.edu" className="col-span-3" value={newStudent.email || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label className="text-right">Date of Birth</Label>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                    "col-span-3 justify-start text-left font-normal",
+                                    !dob && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {dob ? format(dob, "PPP") : <span>Pick a date</span>}
+                                </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                <Calendar
+                                    mode="single"
+                                    selected={dob}
+                                    onSelect={setDob}
+                                    initialFocus
+                                />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="gender" className="text-right">Gender</Label>
+                            <Select onValueChange={(value) => setNewStudent(prev => ({ ...prev, gender: value as any}))} value={newStudent.gender}>
+                                <SelectTrigger className="col-span-3">
+                                    <SelectValue placeholder="Select gender" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Male">Male</SelectItem>
+                                    <SelectItem value="Female">Female</SelectItem>
+                                    <SelectItem value="Other">Other</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="address" className="text-right">Address</Label>
+                            <Input id="address" placeholder="123 Main St, Anytown" className="col-span-3" value={newStudent.address || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                        </div>
+                    </div>
+                </TabsContent>
+                <TabsContent value="parent-details">
+                   <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="parentName" className="text-right">Parent's Name</Label>
+                            <Input id="parentName" placeholder="Jane Doe" className="col-span-3" value={newStudent.parentName || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="parentPhone" className="text-right">Parent's Phone</Label>
+                            <Input id="parentPhone" placeholder="+1 123 456 7890" className="col-span-3" value={newStudent.parentPhone || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="parentEmail" className="text-right">Parent's Email</Label>
+                            <Input id="parentEmail" type="email" placeholder="parent@example.com" className="col-span-3" value={newStudent.parentEmail || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                        </div>
+                    </div>
+                </TabsContent>
+            </Tabs>
             <DialogFooter>
               <Button type="submit" onClick={handleAddStudent}>Save Student</Button>
             </DialogFooter>
@@ -510,38 +583,100 @@ export default function StudentsPage() {
 
       {/* Edit Student Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Edit Student</DialogTitle>
             <DialogDescription>Update the student's information below.</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">Name</Label>
-              <Input id="name" placeholder="Full Name" className="col-span-3" value={editStudentName} onChange={(e) => setEditStudentName(e.target.value)} />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="grade" className="text-right">Grade</Label>
-              <Input id="grade" type="number" placeholder="10" className="col-span-3" value={editStudentGrade} onChange={(e) => setEditStudentGrade(e.target.value)} />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="email" className="text-right">Email</Label>
-              <Input id="email" type="email" placeholder="student@school.edu" className="col-span-3" value={editStudentEmail} onChange={(e) => setEditStudentEmail(e.target.value)} />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="status" className="text-right">Status</Label>
-               <Select value={editStudentStatus} onValueChange={(value: Student["status"]) => setEditStudentStatus(value)}>
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Active">Active</SelectItem>
-                    <SelectItem value="Suspended">Suspended</SelectItem>
-                    <SelectItem value="Withdrawn">Withdrawn</SelectItem>
-                  </SelectContent>
-                </Select>
-            </div>
-          </div>
+          <Tabs defaultValue="student-details">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="student-details">Student Details</TabsTrigger>
+                    <TabsTrigger value="parent-details">Parent Details</TabsTrigger>
+                </TabsList>
+                <TabsContent value="student-details">
+                    <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="name" className="text-right">Full Name</Label>
+                            <Input id="name" placeholder="John Doe" className="col-span-3" value={editStudent.name || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                        </div>
+                         <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="email" className="text-right">Email</Label>
+                            <Input id="email" type="email" placeholder="student@school.edu" className="col-span-3" value={editStudent.email || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label className="text-right">Date of Birth</Label>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                    "col-span-3 justify-start text-left font-normal",
+                                    !dob && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {dob ? format(dob, "PPP") : <span>Pick a date</span>}
+                                </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                <Calendar
+                                    mode="single"
+                                    selected={dob}
+                                    onSelect={setDob}
+                                    initialFocus
+                                />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="gender" className="text-right">Gender</Label>
+                            <Select onValueChange={(value) => setEditStudent(prev => ({ ...prev, gender: value as any}))} value={editStudent.gender}>
+                                <SelectTrigger className="col-span-3">
+                                    <SelectValue placeholder="Select gender" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Male">Male</SelectItem>
+                                    <SelectItem value="Female">Female</SelectItem>
+                                    <SelectItem value="Other">Other</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="address" className="text-right">Address</Label>
+                            <Input id="address" placeholder="123 Main St, Anytown" className="col-span-3" value={editStudent.address || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                        </div>
+                         <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="status" className="text-right">Status</Label>
+                            <Select value={editStudent.status} onValueChange={(value: Student["status"]) => setEditStudent(prev => ({...prev, status: value}))}>
+                                <SelectTrigger className="col-span-3">
+                                    <SelectValue placeholder="Select status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Active">Active</SelectItem>
+                                    <SelectItem value="Suspended">Suspended</SelectItem>
+                                    <SelectItem value="Withdrawn">Withdrawn</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                </TabsContent>
+                <TabsContent value="parent-details">
+                   <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="parentName" className="text-right">Parent's Name</Label>
+                            <Input id="parentName" placeholder="Jane Doe" className="col-span-3" value={editStudent.parentName || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="parentPhone" className="text-right">Parent's Phone</Label>
+                            <Input id="parentPhone" placeholder="+1 123 456 7890" className="col-span-3" value={editStudent.parentPhone || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="parentEmail" className="text-right">Parent's Email</Label>
+                            <Input id="parentEmail" type="email" placeholder="parent@example.com" className="col-span-3" value={editStudent.parentEmail || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                        </div>
+                    </div>
+                </TabsContent>
+            </Tabs>
           <DialogFooter>
             <Button type="submit" onClick={handleUpdateStudent}>Save Changes</Button>
           </DialogFooter>
