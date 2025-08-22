@@ -20,6 +20,17 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -51,7 +62,7 @@ import {
 } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge";
-import { PlusCircle, Trash2, UserPlus, BookOpen, ChevronsUpDown, Check, MoreHorizontal, Pencil } from "lucide-react";
+import { PlusCircle, Trash2, UserPlus, BookOpen, ChevronsUpDown, Check, MoreHorizontal, Pencil, Loader2 } from "lucide-react";
 import { useDatabase } from "@/hooks/use-database";
 import { useState, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -107,6 +118,7 @@ export default function ClassesPage() {
   const [selectedTeacherId, setSelectedTeacherId] = useState<string | undefined>(undefined);
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const teachersMap = useMemo(() => new Map(teachers.map(t => [t.id, t])), [teachers]);
@@ -117,6 +129,7 @@ export default function ClassesPage() {
       toast({ title: "Error", description: "Class name is required.", variant: "destructive" });
       return;
     }
+    setIsLoading(true);
     try {
       const classId = generateClassId(newClassName);
       await addClass(classId, { name: newClassName, status: "Active" });
@@ -130,15 +143,20 @@ export default function ClassesPage() {
       setIsCreateDialogOpen(false);
     } catch (error) {
       toast({ title: "Error", description: "Failed to create class.", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleDeleteClass = async (id: string) => {
+    setIsLoading(true);
     try {
       await deleteClass(id);
       toast({ title: "Success", description: "Class deleted." });
     } catch (error) {
       toast({ title: "Error", description: "Failed to delete class.", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -157,6 +175,7 @@ export default function ClassesPage() {
 
   const handleUpdateClass = async () => {
     if (!selectedClass || !editClassState) return;
+    setIsLoading(true);
     try {
         await updateClass(selectedClass.id, {
             name: editClassState.name,
@@ -167,6 +186,8 @@ export default function ClassesPage() {
         setSelectedClass(null);
     } catch (error) {
         toast({ title: "Error", description: "Failed to update class.", variant: "destructive" });
+    } finally {
+        setIsLoading(false);
     }
   };
 
@@ -178,6 +199,7 @@ export default function ClassesPage() {
       return acc;
     }, {} as Record<string, boolean>);
 
+    setIsLoading(true);
     try {
       await updateClass(selectedClass.id, {
         teacherId: selectedTeacherId,
@@ -188,6 +210,8 @@ export default function ClassesPage() {
       setSelectedClass(null);
     } catch (error) {
       toast({ title: "Error", description: "Failed to update assignments.", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -215,11 +239,14 @@ export default function ClassesPage() {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="name" className="text-right">Class Name</Label>
-                <Input id="name" placeholder="e.g., Grade 10 Math" className="col-span-3" value={newClassName} onChange={(e) => setNewClassName(e.target.value)} />
+                <Input id="name" placeholder="e.g., Grade 10 Math" className="col-span-3" value={newClassName} onChange={(e) => setNewClassName(e.target.value)} disabled={isLoading} />
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit" onClick={handleCreateClass}>Create Class</Button>
+              <Button type="submit" onClick={handleCreateClass} disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Create Class
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -239,27 +266,45 @@ export default function ClassesPage() {
                     <CardDescription>ID: {cls.id}</CardDescription>
                   </div>
                 </div>
-                 <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button aria-haspopup="true" size="icon" variant="ghost">
-                        <MoreHorizontal className="h-4 w-4" />
-                        <span className="sr-only">Toggle menu</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem onClick={() => openEditDialog(cls)}>
-                        <Pencil className="mr-2 h-4 w-4" /> Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => openAssignDialog(cls)}>
-                        <UserPlus className="mr-2 h-4 w-4" /> Assign
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => handleDeleteClass(cls.id)}>
-                         <Trash2 className="mr-2 h-4 w-4" /> Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                 <AlertDialog>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button aria-haspopup="true" size="icon" variant="ghost">
+                          <MoreHorizontal className="h-4 w-4" />
+                          <span className="sr-only">Toggle menu</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => openEditDialog(cls)}>
+                          <Pencil className="mr-2 h-4 w-4" /> Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openAssignDialog(cls)}>
+                          <UserPlus className="mr-2 h-4 w-4" /> Assign
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <AlertDialogTrigger asChild>
+                          <DropdownMenuItem className="text-destructive focus:text-destructive">
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                          </DropdownMenuItem>
+                        </AlertDialogTrigger>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. This will permanently delete the class.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDeleteClass(cls.id)} disabled={isLoading} className="bg-destructive hover:bg-destructive/90">
+                          {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Delete"}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                 </AlertDialog>
               </div>
                <div className="flex justify-between items-center pt-4">
                   <span className="text-sm text-muted-foreground">
@@ -298,11 +343,11 @@ export default function ClassesPage() {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="name" className="text-right">Class Name</Label>
-                <Input id="name" className="col-span-3" value={editClassState?.name || ''} onChange={(e) => setEditClassState({...editClassState, name: e.target.value})} />
+                <Input id="name" className="col-span-3" value={editClassState?.name || ''} onChange={(e) => setEditClassState({...editClassState, name: e.target.value})} disabled={isLoading} />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="status" className="text-right">Status</Label>
-                 <Select value={editClassState?.status} onValueChange={(value: "Active" | "Inactive") => setEditClassState(prev => ({...prev, status: value}))}>
+                 <Select value={editClassState?.status} onValueChange={(value: "Active" | "Inactive") => setEditClassState(prev => ({...prev, status: value}))} disabled={isLoading}>
                     <SelectTrigger className="col-span-3">
                         <SelectValue placeholder="Select status" />
                     </SelectTrigger>
@@ -314,7 +359,10 @@ export default function ClassesPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit" onClick={handleUpdateClass}>Save Changes</Button>
+              <Button type="submit" onClick={handleUpdateClass} disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save Changes
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -334,7 +382,7 @@ export default function ClassesPage() {
               <Label htmlFor="teacher" className="text-right">
                 Teacher
               </Label>
-              <Select value={selectedTeacherId} onValueChange={setSelectedTeacherId}>
+              <Select value={selectedTeacherId} onValueChange={setSelectedTeacherId} disabled={isLoading}>
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Select a teacher" />
                 </SelectTrigger>
@@ -354,12 +402,16 @@ export default function ClassesPage() {
                   options={students.map(s => ({ value: s.id, label: s.name }))}
                   selected={selectedStudentIds}
                   onChange={setSelectedStudentIds}
+                  disabled={isLoading}
                 />
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button type="submit" onClick={handleAssign}>Save Assignments</Button>
+            <Button type="submit" onClick={handleAssign} disabled={isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Assignments
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -369,10 +421,11 @@ export default function ClassesPage() {
 
 
 // A helper component for multi-select with a search popover
-function MultiSelectPopover({ options, selected, onChange }: { 
+function MultiSelectPopover({ options, selected, onChange, disabled }: { 
     options: { value: string, label: string }[], 
     selected: string[], 
-    onChange: (selected: string[]) => void 
+    onChange: (selected: string[]) => void,
+    disabled?: boolean
 }) {
   const [open, setOpen] = useState(false)
 
@@ -393,6 +446,7 @@ function MultiSelectPopover({ options, selected, onChange }: {
           role="combobox"
           aria-expanded={open}
           className="w-full justify-between"
+          disabled={disabled}
         >
           <span className="truncate">
              {selectedLabels.length > 0 ? selectedLabels.join(", ") : "Select students..."}
@@ -430,5 +484,3 @@ function MultiSelectPopover({ options, selected, onChange }: {
     </Popover>
   )
 }
-
-    

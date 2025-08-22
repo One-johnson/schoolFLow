@@ -22,6 +22,7 @@ import {
   Trash2,
   Pencil,
   Calendar as CalendarIcon,
+  Loader2,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -127,10 +128,11 @@ export default function TeachersPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false)
   const [selectedTeacher, setSelectedTeacher] = React.useState<Teacher | null>(null)
+  const [isLoading, setIsLoading] = React.useState(false)
 
   const {
     data: teachers,
-    loading,
+    loading: dataLoading,
     addDataWithId,
     updateData,
     deleteData,
@@ -165,6 +167,7 @@ export default function TeachersPage() {
       toast({ title: "Error", description: "Name, email, and department are required.", variant: "destructive" })
       return
     }
+    setIsLoading(true);
     try {
       const teacherId = generateTeacherId(newTeacher.department)
       await addDataWithId(teacherId, {
@@ -183,6 +186,8 @@ export default function TeachersPage() {
       setIsCreateDialogOpen(false)
     } catch (error) {
       toast({ title: "Error", description: "Failed to add teacher.", variant: "destructive" })
+    } finally {
+      setIsLoading(false);
     }
   }
   
@@ -196,6 +201,7 @@ export default function TeachersPage() {
 
   const handleUpdateTeacher = async () => {
     if (!selectedTeacher || !editTeacher) return
+    setIsLoading(true);
     try {
       await updateData(selectedTeacher.id, {
         ...editTeacher,
@@ -208,15 +214,20 @@ export default function TeachersPage() {
       setSelectedTeacher(null)
     } catch (error) {
       toast({ title: "Error", description: "Failed to update teacher.", variant: "destructive" })
+    } finally {
+      setIsLoading(false);
     }
   }
 
   const handleDeleteTeacher = async (id: string) => {
+    setIsLoading(true);
     try {
       await deleteData(id)
       toast({ title: "Success", description: "Teacher deleted." })
     } catch (error) {
       toast({ title: "Error", description: "Failed to delete teacher.", variant: "destructive" })
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -378,7 +389,9 @@ export default function TeachersPage() {
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={() => handleDeleteTeacher(teacher.id)}>Delete</AlertDialogAction>
+                      <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={() => handleDeleteTeacher(teacher.id)} disabled={isLoading}>
+                         {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Delete"}
+                      </AlertDialogAction>
                   </AlertDialogFooter>
               </AlertDialogContent>
           </AlertDialog>
@@ -428,19 +441,19 @@ export default function TeachersPage() {
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="name" className="text-right">Name</Label>
-                    <Input id="name" placeholder="Full Name" className="col-span-3" value={newTeacher.name || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                    <Input id="name" placeholder="Full Name" className="col-span-3" value={newTeacher.name || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
                   </div>
                    <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="email" className="text-right">Email</Label>
-                    <Input id="email" type="email" placeholder="teacher@school.edu" className="col-span-3" value={newTeacher.email || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                    <Input id="email" type="email" placeholder="teacher@school.edu" className="col-span-3" value={newTeacher.email || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="department" className="text-right">Department</Label>
-                    <Input id="department" placeholder="e.g., Science" className="col-span-3" value={newTeacher.department || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                    <Input id="department" placeholder="e.g., Science" className="col-span-3" value={newTeacher.department || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="contact" className="text-right">Contact</Label>
-                    <Input id="contact" placeholder="Phone number" className="col-span-3" value={newTeacher.contact || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                    <Input id="contact" placeholder="Phone number" className="col-span-3" value={newTeacher.contact || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label className="text-right">Date of Birth</Label>
@@ -449,6 +462,7 @@ export default function TeachersPage() {
                         <Button
                             variant={"outline"}
                             className={cn("col-span-3 justify-start text-left font-normal", !dob && "text-muted-foreground")}
+                            disabled={isLoading}
                         >
                             <CalendarIcon className="mr-2 h-4 w-4" />
                             {dob ? format(dob, "PPP") : <span>Pick a date</span>}
@@ -466,6 +480,7 @@ export default function TeachersPage() {
                         <Button
                             variant={"outline"}
                             className={cn("col-span-3 justify-start text-left font-normal", !doe && "text-muted-foreground")}
+                            disabled={isLoading}
                         >
                             <CalendarIcon className="mr-2 h-4 w-4" />
                             {doe ? format(doe, "PPP") : <span>Pick a date</span>}
@@ -478,7 +493,7 @@ export default function TeachersPage() {
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="employmentType" className="text-right">Employment Type</Label>
-                    <Select onValueChange={(value) => setNewTeacher(prev => ({ ...prev, employmentType: value as any}))} value={newTeacher.employmentType}>
+                    <Select onValueChange={(value) => setNewTeacher(prev => ({ ...prev, employmentType: value as any}))} value={newTeacher.employmentType} disabled={isLoading}>
                         <SelectTrigger className="col-span-3">
                             <SelectValue placeholder="Select type" />
                         </SelectTrigger>
@@ -491,15 +506,15 @@ export default function TeachersPage() {
                   </div>
                    <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="academicQualification" className="text-right">Academic Qualification</Label>
-                    <Input id="academicQualification" placeholder="e.g., M.Sc. Physics" className="col-span-3" value={newTeacher.academicQualification || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                    <Input id="academicQualification" placeholder="e.g., M.Sc. Physics" className="col-span-3" value={newTeacher.academicQualification || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="avatarUrl" className="text-right">Avatar URL</Label>
-                    <Input id="avatarUrl" placeholder="https://example.com/avatar.png" className="col-span-3" value={newTeacher.avatarUrl || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                    <Input id="avatarUrl" placeholder="https://example.com/avatar.png" className="col-span-3" value={newTeacher.avatarUrl || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="gender" className="text-right">Gender</Label>
-                    <Select onValueChange={(value) => setNewTeacher(prev => ({ ...prev, gender: value as any}))} value={newTeacher.gender}>
+                    <Select onValueChange={(value) => setNewTeacher(prev => ({ ...prev, gender: value as any}))} value={newTeacher.gender} disabled={isLoading}>
                         <SelectTrigger className="col-span-3">
                             <SelectValue placeholder="Select gender" />
                         </SelectTrigger>
@@ -512,20 +527,23 @@ export default function TeachersPage() {
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="nationality" className="text-right">Nationality</Label>
-                    <Input id="nationality" placeholder="e.g., Nigerian" className="col-span-3" value={newTeacher.nationality || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                    <Input id="nationality" placeholder="e.g., Nigerian" className="col-span-3" value={newTeacher.nationality || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="address" className="text-right">Address</Label>
-                    <Input id="address" placeholder="123 Main St, Anytown" className="col-span-3" value={newTeacher.address || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                    <Input id="address" placeholder="123 Main St, Anytown" className="col-span-3" value={newTeacher.address || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="religion" className="text-right">Religion</Label>
-                    <Input id="religion" placeholder="e.g., Christianity" className="col-span-3" value={newTeacher.religion || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                    <Input id="religion" placeholder="e.g., Christianity" className="col-span-3" value={newTeacher.religion || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
                   </div>
                 </div>
             </ScrollArea>
             <DialogFooter>
-              <Button type="submit" onClick={handleAddTeacher}>Save Teacher</Button>
+              <Button type="submit" onClick={handleAddTeacher} disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save Teacher
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -589,7 +607,7 @@ export default function TeachersPage() {
                 ))}
               </TableHeader>
               <TableBody>
-                {loading ? (
+                {dataLoading ? (
                   [...Array(10)].map((_, i) => (
                     <TableRow key={i}>
                       <TableCell colSpan={columns.length}>
@@ -664,19 +682,19 @@ export default function TeachersPage() {
                 <div className="grid gap-4 py-4">
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="name" className="text-right">Name</Label>
-                        <Input id="name" className="col-span-3" value={editTeacher.name || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                        <Input id="name" className="col-span-3" value={editTeacher.name || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
                     </div>
                      <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="email" className="text-right">Email</Label>
-                        <Input id="email" type="email" className="col-span-3" value={editTeacher.email || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                        <Input id="email" type="email" className="col-span-3" value={editTeacher.email || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="department" className="text-right">Department</Label>
-                        <Input id="department" className="col-span-3" value={editTeacher.department || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                        <Input id="department" className="col-span-3" value={editTeacher.department || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="contact" className="text-right">Contact</Label>
-                        <Input id="contact" placeholder="Phone number" className="col-span-3" value={editTeacher.contact || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                        <Input id="contact" placeholder="Phone number" className="col-span-3" value={editTeacher.contact || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label className="text-right">Date of Birth</Label>
@@ -685,6 +703,7 @@ export default function TeachersPage() {
                             <Button
                                 variant={"outline"}
                                 className={cn("col-span-3 justify-start text-left font-normal", !dob && "text-muted-foreground")}
+                                disabled={isLoading}
                             >
                                 <CalendarIcon className="mr-2 h-4 w-4" />
                                 {dob ? format(dob, "PPP") : <span>Pick a date</span>}
@@ -702,6 +721,7 @@ export default function TeachersPage() {
                             <Button
                                 variant={"outline"}
                                 className={cn("col-span-3 justify-start text-left font-normal", !doe && "text-muted-foreground")}
+                                disabled={isLoading}
                             >
                                 <CalendarIcon className="mr-2 h-4 w-4" />
                                 {doe ? format(doe, "PPP") : <span>Pick a date</span>}
@@ -714,7 +734,7 @@ export default function TeachersPage() {
                     </div>
                      <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="employmentType" className="text-right">Employment Type</Label>
-                        <Select onValueChange={(value) => setEditTeacher(prev => ({ ...prev, employmentType: value as any}))} value={editTeacher.employmentType}>
+                        <Select onValueChange={(value) => setEditTeacher(prev => ({ ...prev, employmentType: value as any}))} value={editTeacher.employmentType} disabled={isLoading}>
                             <SelectTrigger className="col-span-3">
                                 <SelectValue placeholder="Select type" />
                             </SelectTrigger>
@@ -727,15 +747,15 @@ export default function TeachersPage() {
                      </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="academicQualification" className="text-right">Academic Qualification</Label>
-                        <Input id="academicQualification" placeholder="e.g., M.Sc. Physics" className="col-span-3" value={editTeacher.academicQualification || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                        <Input id="academicQualification" placeholder="e.g., M.Sc. Physics" className="col-span-3" value={editTeacher.academicQualification || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="avatarUrl" className="text-right">Avatar URL</Label>
-                        <Input id="avatarUrl" placeholder="https://example.com/avatar.png" className="col-span-3" value={editTeacher.avatarUrl || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                        <Input id="avatarUrl" placeholder="https://example.com/avatar.png" className="col-span-3" value={editTeacher.avatarUrl || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
                     </div>
                      <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="gender" className="text-right">Gender</Label>
-                        <Select onValueChange={(value) => setEditTeacher(prev => ({...prev, gender: value as any}))} value={editTeacher.gender}>
+                        <Select onValueChange={(value) => setEditTeacher(prev => ({ ...prev, gender: value as any}))} value={editTeacher.gender} disabled={isLoading}>
                             <SelectTrigger className="col-span-3">
                                 <SelectValue placeholder="Select gender" />
                             </SelectTrigger>
@@ -748,19 +768,19 @@ export default function TeachersPage() {
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="nationality" className="text-right">Nationality</Label>
-                        <Input id="nationality" placeholder="e.g., Nigerian" className="col-span-3" value={editTeacher.nationality || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                        <Input id="nationality" placeholder="e.g., Nigerian" className="col-span-3" value={editTeacher.nationality || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="address" className="text-right">Address</Label>
-                        <Input id="address" placeholder="123 Main St, Anytown" className="col-span-3" value={editTeacher.address || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                        <Input id="address" placeholder="123 Main St, Anytown" className="col-span-3" value={editTeacher.address || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="religion" className="text-right">Religion</Label>
-                        <Input id="religion" placeholder="e.g., Christianity" className="col-span-3" value={editTeacher.religion || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                        <Input id="religion" placeholder="e.g., Christianity" className="col-span-3" value={editTeacher.religion || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="status" className="text-right">Status</Label>
-                        <Select value={editTeacher.status} onValueChange={(value: Teacher["status"]) => setEditTeacher(prev => ({...prev, status: value}))}>
+                        <Select value={editTeacher.status} onValueChange={(value: Teacher["status"]) => setEditTeacher(prev => ({...prev, status: value}))} disabled={isLoading}>
                             <SelectTrigger className="col-span-3">
                                 <SelectValue placeholder="Select status" />
                             </SelectTrigger>
@@ -774,12 +794,13 @@ export default function TeachersPage() {
                 </div>
             </ScrollArea>
           <DialogFooter>
-            <Button type="submit" onClick={handleUpdateTeacher}>Save Changes</Button>
+            <Button type="submit" onClick={handleUpdateTeacher} disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save Changes
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </Card>
   )
 }
-
-    

@@ -22,6 +22,17 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -32,7 +43,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { PlusCircle, Megaphone, Trash2, Pencil, MoreHorizontal } from "lucide-react"
+import { PlusCircle, Megaphone, Trash2, Pencil, MoreHorizontal, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 type Announcement = {
@@ -56,6 +67,7 @@ export default function AnnouncementsPage() {
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
   
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -88,6 +100,7 @@ export default function AnnouncementsPage() {
       return;
     }
     
+    setIsLoading(true);
     const announcementsRef = ref(database, 'announcements');
     try {
       await push(announcementsRef, {
@@ -110,6 +123,8 @@ export default function AnnouncementsPage() {
         variant: "destructive",
       });
       console.error("Firebase error:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -131,6 +146,7 @@ export default function AnnouncementsPage() {
       return;
     }
 
+    setIsLoading(true);
     const announcementRef = ref(database, `announcements/${selectedAnnouncement.id}`);
     try {
       await update(announcementRef, {
@@ -149,11 +165,14 @@ export default function AnnouncementsPage() {
         description: "Failed to update announcement.",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   }
 
 
   const handleDeleteAnnouncement = async (id: string) => {
+    setIsLoading(true);
     const announcementRef = ref(database, `announcements/${id}`);
     try {
       await remove(announcementRef);
@@ -167,6 +186,8 @@ export default function AnnouncementsPage() {
         description: "Failed to delete announcement.",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -198,17 +219,20 @@ export default function AnnouncementsPage() {
                 <Label htmlFor="title" className="text-right">
                   Title
                 </Label>
-                <Input id="title" placeholder="Announcement Title" className="col-span-3" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
+                <Input id="title" placeholder="Announcement Title" className="col-span-3" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} disabled={isLoading} />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="content" className="text-right">
                   Content
                 </Label>
-                <Textarea id="content" placeholder="Type your announcement content here." className="col-span-3" value={newContent} onChange={(e) => setNewContent(e.target.value)} />
+                <Textarea id="content" placeholder="Type your announcement content here." className="col-span-3" value={newContent} onChange={(e) => setNewContent(e.target.value)} disabled={isLoading} />
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit" onClick={handleCreateAnnouncement}>Publish</Button>
+              <Button type="submit" onClick={handleCreateAnnouncement} disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Publish
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -228,25 +252,43 @@ export default function AnnouncementsPage() {
                     <CardDescription>By {announcement.author} on {announcement.date}</CardDescription>
                   </div>
                 </div>
-                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                    <DropdownMenuItem onSelect={() => openEditDialog(announcement)}>
-                      <Pencil className="mr-2 h-4 w-4" />
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={() => handleDeleteAnnouncement(announcement.id)} className="text-destructive focus:text-destructive">
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <AlertDialog>
+                   <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                      <DropdownMenuItem onSelect={() => openEditDialog(announcement)}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <AlertDialogTrigger asChild>
+                        <DropdownMenuItem className="text-destructive focus:text-destructive">
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </AlertDialogTrigger>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. This will permanently delete the announcement.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDeleteAnnouncement(announcement.id)} disabled={isLoading} className="bg-destructive hover:bg-destructive/90">
+                           {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Delete"}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
               </div>
             </CardHeader>
             <CardContent className="flex-grow">
@@ -273,17 +315,20 @@ export default function AnnouncementsPage() {
               <Label htmlFor="edit-title" className="text-right">
                 Title
               </Label>
-              <Input id="edit-title" className="col-span-3" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
+              <Input id="edit-title" className="col-span-3" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} disabled={isLoading}/>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="edit-content" className="text-right">
                 Content
               </Label>
-              <Textarea id="edit-content" className="col-span-3" value={editContent} onChange={(e) => setEditContent(e.target.value)} />
+              <Textarea id="edit-content" className="col-span-3" value={editContent} onChange={(e) => setEditContent(e.target.value)} disabled={isLoading} />
             </div>
           </div>
           <DialogFooter>
-            <Button type="submit" onClick={handleUpdateAnnouncement}>Save Changes</Button>
+            <Button type="submit" onClick={handleUpdateAnnouncement} disabled={isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Changes
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
