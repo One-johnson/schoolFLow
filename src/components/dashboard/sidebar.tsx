@@ -91,7 +91,7 @@ export function DashboardSidebar() {
       path: "/dashboard/attendance",
       icon: ClipboardCheck,
       label: "Attendance",
-      disabled: true,
+      disabled: false,
     },
     {
       path: "/dashboard/exams",
