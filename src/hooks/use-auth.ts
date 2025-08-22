@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 
@@ -13,30 +13,37 @@ interface AuthState {
 
 export function useAuth(): AuthState {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [role, setRole] = useState<'admin' | 'teacher' | 'student' | null>(null);
+  const [tokenClaims, setTokenClaims] = useState<any>(null);
+  const [_loading, _setLoading] = useState(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      _setLoading(true);
       if (user) {
         setUser(user);
         try {
           const idTokenResult = await user.getIdTokenResult();
-          const userRole = idTokenResult.claims.role as 'admin' | 'teacher' | 'student' | null;
-          setRole(userRole);
+          setTokenClaims(idTokenResult.claims);
         } catch (error) {
           console.error("Error getting user role:", error);
-          setRole(null);
+          setTokenClaims(null);
         }
       } else {
         setUser(null);
-        setRole(null);
+        setTokenClaims(null);
       }
-      setLoading(false);
+       _setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
+
+  const role = useMemo(() => (tokenClaims?.role as 'admin' | 'teacher' | 'student') || null, [tokenClaims]);
+  
+  // The hook is loading if the initial auth state hasn't been determined,
+  // or if a user is logged in but we haven't fetched their role yet.
+  const loading = _loading || (user != null && tokenClaims === null);
+
 
   return { user, loading, role };
 }

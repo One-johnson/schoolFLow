@@ -21,11 +21,12 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     }
   }, [user, loading, router]);
 
-  if (loading || !user) {
+  if (loading || !user || !role) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        { !loading && <p className="ml-4">Redirecting to login...</p> }
+        { !loading && !user && <p className="ml-4">Redirecting to login...</p> }
+        { !loading && user && !role && <p className="ml-4">Verifying role...</p> }
       </div>
     );
   }

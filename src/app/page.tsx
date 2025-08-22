@@ -65,7 +65,9 @@ function LoginForm({ role }: { role: string }) {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      // Explicitly get the token result to check claims
+      await userCredential.user.getIdTokenResult(true);
       toast({ title: 'Success', description: 'Signed in successfully.' });
       router.push('/dashboard');
     } catch (error: any) {
