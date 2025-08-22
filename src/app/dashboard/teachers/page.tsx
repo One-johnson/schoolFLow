@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -20,6 +21,7 @@ import {
   PlusCircle,
   Trash2,
   Pencil,
+  Calendar as CalendarIcon,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -82,7 +84,11 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
-
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
+import { format } from "date-fns"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 type Teacher = {
   id: string
@@ -90,6 +96,12 @@ type Teacher = {
   department: string
   email: string
   status: "Active" | "On Leave" | "Retired"
+  dateOfBirth?: string
+  academicQualification?: string
+  dateOfEmployment?: string
+  avatarUrl?: string
+  contact?: string
+  employmentType?: "Full Time" | "Part Time" | "Contract"
 }
 
 // Function to generate a teacher ID
@@ -125,6 +137,9 @@ export default function TeachersPage() {
   const [newTeacher, setNewTeacher] = React.useState<Partial<Omit<Teacher, 'id' | 'status'>>>({});
   const [editTeacher, setEditTeacher] = React.useState<Partial<Teacher>>({});
 
+  const [dob, setDob] = React.useState<Date | undefined>();
+  const [doe, setDoe] = React.useState<Date | undefined>();
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, form: 'new' | 'edit') => {
       const { id, value } = e.target;
       if (form === 'new') {
@@ -132,6 +147,13 @@ export default function TeachersPage() {
       } else {
         setEditTeacher(prev => ({...prev, [id]: value}));
       }
+  }
+  
+  const resetFormStates = () => {
+    setNewTeacher({});
+    setEditTeacher({});
+    setDob(undefined);
+    setDoe(undefined);
   }
 
   const handleAddTeacher = async () => {
@@ -142,10 +164,10 @@ export default function TeachersPage() {
     try {
       const teacherId = generateTeacherId(newTeacher.department)
       await addDataWithId(teacherId, {
-        name: newTeacher.name,
-        email: newTeacher.email,
-        department: newTeacher.department,
+        ...newTeacher,
         status: 'Active',
+        dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
+        dateOfEmployment: doe ? format(doe, "yyyy-MM-dd") : undefined,
       })
       await addNotification({
         type: 'teacher_added',
@@ -153,7 +175,7 @@ export default function TeachersPage() {
         read: false,
       })
       toast({ title: "Success", description: "Teacher added." })
-      setNewTeacher({})
+      resetFormStates();
       setIsCreateDialogOpen(false)
     } catch (error) {
       toast({ title: "Error", description: "Failed to add teacher.", variant: "destructive" })
@@ -163,17 +185,23 @@ export default function TeachersPage() {
   const openEditDialog = (teacher: Teacher) => {
     setSelectedTeacher(teacher)
     setEditTeacher(teacher)
+    setDob(teacher.dateOfBirth ? new Date(teacher.dateOfBirth) : undefined)
+    setDoe(teacher.dateOfEmployment ? new Date(teacher.dateOfEmployment) : undefined)
     setIsEditDialogOpen(true)
   }
 
   const handleUpdateTeacher = async () => {
     if (!selectedTeacher || !editTeacher) return
     try {
-      await updateData(selectedTeacher.id, editTeacher)
+      await updateData(selectedTeacher.id, {
+        ...editTeacher,
+        dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
+        dateOfEmployment: doe ? format(doe, "yyyy-MM-dd") : undefined,
+      })
       toast({ title: "Success", description: "Teacher updated." })
       setIsEditDialogOpen(false)
+      resetFormStates()
       setSelectedTeacher(null)
-      setEditTeacher({})
     } catch (error) {
       toast({ title: "Error", description: "Failed to update teacher.", variant: "destructive" })
     }
@@ -211,14 +239,7 @@ export default function TeachersPage() {
       enableSorting: false,
       enableHiding: false,
     },
-    {
-      accessorKey: "id",
-      header: "ID",
-      cell: ({ row }) => (
-        <div className="font-mono text-xs">{row.getValue("id")}</div>
-      ),
-    },
-    {
+     {
       accessorKey: "name",
       header: ({ column }) => {
         return (
@@ -231,7 +252,26 @@ export default function TeachersPage() {
           </Button>
         )
       },
-      cell: ({ row }) => <div className="capitalize">{row.getValue("name")}</div>,
+      cell: ({ row }) => {
+          const teacher = row.original;
+          const initials = teacher.name.split(' ').map(n => n[0]).join('');
+          return (
+            <div className="flex items-center gap-2">
+                <Avatar className="h-8 w-8">
+                    <AvatarImage src={teacher.avatarUrl} alt={teacher.name} />
+                    <AvatarFallback>{initials}</AvatarFallback>
+                </Avatar>
+                <span className="capitalize">{teacher.name}</span>
+            </div>
+          )
+      }
+    },
+    {
+      accessorKey: "id",
+      header: "ID",
+      cell: ({ row }) => (
+        <div className="font-mono text-xs">{row.getValue("id")}</div>
+      ),
     },
      {
       accessorKey: "department",
@@ -289,6 +329,11 @@ export default function TeachersPage() {
           </Badge>
         )
       },
+    },
+     {
+      accessorKey: "employmentType",
+      header: "Employment Type",
+      cell: ({ row }) => <div className="capitalize">{row.getValue("employmentType") || "N/A"}</div>,
     },
     {
       id: "actions",
@@ -366,29 +411,90 @@ export default function TeachersPage() {
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => setNewTeacher({})}>
+            <Button onClick={resetFormStates}>
               <PlusCircle className="mr-2 h-4 w-4" /> Add Teacher
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-2xl">
             <DialogHeader>
               <DialogTitle>Add New Teacher</DialogTitle>
               <DialogDescription>Fill in the details to add a new teacher to the system.</DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name" className="text-right">Name</Label>
-                <Input id="name" placeholder="Full Name" className="col-span-3" value={newTeacher.name || ""} onChange={(e) => handleInputChange(e, 'new')} />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="department" className="text-right">Department</Label>
-                <Input id="department" placeholder="e.g., Science" className="col-span-3" value={newTeacher.department || ""} onChange={(e) => handleInputChange(e, 'new')} />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="email" className="text-right">Email</Label>
-                <Input id="email" type="email" placeholder="teacher@school.edu" className="col-span-3" value={newTeacher.email || ""} onChange={(e) => handleInputChange(e, 'new')} />
-              </div>
-            </div>
+            <ScrollArea className="h-[60vh] pr-6">
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="name" className="text-right">Name</Label>
+                    <Input id="name" placeholder="Full Name" className="col-span-3" value={newTeacher.name || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                  </div>
+                   <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="email" className="text-right">Email</Label>
+                    <Input id="email" type="email" placeholder="teacher@school.edu" className="col-span-3" value={newTeacher.email || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="department" className="text-right">Department</Label>
+                    <Input id="department" placeholder="e.g., Science" className="col-span-3" value={newTeacher.department || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="contact" className="text-right">Contact</Label>
+                    <Input id="contact" placeholder="Phone number" className="col-span-3" value={newTeacher.contact || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label className="text-right">Date of Birth</Label>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                        <Button
+                            variant={"outline"}
+                            className={cn("col-span-3 justify-start text-left font-normal", !dob && "text-muted-foreground")}
+                        >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {dob ? format(dob, "PPP") : <span>Pick a date</span>}
+                        </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                        <Calendar mode="single" selected={dob} onSelect={setDob} initialFocus />
+                        </PopoverContent>
+                    </Popover>
+                  </div>
+                   <div className="grid grid-cols-4 items-center gap-4">
+                    <Label className="text-right">Date of Employment</Label>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                        <Button
+                            variant={"outline"}
+                            className={cn("col-span-3 justify-start text-left font-normal", !doe && "text-muted-foreground")}
+                        >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {doe ? format(doe, "PPP") : <span>Pick a date</span>}
+                        </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                        <Calendar mode="single" selected={doe} onSelect={setDoe} initialFocus />
+                        </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="employmentType" className="text-right">Employment Type</Label>
+                    <Select onValueChange={(value) => setNewTeacher(prev => ({ ...prev, employmentType: value as any}))} value={newTeacher.employmentType}>
+                        <SelectTrigger className="col-span-3">
+                            <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Full Time">Full Time</SelectItem>
+                            <SelectItem value="Part Time">Part Time</SelectItem>
+                            <SelectItem value="Contract">Contract</SelectItem>
+                        </SelectContent>
+                    </Select>
+                  </div>
+                   <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="academicQualification" className="text-right">Academic Qualification</Label>
+                    <Input id="academicQualification" placeholder="e.g., M.Sc. Physics" className="col-span-3" value={newTeacher.academicQualification || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="avatarUrl" className="text-right">Avatar URL</Label>
+                    <Input id="avatarUrl" placeholder="https://example.com/avatar.png" className="col-span-3" value={newTeacher.avatarUrl || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                  </div>
+                </div>
+            </ScrollArea>
             <DialogFooter>
               <Button type="submit" onClick={handleAddTeacher}>Save Teacher</Button>
             </DialogFooter>
@@ -520,38 +626,99 @@ export default function TeachersPage() {
 
       {/* Edit Teacher Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit Teacher</DialogTitle>
             <DialogDescription>Update the teacher's information below.</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">Name</Label>
-              <Input id="name" className="col-span-3" value={editTeacher.name || ""} onChange={(e) => handleInputChange(e, 'edit')} />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="department" className="text-right">Department</Label>
-              <Input id="department" className="col-span-3" value={editTeacher.department || ""} onChange={(e) => handleInputChange(e, 'edit')} />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="email" className="text-right">Email</Label>
-              <Input id="email" type="email" className="col-span-3" value={editTeacher.email || ""} onChange={(e) => handleInputChange(e, 'edit')} />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="status" className="text-right">Status</Label>
-                <Select value={editTeacher.status} onValueChange={(value: Teacher["status"]) => setEditTeacher(prev => ({...prev, status: value}))}>
-                    <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="Active">Active</SelectItem>
-                        <SelectItem value="On Leave">On Leave</SelectItem>
-                        <SelectItem value="Retired">Retired</SelectItem>
-                    </SelectContent>
-                </Select>
-            </div>
-          </div>
+           <ScrollArea className="h-[60vh] pr-6">
+                <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="name" className="text-right">Name</Label>
+                        <Input id="name" className="col-span-3" value={editTeacher.name || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                    </div>
+                     <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="email" className="text-right">Email</Label>
+                        <Input id="email" type="email" className="col-span-3" value={editTeacher.email || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="department" className="text-right">Department</Label>
+                        <Input id="department" className="col-span-3" value={editTeacher.department || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="contact" className="text-right">Contact</Label>
+                        <Input id="contact" placeholder="Phone number" className="col-span-3" value={editTeacher.contact || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label className="text-right">Date of Birth</Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                            <Button
+                                variant={"outline"}
+                                className={cn("col-span-3 justify-start text-left font-normal", !dob && "text-muted-foreground")}
+                            >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {dob ? format(dob, "PPP") : <span>Pick a date</span>}
+                            </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
+                            <Calendar mode="single" selected={dob} onSelect={setDob} initialFocus />
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label className="text-right">Date of Employment</Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                            <Button
+                                variant={"outline"}
+                                className={cn("col-span-3 justify-start text-left font-normal", !doe && "text-muted-foreground")}
+                            >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {doe ? format(doe, "PPP") : <span>Pick a date</span>}
+                            </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
+                            <Calendar mode="single" selected={doe} onSelect={setDoe} initialFocus />
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                     <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="employmentType" className="text-right">Employment Type</Label>
+                        <Select onValueChange={(value) => setEditTeacher(prev => ({ ...prev, employmentType: value as any}))} value={editTeacher.employmentType}>
+                            <SelectTrigger className="col-span-3">
+                                <SelectValue placeholder="Select type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Full Time">Full Time</SelectItem>
+                                <SelectItem value="Part Time">Part Time</SelectItem>
+                                <SelectItem value="Contract">Contract</SelectItem>
+                            </SelectContent>
+                        </Select>
+                     </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="academicQualification" className="text-right">Academic Qualification</Label>
+                        <Input id="academicQualification" placeholder="e.g., M.Sc. Physics" className="col-span-3" value={editTeacher.academicQualification || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="avatarUrl" className="text-right">Avatar URL</Label>
+                        <Input id="avatarUrl" placeholder="https://example.com/avatar.png" className="col-span-3" value={editTeacher.avatarUrl || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="status" className="text-right">Status</Label>
+                        <Select value={editTeacher.status} onValueChange={(value: Teacher["status"]) => setEditTeacher(prev => ({...prev, status: value}))}>
+                            <SelectTrigger className="col-span-3">
+                                <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Active">Active</SelectItem>
+                                <SelectItem value="On Leave">On Leave</SelectItem>
+                                <SelectItem value="Retired">Retired</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+            </ScrollArea>
           <DialogFooter>
             <Button type="submit" onClick={handleUpdateTeacher}>Save Changes</Button>
           </DialogFooter>
@@ -560,3 +727,5 @@ export default function TeachersPage() {
     </Card>
   )
 }
+
+    
