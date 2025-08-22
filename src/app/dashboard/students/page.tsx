@@ -393,100 +393,100 @@ export default function StudentsPage() {
               <DialogTitle>Add New Student</DialogTitle>
               <DialogDescription>Fill in the details to add a new student to the system.</DialogDescription>
             </DialogHeader>
-            <Tabs defaultValue="student-details">
-                <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="student-details">Student Details</TabsTrigger>
-                    <TabsTrigger value="parent-details">Parent Details</TabsTrigger>
-                </TabsList>
-                <ScrollArea className="h-96 p-4">
-                <TabsContent value="student-details">
-                    <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="name" className="text-right">Full Name</Label>
-                            <Input id="name" placeholder="John Doe" className="col-span-3" value={newStudent.name || ""} onChange={(e) => handleInputChange(e, 'new')} />
+            <ScrollArea className="h-[60vh] p-0 pr-6">
+                <Tabs defaultValue="student-details" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="student-details">Student Details</TabsTrigger>
+                        <TabsTrigger value="parent-details">Parent Details</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="student-details" className="mt-4">
+                        <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="name" className="text-right">Full Name</Label>
+                                <Input id="name" placeholder="John Doe" className="col-span-3" value={newStudent.name || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="email" className="text-right">Email</Label>
+                                <Input id="email" type="email" placeholder="student@school.edu" className="col-span-3" value={newStudent.email || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label className="text-right">Date of Birth</Label>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                    <Button
+                                        variant={"outline"}
+                                        className={cn(
+                                        "col-span-3 justify-start text-left font-normal",
+                                        !dob && "text-muted-foreground"
+                                        )}
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {dob ? format(dob, "PPP") : <span>Pick a date</span>}
+                                    </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0">
+                                    <Calendar
+                                        mode="single"
+                                        selected={dob}
+                                        onSelect={setDob}
+                                        initialFocus
+                                    />
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="age" className="text-right">Age</Label>
+                                <Input id="age" className="col-span-3" value={age !== undefined ? age : "Select DOB"} disabled />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="placeOfBirth" className="text-right">Place of Birth</Label>
+                                <Input id="placeOfBirth" placeholder="City, Country" className="col-span-3" value={newStudent.placeOfBirth || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="gender" className="text-right">Gender</Label>
+                                <Select onValueChange={(value) => setNewStudent(prev => ({ ...prev, gender: value as any}))} value={newStudent.gender}>
+                                    <SelectTrigger className="col-span-3">
+                                        <SelectValue placeholder="Select gender" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Male">Male</SelectItem>
+                                        <SelectItem value="Female">Female</SelectItem>
+                                        <SelectItem value="Other">Other</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="nationality" className="text-right">Nationality</Label>
+                                <Input id="nationality" placeholder="e.g., American" className="col-span-3" value={newStudent.nationality || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="hometown" className="text-right">Hometown</Label>
+                                <Input id="hometown" placeholder="City, State" className="col-span-3" value={newStudent.hometown || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="address" className="text-right">Address</Label>
+                                <Input id="address" placeholder="123 Main St, Anytown" className="col-span-3" value={newStudent.address || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                            </div>
                         </div>
-                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="email" className="text-right">Email</Label>
-                            <Input id="email" type="email" placeholder="student@school.edu" className="col-span-3" value={newStudent.email || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                    </TabsContent>
+                    <TabsContent value="parent-details" className="mt-4">
+                       <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="parentName" className="text-right">Parent's Name</Label>
+                                <Input id="parentName" placeholder="Jane Doe" className="col-span-3" value={newStudent.parentName || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="parentPhone" className="text-right">Parent's Phone</Label>
+                                <Input id="parentPhone" placeholder="+1 123 456 7890" className="col-span-3" value={newStudent.parentPhone || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="parentEmail" className="text-right">Parent's Email</Label>
+                                <Input id="parentEmail" type="email" placeholder="parent@example.com" className="col-span-3" value={newStudent.parentEmail || ""} onChange={(e) => handleInputChange(e, 'new')} />
+                            </div>
                         </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label className="text-right">Date of Birth</Label>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                <Button
-                                    variant={"outline"}
-                                    className={cn(
-                                    "col-span-3 justify-start text-left font-normal",
-                                    !dob && "text-muted-foreground"
-                                    )}
-                                >
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {dob ? format(dob, "PPP") : <span>Pick a date</span>}
-                                </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0">
-                                <Calendar
-                                    mode="single"
-                                    selected={dob}
-                                    onSelect={setDob}
-                                    initialFocus
-                                />
-                                </PopoverContent>
-                            </Popover>
-                        </div>
-                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="age" className="text-right">Age</Label>
-                            <Input id="age" className="col-span-3" value={age !== undefined ? age : "Select DOB"} disabled />
-                        </div>
-                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="placeOfBirth" className="text-right">Place of Birth</Label>
-                            <Input id="placeOfBirth" placeholder="City, Country" className="col-span-3" value={newStudent.placeOfBirth || ""} onChange={(e) => handleInputChange(e, 'new')} />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="gender" className="text-right">Gender</Label>
-                            <Select onValueChange={(value) => setNewStudent(prev => ({ ...prev, gender: value as any}))} value={newStudent.gender}>
-                                <SelectTrigger className="col-span-3">
-                                    <SelectValue placeholder="Select gender" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Male">Male</SelectItem>
-                                    <SelectItem value="Female">Female</SelectItem>
-                                    <SelectItem value="Other">Other</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="nationality" className="text-right">Nationality</Label>
-                            <Input id="nationality" placeholder="e.g., American" className="col-span-3" value={newStudent.nationality || ""} onChange={(e) => handleInputChange(e, 'new')} />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="hometown" className="text-right">Hometown</Label>
-                            <Input id="hometown" placeholder="City, State" className="col-span-3" value={newStudent.hometown || ""} onChange={(e) => handleInputChange(e, 'new')} />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="address" className="text-right">Address</Label>
-                            <Input id="address" placeholder="123 Main St, Anytown" className="col-span-3" value={newStudent.address || ""} onChange={(e) => handleInputChange(e, 'new')} />
-                        </div>
-                    </div>
-                </TabsContent>
-                <TabsContent value="parent-details">
-                   <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="parentName" className="text-right">Parent's Name</Label>
-                            <Input id="parentName" placeholder="Jane Doe" className="col-span-3" value={newStudent.parentName || ""} onChange={(e) => handleInputChange(e, 'new')} />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="parentPhone" className="text-right">Parent's Phone</Label>
-                            <Input id="parentPhone" placeholder="+1 123 456 7890" className="col-span-3" value={newStudent.parentPhone || ""} onChange={(e) => handleInputChange(e, 'new')} />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="parentEmail" className="text-right">Parent's Email</Label>
-                            <Input id="parentEmail" type="email" placeholder="parent@example.com" className="col-span-3" value={newStudent.parentEmail || ""} onChange={(e) => handleInputChange(e, 'new')} />
-                        </div>
-                    </div>
-                </TabsContent>
-                </ScrollArea>
-            </Tabs>
+                    </TabsContent>
+                </Tabs>
+            </ScrollArea>
             <DialogFooter>
               <Button type="submit" onClick={handleAddStudent}>Save Student</Button>
             </DialogFooter>
@@ -623,113 +623,113 @@ export default function StudentsPage() {
             <DialogTitle>Edit Student</DialogTitle>
             <DialogDescription>Update the student's information below.</DialogDescription>
           </DialogHeader>
-          <Tabs defaultValue="student-details">
-                <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="student-details">Student Details</TabsTrigger>
-                    <TabsTrigger value="parent-details">Parent Details</TabsTrigger>
-                </TabsList>
-                <ScrollArea className="h-96 p-4">
-                <TabsContent value="student-details">
-                    <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="name" className="text-right">Full Name</Label>
-                            <Input id="name" placeholder="John Doe" className="col-span-3" value={editStudent.name || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+           <ScrollArea className="h-[60vh] p-0 pr-6">
+              <Tabs defaultValue="student-details" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="student-details">Student Details</TabsTrigger>
+                        <TabsTrigger value="parent-details">Parent Details</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="student-details" className="mt-4">
+                        <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="name" className="text-right">Full Name</Label>
+                                <Input id="name" placeholder="John Doe" className="col-span-3" value={editStudent.name || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="email" className="text-right">Email</Label>
+                                <Input id="email" type="email" placeholder="student@school.edu" className="col-span-3" value={editStudent.email || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label className="text-right">Date of Birth</Label>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                    <Button
+                                        variant={"outline"}
+                                        className={cn(
+                                        "col-span-3 justify-start text-left font-normal",
+                                        !dob && "text-muted-foreground"
+                                        )}
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {dob ? format(dob, "PPP") : <span>Pick a date</span>}
+                                    </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0">
+                                    <Calendar
+                                        mode="single"
+                                        selected={dob}
+                                        onSelect={setDob}
+                                        initialFocus
+                                    />
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="age" className="text-right">Age</Label>
+                                <Input id="age" className="col-span-3" value={age !== undefined ? age : "Select DOB"} disabled />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="placeOfBirth" className="text-right">Place of Birth</Label>
+                                <Input id="placeOfBirth" placeholder="City, Country" className="col-span-3" value={editStudent.placeOfBirth || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="gender" className="text-right">Gender</Label>
+                                <Select onValueChange={(value) => setEditStudent(prev => ({ ...prev, gender: value as any}))} value={editStudent.gender}>
+                                    <SelectTrigger className="col-span-3">
+                                        <SelectValue placeholder="Select gender" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Male">Male</SelectItem>
+                                        <SelectItem value="Female">Female</SelectItem>
+                                        <SelectItem value="Other">Other</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="nationality" className="text-right">Nationality</Label>
+                                <Input id="nationality" placeholder="e.g., American" className="col-span-3" value={editStudent.nationality || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="hometown" className="text-right">Hometown</Label>
+                                <Input id="hometown" placeholder="City, State" className="col-span-3" value={editStudent.hometown || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="address" className="text-right">Address</Label>
+                                <Input id="address" placeholder="123 Main St, Anytown" className="col-span-3" value={editStudent.address || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="status" className="text-right">Status</Label>
+                                <Select value={editStudent.status} onValueChange={(value: Student["status"]) => setEditStudent(prev => ({...prev, status: value}))}>
+                                    <SelectTrigger className="col-span-3">
+                                        <SelectValue placeholder="Select status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Active">Active</SelectItem>
+                                        <SelectItem value="Suspended">Suspended</SelectItem>
+                                        <SelectItem value="Withdrawn">Withdrawn</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
-                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="email" className="text-right">Email</Label>
-                            <Input id="email" type="email" placeholder="student@school.edu" className="col-span-3" value={editStudent.email || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                    </TabsContent>
+                    <TabsContent value="parent-details" className="mt-4">
+                       <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="parentName" className="text-right">Parent's Name</Label>
+                                <Input id="parentName" placeholder="Jane Doe" className="col-span-3" value={editStudent.parentName || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="parentPhone" className="text-right">Parent's Phone</Label>
+                                <Input id="parentPhone" placeholder="+1 123 456 7890" className="col-span-3" value={editStudent.parentPhone || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="parentEmail" className="text-right">Parent's Email</Label>
+                                <Input id="parentEmail" type="email" placeholder="parent@example.com" className="col-span-3" value={editStudent.parentEmail || ""} onChange={(e) => handleInputChange(e, 'edit')} />
+                            </div>
                         </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label className="text-right">Date of Birth</Label>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                <Button
-                                    variant={"outline"}
-                                    className={cn(
-                                    "col-span-3 justify-start text-left font-normal",
-                                    !dob && "text-muted-foreground"
-                                    )}
-                                >
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {dob ? format(dob, "PPP") : <span>Pick a date</span>}
-                                </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0">
-                                <Calendar
-                                    mode="single"
-                                    selected={dob}
-                                    onSelect={setDob}
-                                    initialFocus
-                                />
-                                </PopoverContent>
-                            </Popover>
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="age" className="text-right">Age</Label>
-                            <Input id="age" className="col-span-3" value={age !== undefined ? age : "Select DOB"} disabled />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="placeOfBirth" className="text-right">Place of Birth</Label>
-                            <Input id="placeOfBirth" placeholder="City, Country" className="col-span-3" value={editStudent.placeOfBirth || ""} onChange={(e) => handleInputChange(e, 'edit')} />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="gender" className="text-right">Gender</Label>
-                            <Select onValueChange={(value) => setEditStudent(prev => ({ ...prev, gender: value as any}))} value={editStudent.gender}>
-                                <SelectTrigger className="col-span-3">
-                                    <SelectValue placeholder="Select gender" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Male">Male</SelectItem>
-                                    <SelectItem value="Female">Female</SelectItem>
-                                    <SelectItem value="Other">Other</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="nationality" className="text-right">Nationality</Label>
-                            <Input id="nationality" placeholder="e.g., American" className="col-span-3" value={editStudent.nationality || ""} onChange={(e) => handleInputChange(e, 'edit')} />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="hometown" className="text-right">Hometown</Label>
-                            <Input id="hometown" placeholder="City, State" className="col-span-3" value={editStudent.hometown || ""} onChange={(e) => handleInputChange(e, 'edit')} />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="address" className="text-right">Address</Label>
-                            <Input id="address" placeholder="123 Main St, Anytown" className="col-span-3" value={editStudent.address || ""} onChange={(e) => handleInputChange(e, 'edit')} />
-                        </div>
-                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="status" className="text-right">Status</Label>
-                            <Select value={editStudent.status} onValueChange={(value: Student["status"]) => setEditStudent(prev => ({...prev, status: value}))}>
-                                <SelectTrigger className="col-span-3">
-                                    <SelectValue placeholder="Select status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Active">Active</SelectItem>
-                                    <SelectItem value="Suspended">Suspended</SelectItem>
-                                    <SelectItem value="Withdrawn">Withdrawn</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                </TabsContent>
-                <TabsContent value="parent-details">
-                   <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="parentName" className="text-right">Parent's Name</Label>
-                            <Input id="parentName" placeholder="Jane Doe" className="col-span-3" value={editStudent.parentName || ""} onChange={(e) => handleInputChange(e, 'edit')} />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="parentPhone" className="text-right">Parent's Phone</Label>
-                            <Input id="parentPhone" placeholder="+1 123 456 7890" className="col-span-3" value={editStudent.parentPhone || ""} onChange={(e) => handleInputChange(e, 'edit')} />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="parentEmail" className="text-right">Parent's Email</Label>
-                            <Input id="parentEmail" type="email" placeholder="parent@example.com" className="col-span-3" value={editStudent.parentEmail || ""} onChange={(e) => handleInputChange(e, 'edit')} />
-                        </div>
-                    </div>
-                </TabsContent>
-                </ScrollArea>
-            </Tabs>
+                    </TabsContent>
+                </Tabs>
+          </ScrollArea>
           <DialogFooter>
             <Button type="submit" onClick={handleUpdateStudent}>Save Changes</Button>
           </DialogFooter>
@@ -738,5 +738,3 @@ export default function StudentsPage() {
     </Card>
   )
 }
-
-    
