@@ -3,29 +3,46 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import StructuresPage from "./structures/page";
 import AssignPage from "./assign/page";
 import PaymentsPage from "./payments/page";
-import { useRouter } from "next/navigation";
+import MyFeesPage from "./my-fees/page"; // Import the new page
+import { useAuth } from "@/hooks/use-auth";
 import { useEffect } from "react";
 
 export default function FeesLayout() {
   const pathname = usePathname();
   const router = useRouter();
+  const { role } = useAuth();
 
   useEffect(() => {
-    // If the base /fees page is hit, redirect to the default tab
+    // Redirect to the appropriate default tab based on role
     if (pathname === '/dashboard/fees') {
-      router.replace('/dashboard/fees/structures');
+      if (role === 'admin') {
+        router.replace('/dashboard/fees/structures');
+      } else if (role === 'student') {
+        router.replace('/dashboard/fees/my-fees');
+      }
     }
-  }, [pathname, router]);
+  }, [pathname, router, role]);
 
   const getTabValue = () => {
     if (pathname.includes('/assign')) return 'assign';
     if (pathname.includes('/payments')) return 'payments';
+    if (pathname.includes('/my-fees')) return 'my-fees';
     if (pathname.includes('/structures')) return 'structures';
-    return 'structures'; // Default tab
+    
+    // Default tab logic based on role
+    if (role === 'student') return 'my-fees';
+    return 'structures'; 
+  }
+  
+  const currentTab = getTabValue();
+
+  // Render nothing until role is determined and redirection has a chance to occur
+  if (!role || (pathname === '/dashboard/fees' && currentTab)) {
+      return null;
   }
 
   return (
@@ -33,32 +50,51 @@ export default function FeesLayout() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Fee Management</h1>
         <p className="text-muted-foreground">
-          Manage fee structures, assign fees to students, and track payments.
+          {role === 'admin' && "Manage fee structures, assign fees to students, and track payments."}
+          {role === 'student' && "View your fee statements and payment history."}
         </p>
       </div>
 
-      <Tabs value={getTabValue()} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="structures" asChild>
-            <Link href="/dashboard/fees/structures">Fee Structures</Link>
-          </TabsTrigger>
-          <TabsTrigger value="assign" asChild>
-            <Link href="/dashboard/fees/assign">Assign Fees</Link>
-          </TabsTrigger>
-          <TabsTrigger value="payments" asChild>
-            <Link href="/dashboard/fees/payments">Student Payments</Link>
-          </TabsTrigger>
+      <Tabs value={currentTab} className="w-full">
+        <TabsList className={`grid w-full ${role === 'admin' ? 'grid-cols-3' : 'grid-cols-1'}`}>
+          {role === 'admin' && (
+            <>
+              <TabsTrigger value="structures" asChild>
+                <Link href="/dashboard/fees/structures">Fee Structures</Link>
+              </TabsTrigger>
+              <TabsTrigger value="assign" asChild>
+                <Link href="/dashboard/fees/assign">Assign Fees</Link>
+              </TabsTrigger>
+              <TabsTrigger value="payments" asChild>
+                <Link href="/dashboard/fees/payments">Student Payments</Link>
+              </TabsTrigger>
+            </>
+          )}
+          {role === 'student' && (
+            <TabsTrigger value="my-fees" asChild>
+                <Link href="/dashboard/fees/my-fees">My Fees</Link>
+            </TabsTrigger>
+          )}
         </TabsList>
          <div className="mt-4">
-            <TabsContent value="structures">
-              <StructuresPage />
-            </TabsContent>
-            <TabsContent value="assign">
-              <AssignPage />
-            </TabsContent>
-            <TabsContent value="payments">
-              <PaymentsPage />
-            </TabsContent>
+            {role === 'admin' && (
+              <>
+                <TabsContent value="structures">
+                  <StructuresPage />
+                </TabsContent>
+                <TabsContent value="assign">
+                  <AssignPage />
+                </TabsContent>
+                <TabsContent value="payments">
+                  <PaymentsPage />
+                </TabsContent>
+              </>
+            )}
+            {role === 'student' && (
+               <TabsContent value="my-fees">
+                  <MyFeesPage />
+                </TabsContent>
+            )}
         </div>
       </Tabs>
     </div>

@@ -130,7 +130,7 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
         { path: '/dashboard/fees/structures', label: 'Structures', roles: ['admin'] },
         { path: '/dashboard/fees/assign', label: 'Assign Fees', roles: ['admin'] },
         { path: '/dashboard/fees/payments', label: 'Payments', roles: ['admin'] },
-        { path: '/dashboard/fees/my-fees', label: 'My Fees', roles: ['student'], disabled: true },
+        { path: '/dashboard/fees/my-fees', label: 'My Fees', roles: ['student'] },
       ]
     },
     {
@@ -221,15 +221,13 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-             <SidebarMenuButton tooltip="Logout" onClick={handleLogout}>
-                <LogOut />
-                <span>Logout</span>
-              </SidebarMenuButton>
+            <SidebarMenuButton tooltip="Logout" onClick={handleLogout}>
+              <LogOut />
+              <span>Logout</span>
+            </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
   );
 }
-
-  
