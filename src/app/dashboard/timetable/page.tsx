@@ -6,15 +6,6 @@ import { useDatabase } from "@/hooks/use-database";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -23,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PlusCircle, Loader2, FileDown, FileUp, Printer } from "lucide-react";
+import { Loader2, FileDown, FileUp, Printer, Save, XCircle, Trash2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -34,48 +25,44 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import _ from 'lodash';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 // Types
 type Class = { id: string; name: string };
-type Subject = { id: string; name: string; classId?: string };
+type Subject = { id:string; name: string; classId?: string };
 type Teacher = { id: string; name: string };
 type TimetableEntry = {
   subjectId: string;
   teacherId: string;
 };
-type DailyTimetable = { [timeSlot: string]: TimetableEntry };
+type DailyTimetable = { [timeSlot: string]: TimetableEntry | null };
 type ClassTimetable = { [day: string]: DailyTimetable };
 
 // Constants
 const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 const timeSlots = [
-  "08:00 - 09:10",
-  "09:10 - 10:20",
-  "10:20 - 10:50", // Break
-  "10:50 - 12:00",
-  "12:00 - 13:10",
-  "13:10 - 14:00", // Lunch
-  "14:00 - 15:10",
-  "15:10 - 16:20", // The user's spec ends at 3:30pm, this slot overruns. We'll follow the 6 periods structure.
+  "08:00-09:10",
+  "09:10-10:20",
+  "10:20-10:50", // Break
+  "10:50-12:00",
+  "12:00-13:10",
+  "13:10-14:00", // Lunch
+  "14:00-15:10",
+  "15:10-16:20", 
 ];
-
-const badgeColors = [
-    "bg-blue-100 text-blue-800",
-    "bg-purple-100 text-purple-800",
-    "bg-pink-100 text-pink-800",
-    "bg-teal-100 text-teal-800",
-    "bg-indigo-100 text-indigo-800",
-    "bg-rose-100 text-rose-800",
-];
-
-const getBadgeColor = (text: string) => {
-    let hash = 0;
-    for (let i = 0; i < text.length; i++) {
-        hash = text.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const index = Math.abs(hash % badgeColors.length);
-    return badgeColors[index];
-};
+const BREAK_TIME = "10:20-10:50";
+const LUNCH_TIME = "13:10-14:00";
 
 
 export default function TimetablePage() {
@@ -85,74 +72,113 @@ export default function TimetablePage() {
   const { data: classes, loading: classesLoading } = useDatabase<Class>("classes");
   const { data: subjects, loading: subjectsLoading } = useDatabase<Subject>("subjects");
   const { data: teachers, loading: teachersLoading } = useDatabase<Teacher>("teachers");
-  const { data: timetables, updateData, loading: timetablesLoading } = useDatabase<ClassTimetable>("timetables");
+  const { data: timetables, updateData, loading: timetablesLoading, deleteData } = useDatabase<ClassTimetable>("timetables");
 
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
-  
   const [selectedClassId, setSelectedClassId] = React.useState<string | undefined>();
-  const [selectedDay, setSelectedDay] = React.useState<string | undefined>();
-  const [selectedTimeSlot, setSelectedTimeSlot] = React.useState<string | undefined>();
-  const [selectedSubjectId, setSelectedSubjectId] = React.useState<string | undefined>();
-  const [selectedTeacherId, setSelectedTeacherId] = React.useState<string | undefined>();
+  const [editableTimetable, setEditableTimetable] = React.useState<ClassTimetable>({});
   
   const loading = classesLoading || subjectsLoading || teachersLoading || timetablesLoading;
 
   const subjectsMap = React.useMemo(() => new Map(subjects.map(s => [s.id, s.name])), [subjects]);
   const teachersMap = React.useMemo(() => new Map(teachers.map(t => [t.id, t.name])), [teachers]);
   
-  const timetableForClass = React.useMemo(() => {
-    if (!selectedClassId) return null;
-    return timetables.find(t => t.id === selectedClassId) || { id: selectedClassId };
+  const originalTimetableForClass = React.useMemo(() => {
+    if (!selectedClassId) return {};
+    const tt = timetables.find(t => t.id === selectedClassId) || {};
+    // Remove id property before storing as timetable
+    const { id, ...rest } = tt;
+    return rest as ClassTimetable;
   }, [timetables, selectedClassId]);
 
-  const handleSaveEntry = async () => {
-    if (!selectedClassId || !selectedDay || !selectedTimeSlot || !selectedSubjectId || !selectedTeacherId) {
-        toast({ title: "Error", description: "All fields are required.", variant: "destructive"});
-        return;
-    }
-    setIsLoading(true);
-    const path = `${selectedClassId}/${selectedDay}/${selectedTimeSlot.replace(/ /g, '')}`;
-    const dataToSave = { subjectId: selectedSubjectId, teacherId: selectedTeacherId };
-    
-    try {
-        // useDatabase hook's updateData is for top-level keys. We need to update nested paths.
-        // Let's create a temporary direct call to firebase update. We'll refactor useDatabase later if needed.
-        const { getDatabase, ref, update } = await import("firebase/database");
-        const db = getDatabase();
-        const timetableRef = ref(db, `timetables/${path}`);
-        await update(ref(db, 'timetables'), { [path]: dataToSave });
+  // When class changes, reset editable timetable
+  React.useEffect(() => {
+    setEditableTimetable(_.cloneDeep(originalTimetableForClass));
+  }, [originalTimetableForClass, selectedClassId]);
+
+  const hasChanges = React.useMemo(() => {
+    return !_.isEqual(originalTimetableForClass, editableTimetable);
+  }, [originalTimetableForClass, editableTimetable]);
+
+  const handleTimetableChange = (day: string, time: string, type: 'subject' | 'teacher', value: string) => {
+    setEditableTimetable(prev => {
+        const newTimetable = _.cloneDeep(prev);
+        const entry = newTimetable[day]?.[time] || { subjectId: '', teacherId: '' };
+        if (type === 'subject') {
+            entry.subjectId = value;
+        } else {
+            entry.teacherId = value;
+        }
         
-        toast({ title: "Success", description: "Timetable updated." });
-        setIsCreateDialogOpen(false);
+        if (!newTimetable[day]) newTimetable[day] = {};
+        newTimetable[day][time] = (entry.subjectId || entry.teacherId) ? entry : null;
+
+        // Clean up empty day objects
+        if (_.isEmpty(newTimetable[day])) delete newTimetable[day];
+        
+        return newTimetable;
+    });
+  };
+
+  const handleClearEntry = (day: string, time: string) => {
+     setEditableTimetable(prev => {
+        const newTimetable = _.cloneDeep(prev);
+        if (newTimetable[day]?.[time]) {
+            newTimetable[day][time] = null;
+        }
+        return newTimetable;
+    });
+  }
+
+  const handleSaveChanges = async () => {
+    if (!selectedClassId) return;
+    setIsLoading(true);
+    try {
+        // clean up null entries before saving
+        const cleanedTimetable = _.cloneDeep(editableTimetable);
+        for(const day in cleanedTimetable) {
+            for(const time in cleanedTimetable[day]) {
+                if(cleanedTimetable[day][time] === null) {
+                    delete cleanedTimetable[day][time];
+                }
+            }
+            if (_.isEmpty(cleanedTimetable[day])) {
+                delete cleanedTimetable[day];
+            }
+        }
+        await updateData(selectedClassId, cleanedTimetable);
+        toast({ title: "Success", description: "Timetable saved successfully."});
     } catch(error) {
         console.error(error);
-        toast({ title: "Error", description: "Failed to save timetable entry.", variant: "destructive"});
+        toast({ title: "Error", description: "Failed to save timetable.", variant: "destructive" });
     } finally {
         setIsLoading(false);
     }
   }
 
-  const renderCellContent = (day: string, time: string) => {
-    const entry = timetableForClass?.[day]?.[time.replace(/ /g, '')] as TimetableEntry | undefined;
-
-    if (time === "10:20 - 10:50") return <div className="text-center font-bold text-green-600">Break</div>;
-    if (time === "13:10 - 14:00") return <div className="text-center font-bold text-orange-600">Lunch</div>;
-
-    if (!entry) return null;
-
-    const subjectName = subjectsMap.get(entry.subjectId);
-    const teacherName = teachersMap.get(entry.teacherId);
-    
-    if (!subjectName || !teacherName) return <div className="text-xs text-muted-foreground">Invalid Entry</div>
-
-    return (
-        <div className="flex flex-col gap-1 text-center">
-            <Badge className={cn("text-xs justify-center", getBadgeColor(subjectName))}>{subjectName}</Badge>
-            <span className="text-xs text-muted-foreground">{teacherName}</span>
-        </div>
-    )
+  const handleCancelChanges = () => {
+      setEditableTimetable(_.cloneDeep(originalTimetableForClass));
   }
+
+  const handleClearTimetable = async () => {
+      if(!selectedClassId) return;
+      setIsLoading(true);
+      try {
+        await deleteData(selectedClassId);
+        setEditableTimetable({});
+        toast({ title: "Success", description: "Timetable has been cleared."});
+      } catch(error) {
+         toast({ title: "Error", description: "Failed to clear timetable.", variant: "destructive" });
+      } finally {
+        setIsLoading(false);
+      }
+  }
+
+  const subjectsForClass = React.useMemo(() => {
+    if (!selectedClassId) return subjects;
+    return subjects.filter(s => !s.classId || s.classId === selectedClassId);
+  }, [subjects, selectedClassId]);
+
 
   return (
     <div className="flex flex-col gap-6">
@@ -163,73 +189,49 @@ export default function TimetablePage() {
             Manage and view class schedules.
           </p>
         </div>
-        {role === 'admin' && (
-             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-                <DialogTrigger asChild>
-                    <Button><PlusCircle className="mr-2 h-4 w-4" /> Create/Edit Entry</Button>
-                </DialogTrigger>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Create/Edit Timetable Entry</DialogTitle>
-                        <DialogDescription>Select a class, day, time, subject, and teacher to create or update an entry.</DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label className="text-right">Class</Label>
-                            <Select value={selectedClassId} onValueChange={setSelectedClassId} disabled={isLoading}>
-                                <SelectTrigger className="col-span-3"><SelectValue placeholder="Select a class" /></SelectTrigger>
-                                <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                            </Select>
-                        </div>
-                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label className="text-right">Day</Label>
-                            <Select value={selectedDay} onValueChange={setSelectedDay} disabled={isLoading}>
-                                <SelectTrigger className="col-span-3"><SelectValue placeholder="Select a day" /></SelectTrigger>
-                                <SelectContent>{daysOfWeek.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
-                            </Select>
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label className="text-right">Time Slot</Label>
-                             <Select value={selectedTimeSlot} onValueChange={setSelectedTimeSlot} disabled={isLoading}>
-                                <SelectTrigger className="col-span-3"><SelectValue placeholder="Select a time slot" /></SelectTrigger>
-                                <SelectContent>
-                                    {timeSlots.filter(t => !t.includes("Break") && !t.includes("Lunch")).map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label className="text-right">Subject</Label>
-                            <Select value={selectedSubjectId} onValueChange={setSelectedSubjectId} disabled={isLoading}>
-                                <SelectTrigger className="col-span-3"><SelectValue placeholder="Select a subject" /></SelectTrigger>
-                                <SelectContent>{subjects.filter(s => !selectedClassId || s.classId === selectedClassId).map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
-                            </Select>
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label className="text-right">Teacher</Label>
-                            <Select value={selectedTeacherId} onValueChange={setSelectedTeacherId} disabled={isLoading}>
-                                <SelectTrigger className="col-span-3"><SelectValue placeholder="Select a teacher" /></SelectTrigger>
-                                <SelectContent>{teachers.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button onClick={handleSaveEntry} disabled={isLoading}>
-                            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Save Entry
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+        {role === 'admin' && hasChanges && (
+            <div className="flex gap-2">
+                <Button onClick={handleSaveChanges} disabled={isLoading}>
+                   {isLoading ? <Loader2 className="mr-2 animate-spin"/> : <Save className="mr-2" />} Save Changes
+                </Button>
+                 <Button variant="outline" onClick={handleCancelChanges} disabled={isLoading}>
+                    <XCircle className="mr-2"/> Cancel
+                </Button>
+            </div>
         )}
       </div>
 
        <div className="flex flex-wrap items-center gap-4">
             <Label>Filter by Class:</Label>
-            <Select value={selectedClassId} onValueChange={setSelectedClassId}>
+            <Select value={selectedClassId} onValueChange={setSelectedClassId} disabled={hasChanges}>
                 <SelectTrigger className="w-[250px]"><SelectValue placeholder="Select a class to view" /></SelectTrigger>
                 <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
             </Select>
+            {hasChanges && <Badge variant="destructive">Unsaved changes</Badge>}
             <div className="ml-auto flex gap-2">
+                 {role === 'admin' && selectedClassId && (
+                     <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                           <Button variant="destructive" disabled={isLoading}>
+                                <Trash2 className="mr-2"/> Clear Full Timetable
+                           </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                This will permanently delete the entire timetable for {classes.find(c => c.id === selectedClassId)?.name}. This action cannot be undone.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleClearTimetable} disabled={isLoading} className="bg-destructive hover:bg-destructive/90">
+                                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Confirm Delete"}
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                 )}
                 <Button variant="outline" disabled><FileUp className="mr-2" /> Import</Button>
                 <Button variant="outline" disabled><FileDown className="mr-2" /> Export CSV</Button>
                 <Button variant="outline" disabled><Printer className="mr-2" /> Print</Button>
@@ -250,16 +252,57 @@ export default function TimetablePage() {
             {loading ? (
                 <TableRow><TableCell colSpan={6} className="h-96 text-center"><Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" /></TableCell></TableRow>
             ) : selectedClassId ? (
-                timeSlots.map((time, index) => (
-                <TableRow key={time}>
-                    <TableCell className="font-semibold text-center text-xs sticky left-0 bg-background z-10">{time}</TableCell>
-                    {daysOfWeek.map((day) => (
-                    <TableCell key={day} className="h-20 p-1 border-l text-center align-middle">
-                        {renderCellContent(day, time)}
-                    </TableCell>
-                    ))}
-                </TableRow>
-                ))
+                timeSlots.map((time) => {
+                    if (time === BREAK_TIME) return <TableRow key={time}><TableCell colSpan={6} className="text-center font-bold text-green-600 bg-green-50 dark:bg-green-900/20">Break</TableCell></TableRow>
+                    if (time === LUNCH_TIME) return <TableRow key={time}><TableCell colSpan={6} className="text-center font-bold text-orange-600 bg-orange-50 dark:bg-orange-900/20">Lunch</TableCell></TableRow>
+
+                    return (
+                        <TableRow key={time}>
+                            <TableCell className="font-semibold text-center text-xs sticky left-0 bg-background z-10">{time.replace('-', ' - ')}</TableCell>
+                            {daysOfWeek.map((day) => {
+                                const entry = editableTimetable[day]?.[time];
+                                return (
+                                    <TableCell key={day} className="h-24 p-1 border-l text-center align-middle">
+                                        {role === 'admin' ? (
+                                            <div className="flex flex-col gap-1.5">
+                                                 <Select 
+                                                    value={entry?.subjectId || ''} 
+                                                    onValueChange={(value) => handleTimetableChange(day, time, 'subject', value)}
+                                                 >
+                                                    <SelectTrigger className="text-xs h-8"><SelectValue placeholder="Subject" /></SelectTrigger>
+                                                    <SelectContent>
+                                                        {subjectsForClass.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                                                    </SelectContent>
+                                                </Select>
+                                                <Select 
+                                                    value={entry?.teacherId || ''} 
+                                                    onValueChange={(value) => handleTimetableChange(day, time, 'teacher', value)}
+                                                >
+                                                    <SelectTrigger className="text-xs h-8"><SelectValue placeholder="Teacher" /></SelectTrigger>
+                                                    <SelectContent>
+                                                        {teachers.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                                                    </SelectContent>
+                                                </Select>
+                                                {entry && (
+                                                    <Button variant="ghost" size="icon" className="h-6 w-6 self-center" onClick={() => handleClearEntry(day, time)}>
+                                                        <Trash2 className="h-3 w-3 text-destructive"/>
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            entry ? (
+                                                <div className="flex flex-col gap-1 text-center">
+                                                    <Badge className="text-xs justify-center">{subjectsMap.get(entry.subjectId)}</Badge>
+                                                    <span className="text-xs text-muted-foreground">{teachersMap.get(entry.teacherId)}</span>
+                                                </div>
+                                            ) : null
+                                        )}
+                                    </TableCell>
+                                )
+                             })}
+                        </TableRow>
+                    )
+                })
             ) : (
                  <TableRow><TableCell colSpan={6} className="h-96 text-center text-muted-foreground">Please select a class to view the timetable.</TableCell></TableRow>
             )}
@@ -269,3 +312,5 @@ export default function TimetablePage() {
     </div>
   );
 }
+
+    
