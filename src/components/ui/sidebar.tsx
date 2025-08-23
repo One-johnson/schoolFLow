@@ -537,14 +537,16 @@ const sidebarMenuButtonVariants = cva(
   }
 )
 
-type SidebarMenuButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+type SidebarMenuButtonProps = (React.ButtonHTMLAttributes<HTMLButtonElement> | React.AnchorHTMLAttributes<HTMLAnchorElement>) & {
     asChild?: boolean
     isActive?: boolean
     tooltip?: string | React.ComponentProps<typeof TooltipContent>
     isSubmenu?: boolean
 } & VariantProps<typeof sidebarMenuButtonVariants>
 
-const SidebarMenuButton = React.forwardRef<HTMLButtonElement, SidebarMenuButtonProps
+const SidebarMenuButton = React.forwardRef<
+  HTMLButtonElement | HTMLAnchorElement, 
+  SidebarMenuButtonProps
 >(
   (
     {
@@ -564,9 +566,10 @@ const SidebarMenuButton = React.forwardRef<HTMLButtonElement, SidebarMenuButtonP
     const Comp = asChild ? Slot : "button"
     
     const Trigger = isSubmenu ? Collapsible.Trigger : "div";
-
+    
     const buttonContent = (
        <Comp
+          // @ts-ignore - It's a union type
           ref={ref}
           data-sidebar="menu-button"
           data-size={size}
@@ -728,30 +731,42 @@ const SidebarMenuSubItem = React.forwardRef<
 >(({ ...props }, ref) => <li ref={ref} {...props} />)
 SidebarMenuSubItem.displayName = "SidebarMenuSubItem"
 
-const SidebarMenuSubButton = React.forwardRef<
-  HTMLAnchorElement,
-  React.ComponentProps<"a"> & {
+
+const sidebarMenuSubButtonVariants = cva(
+  "flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-sidebar-foreground outline-none ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground group-data-[collapsible=icon]:hidden",
+  {
+    variants: {
+      size: {
+        sm: "text-xs",
+        md: "text-sm",
+      },
+    },
+    defaultVariants: {
+      size: "md",
+    },
+  }
+)
+
+type SidebarMenuSubButtonProps = (React.ButtonHTMLAttributes<HTMLButtonElement> | React.AnchorHTMLAttributes<HTMLAnchorElement>) & {
     asChild?: boolean
     size?: "sm" | "md"
     isActive?: boolean
-  }
+} & VariantProps<typeof sidebarMenuSubButtonVariants>
+
+const SidebarMenuSubButton = React.forwardRef<
+  HTMLButtonElement | HTMLAnchorElement,
+  SidebarMenuSubButtonProps
 >(({ asChild = false, size = "md", isActive, className, ...props }, ref) => {
-  const Comp = asChild ? Slot : "a"
+  const Comp = asChild ? Slot : "button";
 
   return (
     <Comp
+      // @ts-ignore - It's a union type
       ref={ref}
       data-sidebar="menu-sub-button"
       data-size={size}
       data-active={isActive}
-      className={cn(
-        "flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-sidebar-foreground outline-none ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-sidebar-accent-foreground",
-        "data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground",
-        size === "sm" && "text-xs",
-        size === "md" && "text-sm",
-        "group-data-[collapsible=icon]:hidden",
-        className
-      )}
+      className={cn(sidebarMenuSubButtonVariants({ size, className }))}
       {...props}
     />
   )
@@ -784,3 +799,5 @@ export {
   SidebarTrigger,
   useSidebar,
 }
+
+  

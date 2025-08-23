@@ -149,6 +149,10 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
   ];
 
   const menuItems = allMenuItems.filter(item => {
+    // If the item has sub-items, we need to check if any of the sub-items are available for the current role.
+    if (item.subItems) {
+      return item.subItems.some(sub => sub.roles.includes(role || ''));
+    }
     return item.roles.includes(role || '');
   });
 
@@ -165,15 +169,12 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
       <SidebarContent className="p-2">
         <SidebarMenu>
           {menuItems.map((item) => {
-             const hasVisibleSubItems = item.subItems?.some(sub => sub.roles.includes(role || ''));
-             if (item.subItems && !hasVisibleSubItems) {
-                return null;
-             }
-             const visibleSubItems = item.subItems?.filter(sub => sub.roles.includes(role || ''));
+            const hasVisibleSubItems = item.subItems?.some(sub => sub.roles.includes(role || ''));
+            const visibleSubItems = item.subItems?.filter(sub => sub.roles.includes(role || ''));
 
             return (
             <SidebarMenuItem key={item.path || item.label}>
-              {!item.subItems ? (
+              {!hasVisibleSubItems ? (
                  <Link href={item.disabled ? "#" : item.path!} asChild>
                     <SidebarMenuButton
                       isActive={!item.disabled && isActive(item.path!, item.exact)}
@@ -230,3 +231,5 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
     </Sidebar>
   );
 }
+
+  
