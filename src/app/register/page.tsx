@@ -50,7 +50,7 @@ export default function RegisterPage() {
       // 2. Update the user's profile with their name
       await updateProfile(user, { displayName: name });
 
-      // 3. Set the user's role in the Realtime Database
+      // 3. Set the user's data, including the role, in the Realtime Database
       const userRef = ref(database, `users/${user.uid}`);
       await set(userRef, {
         role: 'admin',
