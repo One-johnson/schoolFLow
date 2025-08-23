@@ -126,14 +126,14 @@ export default function StudentPaymentsPage() {
   const columns: ColumnDef<EnrichedStudentFee>[] = [
     { accessorKey: "studentName", header: "Student Name" },
     { accessorKey: "feeName", header: "Fee" },
-    { accessorKey: "amountDue", header: "Amount Due", cell: ({ row }) => `$${row.original.amountDue.toLocaleString()}`},
-    { accessorKey: "amountPaid", header: "Amount Paid", cell: ({ row }) => `$${row.original.amountPaid.toLocaleString()}`},
+    { accessorKey: "amountDue", header: "Amount Due", cell: ({ row }) => `GH₵${row.original.amountDue.toLocaleString()}`},
+    { accessorKey: "amountPaid", header: "Amount Paid", cell: ({ row }) => `GH₵${row.original.amountPaid.toLocaleString()}`},
     { accessorKey: "balance", header: "Balance", cell: ({ row }) => {
         const balance = row.original.amountDue - row.original.amountPaid;
         const isHighPriority = balance > HIGH_PRIORITY_THRESHOLD;
         return (
             <div className={cn("font-semibold", isHighPriority && "text-destructive")}>
-                ${balance.toLocaleString()}
+                GH₵{balance.toLocaleString()}
                 {isHighPriority && (
                     <Badge variant="destructive" className="ml-2">High Priority</Badge>
                 )}
@@ -182,7 +182,7 @@ export default function StudentPaymentsPage() {
         <CardHeader>
           <CardTitle>Student Payments</CardTitle>
           <CardDescription>
-            View and manage student fee payment status. Balances over ${HIGH_PRIORITY_THRESHOLD} are flagged.
+            View and manage student fee payment status. Balances over GH₵{HIGH_PRIORITY_THRESHOLD} are flagged.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -253,7 +253,7 @@ export default function StudentPaymentsPage() {
             <DialogHeader>
               <DialogTitle>Record Payment for {selectedFee?.studentName}</DialogTitle>
               <DialogDescription>
-                Fee: {selectedFee?.feeName} | Balance: ${(selectedFee?.amountDue ?? 0) - (selectedFee?.amountPaid ?? 0)}
+                Fee: {selectedFee?.feeName} | Balance: GH₵{(selectedFee?.amountDue ?? 0) - (selectedFee?.amountPaid ?? 0)}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">

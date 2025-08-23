@@ -100,9 +100,9 @@ export default function MyFeesPage() {
         const tableColumn = ["Description", "Amount Due", "Amount Paid", "Balance"];
         const tableRows = [[
             fee.feeName, 
-            `$${fee.amountDue.toLocaleString()}`, 
-            `$${fee.amountPaid.toLocaleString()}`, 
-            `$${(fee.amountDue - fee.amountPaid).toLocaleString()}`
+            `GH₵${fee.amountDue.toLocaleString()}`, 
+            `GH₵${fee.amountPaid.toLocaleString()}`, 
+            `GH₵${(fee.amountDue - fee.amountPaid).toLocaleString()}`
         ]];
 
         doc.autoTable({
@@ -168,9 +168,9 @@ export default function MyFeesPage() {
                   myFees.map((fee) => (
                     <TableRow key={fee.id}>
                         <TableCell className="font-medium">{fee.feeName}</TableCell>
-                        <TableCell className="text-right">${fee.amountDue.toLocaleString()}</TableCell>
-                        <TableCell className="text-right">${fee.amountPaid.toLocaleString()}</TableCell>
-                        <TableCell className="text-right font-semibold">${(fee.amountDue - fee.amountPaid).toLocaleString()}</TableCell>
+                        <TableCell className="text-right">GH₵{fee.amountDue.toLocaleString()}</TableCell>
+                        <TableCell className="text-right">GH₵{fee.amountPaid.toLocaleString()}</TableCell>
+                        <TableCell className="text-right font-semibold">GH₵{(fee.amountDue - fee.amountPaid).toLocaleString()}</TableCell>
                         <TableCell className="text-center">
                              <Badge className={cn("border-transparent", {
                                 "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300": fee.status === 'Paid',

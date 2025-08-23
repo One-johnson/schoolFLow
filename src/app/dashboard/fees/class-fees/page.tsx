@@ -58,7 +58,7 @@ const generateInvoice = (fee: EnrichedFeeRecord, student: Student, toast: (optio
         (doc as any).autoTable({
             startY: 80,
             head: [["Description", "Amount Due", "Amount Paid", "Balance"]],
-            body: [[fee.feeName, `$${fee.amountDue}`, `$${fee.amountPaid}`, `$${fee.amountDue - fee.amountPaid}`]],
+            body: [[fee.feeName, `GH₵${fee.amountDue}`, `GH₵${fee.amountPaid}`, `GH₵${fee.amountDue - fee.amountPaid}`]],
             theme: 'striped',
             headStyles: { fillColor: [41, 128, 185] }
         });
@@ -159,7 +159,7 @@ export default function ClassFeesPage() {
                     <TableRow key={fee.id}>
                       <TableCell className="font-medium">{fee.studentName}</TableCell>
                       <TableCell>{fee.feeName}</TableCell>
-                      <TableCell className="text-right font-semibold">${(fee.amountDue - fee.amountPaid).toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-semibold">GH₵{(fee.amountDue - fee.amountPaid).toLocaleString()}</TableCell>
                       <TableCell className="text-center">
                         <Badge className={cn("border-transparent", {
                           "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300": fee.status === 'Paid',

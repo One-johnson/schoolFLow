@@ -129,7 +129,7 @@ export default function AssignFeesPage() {
                     </SelectTrigger>
                     <SelectContent>
                         {feeStructures.map(fee => (
-                            <SelectItem key={fee.id} value={fee.id}>{fee.name} (${fee.amount})</SelectItem>
+                            <SelectItem key={fee.id} value={fee.id}>{fee.name} (GH₵{fee.amount})</SelectItem>
                         ))}
                     </SelectContent>
                 </Select>

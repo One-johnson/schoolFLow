@@ -151,7 +151,7 @@ export default function FeeStructuresPage() {
                 <Input id="name" placeholder="e.g., Tuition Fee 2024/25" className="col-span-3" value={newFee.name} onChange={(e) => setNewFee({...newFee, name: e.target.value})} disabled={isLoading} />
               </div>
                <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="amount" className="text-right">Amount ($)</Label>
+                <Label htmlFor="amount" className="text-right">Amount (GH₵)</Label>
                 <Input id="amount" type="number" placeholder="e.g., 1200" className="col-span-3" value={newFee.amount} onChange={(e) => setNewFee({...newFee, amount: e.target.value})} disabled={isLoading} />
               </div>
             </div>
@@ -208,7 +208,7 @@ export default function FeeStructuresPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold">${fee.amount.toLocaleString()}</p>
+              <p className="text-3xl font-bold">GH₵{fee.amount.toLocaleString()}</p>
             </CardContent>
           </Card>
         ))}
@@ -227,7 +227,7 @@ export default function FeeStructuresPage() {
                 <Input id="edit-name" className="col-span-3" value={editFee.name} onChange={(e) => setEditFee({...editFee, name: e.target.value})} disabled={isLoading} />
               </div>
                <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-amount" className="text-right">Amount ($)</Label>
+                <Label htmlFor="edit-amount" className="text-right">Amount (GH₵)</Label>
                 <Input id="edit-amount" type="number" className="col-span-3" value={editFee.amount} onChange={(e) => setEditFee({...editFee, amount: e.target.value})} disabled={isLoading} />
               </div>
             </div>

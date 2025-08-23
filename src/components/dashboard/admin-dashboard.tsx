@@ -177,14 +177,14 @@ export function AdminDashboard() {
                            <ArrowDown className="h-5 w-5"/>
                            <p className="text-sm font-medium">Total Revenue</p>
                         </div>
-                        <p className="text-2xl font-bold mt-2">$0.00</p>
+                        <p className="text-2xl font-bold mt-2">GH₵0.00</p>
                     </div>
                      <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20">
                         <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
                            <ArrowUp className="h-5 w-5"/>
                            <p className="text-sm font-medium">Outstanding Fees</p>
                         </div>
-                        <p className="text-2xl font-bold mt-2">$0.00</p>
+                        <p className="text-2xl font-bold mt-2">GH₵0.00</p>
                     </div>
                 </CardContent>
             </Card>
