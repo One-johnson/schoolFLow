@@ -11,6 +11,9 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarFooter,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem
 } from "@/components/ui/sidebar";
 import {
   LayoutGrid,
@@ -31,15 +34,14 @@ import {
   NotebookPen,
 } from "lucide-react";
 import { auth } from "@/lib/firebase";
+import { useAuth } from "@/hooks/use-auth";
 
-type Role = 'admin' | 'teacher' | 'student' | null;
-
-export function DashboardSidebar({ role }: { role: Role }) {
+export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['role'] }) {
   const pathname = usePathname();
   const router = useRouter();
 
-  const isActive = (path: string) => {
-    return pathname === path;
+  const isActive = (path: string, exact: boolean = true) => {
+    return exact ? pathname === path : pathname.startsWith(path);
   };
 
   const handleLogout = async () => {
@@ -53,6 +55,7 @@ export function DashboardSidebar({ role }: { role: Role }) {
       icon: LayoutGrid,
       label: "Dashboard",
       roles: ['admin', 'teacher', 'student'],
+      exact: true,
     },
     {
       path: "/dashboard/students",
@@ -120,7 +123,12 @@ export function DashboardSidebar({ role }: { role: Role }) {
       icon: DollarSign,
       label: "Fees",
       roles: ['admin', 'student'],
-      disabled: false,
+      subItems: [
+        { path: '/dashboard/fees/structures', label: 'Structures', roles: ['admin'] },
+        { path: '/dashboard/fees/assign', label: 'Assign Fees', roles: ['admin'] },
+        { path: '/dashboard/fees/payments', label: 'Payments', roles: ['admin'] },
+        { path: '/dashboard/fees/my-fees', label: 'My Fees', roles: ['student'] },
+      ]
     },
     {
       path: "/dashboard/timetable",
@@ -151,12 +159,15 @@ export function DashboardSidebar({ role }: { role: Role }) {
       </SidebarHeader>
       <SidebarContent className="p-2">
         <SidebarMenu>
-          {menuItems.map((item) => (
+          {menuItems.map((item) => {
+             const visibleSubItems = item.subItems?.filter(sub => sub.roles.includes(role || ''));
+
+            return (
             <SidebarMenuItem key={item.path}>
-              <Link href={item.disabled ? "#" : item.path} passHref>
                 <SidebarMenuButton
-                  as="a"
-                  isActive={!item.disabled && isActive(item.path)}
+                  as={item.subItems ? "button" : "a"}
+                  href={item.disabled ? "#" : item.path}
+                  isActive={!item.disabled && isActive(item.path, !item.subItems)}
                   tooltip={item.label}
                   disabled={item.disabled}
                   aria-disabled={item.disabled}
@@ -165,9 +176,22 @@ export function DashboardSidebar({ role }: { role: Role }) {
                   <item.icon />
                   <span>{item.label}</span>
                 </SidebarMenuButton>
-              </Link>
+
+                {visibleSubItems && visibleSubItems.length > 0 && (
+                   <SidebarMenuSub>
+                     {visibleSubItems.map(subItem => (
+                       <SidebarMenuSubItem key={subItem.path}>
+                          <Link href={subItem.path} passHref>
+                            <SidebarMenuSubButton as="a" isActive={isActive(subItem.path)}>
+                                {subItem.label}
+                            </SidebarMenuSubButton>
+                          </Link>
+                       </SidebarMenuSubItem>
+                     ))}
+                   </SidebarMenuSub>
+                )}
             </SidebarMenuItem>
-          ))}
+          )})}
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter>
