@@ -98,7 +98,7 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
       path: "/dashboard/attendance",
       icon: ClipboardCheck,
       label: "Attendance",
-      roles: ['teacher', 'student', 'admin'],
+      roles: ['teacher', 'student'],
     },
     {
       path: "/dashboard/permissions",
@@ -146,9 +146,6 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
   ];
 
   const menuItems = allMenuItems.filter(item => {
-    if (role === 'admin' && item.path === '/dashboard/attendance') {
-      return false;
-    }
     return item.roles.includes(role || '');
   });
 
@@ -166,7 +163,7 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
         <SidebarMenu>
           {menuItems.map((item) => {
              const hasVisibleSubItems = item.subItems?.some(sub => sub.roles.includes(role || ''));
-             if (!item.path && !hasVisibleSubItems) {
+             if (item.subItems && !hasVisibleSubItems) {
                 return null;
              }
              const visibleSubItems = item.subItems?.filter(sub => sub.roles.includes(role || ''));

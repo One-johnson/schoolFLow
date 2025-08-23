@@ -1,16 +1,31 @@
+
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import StructuresPage from "./structures/page";
+import AssignPage from "./assign/page";
+import PaymentsPage from "./payments/page";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
-export default function FeesLayout({ children }: { children: React.ReactNode }) {
+export default function FeesLayout() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    // If the base /fees page is hit, redirect to the default tab
+    if (pathname === '/dashboard/fees') {
+      router.replace('/dashboard/fees/structures');
+    }
+  }, [pathname, router]);
 
   const getTabValue = () => {
     if (pathname.includes('/assign')) return 'assign';
     if (pathname.includes('/payments')) return 'payments';
-    return 'structures';
+    if (pathname.includes('/structures')) return 'structures';
+    return 'structures'; // Default tab
   }
 
   return (
@@ -35,7 +50,15 @@ export default function FeesLayout({ children }: { children: React.ReactNode }) 
           </TabsTrigger>
         </TabsList>
          <div className="mt-4">
-            {children}
+            <TabsContent value="structures">
+              <StructuresPage />
+            </TabsContent>
+            <TabsContent value="assign">
+              <AssignPage />
+            </TabsContent>
+            <TabsContent value="payments">
+              <PaymentsPage />
+            </TabsContent>
         </div>
       </Tabs>
     </div>
