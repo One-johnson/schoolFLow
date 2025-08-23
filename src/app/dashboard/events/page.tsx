@@ -5,7 +5,7 @@ import * as React from "react"
 import { useDatabase } from "@/hooks/use-database"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
-import { format } from "date-fns"
+import { format, parseISO } from "date-fns"
 import { DateRange } from "react-day-picker"
 
 import { Button } from "@/components/ui/button"
@@ -16,6 +16,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card"
 import {
   Dialog,
@@ -24,7 +25,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import {
   AlertDialog,
@@ -62,6 +62,7 @@ import {
   Megaphone,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 type Event = {
   id: string;
@@ -70,6 +71,7 @@ type Event = {
   endDate: string;
   type: "Academic" | "Holiday" | "Sports" | "Meeting" | "Other";
   description?: string;
+  createdAt: number;
 }
 
 const eventTypeColors: { [key in Event['type']]: string } = {
@@ -153,6 +155,7 @@ export default function EventsPage() {
     try {
         await deleteData(id);
         toast({ title: "Success", description: "Event deleted."});
+        setIsDialogOpen(false); // Close the edit dialog after deletion
     } catch (error) {
          toast({ title: "Error", description: "Failed to delete event.", variant: "destructive" });
     } finally {
@@ -160,100 +163,109 @@ export default function EventsPage() {
     }
   }
 
-  const DayCellContent = (day: Date) => {
-    const dayString = format(day, "yyyy-MM-dd");
+  const sortedEvents = React.useMemo(() => {
+    return [...events].sort((a,b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+  }, [events]);
+
+  const DayCellContent: React.FC<{ date: Date }> = ({ date }) => {
+    const dayString = format(date, "yyyy-MM-dd");
     const dayEvents = events.filter(e => {
         return dayString >= e.startDate && dayString <= e.endDate;
     });
 
     return (
-        <div className="flex flex-col gap-1 p-1 h-full">
-            {dayEvents.map(event => (
-                 <Popover key={event.id}>
-                    <PopoverTrigger asChild>
-                        <Badge
+        <div className="flex flex-col h-full">
+            <div className="self-end">{format(date, "d")}</div>
+            <div className="flex flex-col gap-1 flex-grow overflow-hidden mt-1">
+                {dayEvents.slice(0, 2).map(event => (
+                    <Badge
+                        key={event.id}
                         className={cn("w-full justify-start truncate cursor-pointer text-xs", eventTypeColors[event.type])}
-                        >
+                        onClick={() => role === 'admin' && handleOpenDialog(event)}
+                    >
                         {event.title}
-                        </Badge>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-80">
-                        <div className="grid gap-4">
-                            <div className="space-y-2">
-                                <h4 className="font-medium leading-none">{event.title}</h4>
-                                <p className="text-sm text-muted-foreground">
-                                    {format(new Date(event.startDate), "PPP")} to {format(new Date(event.endDate), "PPP")}
-                                </p>
-                            </div>
-                            <div className="grid gap-2">
-                                <div className="flex items-center gap-2">
-                                    <Badge className={cn(eventTypeColors[event.type])}>{event.type}</Badge>
-                                </div>
-                                {event.description && <p className="text-sm">{event.description}</p>}
-                            </div>
-                             {role === "admin" && (
-                                <div className="flex gap-2">
-                                    <Button size="sm" variant="outline" onClick={() => handleOpenDialog(event)}><Edit className="h-4 w-4 mr-2"/>Edit</Button>
-                                    <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                            <Button size="sm" variant="destructive"><Trash2 className="h-4 w-4 mr-2"/>Delete</Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                            This action cannot be undone. This will permanently delete this event.
-                                            </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleDelete(event.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                        </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                </div>
-                            )}
-                        </div>
-                    </PopoverContent>
-                </Popover>
-            ))}
+                    </Badge>
+                ))}
+                {dayEvents.length > 2 && (
+                    <p className="text-xs text-muted-foreground text-center">
+                        {dayEvents.length - 2} more...
+                    </p>
+                )}
+            </div>
         </div>
     );
   }
 
   return (
     <>
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-            <CardTitle>Academic Calendar</CardTitle>
-            <CardDescription>View and manage all school events, holidays, and important dates.</CardDescription>
-        </div>
-        {role === "admin" && (
-            <Button onClick={() => handleOpenDialog()}>
-                <PlusCircle className="mr-2 h-4 w-4" /> Add Event
-            </Button>
-        )}
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-             <div className="flex h-[60vh] items-center justify-center">
-                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+    <div className="flex flex-col gap-6">
+        <div className="flex flex-row items-center justify-between">
+            <div>
+                <h1 className="text-3xl font-bold tracking-tight">Academic Calendar</h1>
+                <p className="text-muted-foreground">View and manage all school events, holidays, and important dates.</p>
             </div>
-        ) : (
-            <Calendar
-                mode="single"
-                className="w-full"
-                classNames={{
-                    day: "h-24 align-top p-1",
-                    day_selected: "bg-accent text-accent-foreground",
-                    day_today: "bg-accent text-accent-foreground rounded-md",
-                }}
-                components={{ DayContent: ({ date }) => DayCellContent(date) }}
-            />
-        )}
-      </CardContent>
-    </Card>
+            {role === "admin" && (
+                <Button onClick={() => handleOpenDialog()}>
+                    <PlusCircle className="mr-2 h-4 w-4" /> Add Event
+                </Button>
+            )}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+             <Card className="lg:col-span-2">
+                <CardContent className="p-2 md:p-6">
+                    {loading ? (
+                        <div className="flex h-[60vh] items-center justify-center">
+                            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                        </div>
+                    ) : (
+                        <Calendar
+                            mode="single"
+                            className="w-full"
+                            classNames={{
+                                day_cell: "h-24 align-top p-1",
+                                day_selected: "bg-accent text-accent-foreground",
+                                day_today: "bg-accent text-accent-foreground rounded-md",
+                            }}
+                            components={{
+                                DayContent: DayCellContent
+                            }}
+                        />
+                    )}
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Upcoming Events</CardTitle>
+                    <CardDescription>A look at what's next.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <ScrollArea className="h-[60vh]">
+                        <div className="space-y-4 pr-4">
+                            {sortedEvents.filter(e => new Date(e.endDate) >= new Date()).map(event => (
+                                <div key={event.id} className="flex items-start gap-4">
+                                    <div className="flex flex-col items-center">
+                                        <div className="text-sm font-bold">{format(parseISO(event.startDate), "MMM")}</div>
+                                        <div className="text-xl font-extrabold text-primary">{format(parseISO(event.startDate), "dd")}</div>
+                                    </div>
+                                    <div className="flex-1">
+                                        <h4 className="font-semibold">{event.title}</h4>
+                                        <p className="text-sm text-muted-foreground">{event.description}</p>
+                                        <Badge className={cn("mt-1", eventTypeColors[event.type])}>{event.type}</Badge>
+                                    </div>
+                                    {role === 'admin' && (
+                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenDialog(event)}>
+                                            <Edit className="h-4 w-4" />
+                                        </Button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </ScrollArea>
+                </CardContent>
+            </Card>
+        </div>
+    </div>
 
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
@@ -264,7 +276,7 @@ export default function EventsPage() {
              <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="title" className="text-right">Title</Label>
-                    <Input id="title" className="col-span-3" value={formState.title || ''} onChange={e => setFormState(p => ({...p, title: e.target.value}))} />
+                    <Input id="title" className="col-span-3" value={formState.title || ''} onChange={e => setFormState(p => ({...p, title: e.target.value}))} disabled={isLoading} />
                 </div>
                  <div className="grid grid-cols-4 items-center gap-4">
                     <Label className="text-right">Date Range</Label>
@@ -273,6 +285,7 @@ export default function EventsPage() {
                             <Button
                             variant={"outline"}
                             className={cn("col-span-3 justify-start text-left font-normal", !dateRange && "text-muted-foreground")}
+                            disabled={isLoading}
                             >
                             <CalendarIcon className="mr-2 h-4 w-4" />
                             {dateRange?.from ? (
@@ -302,7 +315,7 @@ export default function EventsPage() {
                 </div>
                  <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="type" className="text-right">Type</Label>
-                     <Select value={formState.type} onValueChange={(value: Event['type']) => setFormState(p => ({...p, type: value}))}>
+                     <Select value={formState.type} onValueChange={(value: Event['type']) => setFormState(p => ({...p, type: value}))} disabled={isLoading}>
                         <SelectTrigger className="col-span-3">
                             <SelectValue placeholder="Select event type" />
                         </SelectTrigger>
@@ -317,10 +330,33 @@ export default function EventsPage() {
                 </div>
                 <div className="grid grid-cols-4 items-start gap-4">
                     <Label htmlFor="description" className="text-right pt-2">Description</Label>
-                    <Textarea id="description" className="col-span-3" value={formState.description || ''} onChange={e => setFormState(p => ({...p, description: e.target.value}))} />
+                    <Textarea id="description" className="col-span-3" value={formState.description || ''} onChange={e => setFormState(p => ({...p, description: e.target.value}))} disabled={isLoading} />
                 </div>
              </div>
-            <DialogFooter>
+            <DialogFooter className="justify-between">
+                <div>
+                  {selectedEvent && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" disabled={isLoading}><Trash2 className="mr-2 h-4 w-4" /> Delete</Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete this event.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDelete(selectedEvent.id)} className="bg-destructive hover:bg-destructive/90" disabled={isLoading}>
+                           {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Confirm Delete"}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                </div>
                 <Button onClick={handleSubmit} disabled={isLoading}>
                     {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                     {selectedEvent ? "Save Changes" : "Create Event"}
@@ -329,5 +365,5 @@ export default function EventsPage() {
         </DialogContent>
     </Dialog>
     </>
-  )
+  );
 }
