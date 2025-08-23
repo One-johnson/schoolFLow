@@ -58,6 +58,7 @@ import {
   Loader2,
   Edit,
   Trash2,
+  Megaphone,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -82,6 +83,7 @@ export default function EventsPage() {
   const { role } = useAuth();
   const { toast } = useToast();
   const { data: events, addData, updateData, deleteData, loading } = useDatabase<Event>("events");
+  const { addData: addNotification } = useDatabase("notifications");
 
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [selectedEvent, setSelectedEvent] = React.useState<Event | null>(null);
@@ -130,7 +132,12 @@ export default function EventsPage() {
         toast({ title: "Success", description: "Event updated." });
       } else {
         await addData(eventData as Omit<Event, "id">);
-        toast({ title: "Success", description: "Event created." });
+        await addNotification({
+            type: 'announcement',
+            message: `New event added: "${formState.title}"`,
+            read: false
+        })
+        toast({ title: "Success", description: "Event created and notification sent." });
       }
       setIsDialogOpen(false);
     } catch (error) {
@@ -154,8 +161,8 @@ export default function EventsPage() {
 
   const DayCellContent = (day: Date) => {
     const dayEvents = events.filter(e => {
-        const eventStart = new Date(e.startDate);
-        const eventEnd = new Date(e.endDate);
+        const eventStart = new Date(e.startDate + "T00:00:00");
+        const eventEnd = new Date(e.endDate + "T23:59:59");
         return day >= eventStart && day <= eventEnd;
     });
 
@@ -175,7 +182,7 @@ export default function EventsPage() {
                             <div className="space-y-2">
                                 <h4 className="font-medium leading-none">{event.title}</h4>
                                 <p className="text-sm text-muted-foreground">
-                                    {format(new Date(event.startDate), "PPP")} to {format(new Date(event.endDate), "PPP")}
+                                    {format(new Date(event.startDate + "T00:00:00"), "PPP")} to {format(new Date(event.endDate + "T00:00:00"), "PPP")}
                                 </p>
                             </div>
                             <div className="grid gap-2">
