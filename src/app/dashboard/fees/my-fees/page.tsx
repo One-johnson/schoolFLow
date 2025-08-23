@@ -2,6 +2,7 @@
 "use client";
 
 import * as React from "react";
+import { jsPDF } from "jspdf";
 import { useDatabase } from "@/hooks/use-database";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -64,10 +65,73 @@ export default function MyFeesPage() {
   }, [allStudentFees, feesMap, user]);
   
   const handleGenerateInvoice = (fee: EnrichedStudentFee) => {
-      toast({
-          title: "Coming Soon!",
-          description: "PDF invoice generation will be implemented in a future step."
-      })
+    if (!user) return;
+
+    try {
+        const doc = new jsPDF();
+
+        // Header
+        doc.setFontSize(22);
+        doc.setFont("helvetica", "bold");
+        doc.text("SchoolFlow", 105, 20, { align: "center" });
+        doc.setFontSize(16);
+        doc.setFont("helvetica", "normal");
+        doc.text("Fee Invoice", 105, 30, { align: "center" });
+
+        // Student Info
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.text("Bill To:", 20, 50);
+        doc.setFont("helvetica", "normal");
+        doc.text(user.displayName || "Student", 20, 57);
+        doc.text(user.email || "", 20, 64);
+
+        // Invoice Info
+        doc.setFont("helvetica", "bold");
+        doc.text("Invoice #:", 150, 50);
+        doc.setFont("helvetica", "normal");
+        doc.text(fee.id.substring(0, 10), 175, 50);
+        doc.setFont("helvetica", "bold");
+        doc.text("Date:", 150, 57);
+        doc.setFont("helvetica", "normal");
+        doc.text(new Date().toLocaleDateString(), 175, 57);
+
+        // Table
+        const tableColumn = ["Description", "Amount Due", "Amount Paid", "Balance"];
+        const tableRows = [[
+            fee.feeName, 
+            `$${fee.amountDue.toLocaleString()}`, 
+            `$${fee.amountPaid.toLocaleString()}`, 
+            `$${(fee.amountDue - fee.amountPaid).toLocaleString()}`
+        ]];
+
+        doc.autoTable({
+            startY: 80,
+            head: [tableColumn],
+            body: tableRows,
+            theme: 'striped',
+            headStyles: { fillColor: [41, 128, 185] }
+        });
+
+        // Footer
+        doc.setFontSize(10);
+        doc.text("Thank you for your payment!", 105, doc.internal.pageSize.height - 20, { align: 'center' });
+        doc.text("Please contact support if you have any questions.", 105, doc.internal.pageSize.height - 15, { align: 'center' });
+
+
+        doc.save(`invoice-${fee.feeName.replace(/ /g, '_')}.pdf`);
+        toast({
+            title: "Invoice Generated",
+            description: "Your PDF invoice has been downloaded."
+        });
+    } catch(e) {
+        console.error(e);
+        toast({
+            title: "Error Generating Invoice",
+            description: "Could not generate PDF. See console for details.",
+            variant: "destructive"
+        })
+    }
   }
 
   const loading = studentFeesLoading || feesLoading;
