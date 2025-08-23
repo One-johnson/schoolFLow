@@ -179,6 +179,8 @@ export default function PermissionsPage() {
   const PermissionSlipCard = ({ slip }: { slip: PermissionSlip }) => {
     const StatusIcon = statusConfig[slip.status].icon;
     const studentUser = usersMap.get(slip.studentId);
+    const requestDate = new Date(slip.startDate + "T00:00:00");
+    const endDate = new Date(slip.endDate + "T00:00:00");
 
     return (
          <Card>
@@ -201,7 +203,7 @@ export default function PermissionsPage() {
                 </div>
             </CardHeader>
             <CardContent>
-                <p className="text-sm font-semibold">{format(new Date(slip.startDate), "MMM d, yyyy")} - {format(new Date(slip.endDate), "MMM d, yyyy")}</p>
+                <p className="text-sm font-semibold">{format(requestDate, "MMM d, yyyy")} - {format(endDate, "MMM d, yyyy")}</p>
                 <p className="text-sm text-muted-foreground mt-2">{slip.reason}</p>
             </CardContent>
             <CardFooter className="flex flex-col items-start gap-2">
