@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/alert-dialog"
 
 // Types
-type Class = { id: string; name: string };
+type Class = { id: string; name: string; studentIds?: Record<string, boolean>, teacherId?: string };
 type Subject = { id:string; name: string; classId?: string };
 type Teacher = { id: string; name: string };
 type TimetableEntry = {
@@ -67,7 +67,7 @@ const LUNCH_TIME = "13:10-14:00";
 
 
 export default function TimetablePage() {
-  const { role } = useAuth();
+  const { user, role } = useAuth();
   const { toast } = useToast();
   
   const { data: classes, loading: classesLoading } = useDatabase<Class>("classes");
@@ -84,16 +84,41 @@ export default function TimetablePage() {
   const subjectsMap = React.useMemo(() => new Map(subjects.map(s => [s.id, s.name])), [subjects]);
   const teachersMap = React.useMemo(() => new Map(teachers.map(t => [t.id, t.name])), [teachers]);
   const classesMap = React.useMemo(() => new Map(classes.map(c => [c.id, c.name])), [classes]);
+
+  // Determine which classes/timetables to show based on role
+  const relevantClassIds = React.useMemo(() => {
+    if (!user || !role) return [];
+    if (role === 'admin') return classes.map(c => c.id);
+    if (role === 'teacher') return classes.filter(c => c.teacherId === user.uid).map(c => c.id);
+    if (role === 'student') {
+        const studentClass = classes.find(c => c.studentIds && c.studentIds[user.uid]);
+        return studentClass ? [studentClass.id] : [];
+    }
+    return [];
+  }, [user, role, classes]);
+
+  const timetablesForRole = React.useMemo(() => {
+    return timetables.filter(tt => relevantClassIds.includes(tt.id));
+  }, [timetables, relevantClassIds]);
   
   const originalTimetableForClass = React.useMemo(() => {
     if (!selectedClassId || selectedClassId === 'all') return {};
     const tt = timetables.find(t => t.id === selectedClassId) || {};
-    // Remove id property before storing as timetable
     const { id, ...rest } = tt;
     return rest as ClassTimetable;
   }, [timetables, selectedClassId]);
 
-  // When class changes, reset editable timetable
+  // Auto-select the first available class for teacher/student
+  React.useEffect(() => {
+      if(role === 'teacher' || role === 'student') {
+        if(timetablesForRole.length > 0) {
+            setSelectedClassId(timetablesForRole[0].id)
+        } else {
+            setSelectedClassId(undefined);
+        }
+      }
+  }, [role, timetablesForRole])
+
   React.useEffect(() => {
     setEditableTimetable(_.cloneDeep(originalTimetableForClass));
   }, [originalTimetableForClass, selectedClassId]);
@@ -114,8 +139,6 @@ export default function TimetablePage() {
         
         if (!newTimetable[day]) newTimetable[day] = {};
         newTimetable[day][time] = (entry.subjectId || entry.teacherId) ? entry : null;
-
-        // Clean up empty day objects
         if (_.isEmpty(newTimetable[day])) delete newTimetable[day];
         
         return newTimetable;
@@ -136,7 +159,6 @@ export default function TimetablePage() {
     if (!selectedClassId || selectedClassId === 'all') return;
     setIsLoading(true);
     try {
-        // clean up null entries before saving
         const cleanedTimetable = _.cloneDeep(editableTimetable);
         for(const day in cleanedTimetable) {
             for(const time in cleanedTimetable[day]) {
@@ -257,7 +279,9 @@ export default function TimetablePage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Timetable</h1>
           <p className="text-muted-foreground">
-            {role === 'admin' ? "Create, manage, and view class schedules." : "View class schedules."}
+            {role === 'admin' && "Create, manage, and view class schedules."}
+            {role === 'teacher' && "View the schedules for your assigned classes."}
+            {role === 'student' && "View your class schedule."}
           </p>
         </div>
         {role === 'admin' && hasChanges && selectedClassId !== 'all' && (
@@ -271,57 +295,87 @@ export default function TimetablePage() {
             </div>
         )}
       </div>
-
-       <div className="flex flex-wrap items-center gap-4">
-            <Label>Filter by Class:</Label>
-            <Select value={selectedClassId} onValueChange={setSelectedClassId} disabled={hasChanges}>
-                <SelectTrigger className="w-[250px]"><SelectValue placeholder="Select a class to view" /></SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="all">All Classes</SelectItem>
-                    {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-            </Select>
-            {hasChanges && <Badge variant="destructive">Unsaved changes</Badge>}
-            <div className="ml-auto flex gap-2">
-                 {role === 'admin' && selectedClassId && selectedClassId !== 'all' && (
-                     <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                           <Button variant="destructive" disabled={isLoading}>
-                                <Trash2 className="mr-2"/> Clear Full Timetable
-                           </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                This will permanently delete the entire timetable for {classes.find(c => c.id === selectedClassId)?.name}. This action cannot be undone.
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleClearTimetable} disabled={isLoading} className="bg-destructive hover:bg-destructive/90">
-                                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Confirm Delete"}
-                                </AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
-                 )}
-                <Button variant="outline" disabled><FileUp className="mr-2" /> Import</Button>
-                <Button variant="outline" disabled><FileDown className="mr-2" /> Export CSV</Button>
-                <Button variant="outline" disabled><Printer className="mr-2" /> Print</Button>
-            </div>
-       </div>
+      
+      {role === 'admin' && (
+        <div className="flex flex-wrap items-center gap-4">
+              <Label>Filter by Class:</Label>
+              <Select value={selectedClassId} onValueChange={setSelectedClassId} disabled={hasChanges}>
+                  <SelectTrigger className="w-[250px]"><SelectValue placeholder="Select a class to view/edit" /></SelectTrigger>
+                  <SelectContent>
+                      <SelectItem value="all">All Classes</SelectItem>
+                      {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  </SelectContent>
+              </Select>
+              {hasChanges && <Badge variant="destructive">Unsaved changes</Badge>}
+              <div className="ml-auto flex gap-2">
+                  {selectedClassId && selectedClassId !== 'all' && (
+                      <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" disabled={isLoading}>
+                                  <Trash2 className="mr-2"/> Clear Full Timetable
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                              <AlertDialogHeader>
+                                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                  This will permanently delete the entire timetable for {classes.find(c => c.id === selectedClassId)?.name}. This action cannot be undone.
+                                  </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={handleClearTimetable} disabled={isLoading} className="bg-destructive hover:bg-destructive/90">
+                                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Confirm Delete"}
+                                  </AlertDialogAction>
+                              </AlertDialogFooter>
+                          </AlertDialogContent>
+                      </AlertDialog>
+                  )}
+                  <Button variant="outline" disabled><FileUp className="mr-2" /> Import</Button>
+                  <Button variant="outline" disabled><FileDown className="mr-2" /> Export CSV</Button>
+                  <Button variant="outline" disabled><Printer className="mr-2" /> Print</Button>
+              </div>
+        </div>
+      )}
 
         {loading ? (
             <div className="flex h-96 items-center justify-center">
                 <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
             </div>
-        ) : selectedClassId === 'all' ? (
-            <div className="space-y-8">
-                {timetables.length > 0 ? timetables.map(tt => {
+        ) : role === 'admin' ? (
+          selectedClassId === 'all' ? (
+              <div className="space-y-8">
+                  {timetables.length > 0 ? timetables.map(tt => {
+                      const { id, ...timetableData } = tt;
+                      return (
+                          <Card key={id}>
+                              <CardHeader>
+                                  <CardTitle>{classesMap.get(id) || "Unknown Class"}</CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                  {renderTimetableGrid(timetableData as ClassTimetable, false)}
+                              </CardContent>
+                          </Card>
+                      )
+                  }) : (
+                      <div className="flex h-96 items-center justify-center">
+                          <p className="text-muted-foreground">No timetables have been created yet.</p>
+                      </div>
+                  )}
+              </div>
+          ) : selectedClassId ? (
+              renderTimetableGrid(editableTimetable, true)
+          ) : (
+              <div className="flex h-96 items-center justify-center">
+                  <p className="text-muted-foreground">Please select a class to view or edit the timetable.</p>
+              </div>
+          )
+        ) : (
+           <div className="space-y-8">
+                {timetablesForRole.length > 0 ? timetablesForRole.map(tt => {
                     const { id, ...timetableData } = tt;
                     return (
-                         <Card key={id}>
+                        <Card key={id}>
                             <CardHeader>
                                 <CardTitle>{classesMap.get(id) || "Unknown Class"}</CardTitle>
                             </CardHeader>
@@ -332,15 +386,9 @@ export default function TimetablePage() {
                     )
                 }) : (
                      <div className="flex h-96 items-center justify-center">
-                        <p className="text-muted-foreground">No timetables have been created yet.</p>
+                        <p className="text-muted-foreground">No timetable has been assigned to your class yet.</p>
                     </div>
                 )}
-            </div>
-        ) : selectedClassId ? (
-            renderTimetableGrid(editableTimetable, role === 'admin')
-        ) : (
-            <div className="flex h-96 items-center justify-center">
-                <p className="text-muted-foreground">Please select a class to view the timetable.</p>
             </div>
         )}
     </div>
