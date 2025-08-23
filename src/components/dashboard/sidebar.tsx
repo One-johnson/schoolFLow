@@ -98,7 +98,7 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
       path: "/dashboard/attendance",
       icon: ClipboardCheck,
       label: "Attendance",
-      roles: ['teacher', 'student'],
+      roles: ['teacher', 'student', 'admin'],
     },
     {
       path: "/dashboard/permissions",
@@ -145,7 +145,12 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
     },
   ];
 
-  const menuItems = allMenuItems.filter(item => item.roles.includes(role || ''));
+  const menuItems = allMenuItems.filter(item => {
+    if (role === 'admin' && item.path === '/dashboard/attendance') {
+      return false;
+    }
+    return item.roles.includes(role || '');
+  });
 
   return (
     <Sidebar>
@@ -169,7 +174,7 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
             return (
             <SidebarMenuItem key={item.path || item.label}>
               {item.path ? (
-                 <Link href={item.disabled ? "#" : item.path} passHref legacyBehavior={item.subItems ? true : false} asChild={!item.subItems}>
+                 <Link href={item.disabled ? "#" : item.path} asChild>
                     <SidebarMenuButton
                       isActive={!item.disabled && isActive(item.path, !item.subItems)}
                       tooltip={item.label}
