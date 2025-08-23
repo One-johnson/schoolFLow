@@ -216,10 +216,12 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
+            <Link href="#" asChild>
              <SidebarMenuButton tooltip="Logout" onClick={handleLogout}>
                 <LogOut />
                 <span>Logout</span>
               </SidebarMenuButton>
+            </Link>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
