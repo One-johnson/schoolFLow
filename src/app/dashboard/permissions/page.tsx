@@ -205,7 +205,7 @@ export default function PermissionsPage() {
                 <p className="text-sm text-muted-foreground mt-2">{slip.reason}</p>
             </CardContent>
             <CardFooter className="flex flex-col items-start gap-2">
-                 {role === 'teacher' && slip.status === 'Pending' && (
+                 {(role === 'teacher' || role === 'admin') && slip.status === 'Pending' && (
                     <div className="flex w-full gap-2">
                         <Button className="w-full" size="sm" onClick={() => handleUpdateRequestStatus(slip.id, 'Approved')} disabled={isLoading}>
                             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
