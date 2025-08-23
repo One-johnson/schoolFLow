@@ -72,7 +72,16 @@ type Event = {
   type: "Academic" | "Holiday" | "Sports" | "Meeting" | "Other";
   description?: string;
   createdAt: number;
+  audience: 'all' | 'teachers' | 'students' | string; // 'string' will be a classId
 }
+
+type Class = {
+  id: string;
+  name: string;
+  teacherId?: string;
+  studentIds?: Record<string, boolean>;
+};
+
 
 const eventTypeColors: { [key in Event['type']]: string } = {
     Academic: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/50 dark:text-blue-300",
@@ -83,9 +92,10 @@ const eventTypeColors: { [key in Event['type']]: string } = {
 };
 
 export default function EventsPage() {
-  const { role } = useAuth();
+  const { user, role } = useAuth();
   const { toast } = useToast();
   const { data: events, addData, updateData, deleteData, loading } = useDatabase<Event>("events");
+  const { data: classes, loading: classesLoading } = useDatabase<Class>('classes');
   const { addData: addNotification } = useDatabase("notifications");
 
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
@@ -95,19 +105,43 @@ export default function EventsPage() {
   const [formState, setFormState] = React.useState<Partial<Omit<Event, "id">>>({});
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>();
 
+  const userClasses = React.useMemo(() => {
+    if (!user) return [];
+    if (role === 'student') {
+        return classes.filter(c => c.studentIds && c.studentIds[user.uid]).map(c => c.id);
+    }
+    if (role === 'teacher') {
+        return classes.filter(c => c.teacherId === user.uid).map(c => c.id);
+    }
+    return [];
+  }, [user, role, classes]);
+
+  const filteredEvents = React.useMemo(() => {
+      if(role === 'admin') return events;
+      if (!user) return [];
+
+      return events.filter(event => {
+          if (event.audience === 'all') return true;
+          if (event.audience === 'teachers' && role === 'teacher') return true;
+          if (event.audience === 'students' && (role === 'student' || role === 'teacher')) return true;
+          return userClasses.includes(event.audience);
+      })
+  }, [events, role, user, userClasses])
+
   React.useEffect(() => {
     if (selectedEvent) {
       setFormState({
         title: selectedEvent.title,
         type: selectedEvent.type,
         description: selectedEvent.description,
+        audience: selectedEvent.audience,
       });
       setDateRange({
         from: new Date(selectedEvent.startDate),
         to: new Date(selectedEvent.endDate),
       });
     } else {
-      setFormState({});
+      setFormState({ audience: 'all' });
       setDateRange(undefined);
     }
   }, [selectedEvent]);
@@ -164,13 +198,15 @@ export default function EventsPage() {
   }
 
   const sortedEvents = React.useMemo(() => {
-    return [...events].sort((a,b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
-  }, [events]);
+    return [...filteredEvents].sort((a,b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+  }, [filteredEvents]);
 
   const DayCellContent: React.FC<{ date: Date }> = ({ date }) => {
     const dayString = format(date, "yyyy-MM-dd");
-    const dayEvents = events.filter(e => {
-        return dayString >= e.startDate && dayString <= e.endDate;
+    const dayEvents = filteredEvents.filter(e => {
+        const startDate = e.startDate;
+        const endDate = e.endDate;
+        return dayString >= startDate && dayString <= endDate;
     });
 
     return (
@@ -325,6 +361,21 @@ export default function EventsPage() {
                             <SelectItem value="Sports">Sports</SelectItem>
                             <SelectItem value="Meeting">Meeting</SelectItem>
                             <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                 <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="audience" className="text-right">Audience</Label>
+                     <Select value={formState.audience} onValueChange={(value: Event['audience']) => setFormState(p => ({...p, audience: value}))} disabled={isLoading}>
+                        <SelectTrigger className="col-span-3">
+                            <SelectValue placeholder="Select audience" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Everyone</SelectItem>
+                            <SelectItem value="teachers">Teachers Only</SelectItem>
+                            <SelectItem value="students">Students Only</SelectItem>
+                            {classesLoading ? <SelectItem value="loading" disabled>Loading classes...</SelectItem> : 
+                            classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                         </SelectContent>
                     </Select>
                 </div>
