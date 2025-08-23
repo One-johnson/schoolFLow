@@ -94,7 +94,7 @@ export function DashboardSidebar({ role }: { role: Role }) {
       path: "/dashboard/attendance",
       icon: ClipboardCheck,
       label: "Attendance",
-      roles: ['admin', 'teacher', 'student'],
+      roles: ['teacher', 'student'], // Admin role removed
     },
     {
       path: "/dashboard/permissions",
