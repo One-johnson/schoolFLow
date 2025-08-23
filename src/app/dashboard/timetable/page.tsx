@@ -23,6 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import _ from 'lodash';
@@ -82,9 +83,10 @@ export default function TimetablePage() {
 
   const subjectsMap = React.useMemo(() => new Map(subjects.map(s => [s.id, s.name])), [subjects]);
   const teachersMap = React.useMemo(() => new Map(teachers.map(t => [t.id, t.name])), [teachers]);
+  const classesMap = React.useMemo(() => new Map(classes.map(c => [c.id, c.name])), [classes]);
   
   const originalTimetableForClass = React.useMemo(() => {
-    if (!selectedClassId) return {};
+    if (!selectedClassId || selectedClassId === 'all') return {};
     const tt = timetables.find(t => t.id === selectedClassId) || {};
     // Remove id property before storing as timetable
     const { id, ...rest } = tt;
@@ -131,7 +133,7 @@ export default function TimetablePage() {
   }
 
   const handleSaveChanges = async () => {
-    if (!selectedClassId) return;
+    if (!selectedClassId || selectedClassId === 'all') return;
     setIsLoading(true);
     try {
         // clean up null entries before saving
@@ -161,7 +163,7 @@ export default function TimetablePage() {
   }
 
   const handleClearTimetable = async () => {
-      if(!selectedClassId) return;
+      if(!selectedClassId || selectedClassId === 'all') return;
       setIsLoading(true);
       try {
         await deleteData(selectedClassId);
@@ -175,9 +177,78 @@ export default function TimetablePage() {
   }
 
   const subjectsForClass = React.useMemo(() => {
-    if (!selectedClassId) return subjects;
+    if (!selectedClassId || selectedClassId === 'all') return subjects;
     return subjects.filter(s => !s.classId || s.classId === selectedClassId);
   }, [subjects, selectedClassId]);
+
+
+  const renderTimetableGrid = (timetableData: ClassTimetable, isEditable: boolean) => (
+      <div className="rounded-lg border overflow-x-auto">
+        <Table className="min-w-full">
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-1/8 font-bold text-center sticky left-0 bg-background z-10">Time</TableHead>
+              {daysOfWeek.map((day) => (
+                <TableHead key={day} className="w-1/6 text-center font-bold">{day}</TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {timeSlots.map((time) => {
+                if (time === BREAK_TIME) return <TableRow key={time}><TableCell colSpan={6} className="text-center font-bold text-green-600 bg-green-50 dark:bg-green-900/20">Break</TableCell></TableRow>
+                if (time === LUNCH_TIME) return <TableRow key={time}><TableCell colSpan={6} className="text-center font-bold text-orange-600 bg-orange-50 dark:bg-orange-900/20">Lunch</TableCell></TableRow>
+
+                return (
+                    <TableRow key={time}>
+                        <TableCell className="font-semibold text-center text-xs sticky left-0 bg-background z-10">{time.replace('-', ' - ')}</TableCell>
+                        {daysOfWeek.map((day) => {
+                            const entry = timetableData[day]?.[time];
+                            return (
+                                <TableCell key={day} className="h-24 p-1 border-l text-center align-middle">
+                                    {isEditable ? (
+                                        <div className="flex flex-col gap-1.5">
+                                             <Select 
+                                                value={entry?.subjectId || ''} 
+                                                onValueChange={(value) => handleTimetableChange(day, time, 'subject', value)}
+                                             >
+                                                <SelectTrigger className="text-xs h-8"><SelectValue placeholder="Subject" /></SelectTrigger>
+                                                <SelectContent>
+                                                    {subjectsForClass.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
+                                            <Select 
+                                                value={entry?.teacherId || ''} 
+                                                onValueChange={(value) => handleTimetableChange(day, time, 'teacher', value)}
+                                            >
+                                                <SelectTrigger className="text-xs h-8"><SelectValue placeholder="Teacher" /></SelectTrigger>
+                                                <SelectContent>
+                                                    {teachers.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
+                                            {entry && (
+                                                <Button variant="ghost" size="icon" className="h-6 w-6 self-center" onClick={() => handleClearEntry(day, time)}>
+                                                    <Trash2 className="h-3 w-3 text-destructive"/>
+                                                </Button>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        entry ? (
+                                            <div className="flex flex-col gap-1 text-center">
+                                                <Badge className="text-xs justify-center">{subjectsMap.get(entry.subjectId)}</Badge>
+                                                <span className="text-xs text-muted-foreground">{teachersMap.get(entry.teacherId)}</span>
+                                            </div>
+                                        ) : null
+                                    )}
+                                </TableCell>
+                            )
+                         })}
+                    </TableRow>
+                )
+            })}
+          </TableBody>
+        </Table>
+      </div>
+  )
 
 
   return (
@@ -186,10 +257,10 @@ export default function TimetablePage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Timetable</h1>
           <p className="text-muted-foreground">
-            Manage and view class schedules.
+            {role === 'admin' ? "Create, manage, and view class schedules." : "View class schedules."}
           </p>
         </div>
-        {role === 'admin' && hasChanges && (
+        {role === 'admin' && hasChanges && selectedClassId !== 'all' && (
             <div className="flex gap-2">
                 <Button onClick={handleSaveChanges} disabled={isLoading}>
                    {isLoading ? <Loader2 className="mr-2 animate-spin"/> : <Save className="mr-2" />} Save Changes
@@ -205,11 +276,14 @@ export default function TimetablePage() {
             <Label>Filter by Class:</Label>
             <Select value={selectedClassId} onValueChange={setSelectedClassId} disabled={hasChanges}>
                 <SelectTrigger className="w-[250px]"><SelectValue placeholder="Select a class to view" /></SelectTrigger>
-                <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                <SelectContent>
+                    <SelectItem value="all">All Classes</SelectItem>
+                    {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
             </Select>
             {hasChanges && <Badge variant="destructive">Unsaved changes</Badge>}
             <div className="ml-auto flex gap-2">
-                 {role === 'admin' && selectedClassId && (
+                 {role === 'admin' && selectedClassId && selectedClassId !== 'all' && (
                      <AlertDialog>
                         <AlertDialogTrigger asChild>
                            <Button variant="destructive" disabled={isLoading}>
@@ -238,79 +312,37 @@ export default function TimetablePage() {
             </div>
        </div>
 
-      <div className="rounded-lg border overflow-x-auto">
-        <Table className="min-w-full">
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-1/8 font-bold text-center sticky left-0 bg-background z-10">Time</TableHead>
-              {daysOfWeek.map((day) => (
-                <TableHead key={day} className="w-1/6 text-center font-bold">{day}</TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-                <TableRow><TableCell colSpan={6} className="h-96 text-center"><Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" /></TableCell></TableRow>
-            ) : selectedClassId ? (
-                timeSlots.map((time) => {
-                    if (time === BREAK_TIME) return <TableRow key={time}><TableCell colSpan={6} className="text-center font-bold text-green-600 bg-green-50 dark:bg-green-900/20">Break</TableCell></TableRow>
-                    if (time === LUNCH_TIME) return <TableRow key={time}><TableCell colSpan={6} className="text-center font-bold text-orange-600 bg-orange-50 dark:bg-orange-900/20">Lunch</TableCell></TableRow>
-
+        {loading ? (
+            <div className="flex h-96 items-center justify-center">
+                <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
+            </div>
+        ) : selectedClassId === 'all' ? (
+            <div className="space-y-8">
+                {timetables.length > 0 ? timetables.map(tt => {
+                    const { id, ...timetableData } = tt;
                     return (
-                        <TableRow key={time}>
-                            <TableCell className="font-semibold text-center text-xs sticky left-0 bg-background z-10">{time.replace('-', ' - ')}</TableCell>
-                            {daysOfWeek.map((day) => {
-                                const entry = editableTimetable[day]?.[time];
-                                return (
-                                    <TableCell key={day} className="h-24 p-1 border-l text-center align-middle">
-                                        {role === 'admin' ? (
-                                            <div className="flex flex-col gap-1.5">
-                                                 <Select 
-                                                    value={entry?.subjectId || ''} 
-                                                    onValueChange={(value) => handleTimetableChange(day, time, 'subject', value)}
-                                                 >
-                                                    <SelectTrigger className="text-xs h-8"><SelectValue placeholder="Subject" /></SelectTrigger>
-                                                    <SelectContent>
-                                                        {subjectsForClass.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                                                    </SelectContent>
-                                                </Select>
-                                                <Select 
-                                                    value={entry?.teacherId || ''} 
-                                                    onValueChange={(value) => handleTimetableChange(day, time, 'teacher', value)}
-                                                >
-                                                    <SelectTrigger className="text-xs h-8"><SelectValue placeholder="Teacher" /></SelectTrigger>
-                                                    <SelectContent>
-                                                        {teachers.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                                                    </SelectContent>
-                                                </Select>
-                                                {entry && (
-                                                    <Button variant="ghost" size="icon" className="h-6 w-6 self-center" onClick={() => handleClearEntry(day, time)}>
-                                                        <Trash2 className="h-3 w-3 text-destructive"/>
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        ) : (
-                                            entry ? (
-                                                <div className="flex flex-col gap-1 text-center">
-                                                    <Badge className="text-xs justify-center">{subjectsMap.get(entry.subjectId)}</Badge>
-                                                    <span className="text-xs text-muted-foreground">{teachersMap.get(entry.teacherId)}</span>
-                                                </div>
-                                            ) : null
-                                        )}
-                                    </TableCell>
-                                )
-                             })}
-                        </TableRow>
+                         <Card key={id}>
+                            <CardHeader>
+                                <CardTitle>{classesMap.get(id) || "Unknown Class"}</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {renderTimetableGrid(timetableData as ClassTimetable, false)}
+                            </CardContent>
+                        </Card>
                     )
-                })
-            ) : (
-                 <TableRow><TableCell colSpan={6} className="h-96 text-center text-muted-foreground">Please select a class to view the timetable.</TableCell></TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                }) : (
+                     <div className="flex h-96 items-center justify-center">
+                        <p className="text-muted-foreground">No timetables have been created yet.</p>
+                    </div>
+                )}
+            </div>
+        ) : selectedClassId ? (
+            renderTimetableGrid(editableTimetable, role === 'admin')
+        ) : (
+            <div className="flex h-96 items-center justify-center">
+                <p className="text-muted-foreground">Please select a class to view the timetable.</p>
+            </div>
+        )}
     </div>
   );
 }
-
-    
