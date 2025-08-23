@@ -5,7 +5,7 @@ import * as React from "react"
 import { useDatabase } from "@/hooks/use-database"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
-import { format, parseISO } from "date-fns"
+import { format, parseISO, isPast, isFuture } from "date-fns"
 import { DateRange } from "react-day-picker"
 
 import { Button } from "@/components/ui/button"
@@ -59,7 +59,7 @@ import {
   Loader2,
   Edit,
   Trash2,
-  Megaphone,
+  Eye,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -73,6 +73,7 @@ type Event = {
   description?: string;
   createdAt: number;
   audience: 'all' | 'teachers' | 'students' | string; // 'string' will be a classId
+  status: "Scheduled" | "Completed" | "Postponed" | "Cancelled";
 }
 
 type Class = {
@@ -91,6 +92,14 @@ const eventTypeColors: { [key in Event['type']]: string } = {
     Other: "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-900/50 dark:text-gray-300",
 };
 
+const eventStatusColors: { [key in Event['status']]: string } = {
+    Scheduled: "bg-cyan-100 text-cyan-800 border-cyan-200 dark:bg-cyan-900/50 dark:text-cyan-300",
+    Completed: "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-900/50 dark:text-gray-300",
+    Postponed: "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/50 dark:text-yellow-300",
+    Cancelled: "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/50 dark:text-red-300",
+};
+
+
 export default function EventsPage() {
   const { user, role } = useAuth();
   const { toast } = useToast();
@@ -101,8 +110,9 @@ export default function EventsPage() {
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [selectedEvent, setSelectedEvent] = React.useState<Event | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [filter, setFilter] = React.useState<"all" | "upcoming" | "past">("upcoming");
 
-  const [formState, setFormState] = React.useState<Partial<Omit<Event, "id">>>({});
+  const [formState, setFormState] = React.useState<Partial<Omit<Event, "id" | "createdAt">>>({});
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>();
 
   const userClasses = React.useMemo(() => {
@@ -116,7 +126,7 @@ export default function EventsPage() {
     return [];
   }, [user, role, classes]);
 
-  const filteredEvents = React.useMemo(() => {
+  const filteredEventsForUser = React.useMemo(() => {
       if(role === 'admin') return events;
       if (!user) return [];
 
@@ -128,6 +138,17 @@ export default function EventsPage() {
       })
   }, [events, role, user, userClasses])
 
+  const filteredEventsForDisplay = React.useMemo(() => {
+    let sorted = [...filteredEventsForUser].sort((a,b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+    if (filter === "upcoming") {
+        return sorted.filter(e => !isPast(parseISO(e.endDate)));
+    }
+    if (filter === "past") {
+        return sorted.filter(e => isPast(parseISO(e.endDate)));
+    }
+    return sorted;
+  }, [filteredEventsForUser, filter]);
+
   React.useEffect(() => {
     if (selectedEvent) {
       setFormState({
@@ -135,25 +156,32 @@ export default function EventsPage() {
         type: selectedEvent.type,
         description: selectedEvent.description,
         audience: selectedEvent.audience,
+        status: selectedEvent.status
       });
       setDateRange({
         from: new Date(selectedEvent.startDate),
         to: new Date(selectedEvent.endDate),
       });
     } else {
-      setFormState({ audience: 'all' });
+      setFormState({ audience: 'all', status: "Scheduled" });
       setDateRange(undefined);
     }
   }, [selectedEvent]);
 
   const handleOpenDialog = (event?: Event) => {
+    if (role !== 'admin' && event) {
+        // Non-admins can only view details. We can enhance this later.
+        setSelectedEvent(event);
+        setIsDialogOpen(true); // Open dialog in read-only mode (future enhancement)
+        return;
+    }
     setSelectedEvent(event || null);
     setIsDialogOpen(true);
   };
 
   const handleSubmit = async () => {
-    if (!formState.title || !dateRange?.from || !formState.type) {
-      toast({ title: "Error", description: "Title, date, and type are required.", variant: "destructive" });
+    if (!formState.title || !dateRange?.from || !formState.type || !formState.status) {
+      toast({ title: "Error", description: "Title, date, type and status are required.", variant: "destructive" });
       return;
     }
     setIsLoading(true);
@@ -197,13 +225,9 @@ export default function EventsPage() {
     }
   }
 
-  const sortedEvents = React.useMemo(() => {
-    return [...filteredEvents].sort((a,b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
-  }, [filteredEvents]);
-
   const DayCellContent: React.FC<{ date: Date }> = ({ date }) => {
     const dayString = format(date, "yyyy-MM-dd");
-    const dayEvents = filteredEvents.filter(e => {
+    const dayEvents = filteredEventsForUser.filter(e => {
         const startDate = e.startDate;
         const endDate = e.endDate;
         return dayString >= startDate && dayString <= endDate;
@@ -211,13 +235,13 @@ export default function EventsPage() {
 
     return (
         <div className="flex flex-col h-full">
-            <div className="self-end">{format(date, "d")}</div>
+            <div className={cn("self-end", isPast(date) && "opacity-50")}>{format(date, "d")}</div>
             <div className="flex flex-col gap-1 flex-grow overflow-hidden mt-1">
                 {dayEvents.slice(0, 2).map(event => (
                     <Badge
                         key={event.id}
-                        className={cn("w-full justify-start truncate cursor-pointer text-xs", eventTypeColors[event.type])}
-                        onClick={() => role === 'admin' && handleOpenDialog(event)}
+                        className={cn("w-full justify-start truncate text-xs", eventTypeColors[event.type], event.status === 'Cancelled' && "line-through opacity-70", role === 'admin' && "cursor-pointer")}
+                        onClick={() => handleOpenDialog(event)}
                     >
                         {event.title}
                     </Badge>
@@ -272,30 +296,46 @@ export default function EventsPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Upcoming Events</CardTitle>
-                    <CardDescription>A look at what's next.</CardDescription>
+                    <CardTitle>School Events</CardTitle>
+                     <div className="flex items-center justify-between">
+                       <CardDescription>A look at what's happening.</CardDescription>
+                        <div className="flex space-x-1 rounded-lg bg-secondary p-1">
+                            <Button size="xs" variant={filter === 'all' ? 'default' : 'ghost'} onClick={() => setFilter('all')}>All</Button>
+                            <Button size="xs" variant={filter === 'upcoming' ? 'default' : 'ghost'} onClick={() => setFilter('upcoming')}>Upcoming</Button>
+                            <Button size="xs" variant={filter === 'past' ? 'default' : 'ghost'} onClick={() => setFilter('past')}>Past</Button>
+                        </div>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <ScrollArea className="h-[60vh]">
                         <div className="space-y-4 pr-4">
-                            {sortedEvents.filter(e => new Date(e.endDate) >= new Date()).map(event => (
-                                <div key={event.id} className="flex items-start gap-4">
-                                    <div className="flex flex-col items-center">
-                                        <div className="text-sm font-bold">{format(parseISO(event.startDate), "MMM")}</div>
-                                        <div className="text-xl font-extrabold text-primary">{format(parseISO(event.startDate), "dd")}</div>
-                                    </div>
-                                    <div className="flex-1">
-                                        <h4 className="font-semibold">{event.title}</h4>
-                                        <p className="text-sm text-muted-foreground">{event.description}</p>
-                                        <Badge className={cn("mt-1", eventTypeColors[event.type])}>{event.type}</Badge>
-                                    </div>
-                                    {role === 'admin' && (
-                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenDialog(event)}>
-                                            <Edit className="h-4 w-4" />
+                            {filteredEventsForDisplay.length > 0 ? filteredEventsForDisplay.map(event => (
+                                <Card key={event.id} className="group transition-all hover:shadow-md">
+                                    <CardHeader>
+                                        <div className="flex items-center justify-between">
+                                          <div className={cn("text-xs font-bold", event.status === "Cancelled" && "line-through")}>
+                                              {format(parseISO(event.startDate), "MMM dd")}
+                                              {event.startDate !== event.endDate && ` - ${format(parseISO(event.endDate), "dd, yyyy")}`}
+                                          </div>
+                                           <Badge className={cn(eventStatusColors[event.status])}>{event.status}</Badge>
+                                        </div>
+                                        <CardTitle className="text-base pt-2">{event.title}</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <p className="text-sm text-muted-foreground line-clamp-2">{event.description}</p>
+                                    </CardContent>
+                                    <CardFooter className="flex justify-between items-center">
+                                         <Badge variant="outline" className={cn(eventTypeColors[event.type])}>{event.type}</Badge>
+                                         <Button variant="outline" size="sm" onClick={() => handleOpenDialog(event)}>
+                                            <Eye className="mr-2 h-4 w-4"/> {role === 'admin' ? 'View/Edit' : 'View'}
                                         </Button>
-                                    )}
+                                    </CardFooter>
+                                </Card>
+                            )) : (
+                                <div className="text-center py-16">
+                                    <p className="text-muted-foreground">No {filter} events.</p>
                                 </div>
-                            ))}
+                            )}
                         </div>
                     </ScrollArea>
                 </CardContent>
@@ -312,7 +352,7 @@ export default function EventsPage() {
              <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="title" className="text-right">Title</Label>
-                    <Input id="title" className="col-span-3" value={formState.title || ''} onChange={e => setFormState(p => ({...p, title: e.target.value}))} disabled={isLoading} />
+                    <Input id="title" className="col-span-3" value={formState.title || ''} onChange={e => setFormState(p => ({...p, title: e.target.value}))} disabled={isLoading || role !== 'admin'} />
                 </div>
                  <div className="grid grid-cols-4 items-center gap-4">
                     <Label className="text-right">Date Range</Label>
@@ -321,7 +361,7 @@ export default function EventsPage() {
                             <Button
                             variant={"outline"}
                             className={cn("col-span-3 justify-start text-left font-normal", !dateRange && "text-muted-foreground")}
-                            disabled={isLoading}
+                            disabled={isLoading || role !== 'admin'}
                             >
                             <CalendarIcon className="mr-2 h-4 w-4" />
                             {dateRange?.from ? (
@@ -351,7 +391,7 @@ export default function EventsPage() {
                 </div>
                  <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="type" className="text-right">Type</Label>
-                     <Select value={formState.type} onValueChange={(value: Event['type']) => setFormState(p => ({...p, type: value}))} disabled={isLoading}>
+                     <Select value={formState.type} onValueChange={(value: Event['type']) => setFormState(p => ({...p, type: value}))} disabled={isLoading || role !== 'admin'}>
                         <SelectTrigger className="col-span-3">
                             <SelectValue placeholder="Select event type" />
                         </SelectTrigger>
@@ -365,8 +405,22 @@ export default function EventsPage() {
                     </Select>
                 </div>
                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="status" className="text-right">Status</Label>
+                     <Select value={formState.status} onValueChange={(value: Event['status']) => setFormState(p => ({...p, status: value}))} disabled={isLoading || role !== 'admin'}>
+                        <SelectTrigger className="col-span-3">
+                            <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Scheduled">Scheduled</SelectItem>
+                            <SelectItem value="Completed">Completed</SelectItem>
+                            <SelectItem value="Postponed">Postponed</SelectItem>
+                            <SelectItem value="Cancelled">Cancelled</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="audience" className="text-right">Audience</Label>
-                     <Select value={formState.audience} onValueChange={(value: Event['audience']) => setFormState(p => ({...p, audience: value}))} disabled={isLoading}>
+                     <Select value={formState.audience} onValueChange={(value: Event['audience']) => setFormState(p => ({...p, audience: value}))} disabled={isLoading || role !== 'admin'}>
                         <SelectTrigger className="col-span-3">
                             <SelectValue placeholder="Select audience" />
                         </SelectTrigger>
@@ -381,12 +435,12 @@ export default function EventsPage() {
                 </div>
                 <div className="grid grid-cols-4 items-start gap-4">
                     <Label htmlFor="description" className="text-right pt-2">Description</Label>
-                    <Textarea id="description" className="col-span-3" value={formState.description || ''} onChange={e => setFormState(p => ({...p, description: e.target.value}))} disabled={isLoading} />
+                    <Textarea id="description" className="col-span-3" value={formState.description || ''} onChange={e => setFormState(p => ({...p, description: e.target.value}))} disabled={isLoading || role !== 'admin'} />
                 </div>
              </div>
             <DialogFooter className="justify-between">
                 <div>
-                  {selectedEvent && (
+                  {role === 'admin' && selectedEvent && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button variant="destructive" disabled={isLoading}><Trash2 className="mr-2 h-4 w-4" /> Delete</Button>
@@ -408,13 +462,18 @@ export default function EventsPage() {
                     </AlertDialog>
                   )}
                 </div>
-                <Button onClick={handleSubmit} disabled={isLoading}>
-                    {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    {selectedEvent ? "Save Changes" : "Create Event"}
-                </Button>
+                {role === 'admin' && (
+                    <Button onClick={handleSubmit} disabled={isLoading}>
+                        {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                        {selectedEvent ? "Save Changes" : "Create Event"}
+                    </Button>
+                )}
             </DialogFooter>
         </DialogContent>
     </Dialog>
     </>
   );
 }
+
+
+    
