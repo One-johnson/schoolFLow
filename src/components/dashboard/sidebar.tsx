@@ -102,6 +102,12 @@ export function DashboardSidebar({ role }: { role: Role }) {
       label: "Permissions",
       roles: ['admin', 'teacher', 'student'],
     },
+     {
+      path: "/dashboard/reports",
+      icon: BarChart3,
+      label: "Reports",
+      roles: ['admin', 'teacher'],
+    },
     {
       path: "/dashboard/exams",
       icon: FileText,
@@ -121,13 +127,6 @@ export function DashboardSidebar({ role }: { role: Role }) {
       icon: CalendarDays,
       label: "Timetable",
       roles: ['admin', 'teacher', 'student'],
-      disabled: true,
-    },
-    {
-      path: "/dashboard/reports",
-      icon: BarChart3,
-      label: "Reports",
-      roles: ['admin'],
       disabled: true,
     },
     {
