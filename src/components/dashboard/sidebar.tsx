@@ -120,15 +120,14 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
       disabled: true,
     },
     {
-      path: "/dashboard/fees",
-      icon: DollarSign,
       label: "Fees",
+      icon: DollarSign,
       roles: ['admin', 'student'],
       subItems: [
         { path: '/dashboard/fees/structures', label: 'Structures', roles: ['admin'] },
         { path: '/dashboard/fees/assign', label: 'Assign Fees', roles: ['admin'] },
         { path: '/dashboard/fees/payments', label: 'Payments', roles: ['admin'] },
-        { path: '/dashboard/fees/my-fees', label: 'My Fees', roles: ['student'] },
+        { path: '/dashboard/fees/my-fees', label: 'My Fees', roles: ['student'], disabled: true },
       ]
     },
     {
@@ -161,26 +160,40 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
       <SidebarContent className="p-2">
         <SidebarMenu>
           {menuItems.map((item) => {
-             if (!item.path && !item.subItems?.some(sub => sub.roles.includes(role || ''))) {
+             const hasVisibleSubItems = item.subItems?.some(sub => sub.roles.includes(role || ''));
+             if (!item.path && !hasVisibleSubItems) {
                 return null;
              }
              const visibleSubItems = item.subItems?.filter(sub => sub.roles.includes(role || ''));
 
             return (
             <SidebarMenuItem key={item.path || item.label}>
-                <SidebarMenuButton
-                  as={item.subItems ? "button" : "a"}
-                  href={item.disabled ? "#" : item.path}
-                  isActive={!item.disabled && isActive(item.path, !item.subItems)}
-                  tooltip={item.label}
-                  disabled={item.disabled}
-                  aria-disabled={item.disabled}
-                  className={item.disabled ? "cursor-not-allowed opacity-50" : ""}
-                >
-                  <item.icon />
-                  <span>{item.label}</span>
-                </SidebarMenuButton>
-
+              {item.path ? (
+                 <Link href={item.disabled ? "#" : item.path} passHref legacyBehavior={item.subItems ? true : false} asChild={!item.subItems}>
+                    <SidebarMenuButton
+                      isActive={!item.disabled && isActive(item.path, !item.subItems)}
+                      tooltip={item.label}
+                      disabled={item.disabled}
+                      aria-disabled={item.disabled}
+                      className={item.disabled ? "cursor-not-allowed opacity-50" : ""}
+                    >
+                      <item.icon />
+                      <span>{item.label}</span>
+                    </SidebarMenuButton>
+                </Link>
+              ) : (
+                 <SidebarMenuButton
+                      isActive={!item.disabled && !!visibleSubItems?.some(sub => isActive(sub.path, false))}
+                      tooltip={item.label}
+                      disabled={item.disabled}
+                      aria-disabled={item.disabled}
+                      className={item.disabled ? "cursor-not-allowed opacity-50" : ""}
+                    >
+                      <item.icon />
+                      <span>{item.label}</span>
+                  </SidebarMenuButton>
+              )}
+               
                 {visibleSubItems && visibleSubItems.length > 0 && (
                    <SidebarMenuSub>
                      {visibleSubItems.map(subItem => (
