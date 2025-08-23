@@ -23,7 +23,7 @@ export function useAuth(): AuthState {
       if (user) {
         setUser(user);
         try {
-          // 1. Check for custom claims first (more secure and efficient)
+          // 1. Check for custom claims first (more secure and efficient for future users)
           const idTokenResult = await user.getIdTokenResult(true);
           const claimRole = idTokenResult.claims.role as any;
 
@@ -31,11 +31,10 @@ export function useAuth(): AuthState {
             setRole(claimRole);
           } else {
             // 2. If no claim, fall back to checking the Realtime Database
-            const userDbRef = ref(database, `users/${user.uid}/role`);
+            const userDbRef = ref(database, `users/${user.uid}`);
             const snapshot = await get(userDbRef);
             if (snapshot.exists()) {
-              // This is the corrected line:
-              setRole(snapshot.val()); 
+              setRole(snapshot.val().role); 
             } else {
               setRole(null); // No role found
             }

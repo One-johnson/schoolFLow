@@ -2,7 +2,7 @@
 "use client"
 
 import { useAuth } from "@/hooks/use-auth"
-import AttendancePage from "@/app/dashboard/attendance/page";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 
 export function TeacherDashboard() {
   const { user } = useAuth();
@@ -15,7 +15,21 @@ export function TeacherDashboard() {
           Welcome back, {user?.displayName}!
         </p>
       </div>
-      <AttendancePage />
+      <Card>
+        <CardHeader>
+            <CardTitle>Teacher Portal</CardTitle>
+            <CardDescription>This is your central hub for managing your classes and students.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            <p>From here you will be able to:</p>
+            <ul className="list-disc pl-5 mt-2 text-muted-foreground">
+                <li>Take daily attendance for your assigned classes.</li>
+                <li>View your class schedule and timetable.</li>
+                <li>Post announcements for your students.</li>
+                <li>Manage exam scores and grades.</li>
+            </ul>
+        </CardContent>
+      </Card>
     </div>
   );
 }
