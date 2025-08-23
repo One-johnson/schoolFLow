@@ -23,6 +23,7 @@ import {
   Pencil,
   Loader2,
 } from "lucide-react"
+import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -288,7 +289,11 @@ export default function StudentsPage() {
           </Button>
         )
       },
-      cell: ({ row }) => <div className="capitalize">{row.getValue("name")}</div>,
+      cell: ({ row }) => (
+          <Link href={`/dashboard/students/${row.original.id}`} className="capitalize font-medium text-primary hover:underline">
+            {row.getValue("name")}
+          </Link>
+      ),
     },
     {
       accessorKey: "email",
@@ -657,7 +662,7 @@ export default function StudentsPage() {
             <DialogTitle>Edit Student</DialogTitle>
             <DialogDescription>Update the student's information below.</DialogDescription>
           </DialogHeader>
-           <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto px-2">
+           <ScrollArea className="h-[60vh] pr-6">
               <Tabs defaultValue="student-details" className="w-full">
                     <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="student-details">Student Details</TabsTrigger>
@@ -765,7 +770,7 @@ export default function StudentsPage() {
                         </div>
                     </TabsContent>
                 </Tabs>
-          </div>
+          </ScrollArea>
           <DialogFooter>
             <Button type="submit" onClick={handleUpdateStudent} disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
