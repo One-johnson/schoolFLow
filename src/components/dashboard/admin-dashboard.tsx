@@ -18,7 +18,7 @@ import {
   ResponsiveContainer,
   Legend
 } from 'recharts';
-import { Megaphone, BookOpen, Users, UserCheck } from "lucide-react";
+import { Megaphone, BookOpen, Users, UserCheck, DollarSign, ArrowDown, ArrowUp } from "lucide-react";
 import Link from "next/link";
 import { useDatabase } from "@/hooks/use-database";
 import { useMemo } from "react";
@@ -163,28 +163,51 @@ export function AdminDashboard() {
             </ChartContainer>
           </CardContent>
         </Card>
-        <Card className="col-span-4 md:col-span-3">
-          <CardHeader>
-            <CardTitle>Quick Links</CardTitle>
-            <CardDescription>
-              Navigate to key areas of the application.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-4">
-              <Link href="/dashboard/students" className="block p-4 bg-secondary hover:bg-muted rounded-lg text-center">
-                Manage Students
-              </Link>
-              <Link href="/dashboard/teachers" className="block p-4 bg-secondary hover:bg-muted rounded-lg text-center">
-                Manage Teachers
-              </Link>
-              <Link href="/dashboard/announcements" className="block p-4 bg-secondary hover:bg-muted rounded-lg text-center">
-                Post Announcement
-              </Link>
-              <Link href="/dashboard/summarize" className="block p-4 bg-secondary hover:bg-muted rounded-lg text-center">
-                AI Summarizer
-              </Link>
-          </CardContent>
-        </Card>
+        <div className="col-span-4 md:col-span-3 flex flex-col gap-4">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Financial Overview</CardTitle>
+                    <CardDescription>
+                    Summary of school finances.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-4">
+                    <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20">
+                        <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+                           <ArrowDown className="h-5 w-5"/>
+                           <p className="text-sm font-medium">Total Revenue</p>
+                        </div>
+                        <p className="text-2xl font-bold mt-2">$0.00</p>
+                    </div>
+                     <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20">
+                        <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                           <ArrowUp className="h-5 w-5"/>
+                           <p className="text-sm font-medium">Outstanding Fees</p>
+                        </div>
+                        <p className="text-2xl font-bold mt-2">$0.00</p>
+                    </div>
+                </CardContent>
+            </Card>
+             <Card>
+                <CardHeader>
+                    <CardTitle>Quick Links</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-4">
+                    <Link href="/dashboard/students" className="block p-4 bg-secondary hover:bg-muted rounded-lg text-center">
+                        Manage Students
+                    </Link>
+                    <Link href="/dashboard/teachers" className="block p-4 bg-secondary hover:bg-muted rounded-lg text-center">
+                        Manage Teachers
+                    </Link>
+                    <Link href="/dashboard/announcements" className="block p-4 bg-secondary hover:bg-muted rounded-lg text-center">
+                        Post Announcement
+                    </Link>
+                    <Link href="/dashboard/fees" className="block p-4 bg-secondary hover:bg-muted rounded-lg text-center">
+                        Manage Fees
+                    </Link>
+                </CardContent>
+             </Card>
+        </div>
       </div>
     </div>
   );

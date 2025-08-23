@@ -94,7 +94,7 @@ export function DashboardSidebar({ role }: { role: Role }) {
       path: "/dashboard/attendance",
       icon: ClipboardCheck,
       label: "Attendance",
-      roles: ['teacher', 'student'], // Admin role removed
+      roles: ['teacher', 'student'],
     },
     {
       path: "/dashboard/permissions",
@@ -106,7 +106,7 @@ export function DashboardSidebar({ role }: { role: Role }) {
       path: "/dashboard/reports",
       icon: BarChart3,
       label: "Reports",
-      roles: ['admin', 'teacher'],
+      roles: ['admin'],
     },
     {
       path: "/dashboard/exams",
@@ -120,7 +120,7 @@ export function DashboardSidebar({ role }: { role: Role }) {
       icon: DollarSign,
       label: "Fees",
       roles: ['admin', 'student'],
-      disabled: true,
+      disabled: false,
     },
     {
       path: "/dashboard/timetable",
