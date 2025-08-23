@@ -125,11 +125,12 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
       label: "Fees",
       path: "/dashboard/fees",
       icon: DollarSign,
-      roles: ['admin', 'student'],
+      roles: ['admin', 'teacher', 'student'],
       subItems: [
         { path: '/dashboard/fees/structures', label: 'Structures', roles: ['admin'] },
         { path: '/dashboard/fees/assign', label: 'Assign Fees', roles: ['admin'] },
         { path: '/dashboard/fees/payments', label: 'Payments', roles: ['admin'] },
+        { path: '/dashboard/fees/class-fees', label: 'Class Fees', roles: ['teacher'] },
         { path: '/dashboard/fees/my-fees', label: 'My Fees', roles: ['student'] },
       ]
     },
@@ -149,7 +150,6 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
   ];
 
   const menuItems = allMenuItems.filter(item => {
-    // If the item has sub-items, we need to check if any of the sub-items are available for the current role.
     if (item.subItems) {
       return item.subItems.some(sub => sub.roles.includes(role || ''));
     }
