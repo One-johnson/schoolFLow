@@ -181,8 +181,8 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
                    <SidebarMenuSub>
                      {visibleSubItems.map(subItem => (
                        <SidebarMenuSubItem key={subItem.path}>
-                          <Link href={subItem.path} passHref>
-                            <SidebarMenuSubButton as="a" isActive={isActive(subItem.path)}>
+                          <Link href={subItem.path} passHref legacyBehavior>
+                            <SidebarMenuSubButton isActive={isActive(subItem.path)}>
                                 {subItem.label}
                             </SidebarMenuSubButton>
                           </Link>
