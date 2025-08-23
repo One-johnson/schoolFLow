@@ -349,6 +349,7 @@ export default function EventsPage() {
                 <DialogTitle>{selectedEvent ? "Edit Event" : "Create New Event"}</DialogTitle>
                 <DialogDescription>Fill in the details for the event below.</DialogDescription>
             </DialogHeader>
+             <ScrollArea className="max-h-[60vh] pr-6">
              <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="title" className="text-right">Title</Label>
@@ -438,7 +439,8 @@ export default function EventsPage() {
                     <Textarea id="description" className="col-span-3" value={formState.description || ''} onChange={e => setFormState(p => ({...p, description: e.target.value}))} disabled={isLoading || role !== 'admin'} />
                 </div>
              </div>
-            <DialogFooter className="justify-between">
+             </ScrollArea>
+            <DialogFooter className="justify-between pt-4">
                 <div>
                   {role === 'admin' && selectedEvent && (
                     <AlertDialog>
@@ -474,6 +476,3 @@ export default function EventsPage() {
     </>
   );
 }
-
-
-    
