@@ -160,10 +160,9 @@ export default function EventsPage() {
   }
 
   const DayCellContent = (day: Date) => {
+    const dayString = format(day, "yyyy-MM-dd");
     const dayEvents = events.filter(e => {
-        const eventStart = new Date(e.startDate + "T00:00:00");
-        const eventEnd = new Date(e.endDate + "T23:59:59");
-        return day >= eventStart && day <= eventEnd;
+        return dayString >= e.startDate && dayString <= e.endDate;
     });
 
     return (
@@ -182,7 +181,7 @@ export default function EventsPage() {
                             <div className="space-y-2">
                                 <h4 className="font-medium leading-none">{event.title}</h4>
                                 <p className="text-sm text-muted-foreground">
-                                    {format(new Date(event.startDate + "T00:00:00"), "PPP")} to {format(new Date(event.endDate + "T00:00:00"), "PPP")}
+                                    {format(new Date(event.startDate), "PPP")} to {format(new Date(event.endDate), "PPP")}
                                 </p>
                             </div>
                             <div className="grid gap-2">
