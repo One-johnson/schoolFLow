@@ -29,24 +29,15 @@ export default function RegisterPage() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (password.length < 8) {
+    if (password.length < 6) {
       toast({
         title: 'Error',
-        description: 'Password must be at least 8 characters long.',
+        description: 'Password must be at least 6 characters long.',
         variant: 'destructive',
       });
       return;
     }
     
-    if (email !== 'admin@schoolflow.com') {
-       toast({
-        title: 'Error',
-        description: 'Registration is currently only available for the admin account (admin@schoolflow.com).',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setIsLoading(true);
     try {
       const response = await fetch('/api/create-user', {
@@ -96,7 +87,7 @@ export default function RegisterPage() {
           <CardHeader>
             <CardTitle>Create Admin Account</CardTitle>
             <CardDescription>
-              Sign up to manage your school. Use 'admin@schoolflow.com' for admin access.
+              Sign up to manage your school.
             </CardDescription>
           </CardHeader>
           <CardContent>

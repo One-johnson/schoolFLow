@@ -1,7 +1,6 @@
 
 import { adminAuth } from '@/lib/firebase-admin';
 import { NextRequest, NextResponse } from 'next/server';
-import 'dotenv/config';
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,6 +23,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ uid: userRecord.uid }, { status: 201 });
   } catch (error: any) {
     console.error('Error creating user:', error);
-    return NextResponse.json({ message: 'Error creating user: ' + error.message }, { status: 500 });
+    // Provide a more specific error message if available
+    const errorMessage = error.code ? `Firebase error (${error.code}): ${error.message}` : 'Error creating user: ' + error.message;
+    return NextResponse.json({ message: errorMessage }, { status: 500 });
   }
 }

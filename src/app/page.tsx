@@ -40,13 +40,13 @@ export default function LoginPage() {
             <TabsTrigger value="student">Student</TabsTrigger>
           </TabsList>
           <TabsContent value="admin">
-            <LoginForm role="Admin" />
+            <LoginForm role="admin" />
           </TabsContent>
           <TabsContent value="teacher">
-            <LoginForm role="Teacher" />
+            <LoginForm role="teacher" />
           </TabsContent>
           <TabsContent value="student">
-            <LoginForm role="Student" />
+            <LoginForm role="student" />
           </TabsContent>
         </Tabs>
       </div>

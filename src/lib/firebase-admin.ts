@@ -1,15 +1,15 @@
 import * as admin from 'firebase-admin';
+import 'dotenv/config';
 
 // IMPORTANT: Environment variable handling for Firebase Admin SDK
 //
 // The `FIREBASE_PRIVATE_KEY` is a multi-line key. When you add it to your
-// `.env.local` file, you must wrap it in double quotes (`"`) to preserve
-// the newline characters. It should look like this:
+// `.env.local` file, you must wrap it in double quotes (`"`) and ensure
+// the newline characters are represented as `\n`.
 //
-// FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...your actual key...\n-----END PRIVATE KEY-----\n"
+// Example for .env.local:
+// FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIC...KEY...\n-----END PRIVATE KEY-----\n"
 //
-// Do NOT attempt to manually escape the newlines. The process.env will
-// handle it correctly if it's quoted.
 
 if (!admin.apps.length) {
   try {
