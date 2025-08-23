@@ -3,7 +3,7 @@
 
 import * as React from "react"
 import { format } from "date-fns"
-import { Calendar as CalendarIcon, CheckCircle, XCircle, Clock, Loader2, BarChart3 } from "lucide-react"
+import { Calendar as CalendarIcon, CheckCircle, XCircle, Clock, Loader2, BarChart3, UserCheck, ShieldCheck } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -63,7 +63,7 @@ type Class = {
   teacherId?: string;
 };
 
-type AttendanceStatus = "Present" | "Absent" | "Late";
+type AttendanceStatus = "Present" | "Absent" | "Late" | "Excused";
 type AttendanceRecord = Record<string, AttendanceStatus>; // { [studentId]: status }
 type FullAttendanceRecord = { id: string } & AttendanceRecord;
 
@@ -130,7 +130,7 @@ export default function AttendancePage() {
       setAttendance({});
     }
     setIsFetching(false)
-  }, [selectedClassId, savedAttendance, attendanceLoading])
+  }, [selectedClassId, savedAttendance, attendanceLoading, date])
 
   const studentsMap = React.useMemo(() => new Map(allStudents.map(s => [s.id, s])), [allStudents]);
   
@@ -149,6 +149,18 @@ export default function AttendancePage() {
     if(role !== 'teacher') return;
     setAttendance(prev => ({ ...prev, [studentId]: status }))
   }
+  
+  const handleMarkAllPresent = () => {
+    if(role !== 'teacher') return;
+    const newAttendance = { ...attendance };
+    classStudents.forEach(student => {
+      if (!newAttendance[student.id]) {
+        newAttendance[student.id] = "Present";
+      }
+    });
+    setAttendance(newAttendance);
+    toast({ title: "Success", description: "All remaining students marked as Present." });
+  }
 
   const handleSaveAttendance = async () => {
     if (!selectedClassId) {
@@ -164,7 +176,7 @@ export default function AttendancePage() {
     setIsLoading(true);
     try {
       // Using updateData which performs a SET operation at the specified path
-      await updateData(`attendance/${formattedDate}/${selectedClassId}`, attendance);
+      await updateAttendanceDb(`attendance/${formattedDate}/${selectedClassId}`, attendance);
       toast({ title: "Success", description: "Attendance saved successfully." })
     } catch (error) {
       toast({ title: "Error", description: "Failed to save attendance.", variant: "destructive" })
@@ -175,7 +187,7 @@ export default function AttendancePage() {
   }
 
   const attendanceStats = React.useMemo(() => {
-    const stats = { Present: 0, Absent: 0, Late: 0, Unmarked: 0 };
+    const stats = { Present: 0, Absent: 0, Late: 0, Excused: 0, Unmarked: 0 };
     const total = classStudents.length;
     classStudents.forEach(student => {
       const status = attendance[student.id];
@@ -192,6 +204,7 @@ export default function AttendancePage() {
     { name: 'Present', value: attendanceStats.Present, fill: 'var(--color-present)' },
     { name: 'Absent', value: attendanceStats.Absent, fill: 'var(--color-absent)' },
     { name: 'Late', value: attendanceStats.Late, fill: 'var(--color-late)' },
+    { name: 'Excused', value: attendanceStats.Excused, fill: 'var(--color-excused)' },
   ];
 
   const chartConfig = {
@@ -199,6 +212,7 @@ export default function AttendancePage() {
     present: { label: "Present", color: "hsl(var(--chart-2))" },
     absent: { label: "Absent", color: "hsl(var(--chart-5))" },
     late: { label: "Late", color: "hsl(var(--chart-4))" },
+    excused: { label: "Excused", color: "hsl(var(--chart-3))" },
   } 
 
   const studentAttendanceForDay = React.useMemo(() => {
@@ -208,6 +222,8 @@ export default function AttendancePage() {
           className: selectedClass.name
       };
   }, [role, user, selectedClass, attendance]);
+
+  const atLeastOneMarked = Object.keys(attendance).length > 0;
 
 
   if (classesLoading || studentsLoading) {
@@ -295,6 +311,7 @@ export default function AttendancePage() {
                                 {studentAttendanceForDay.status === 'Present' && <CheckCircle className="h-8 w-8 text-green-500" />}
                                 {studentAttendanceForDay.status === 'Absent' && <XCircle className="h-8 w-8 text-red-500" />}
                                 {studentAttendanceForDay.status === 'Late' && <Clock className="h-8 w-8 text-orange-500" />}
+                                {studentAttendanceForDay.status === 'Excused' && <ShieldCheck className="h-8 w-8 text-blue-500" />}
                                 {studentAttendanceForDay.status}
                              </div>
                               <p className="text-sm text-muted-foreground">in {studentAttendanceForDay.className}</p>
@@ -324,7 +341,7 @@ export default function AttendancePage() {
                                     <RadioGroup
                                     value={attendance[student.id]}
                                     onValueChange={(value) => handleStatusChange(student.id, value as AttendanceStatus)}
-                                    className="flex flex-wrap gap-4"
+                                    className="flex flex-wrap gap-x-4 gap-y-2"
                                     disabled={role !== 'teacher'}
                                     >
                                     <div className="flex items-center space-x-2">
@@ -338,6 +355,10 @@ export default function AttendancePage() {
                                     <div className="flex items-center space-x-2">
                                         <RadioGroupItem value="Late" id={`late-${student.id}`} />
                                         <Label htmlFor={`late-${student.id}`} className="text-orange-500 flex items-center gap-1"><Clock className="h-4 w-4" /> Late</Label>
+                                    </div>
+                                     <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="Excused" id={`excused-${student.id}`} />
+                                        <Label htmlFor={`excused-${student.id}`} className="text-blue-500 flex items-center gap-1"><ShieldCheck className="h-4 w-4" /> Excused</Label>
                                     </div>
                                     </RadioGroup>
                                 </TableCell>
@@ -358,6 +379,7 @@ export default function AttendancePage() {
                                     <p>Present: <span className="font-bold text-green-600">{attendanceStats.Present}</span></p>
                                     <p>Absent: <span className="font-bold text-red-600">{attendanceStats.Absent}</span></p>
                                     <p>Late: <span className="font-bold text-orange-500">{attendanceStats.Late}</span></p>
+                                    <p>Excused: <span className="font-bold text-blue-500">{attendanceStats.Excused}</span></p>
                                     <p>Unmarked: <span className="font-bold">{attendanceStats.Unmarked}</span></p>
                                     <p className="mt-2 pt-2 border-t">Total Students: <span className="font-bold text-primary">{attendanceStats.total}</span></p>
                                 </div>
@@ -392,16 +414,20 @@ export default function AttendancePage() {
           }
         </CardContent>
         {role === 'teacher' && selectedClassId && classStudents.length > 0 && (
-           <CardFooter className="border-t px-6 py-4">
-              <Button onClick={handleSaveAttendance} disabled={isLoading}>
-                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                 Save Attendance
-              </Button>
+           <CardFooter className="border-t px-6 py-4 flex justify-between">
+              <div className="flex gap-2">
+                <Button onClick={handleSaveAttendance} disabled={isLoading}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save Attendance
+                </Button>
+                 <Button onClick={handleMarkAllPresent} variant="secondary" disabled={!atLeastOneMarked || attendanceStats.Unmarked === 0}>
+                    <UserCheck className="mr-2 h-4 w-4" />
+                    Mark all as Present
+                </Button>
+              </div>
            </CardFooter>
         )}
       </Card>
     </div>
   )
 }
-
-    
