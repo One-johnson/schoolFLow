@@ -42,7 +42,9 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
 
   const isActive = (path: string, exact: boolean = true) => {
     if (!path) return false;
-    return exact ? pathname === path : pathname.startsWith(path);
+    // For sub-items, we don't want an exact match, just that the path starts with it
+    if (!exact) return pathname.startsWith(path);
+    return pathname === path;
   };
 
   const handleLogout = async () => {
@@ -98,7 +100,7 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
       path: "/dashboard/attendance",
       icon: ClipboardCheck,
       label: "Attendance",
-      roles: ['teacher', 'student'],
+      roles: ['admin','teacher', 'student'],
     },
     {
       path: "/dashboard/permissions",
@@ -121,6 +123,7 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
     },
     {
       label: "Fees",
+      path: "/dashboard/fees",
       icon: DollarSign,
       roles: ['admin', 'student'],
       subItems: [
@@ -170,10 +173,10 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
 
             return (
             <SidebarMenuItem key={item.path || item.label}>
-              {item.path ? (
-                 <Link href={item.disabled ? "#" : item.path} asChild>
+              {!item.subItems ? (
+                 <Link href={item.disabled ? "#" : item.path!} asChild>
                     <SidebarMenuButton
-                      isActive={!item.disabled && isActive(item.path, !item.subItems)}
+                      isActive={!item.disabled && isActive(item.path!, item.exact)}
                       tooltip={item.label}
                       disabled={item.disabled}
                       aria-disabled={item.disabled}
@@ -189,6 +192,7 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
                       tooltip={item.label}
                       disabled={item.disabled}
                       aria-disabled={item.disabled}
+                      isSubmenu
                       className={item.disabled ? "cursor-not-allowed opacity-50" : ""}
                     >
                       <item.icon />
@@ -216,12 +220,10 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <Link href="#" asChild>
              <SidebarMenuButton tooltip="Logout" onClick={handleLogout}>
                 <LogOut />
                 <span>Logout</span>
               </SidebarMenuButton>
-            </Link>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
