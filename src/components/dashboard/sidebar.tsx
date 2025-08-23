@@ -139,7 +139,7 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
       icon: CalendarDays,
       label: "Timetable",
       roles: ['admin', 'teacher', 'student'],
-      disabled: true,
+      disabled: false,
     },
     {
       path: "/dashboard/summarize",
@@ -175,16 +175,19 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
             return (
             <SidebarMenuItem key={item.path || item.label}>
               {!hasVisibleSubItems ? (
-                 <Link href={item.disabled ? "#" : item.path!} asChild>
+                 <Link href={item.disabled ? "#" : item.path!} passHref legacyBehavior>
                     <SidebarMenuButton
+                      asChild
                       isActive={!item.disabled && isActive(item.path!, item.exact)}
                       tooltip={item.label}
                       disabled={item.disabled}
                       aria-disabled={item.disabled}
                       className={item.disabled ? "cursor-not-allowed opacity-50" : ""}
                     >
-                      <item.icon />
-                      <span>{item.label}</span>
+                      <a>
+                        <item.icon />
+                        <span>{item.label}</span>
+                      </a>
                     </SidebarMenuButton>
                 </Link>
               ) : (
@@ -205,9 +208,9 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
                    <SidebarMenuSub>
                      {visibleSubItems.map(subItem => (
                        <SidebarMenuSubItem key={subItem.path}>
-                          <Link href={subItem.path} asChild>
-                            <SidebarMenuSubButton isActive={isActive(subItem.path)}>
-                                {subItem.label}
+                          <Link href={subItem.path} passHref legacyBehavior>
+                            <SidebarMenuSubButton asChild isActive={isActive(subItem.path)}>
+                                <a>{subItem.label}</a>
                             </SidebarMenuSubButton>
                           </Link>
                        </SidebarMenuSubItem>
