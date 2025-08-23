@@ -122,7 +122,7 @@ export default function AttendancePage() {
 
     setIsLoading(true);
     try {
-      await updateAttendance(selectedClassId, attendance);
+      await updateData(selectedClassId, attendance);
       toast({ title: "Success", description: "Attendance saved successfully." })
     } catch (error) {
       toast({ title: "Error", description: "Failed to save attendance.", variant: "destructive" })

@@ -23,21 +23,12 @@ export function useAuth(): AuthState {
       if (user) {
         setUser(user);
         try {
-          // Attempt to get role from custom claims first for efficiency
-          const idTokenResult = await user.getIdTokenResult(true);
-          const claimRole = idTokenResult.claims.role as any;
-
-          if (claimRole) {
-            setRole(claimRole);
+          const userDbRef = ref(database, `users/${user.uid}`);
+          const snapshot = await get(userDbRef);
+          if (snapshot.exists()) {
+             setRole(snapshot.val().role);
           } else {
-            // Fallback to checking Realtime Database if no claim is present
-            const userDbRef = ref(database, `users/${user.uid}`);
-            const snapshot = await get(userDbRef);
-            if (snapshot.exists()) {
-              setRole(snapshot.val().role); 
-            } else {
-              setRole(null); // No role found in DB
-            }
+             setRole(null);
           }
         } catch (error) {
           console.error("Error fetching user role:", error);
