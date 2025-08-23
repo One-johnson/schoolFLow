@@ -83,7 +83,7 @@ function LoginForm({ role }: { role: string }) {
           toast({ title: 'Success', description: 'Signed in successfully. Redirecting...' });
           router.push('/dashboard');
         } else {
-           throw new Error(`You are not authorized to log in as ${role}.`);
+           throw new Error(`You are not authorized to log in as a(n) ${role}.`);
         }
       } else {
          throw new Error("User data not found. Please contact an administrator.");
