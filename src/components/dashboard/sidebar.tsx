@@ -175,21 +175,19 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
             return (
             <SidebarMenuItem key={item.path || item.label}>
               {!hasVisibleSubItems ? (
-                 <Link href={item.disabled ? "#" : item.path!} passHref legacyBehavior>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={!item.disabled && isActive(item.path!, item.exact)}
-                      tooltip={item.label}
-                      disabled={item.disabled}
-                      aria-disabled={item.disabled}
-                      className={item.disabled ? "cursor-not-allowed opacity-50" : ""}
-                    >
-                      <a>
-                        <item.icon />
-                        <span>{item.label}</span>
-                      </a>
-                    </SidebarMenuButton>
-                </Link>
+                 <SidebarMenuButton
+                    asChild
+                    isActive={!item.disabled && isActive(item.path!, item.exact)}
+                    tooltip={item.label}
+                    disabled={item.disabled}
+                    aria-disabled={item.disabled}
+                    className={item.disabled ? "cursor-not-allowed opacity-50" : ""}
+                  >
+                    <Link href={item.disabled ? "#" : item.path!}>
+                      <item.icon />
+                      <span>{item.label}</span>
+                    </Link>
+                  </SidebarMenuButton>
               ) : (
                  <SidebarMenuButton
                       isActive={!item.disabled && !!visibleSubItems?.some(sub => isActive(sub.path, false))}
@@ -208,11 +206,9 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
                    <SidebarMenuSub>
                      {visibleSubItems.map(subItem => (
                        <SidebarMenuSubItem key={subItem.path}>
-                          <Link href={subItem.path} passHref legacyBehavior>
-                            <SidebarMenuSubButton asChild isActive={isActive(subItem.path)}>
-                                <a>{subItem.label}</a>
-                            </SidebarMenuSubButton>
-                          </Link>
+                          <SidebarMenuSubButton asChild isActive={isActive(subItem.path)}>
+                              <Link href={subItem.path}>{subItem.label}</Link>
+                          </SidebarMenuSubButton>
                        </SidebarMenuSubItem>
                      ))}
                    </SidebarMenuSub>
