@@ -18,7 +18,7 @@ import {
   ResponsiveContainer,
   Legend
 } from 'recharts';
-import { Megaphone, BookOpen, Users, UserCheck, DollarSign, CalendarCheck, Activity, CalendarPlus } from "lucide-react";
+import { Megaphone, BookOpen, Users, UserCheck, DollarSign, CalendarCheck, Activity, CalendarPlus, Landmark } from "lucide-react";
 import Link from "next/link";
 import { useDatabase } from "@/hooks/use-database";
 import { useMemo } from "react";
@@ -57,6 +57,8 @@ export function AdminDashboard() {
   const { data: notifications } = useDatabase<Notification>("notifications");
 
   const totalStudents = students.length;
+  const totalTeachers = teachers.length;
+  const totalClasses = classes.length;
 
   const attendanceStats = useMemo(() => {
     const todayStr = format(new Date(), 'yyyy-MM-dd');
@@ -84,10 +86,10 @@ export function AdminDashboard() {
 
   const eventStats = useMemo(() => {
     const today = startOfToday();
-    const nextWeek = endOfToday(addDays(today, 7));
+    const nextWeek = addDays(today, 7);
     const upcoming = events.filter(event => {
         try {
-           const eventDate = new Date(event.startDate);
+           const eventDate = new Date(event.startDate + 'T00:00:00'); // Ensure date is parsed correctly
            return isWithinInterval(eventDate, { start: today, end: nextWeek });
         } catch {
             return false;
@@ -98,12 +100,10 @@ export function AdminDashboard() {
 
   const feeStats = useMemo(() => {
     return studentFees.reduce((acc, fee) => {
-        const balance = fee.amountDue - fee.amountPaid;
-        if (balance > 0) {
-            acc.totalDue += balance;
-        }
+        acc.totalPaid += fee.amountPaid;
+        acc.totalDue += fee.amountDue;
         return acc;
-    }, { totalDue: 0 });
+    }, { totalPaid: 0, totalDue: 0 });
   }, [studentFees]);
 
   const recentActivity = useMemo(() => {
@@ -111,7 +111,6 @@ export function AdminDashboard() {
   }, [notifications]);
 
   const onboardingData = useMemo(() => {
-    // This remains a placeholder as createdAt is not tracked for students/teachers yet
     const data: { [key: string]: { month: string; students: number; teachers: number } } = {};
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const today = new Date();
@@ -120,6 +119,9 @@ export function AdminDashboard() {
       const monthKey = `${d.getFullYear()}-${months[d.getMonth()]}`;
       data[monthKey] = { month: months[d.getMonth()], students: 0, teachers: 0 };
     }
+    // This part is placeholder logic as we don't have createdAt for students/teachers
+    // In a real app, you would iterate over actual creation dates
+    // For now, it will just show 0s.
     return Object.values(data);
   }, []);
 
@@ -137,38 +139,58 @@ export function AdminDashboard() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <Card className="xl:col-span-1">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Students</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalStudents}</div>
-            <p className="text-xs text-muted-foreground">{teachers.length} teachers</p>
+            <p className="text-xs text-muted-foreground">Currently enrolled</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="xl:col-span-1">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Teachers</CardTitle>
+            <UserCheck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalTeachers}</div>
+            <p className="text-xs text-muted-foreground">On staff</p>
+          </CardContent>
+        </Card>
+        <Card className="xl:col-span-1">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Classes</CardTitle>
+            <Landmark className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalClasses}</div>
+            <p className="text-xs text-muted-foreground">Across all grades</p>
+          </CardContent>
+        </Card>
+        <Card className="xl:col-span-1">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Today's Attendance</CardTitle>
             <CalendarCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{attendanceStats.percentage}%</div>
-            <p className="text-xs text-muted-foreground">{attendanceStats.present} of {totalStudents} students present</p>
+            <p className="text-xs text-muted-foreground">{attendanceStats.present} of {totalStudents} present</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="xl:col-span-1">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Outstanding Fees</CardTitle>
+            <CardTitle className="text-sm font-medium">Fees Collected</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">GH₵{feeStats.totalDue.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">Across all students</p>
+            <div className="text-2xl font-bold">GH₵{feeStats.totalPaid.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">GH₵{(feeStats.totalDue - feeStats.totalPaid).toLocaleString()} outstanding</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="xl:col-span-1">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Upcoming Events</CardTitle>
             <CalendarPlus className="h-4 w-4 text-muted-foreground" />
