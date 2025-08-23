@@ -27,7 +27,8 @@ import {
   CalendarDays,
   BarChart3,
   BookCopy,
-  CalendarClock
+  CalendarClock,
+  NotebookPen,
 } from "lucide-react";
 import { auth } from "@/lib/firebase";
 
@@ -93,7 +94,13 @@ export function DashboardSidebar({ role }: { role: Role }) {
       path: "/dashboard/attendance",
       icon: ClipboardCheck,
       label: "Attendance",
-      roles: ['admin', 'teacher'],
+      roles: ['admin', 'teacher', 'student'],
+    },
+    {
+      path: "/dashboard/permissions",
+      icon: NotebookPen,
+      label: "Permissions",
+      roles: ['admin', 'teacher', 'student'],
     },
     {
       path: "/dashboard/exams",
