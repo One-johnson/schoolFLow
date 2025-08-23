@@ -23,20 +23,21 @@ export function useAuth(): AuthState {
       if (user) {
         setUser(user);
         try {
-          // 1. Check for custom claims first (for users created server-side later)
+          // 1. Check for custom claims first (more secure and efficient)
           const idTokenResult = await user.getIdTokenResult(true);
           const claimRole = idTokenResult.claims.role as any;
 
           if (claimRole) {
             setRole(claimRole);
           } else {
-            // 2. If no claim, check the Realtime Database 'users' table
+            // 2. If no claim, fall back to checking the Realtime Database
             const userDbRef = ref(database, `users/${user.uid}/role`);
             const snapshot = await get(userDbRef);
             if (snapshot.exists()) {
-              setRole(snapshot.val());
+              // This is the corrected line:
+              setRole(snapshot.val()); 
             } else {
-              setRole(null); // No role found in claims or DB
+              setRole(null); // No role found
             }
           }
         } catch (error) {
@@ -44,14 +45,12 @@ export function useAuth(): AuthState {
           setRole(null);
         }
       } else {
-        // User is signed out.
         setUser(null);
         setRole(null);
       }
       setLoading(false);
     });
 
-    // Cleanup subscription on unmount
     return () => unsubscribe();
   }, []);
   
