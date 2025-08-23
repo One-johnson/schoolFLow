@@ -175,7 +175,7 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
             return (
             <SidebarMenuItem key={item.path || item.label}>
               {!hasVisibleSubItems ? (
-                 <SidebarMenuButton
+                  <SidebarMenuButton
                     asChild
                     isActive={!item.disabled && isActive(item.path!, item.exact)}
                     tooltip={item.label}
@@ -206,9 +206,11 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
                    <SidebarMenuSub>
                      {visibleSubItems.map(subItem => (
                        <SidebarMenuSubItem key={subItem.path}>
-                          <SidebarMenuSubButton asChild isActive={isActive(subItem.path)}>
-                              <Link href={subItem.path}>{subItem.label}</Link>
-                          </SidebarMenuSubButton>
+                         <Link href={subItem.path} passHref>
+                           <SidebarMenuSubButton asChild isActive={isActive(subItem.path)}>
+                              <span>{subItem.label}</span>
+                           </SidebarMenuSubButton>
+                         </Link>
                        </SidebarMenuSubItem>
                      ))}
                    </SidebarMenuSub>
@@ -230,3 +232,5 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
     </Sidebar>
   );
 }
+
+    

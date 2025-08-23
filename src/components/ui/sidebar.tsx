@@ -545,7 +545,7 @@ type SidebarMenuButtonProps = (React.ButtonHTMLAttributes<HTMLButtonElement> | R
 } & VariantProps<typeof sidebarMenuButtonVariants>
 
 const SidebarMenuButton = React.forwardRef<
-  HTMLButtonElement | HTMLAnchorElement, 
+  HTMLButtonElement & HTMLAnchorElement,
   SidebarMenuButtonProps
 >(
   (
@@ -564,12 +564,11 @@ const SidebarMenuButton = React.forwardRef<
   ) => {
     const { isMobile, state } = useSidebar()
     const Comp = asChild ? Slot : "button"
-    
+
     const Trigger = isSubmenu ? Collapsible.Trigger : React.Fragment;
-    
-    const buttonContent = (
+
+    const button = (
        <Comp
-          // @ts-ignore - It's a union type
           ref={ref}
           data-sidebar="menu-button"
           data-size={size}
@@ -577,22 +576,15 @@ const SidebarMenuButton = React.forwardRef<
           className={cn(sidebarMenuButtonVariants({ variant, size, className }))}
           {...props}
         >
-            {children}
-            {isSubmenu && (
-                <ChevronRight className="ml-auto size-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-90" />
-            )}
+          {children}
+          {isSubmenu && <ChevronRight className="ml-auto size-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-90" />}
        </Comp>
     );
 
-    const button = isSubmenu ? (
-        <Trigger asChild>{buttonContent}</Trigger>
-    ) : (
-        buttonContent
-    );
-
+    const buttonWithTrigger = isSubmenu ? <Trigger asChild>{button}</Trigger> : button;
 
     if (!tooltip) {
-      return button
+      return buttonWithTrigger
     }
 
     if (typeof tooltip === "string") {
@@ -603,7 +595,9 @@ const SidebarMenuButton = React.forwardRef<
 
     return (
       <Tooltip>
-        <TooltipTrigger asChild>{button}</TooltipTrigger>
+        <TooltipTrigger asChild>
+          {buttonWithTrigger}
+        </TooltipTrigger>
         <TooltipContent
           side="right"
           align="center"
@@ -754,14 +748,13 @@ type SidebarMenuSubButtonProps = (React.ButtonHTMLAttributes<HTMLButtonElement> 
 } & VariantProps<typeof sidebarMenuSubButtonVariants>
 
 const SidebarMenuSubButton = React.forwardRef<
-  HTMLButtonElement | HTMLAnchorElement,
+  HTMLButtonElement & HTMLAnchorElement,
   SidebarMenuSubButtonProps
 >(({ asChild = false, size = "md", isActive, className, ...props }, ref) => {
   const Comp = asChild ? Slot : "button";
 
   return (
     <Comp
-      // @ts-ignore - It's a union type
       ref={ref}
       data-sidebar="menu-sub-button"
       data-size={size}
@@ -799,3 +792,5 @@ export {
   SidebarTrigger,
   useSidebar,
 }
+
+    
