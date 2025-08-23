@@ -503,15 +503,15 @@ SidebarMenu.displayName = "SidebarMenu"
 const SidebarMenuItem = React.forwardRef<
   HTMLLIElement,
   React.ComponentProps<"li">
->(({ className, ...props }, ref) => (
-    <Collapsible.Root asChild>
-      <li
-        ref={ref}
-        data-sidebar="menu-item"
-        className={cn("group/menu-item relative", className)}
-        {...props}
-      />
-    </Collapsible.Root>
+>((props, ref) => (
+  <Collapsible.Root asChild>
+    <li
+      ref={ref}
+      data-sidebar="menu-item"
+      className="group/menu-item relative"
+      {...props}
+    />
+  </Collapsible.Root>
 ))
 SidebarMenuItem.displayName = "SidebarMenuItem"
 
@@ -537,20 +537,18 @@ const sidebarMenuButtonVariants = cva(
   }
 )
 
-type SidebarMenuButtonProps = (React.ButtonHTMLAttributes<HTMLButtonElement> | React.AnchorHTMLAttributes<HTMLAnchorElement>) & {
-    asChild?: boolean
+type SidebarMenuButtonProps = React.HTMLAttributes<HTMLButtonElement> & {
     isActive?: boolean
     tooltip?: string | React.ComponentProps<typeof TooltipContent>
     isSubmenu?: boolean
 } & VariantProps<typeof sidebarMenuButtonVariants>
 
 const SidebarMenuButton = React.forwardRef<
-  HTMLButtonElement & HTMLAnchorElement,
+  HTMLButtonElement,
   SidebarMenuButtonProps
 >(
   (
     {
-      asChild = false,
       isActive = false,
       variant = "default",
       size = "default",
@@ -563,25 +561,22 @@ const SidebarMenuButton = React.forwardRef<
     ref
   ) => {
     const { isMobile, state } = useSidebar()
-    const Comp = asChild ? Slot : "button"
-
-    const Trigger = isSubmenu ? Collapsible.Trigger : React.Fragment;
-
-    const button = (
-       <Comp
-          ref={ref}
-          data-sidebar="menu-button"
-          data-size={size}
-          data-active={isActive}
-          className={cn(sidebarMenuButtonVariants({ variant, size, className }))}
-          {...props}
-        >
-          {children}
-          {isSubmenu && <ChevronRight className="ml-auto size-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-90" />}
-       </Comp>
+    
+    const buttonContent = (
+      <button
+        ref={ref}
+        data-sidebar="menu-button"
+        data-size={size}
+        data-active={isActive}
+        className={cn(sidebarMenuButtonVariants({ variant, size, className }))}
+        {...props}
+      >
+        {children}
+        {isSubmenu && <ChevronRight className="ml-auto size-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-90" />}
+      </button>
     );
 
-    const buttonWithTrigger = isSubmenu ? <Trigger asChild>{button}</Trigger> : button;
+    const buttonWithTrigger = isSubmenu ? <Collapsible.Trigger asChild>{buttonContent}</Collapsible.Trigger> : buttonContent;
 
     if (!tooltip) {
       return buttonWithTrigger
@@ -741,20 +736,17 @@ const sidebarMenuSubButtonVariants = cva(
   }
 )
 
-type SidebarMenuSubButtonProps = (React.ButtonHTMLAttributes<HTMLButtonElement> | React.AnchorHTMLAttributes<HTMLAnchorElement>) & {
-    asChild?: boolean
+type SidebarMenuSubButtonProps = React.HTMLAttributes<HTMLButtonElement> & {
     size?: "sm" | "md"
     isActive?: boolean
 } & VariantProps<typeof sidebarMenuSubButtonVariants>
 
 const SidebarMenuSubButton = React.forwardRef<
-  HTMLButtonElement & HTMLAnchorElement,
+  HTMLButtonElement,
   SidebarMenuSubButtonProps
->(({ asChild = false, size = "md", isActive, className, ...props }, ref) => {
-  const Comp = asChild ? Slot : "button";
-
+>(({ size = "md", isActive, className, ...props }, ref) => {
   return (
-    <Comp
+    <button
       ref={ref}
       data-sidebar="menu-sub-button"
       data-size={size}
@@ -792,5 +784,3 @@ export {
   SidebarTrigger,
   useSidebar,
 }
-
-    

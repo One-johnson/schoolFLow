@@ -151,8 +151,10 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
 
   const menuItems = allMenuItems.filter(item => {
     if (item.subItems) {
+      // An item with sub-items should be shown if at least one of its sub-items is visible for the current role
       return item.subItems.some(sub => sub.roles.includes(role || ''));
     }
+    // Regular items are shown if their roles array includes the current role
     return item.roles.includes(role || '');
   });
 
@@ -175,19 +177,17 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
             return (
             <SidebarMenuItem key={item.path || item.label}>
               {!hasVisibleSubItems ? (
-                  <SidebarMenuButton
-                    asChild
-                    isActive={!item.disabled && isActive(item.path!, item.exact)}
-                    tooltip={item.label}
-                    disabled={item.disabled}
-                    aria-disabled={item.disabled}
-                    className={item.disabled ? "cursor-not-allowed opacity-50" : ""}
-                  >
-                    <Link href={item.disabled ? "#" : item.path!}>
+                  <Link href={item.disabled ? "#" : item.path!} aria-disabled={item.disabled} className={item.disabled ? "pointer-events-none" : ""}>
+                    <SidebarMenuButton
+                      isActive={!item.disabled && isActive(item.path!, item.exact)}
+                      tooltip={item.label}
+                      disabled={item.disabled}
+                      className={item.disabled ? "opacity-50" : ""}
+                    >
                       <item.icon />
                       <span>{item.label}</span>
-                    </Link>
-                  </SidebarMenuButton>
+                    </SidebarMenuButton>
+                  </Link>
               ) : (
                  <SidebarMenuButton
                       isActive={!item.disabled && !!visibleSubItems?.some(sub => isActive(sub.path, false))}
@@ -206,8 +206,8 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
                    <SidebarMenuSub>
                      {visibleSubItems.map(subItem => (
                        <SidebarMenuSubItem key={subItem.path}>
-                         <Link href={subItem.path} passHref>
-                           <SidebarMenuSubButton asChild isActive={isActive(subItem.path)}>
+                         <Link href={subItem.path}>
+                           <SidebarMenuSubButton isActive={isActive(subItem.path)}>
                               <span>{subItem.label}</span>
                            </SidebarMenuSubButton>
                          </Link>
@@ -232,5 +232,3 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
     </Sidebar>
   );
 }
-
-    
