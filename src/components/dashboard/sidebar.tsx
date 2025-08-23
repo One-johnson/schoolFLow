@@ -41,6 +41,7 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
   const router = useRouter();
 
   const isActive = (path: string, exact: boolean = true) => {
+    if (!path) return false;
     return exact ? pathname === path : pathname.startsWith(path);
   };
 
@@ -160,10 +161,13 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
       <SidebarContent className="p-2">
         <SidebarMenu>
           {menuItems.map((item) => {
+             if (!item.path && !item.subItems?.some(sub => sub.roles.includes(role || ''))) {
+                return null;
+             }
              const visibleSubItems = item.subItems?.filter(sub => sub.roles.includes(role || ''));
 
             return (
-            <SidebarMenuItem key={item.path}>
+            <SidebarMenuItem key={item.path || item.label}>
                 <SidebarMenuButton
                   as={item.subItems ? "button" : "a"}
                   href={item.disabled ? "#" : item.path}
@@ -181,7 +185,7 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
                    <SidebarMenuSub>
                      {visibleSubItems.map(subItem => (
                        <SidebarMenuSubItem key={subItem.path}>
-                          <Link href={subItem.path} passHref legacyBehavior>
+                          <Link href={subItem.path} asChild>
                             <SidebarMenuSubButton isActive={isActive(subItem.path)}>
                                 {subItem.label}
                             </SidebarMenuSubButton>
