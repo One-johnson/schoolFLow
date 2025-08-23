@@ -565,7 +565,7 @@ const SidebarMenuButton = React.forwardRef<
     const { isMobile, state } = useSidebar()
     const Comp = asChild ? Slot : "button"
     
-    const Trigger = isSubmenu ? Collapsible.Trigger : "div";
+    const Trigger = isSubmenu ? Collapsible.Trigger : React.Fragment;
     
     const buttonContent = (
        <Comp
@@ -799,5 +799,3 @@ export {
   SidebarTrigger,
   useSidebar,
 }
-
-  
