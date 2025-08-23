@@ -17,8 +17,9 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, database } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
+import { ref, get } from 'firebase/database';
 
 export default function LoginPage() {
   return (
@@ -67,10 +68,27 @@ function LoginForm({ role }: { role: string }) {
     setIsLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      // This is the key change: force a token refresh to get custom claims immediately.
-      await userCredential.user.getIdTokenResult(true);
-      toast({ title: 'Success', description: 'Signed in successfully. Redirecting...' });
-      router.push('/dashboard');
+      const user = userCredential.user;
+      
+      // Fetch user role from the database
+      const userRef = ref(database, `users/${user.uid}`);
+      const snapshot = await get(userRef);
+
+      if (snapshot.exists()) {
+        const userData = snapshot.val();
+        const userRole = userData.role;
+
+        // Check if the role from the DB matches the login form tab
+        if (userRole === role) {
+          toast({ title: 'Success', description: 'Signed in successfully. Redirecting...' });
+          router.push('/dashboard');
+        } else {
+           throw new Error(`You are not authorized to log in as ${role}.`);
+        }
+      } else {
+         throw new Error("User data not found. Please contact an administrator.");
+      }
+
     } catch (error: any) {
       toast({
         title: 'Error',
