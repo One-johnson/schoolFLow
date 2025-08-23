@@ -1,42 +1,48 @@
 
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  BarChart3,
+  Book,
+  BookCopy,
+  BookOpen,
+  CalendarClock,
+  CalendarDays,
+  ClipboardCheck,
+  DollarSign,
+  FileText,
+  LayoutGrid,
+  LogOut,
+  Megaphone,
+  NotebookPen,
+  School,
+  Sparkles,
+  UserCheck,
+  Users,
+} from "lucide-react";
+
+import { useAuth } from "@/hooks/use-auth";
 import {
   Sidebar,
-  SidebarHeader,
   SidebarContent,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
   SidebarFooter,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
   SidebarMenuSub,
   SidebarMenuSubButton,
-  SidebarMenuSubItem
+  SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
-import {
-  LayoutGrid,
-  Users,
-  UserCheck,
-  Megaphone,
-  Sparkles,
-  School,
-  LogOut,
-  Book,
-  ClipboardCheck,
-  FileText,
-  DollarSign,
-  CalendarDays,
-  BarChart3,
-  BookCopy,
-  CalendarClock,
-  NotebookPen,
-} from "lucide-react";
 import { auth } from "@/lib/firebase";
-import { useAuth } from "@/hooks/use-auth";
 
-export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['role'] }) {
+export function DashboardSidebar({
+  role,
+}: {
+  role: ReturnType<typeof useAuth>["role"];
+}) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -57,105 +63,119 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
       path: "/dashboard",
       icon: LayoutGrid,
       label: "Dashboard",
-      roles: ['admin', 'teacher', 'student'],
+      roles: ["admin", "teacher", "student"],
       exact: true,
     },
     {
       path: "/dashboard/students",
       icon: Users,
       label: "Students",
-      roles: ['admin'],
+      roles: ["admin"],
     },
     {
       path: "/dashboard/teachers",
       icon: UserCheck,
       label: "Teachers",
-      roles: ['admin'],
+      roles: ["admin"],
     },
-     {
+    {
       path: "/dashboard/classes",
       icon: Book,
       label: "Classes",
-      roles: ['admin'],
+      roles: ["admin"],
     },
     {
       path: "/dashboard/subjects",
       icon: BookCopy,
       label: "Subjects",
-      roles: ['admin', 'teacher'],
+      roles: ["admin", "teacher"],
     },
     {
       path: "/dashboard/terms",
       icon: CalendarClock,
       label: "Terms",
-      roles: ['admin'],
+      roles: ["admin"],
     },
     {
       path: "/dashboard/announcements",
       icon: Megaphone,
       label: "Announcements",
-      roles: ['admin', 'teacher', 'student'],
+      roles: ["admin", "teacher", "student"],
     },
     {
       path: "/dashboard/attendance",
       icon: ClipboardCheck,
       label: "Attendance",
-      roles: ['admin','teacher', 'student'],
+      roles: ["admin", "teacher", "student"],
     },
     {
       path: "/dashboard/permissions",
       icon: NotebookPen,
       label: "Permissions",
-      roles: ['admin', 'teacher', 'student'],
+      roles: ["admin", "teacher", "student"],
     },
-     {
+    {
       path: "/dashboard/reports",
       icon: BarChart3,
       label: "Reports",
-      roles: ['admin'],
+      roles: ["admin"],
+    },
+    {
+      path: "/dashboard/events",
+      icon: CalendarDays,
+      label: "Events",
+      roles: ['admin', 'teacher', 'student'],
     },
     {
       path: "/dashboard/exams",
       icon: FileText,
       label: "Exams",
-      roles: ['admin', 'teacher', 'student'],
+      roles: ["admin", "teacher", "student"],
       disabled: true,
     },
     {
       label: "Fees",
       path: "/dashboard/fees",
       icon: DollarSign,
-      roles: ['admin', 'teacher', 'student'],
+      roles: ["admin", "teacher", "student"],
       subItems: [
-        { path: '/dashboard/fees/structures', label: 'Structures', roles: ['admin'] },
-        { path: '/dashboard/fees/assign', label: 'Assign Fees', roles: ['admin'] },
-        { path: '/dashboard/fees/payments', label: 'Payments', roles: ['admin'] },
-        { path: '/dashboard/fees/class-fees', label: 'Class Fees', roles: ['teacher'] },
-        { path: '/dashboard/fees/my-fees', label: 'My Fees', roles: ['student'] },
-      ]
+        {
+          path: "/dashboard/fees/structures",
+          label: "Structures",
+          roles: ["admin"],
+        },
+        { path: "/dashboard/fees/assign", label: "Assign Fees", roles: ["admin"] },
+        { path: "/dashboard/fees/payments", label: "Payments", roles: ["admin"] },
+        {
+          path: "/dashboard/fees/class-fees",
+          label: "Class Fees",
+          roles: ["teacher"],
+        },
+        { path: "/dashboard/fees/my-fees", label: "My Fees", roles: ["student"] },
+      ],
     },
     {
       path: "/dashboard/timetable",
       icon: CalendarDays,
       label: "Timetable",
-      roles: ['admin', 'teacher', 'student'],
+      roles: ["admin", "teacher", "student"],
       disabled: false,
     },
     {
       path: "/dashboard/summarize",
       icon: Sparkles,
       label: "AI Summarizer",
-      roles: ['admin', 'teacher', 'student'],
+      roles: ["admin", "teacher", "student"],
     },
   ];
 
-  const menuItems = allMenuItems.filter(item => {
+  const menuItems = allMenuItems.filter((item) => {
     if (item.subItems) {
       // An item with sub-items should be shown if at least one of its sub-items is visible for the current role
-      return item.subItems.some(sub => sub.roles.includes(role || ''));
+      return item.subItems.some((sub) => sub.roles.includes(role || ""));
     }
     // Regular items are shown if their roles array includes the current role
-    return item.roles.includes(role || '');
+    return item.roles.includes(role || "");
   });
 
   return (
@@ -171,13 +191,17 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
       <SidebarContent className="p-2">
         <SidebarMenu>
           {menuItems.map((item) => {
-            const hasVisibleSubItems = item.subItems?.some(sub => sub.roles.includes(role || ''));
-            const visibleSubItems = item.subItems?.filter(sub => sub.roles.includes(role || ''));
+            const hasVisibleSubItems = item.subItems?.some((sub) =>
+              sub.roles.includes(role || "")
+            );
+            const visibleSubItems = item.subItems?.filter((sub) =>
+              sub.roles.includes(role || "")
+            );
 
             return (
-            <SidebarMenuItem key={item.path || item.label}>
-              {!hasVisibleSubItems ? (
-                  <Link href={item.disabled ? "#" : item.path!} aria-disabled={item.disabled} className={item.disabled ? "pointer-events-none" : ""}>
+              <SidebarMenuItem key={item.path || item.label}>
+                {!hasVisibleSubItems ? (
+                  <Link href={item.disabled ? "#" : item.path!}>
                     <SidebarMenuButton
                       isActive={!item.disabled && isActive(item.path!, item.exact)}
                       tooltip={item.label}
@@ -188,35 +212,39 @@ export function DashboardSidebar({ role }: { role: ReturnType<typeof useAuth>['r
                       <span>{item.label}</span>
                     </SidebarMenuButton>
                   </Link>
-              ) : (
-                 <SidebarMenuButton
-                      isActive={!item.disabled && !!visibleSubItems?.some(sub => isActive(sub.path, false))}
-                      tooltip={item.label}
-                      disabled={item.disabled}
-                      aria-disabled={item.disabled}
-                      isSubmenu
-                      className={item.disabled ? "cursor-not-allowed opacity-50" : ""}
-                    >
-                      <item.icon />
-                      <span>{item.label}</span>
+                ) : (
+                  <SidebarMenuButton
+                    isActive={
+                      !item.disabled &&
+                      !!visibleSubItems?.some((sub) => isActive(sub.path, false))
+                    }
+                    tooltip={item.label}
+                    disabled={item.disabled}
+                    aria-disabled={item.disabled}
+                    isSubmenu
+                    className={item.disabled ? "cursor-not-allowed opacity-50" : ""}
+                  >
+                    <item.icon />
+                    <span>{item.label}</span>
                   </SidebarMenuButton>
-              )}
-               
-                {visibleSubItems && visibleSubItems.length > 0 && (
-                   <SidebarMenuSub>
-                     {visibleSubItems.map(subItem => (
-                       <SidebarMenuSubItem key={subItem.path}>
-                         <Link href={subItem.path}>
-                           <SidebarMenuSubButton isActive={isActive(subItem.path)}>
-                              <span>{subItem.label}</span>
-                           </SidebarMenuSubButton>
-                         </Link>
-                       </SidebarMenuSubItem>
-                     ))}
-                   </SidebarMenuSub>
                 )}
-            </SidebarMenuItem>
-          )})}
+
+                {visibleSubItems && visibleSubItems.length > 0 && (
+                  <SidebarMenuSub>
+                    {visibleSubItems.map((subItem) => (
+                      <SidebarMenuSubItem key={subItem.path}>
+                        <Link href={subItem.path}>
+                          <SidebarMenuSubButton isActive={isActive(subItem.path)}>
+                            <span>{subItem.label}</span>
+                          </SidebarMenuSubButton>
+                        </Link>
+                      </SidebarMenuSubItem>
+                    ))}
+                  </SidebarMenuSub>
+                )}
+              </SidebarMenuItem>
+            );
+          })}
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter>
