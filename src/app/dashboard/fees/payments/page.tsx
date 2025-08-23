@@ -44,7 +44,7 @@ import { Label } from "@/components/ui/label";
 import { useDatabase } from "@/hooks/use-database";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { Loader2, DollarSign } from "lucide-react";
+import { Loader2, DollarSign, AlertCircle } from "lucide-react";
 
 // Data types
 type Student = { id: string; name: string };
@@ -62,6 +62,8 @@ type EnrichedStudentFee = StudentFee & {
   studentName: string;
   feeName: string;
 };
+
+const HIGH_PRIORITY_THRESHOLD = 500;
 
 export default function StudentPaymentsPage() {
   const { data: students, loading: studentsLoading } = useDatabase<Student>("students");
@@ -128,7 +130,15 @@ export default function StudentPaymentsPage() {
     { accessorKey: "amountPaid", header: "Amount Paid", cell: ({ row }) => `$${row.original.amountPaid.toLocaleString()}`},
     { accessorKey: "balance", header: "Balance", cell: ({ row }) => {
         const balance = row.original.amountDue - row.original.amountPaid;
-        return `$${balance.toLocaleString()}`;
+        const isHighPriority = balance > HIGH_PRIORITY_THRESHOLD;
+        return (
+            <div className={cn("font-semibold", isHighPriority && "text-destructive")}>
+                ${balance.toLocaleString()}
+                {isHighPriority && (
+                    <Badge variant="destructive" className="ml-2">High Priority</Badge>
+                )}
+            </div>
+        );
     }},
     { accessorKey: "status", header: "Status", cell: ({ row }) => {
         const status = row.original.status;
@@ -142,7 +152,7 @@ export default function StudentPaymentsPage() {
     {
       id: "actions",
       cell: ({ row }) => (
-        <Button variant="outline" size="sm" onClick={() => openPaymentDialog(row.original)}>
+        <Button variant="outline" size="sm" onClick={() => openPaymentDialog(row.original)} disabled={row.original.status === 'Paid'}>
           <DollarSign className="mr-2 h-4 w-4" /> Record Payment
         </Button>
       ),
@@ -172,7 +182,7 @@ export default function StudentPaymentsPage() {
         <CardHeader>
           <CardTitle>Student Payments</CardTitle>
           <CardDescription>
-            View and manage student fee payment status.
+            View and manage student fee payment status. Balances over ${HIGH_PRIORITY_THRESHOLD} are flagged.
           </CardDescription>
         </CardHeader>
         <CardContent>
