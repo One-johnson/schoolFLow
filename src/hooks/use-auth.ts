@@ -18,23 +18,20 @@ export function useAuth(): AuthState {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setLoading(true);
       if (user) {
+        // User is signed in.
+        const idTokenResult = await user.getIdTokenResult(true);
         setUser(user);
-        try {
-          const idTokenResult = await user.getIdTokenResult(true); // Force refresh to get latest claims
-          setRole((idTokenResult.claims.role as any) || null);
-        } catch (error) {
-          console.error("Error getting user role from token:", error);
-          setRole(null);
-        }
+        setRole((idTokenResult.claims.role as any) || null);
       } else {
+        // User is signed out.
         setUser(null);
         setRole(null);
       }
       setLoading(false);
     });
 
+    // Cleanup subscription on unmount
     return () => unsubscribe();
   }, []);
   
