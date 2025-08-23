@@ -15,12 +15,27 @@ export function useDatabase<T extends { id?: string }>(path: string) {
       const val = snapshot.val();
       const loadedData: T[] = [];
       if (val) {
-        for (const key in val) {
-          loadedData.push({ id: key, ...val[key] });
+        // if it's a list of records
+        if (typeof val === 'object' && !Array.isArray(val)) {
+            for (const key in val) {
+              // Check if the value is an object and has properties, otherwise it could be a simple value.
+              if(typeof val[key] === 'object' && val[key] !== null) {
+                 loadedData.push({ id: key, ...val[key] });
+              } else {
+                 // Handle cases where the path leads to a list of simple values if necessary
+                 // For now, we assume children are objects with IDs
+              }
+            }
+        } else if (Array.isArray(val)) {
+             // Handle array data if your DB uses it (less common in Firebase RTDB)
+            setData(val);
         }
       }
       setData(loadedData);
       setLoading(false);
+    }, (error) => {
+        console.error("Firebase onValue error:", error);
+        setLoading(false);
     });
 
     return () => unsubscribe();
@@ -37,15 +52,23 @@ export function useDatabase<T extends { id?: string }>(path: string) {
     return set(dbRef, { ...newData, createdAt: serverTimestamp() });
   }
 
-  const updateData = async (id: string, updates: Partial<T>) => {
+  const updateData = async (id: string, updates: Partial<T> | any) => {
     const dbRef = ref(database, `${path}/${id}`);
     return update(dbRef, updates);
   };
+  
+  // A more flexible update function that takes a full path
+  const updatePath = async (fullPath: string, updates: object) => {
+      const dbRef = ref(database, fullPath);
+      return update(dbRef, updates);
+  }
 
   const deleteData = async (id: string) => {
     const dbRef = ref(database, `${path}/${id}`);
     return remove(dbRef);
   };
 
-  return { data, loading, addData, addDataWithId, updateData, deleteData };
+  return { data, loading, addData, addDataWithId, updateData, updatePath, deleteData };
 }
+
+    

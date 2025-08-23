@@ -3,6 +3,9 @@
 
 import { useAuth } from "@/hooks/use-auth"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Button } from "../ui/button";
+import Link from "next/link";
+import { ClipboardCheck } from "lucide-react";
 
 export function StudentDashboard() {
   const { user } = useAuth();
@@ -17,19 +20,29 @@ export function StudentDashboard() {
       </div>
       <Card>
         <CardHeader>
-            <CardTitle>Under Construction</CardTitle>
-            <CardDescription>This student dashboard is still being built. Check back soon for updates on your classes, grades, and more!</CardDescription>
+            <CardTitle>Your Portal</CardTitle>
+            <CardDescription>This is your central hub for all your school information.</CardDescription>
         </CardHeader>
         <CardContent>
-            <p>Here you will be able to see:</p>
-            <ul className="list-disc pl-5 mt-2 text-muted-foreground">
-                <li>Your class schedule and timetable.</li>
-                <li>Announcements from your teachers and the school.</li>
-                <li>Your exam results and grades.</li>
-                <li>Your attendance record.</li>
-            </ul>
+            <div className="space-y-4">
+                <p>Here you will be able to see:</p>
+                <ul className="list-disc pl-5 mt-2 text-muted-foreground">
+                    <li>Your class schedule and timetable.</li>
+                    <li>Announcements from your teachers and the school.</li>
+                    <li>Your exam results and grades.</li>
+                    <li>Your attendance record.</li>
+                </ul>
+                <Button asChild>
+                    <Link href="/dashboard/attendance">
+                        <ClipboardCheck className="mr-2 h-4 w-4" />
+                        View My Attendance
+                    </Link>
+                </Button>
+            </div>
         </CardContent>
       </Card>
     </div>
   );
 }
+
+    
