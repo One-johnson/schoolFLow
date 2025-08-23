@@ -16,6 +16,9 @@ import { Label } from '@/components/ui/label';
 import { School, Eye, EyeOff, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { auth, database } from '@/lib/firebase';
+import { ref, set } from 'firebase/database';
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
@@ -40,20 +43,21 @@ export default function RegisterPage() {
     
     setIsLoading(true);
     try {
-      const response = await fetch('/api/create-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: email,
-          password: password,
-          displayName: name,
-        }),
-      });
+      // 1. Create user in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create admin user.');
-      }
+      // 2. Update the user's profile with their name
+      await updateProfile(user, { displayName: name });
+
+      // 3. Set the user's role in the Realtime Database
+      const userRef = ref(database, `users/${user.uid}`);
+      await set(userRef, {
+        role: 'admin',
+        email: user.email,
+        name: name,
+        createdAt: new Date().toISOString(),
+      });
 
       toast({
         title: 'Registration successful',
