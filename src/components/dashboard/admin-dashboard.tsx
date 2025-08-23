@@ -18,7 +18,7 @@ import {
   ResponsiveContainer,
   Legend
 } from 'recharts';
-import { Megaphone, BookOpen, Users, UserCheck, DollarSign, ArrowDown, ArrowUp } from "lucide-react";
+import { Megaphone, BookOpen, Users, UserCheck, DollarSign, CalendarCheck, Activity, CalendarPlus, Landmark } from "lucide-react";
 import Link from "next/link";
 import { useDatabase } from "@/hooks/use-database";
 import { useMemo } from "react";
@@ -27,58 +27,107 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
+import { format, isWithinInterval, startOfToday, endOfToday, addDays } from "date-fns";
+import { Badge } from "../ui/badge";
 
-type Student = { id: string; createdAt: number };
-type Teacher = { id: string; createdAt: number };
-type Announcement = { id: string; createdAt: number };
-type Class = { id: string };
+type Student = { id: string; name: string };
+type Teacher = { id: string; name: string };
+type Class = { id: string; studentIds?: Record<string, boolean> };
+type Event = { id: string; startDate: string };
+type StudentFee = { id: string; amountDue: number; amountPaid: number; status: "Paid" | "Unpaid" | "Partial"; };
+type AttendanceRecord = Record<string, "Present" | "Absent" | "Late" | "Excused">;
+type DailyAttendance = { [classId: string]: AttendanceRecord };
+type Notification = { id: string, message: string, createdAt: number, type: string };
+
+const iconMap: { [key: string]: React.ReactNode } = {
+  student_enrolled: <Users className="h-4 w-4" />,
+  teacher_added: <UserCheck className="h-4 w-4" />,
+  class_created: <BookOpen className="h-4 w-4" />,
+  announcement: <Megaphone className="h-4 w-4" />,
+  default: <Activity className="h-4 w-4" />
+};
 
 export function AdminDashboard() {
   const { data: students } = useDatabase<Student>('students');
   const { data: teachers } = useDatabase<Teacher>('teachers');
-  const { data: announcements } = useDatabase<Announcement>('announcements');
   const { data: classes } = useDatabase<Class>('classes');
+  const { data: events } = useDatabase<Event>('events');
+  const { data: studentFees } = useDatabase<StudentFee>('studentFees');
+  const { data: rawAttendance } = useDatabase<DailyAttendance>(`attendance`);
+  const { data: notifications } = useDatabase<Notification>("notifications");
 
-  const newAnnouncementsThisWeek = useMemo(() => {
-    if (!announcements) return 0;
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    return announcements.filter(a => a.createdAt > oneWeekAgo.getTime()).length;
-  }, [announcements]);
+  const totalStudents = students.length;
+  const totalTeachers = teachers.length;
+  const totalClasses = classes.length;
+
+  const attendanceStats = useMemo(() => {
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const todaysLog = rawAttendance.find(log => log.id === todayStr);
+
+    if (!todaysLog || totalStudents === 0) return { present: 0, percentage: 0 };
+    
+    let presentCount = 0;
+    Object.values(todaysLog).forEach(classRecords => {
+      if (typeof classRecords === 'object' && classRecords !== null) {
+        Object.values(classRecords).forEach(status => {
+          if (status === 'Present') {
+            presentCount++;
+          }
+        })
+      }
+    });
+
+    return {
+        present: presentCount,
+        percentage: Math.round((presentCount / totalStudents) * 100)
+    };
+
+  }, [rawAttendance, totalStudents]);
+
+  const eventStats = useMemo(() => {
+    const today = startOfToday();
+    const nextWeek = addDays(today, 7);
+    const upcoming = events.filter(event => {
+        try {
+           const eventDate = new Date(event.startDate + 'T00:00:00'); // Ensure date is parsed correctly
+           return isWithinInterval(eventDate, { start: today, end: nextWeek });
+        } catch {
+            return false;
+        }
+    }).length;
+    return { upcoming };
+  }, [events]);
+
+  const feeStats = useMemo(() => {
+    return studentFees.reduce((acc, fee) => {
+        acc.totalPaid += fee.amountPaid;
+        acc.totalDue += fee.amountDue;
+        return acc;
+    }, { totalPaid: 0, totalDue: 0 });
+  }, [studentFees]);
+
+  const recentActivity = useMemo(() => {
+    return [...notifications].sort((a,b) => b.createdAt - a.createdAt).slice(0, 5);
+  }, [notifications]);
 
   const onboardingData = useMemo(() => {
     const data: { [key: string]: { month: string; students: number; teachers: number } } = {};
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const today = new Date();
-
     for (let i = 5; i >= 0; i--) {
       const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
       const monthKey = `${d.getFullYear()}-${months[d.getMonth()]}`;
       data[monthKey] = { month: months[d.getMonth()], students: 0, teachers: 0 };
     }
-
-    students.forEach(s => {
-      // Student onboarding is not tracked with `createdAt` in the provided code
-      // This part would need adjustment if `createdAt` is added to student data
-    });
-    
-    teachers.forEach(t => {
-      // Teacher onboarding is not tracked with `createdAt` in the provided code
-      // This part would need adjustment if `createdAt` is added to teacher data
-    });
-
+    // This part is placeholder logic as we don't have createdAt for students/teachers
+    // In a real app, you would iterate over actual creation dates
+    // For now, it will just show 0s.
     return Object.values(data);
-  }, [students, teachers]);
+  }, []);
 
   const chartConfig = {
-    students: {
-      label: "Students",
-      color: "hsl(var(--chart-1))",
-    },
-    teachers: {
-      label: "Teachers",
-      color: "hsl(var(--chart-2))",
-    },
+    students: { label: "Students", color: "hsl(var(--chart-1))" },
+    teachers: { label: "Teachers", color: "hsl(var(--chart-2))" },
   }
 
   return (
@@ -86,49 +135,69 @@ export function AdminDashboard() {
       <div className="flex-1 space-y-4">
         <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
         <p className="text-muted-foreground">
-          Welcome back! Here's an overview of your school.
+          Welcome back! Here's a live overview of your school.
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <Card className="xl:col-span-1">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Students</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{students.length}</div>
+            <div className="text-2xl font-bold">{totalStudents}</div>
             <p className="text-xs text-muted-foreground">Currently enrolled</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="xl:col-span-1">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Teachers</CardTitle>
             <UserCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{teachers.length}</div>
-            <p className="text-xs text-muted-foreground">Active faculty members</p>
+            <div className="text-2xl font-bold">{totalTeachers}</div>
+            <p className="text-xs text-muted-foreground">On staff</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="xl:col-span-1">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Classes</CardTitle>
-            <BookOpen className="h-4 w-4 text-muted-foreground" />
+            <Landmark className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{classes.length}</div>
+            <div className="text-2xl font-bold">{totalClasses}</div>
             <p className="text-xs text-muted-foreground">Across all grades</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="xl:col-span-1">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Announcements</CardTitle>
-            <Megaphone className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Today's Attendance</CardTitle>
+            <CalendarCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{announcements.length}</div>
-            <p className="text-xs text-muted-foreground">{newAnnouncementsThisWeek} new this week</p>
+            <div className="text-2xl font-bold">{attendanceStats.percentage}%</div>
+            <p className="text-xs text-muted-foreground">{attendanceStats.present} of {totalStudents} present</p>
+          </CardContent>
+        </Card>
+        <Card className="xl:col-span-1">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Fees Collected</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">GH₵{feeStats.totalPaid.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">GH₵{(feeStats.totalDue - feeStats.totalPaid).toLocaleString()} outstanding</p>
+          </CardContent>
+        </Card>
+        <Card className="xl:col-span-1">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Upcoming Events</CardTitle>
+            <CalendarPlus className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{eventStats.upcoming}</div>
+            <p className="text-xs text-muted-foreground">In the next 7 days</p>
           </CardContent>
         </Card>
       </div>
@@ -163,51 +232,31 @@ export function AdminDashboard() {
             </ChartContainer>
           </CardContent>
         </Card>
-        <div className="col-span-4 md:col-span-3 flex flex-col gap-4">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Financial Overview</CardTitle>
-                    <CardDescription>
-                    Summary of school finances.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="grid grid-cols-2 gap-4">
-                    <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20">
-                        <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
-                           <ArrowDown className="h-5 w-5"/>
-                           <p className="text-sm font-medium">Total Revenue</p>
-                        </div>
-                        <p className="text-2xl font-bold mt-2">GH₵0.00</p>
-                    </div>
-                     <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20">
-                        <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
-                           <ArrowUp className="h-5 w-5"/>
-                           <p className="text-sm font-medium">Outstanding Fees</p>
-                        </div>
-                        <p className="text-2xl font-bold mt-2">GH₵0.00</p>
-                    </div>
-                </CardContent>
-            </Card>
-             <Card>
-                <CardHeader>
-                    <CardTitle>Quick Links</CardTitle>
-                </CardHeader>
-                <CardContent className="grid grid-cols-2 gap-4">
-                    <Link href="/dashboard/students" className="block p-4 bg-secondary hover:bg-muted rounded-lg text-center">
-                        Manage Students
-                    </Link>
-                    <Link href="/dashboard/teachers" className="block p-4 bg-secondary hover:bg-muted rounded-lg text-center">
-                        Manage Teachers
-                    </Link>
-                    <Link href="/dashboard/announcements" className="block p-4 bg-secondary hover:bg-muted rounded-lg text-center">
-                        Post Announcement
-                    </Link>
-                    <Link href="/dashboard/fees" className="block p-4 bg-secondary hover:bg-muted rounded-lg text-center">
-                        Manage Fees
-                    </Link>
-                </CardContent>
-             </Card>
-        </div>
+        <Card className="col-span-4 md:col-span-3">
+             <CardHeader>
+                <CardTitle>Recent Activity</CardTitle>
+                <CardDescription>A log of the latest events across the system.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-4">
+                    {recentActivity.length > 0 ? recentActivity.map(item => (
+                       <div key={item.id} className="flex items-center">
+                           <div className="p-2 bg-muted rounded-full mr-3">
+                            {iconMap[item.type] || iconMap.default}
+                           </div>
+                           <div className="flex-grow">
+                             <p className="text-sm">{item.message}</p>
+                             <p className="text-xs text-muted-foreground">
+                                {format(new Date(item.createdAt), "MMM d, yyyy 'at' h:mm a")}
+                             </p>
+                           </div>
+                       </div>
+                    )) : (
+                        <p className="text-sm text-muted-foreground text-center py-8">No recent activities.</p>
+                    )}
+                </div>
+            </CardContent>
+        </Card>
       </div>
     </div>
   );
