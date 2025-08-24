@@ -98,6 +98,8 @@ export default function ExamSetupPage() {
   const [scheduleDate, setScheduleDate] = React.useState<Date | undefined>();
 
   const termsMap = React.useMemo(() => new Map(terms.map(t => [t.id, t.name])), [terms]);
+  const classesMap = React.useMemo(() => new Map(classes.map(c => [c.id, c.name])), [classes]);
+  const subjectsMap = React.useMemo(() => new Map(subjects.map(s => [s.id, s.name])), [subjects]);
 
   const handleCreateExam = async () => {
     if (!examForm.name?.trim() || !examForm.termId) {
@@ -355,7 +357,7 @@ export default function ExamSetupPage() {
               <CardHeader><CardTitle>Current Schedule</CardTitle></CardHeader>
               <CardContent>
                  {examSchedules.length > 0 ? (
-                  <ul>{examSchedules.map(s => <li key={s.id}>{s.date} @ {s.time}: {subjects.find(sub => sub.id === s.subjectId)?.name} for {classes.find(c => c.id === s.classId)?.name}</li>)}</ul>
+                  <ul>{examSchedules.map(s => <li key={s.id}>{s.date} @ {s.time}: {subjectsMap.get(s.subjectId)} for {classesMap.get(s.classId)}</li>)}</ul>
                   ) : <p className="text-muted-foreground">No papers scheduled yet.</p>}
               </CardContent>
             </Card>
