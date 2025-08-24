@@ -131,7 +131,11 @@ export function DashboardSidebar({
       icon: FileText,
       label: "Exams",
       roles: ["admin", "teacher", "student"],
-      disabled: true,
+      subItems: [
+        { path: "/dashboard/exams/setup", label: "Exam Setup", roles: ["admin"] },
+        { path: "/dashboard/exams/grading", label: "Grading", roles: ["teacher"] },
+        { path: "/dashboard/exams/my-results", label: "My Results", roles: ["student"] },
+      ]
     },
     {
       label: "Fees",
