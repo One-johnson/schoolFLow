@@ -50,6 +50,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import {
   PlusCircle,
   Loader2,
@@ -57,21 +59,20 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
+  CalendarIcon,
+  Clock,
+  ListPlus,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 // Data types
-type Term = {
-  id: string;
-  name: string;
-};
-
-type Exam = {
-  id: string;
-  name: string;
-  termId: string;
-  status: "Upcoming" | "Ongoing" | "Grading" | "Published";
-};
+type Term = { id: string; name: string };
+type Exam = { id: string; name: string; termId: string; status: "Upcoming" | "Ongoing" | "Grading" | "Published" };
+type Class = { id: string; name: string };
+type Subject = { id: string; name: string; classId?: string; };
+type ExamSchedule = { id: string; examId: string; classId: string; subjectId: string; date: string; time: string; maxScore: number; };
 
 export default function ExamSetupPage() {
   const { data: exams, addData, updateData, deleteData, loading } = useDatabase<Exam>("exams");
@@ -79,30 +80,35 @@ export default function ExamSetupPage() {
   
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
+  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = React.useState(false);
+  
   const [selectedExam, setSelectedExam] = React.useState<Exam | null>(null);
-  
-  const [newExam, setNewExam] = React.useState<{ name: string; termId: string }>({ name: "", termId: "" });
-  const [editExam, setEditExam] = React.useState<Partial<Exam>>({});
-  
   const [isLoading, setIsLoading] = React.useState(false);
   const { toast } = useToast();
+
+  // State for Create/Edit Exam
+  const [examForm, setExamForm] = React.useState<Partial<Exam>>({});
+  
+  // State for Schedule Dialog
+  const { data: classes } = useDatabase<Class>("classes");
+  const { data: subjects } = useDatabase<Subject>("subjects");
+  const { data: schedules, addData: addSchedule } = useDatabase<ExamSchedule>("examSchedules");
+
+  const [scheduleForm, setScheduleForm] = React.useState<Partial<Omit<ExamSchedule, 'id'>>>({});
+  const [scheduleDate, setScheduleDate] = React.useState<Date | undefined>();
 
   const termsMap = React.useMemo(() => new Map(terms.map(t => [t.id, t.name])), [terms]);
 
   const handleCreateExam = async () => {
-    if (!newExam.name.trim() || !newExam.termId) {
+    if (!examForm.name?.trim() || !examForm.termId) {
       toast({ title: "Error", description: "Exam name and term are required.", variant: "destructive" });
       return;
     }
     setIsLoading(true);
     try {
-      await addData({ 
-          name: newExam.name, 
-          termId: newExam.termId, 
-          status: "Upcoming" 
-      } as Omit<Exam, 'id'>);
+      await addData({ name: examForm.name, termId: examForm.termId, status: "Upcoming" } as Omit<Exam, 'id'>);
       toast({ title: "Success", description: "Examination created." });
-      setNewExam({ name: "", termId: "" });
+      setExamForm({});
       setIsCreateDialogOpen(false);
     } catch (error) {
       toast({ title: "Error", description: "Failed to create examination.", variant: "destructive" });
@@ -113,19 +119,20 @@ export default function ExamSetupPage() {
 
   const openEditDialog = (exam: Exam) => {
     setSelectedExam(exam);
-    setEditExam(exam);
+    setExamForm(exam);
     setIsEditDialogOpen(true);
   };
+  
+  const openScheduleDialog = (exam: Exam) => {
+    setSelectedExam(exam);
+    setIsScheduleDialogOpen(true);
+  }
 
   const handleUpdateExam = async () => {
-    if (!selectedExam || !editExam.name || !editExam.termId || !editExam.status) return;
+    if (!selectedExam || !examForm.name || !examForm.termId || !examForm.status) return;
     setIsLoading(true);
     try {
-        await updateData(selectedExam.id, { 
-            name: editExam.name, 
-            termId: editExam.termId,
-            status: editExam.status
-        });
+        await updateData(selectedExam.id, { name: examForm.name, termId: examForm.termId, status: examForm.status });
         toast({ title: "Success", description: "Examination updated." });
         setIsEditDialogOpen(false);
         setSelectedExam(null);
@@ -148,6 +155,35 @@ export default function ExamSetupPage() {
     }
   };
 
+  const handleAddSchedule = async () => {
+      if(!selectedExam || !scheduleForm.classId || !scheduleForm.subjectId || !scheduleDate || !scheduleForm.time || !scheduleForm.maxScore) {
+          toast({ title: "Error", description: "All schedule fields are required.", variant: "destructive"});
+          return;
+      }
+      setIsLoading(true);
+      try {
+          const newSchedule = {
+              ...scheduleForm,
+              examId: selectedExam.id,
+              date: format(scheduleDate, 'yyyy-MM-dd'),
+          }
+          await addSchedule(newSchedule as Omit<ExamSchedule, 'id'>);
+          toast({ title: "Success", description: "Exam schedule added."});
+          setScheduleForm({});
+          setScheduleDate(undefined);
+      } catch (error) {
+           toast({ title: "Error", description: "Failed to add schedule.", variant: "destructive"});
+      } finally {
+          setIsLoading(false);
+      }
+  }
+  
+  const examSchedules = React.useMemo(() => {
+    if (!selectedExam) return [];
+    return schedules.filter(s => s.examId === selectedExam.id);
+  }, [schedules, selectedExam]);
+
+
   return (
     <>
       <Card>
@@ -155,10 +191,10 @@ export default function ExamSetupPage() {
           <div>
             <CardTitle>Exam Setup</CardTitle>
             <CardDescription>
-              Create and manage examination periods (e.g., Mid-Term, Final Exams).
+              Create and manage examination periods and their schedules.
             </CardDescription>
           </div>
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <Dialog open={isCreateDialogOpen} onOpenChange={(isOpen) => { setIsCreateDialogOpen(isOpen); if(!isOpen) setExamForm({})}}>
             <DialogTrigger asChild>
               <Button>
                 <PlusCircle className="mr-2 h-4 w-4" />
@@ -173,11 +209,11 @@ export default function ExamSetupPage() {
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="name" className="text-right">Exam Name</Label>
-                  <Input id="name" placeholder="e.g., Final Exams 2024" className="col-span-3" value={newExam.name} onChange={(e) => setNewExam({...newExam, name: e.target.value})} disabled={isLoading} />
+                  <Input id="name" placeholder="e.g., Final Exams 2024" className="col-span-3" value={examForm.name || ""} onChange={(e) => setExamForm({...examForm, name: e.target.value})} disabled={isLoading} />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="term" className="text-right">Academic Term</Label>
-                  <Select value={newExam.termId} onValueChange={(value) => setNewExam({...newExam, termId: value})} disabled={isLoading || termsLoading}>
+                  <Select value={examForm.termId} onValueChange={(value) => setExamForm({...examForm, termId: value})} disabled={isLoading || termsLoading}>
                       <SelectTrigger className="col-span-3">
                           <SelectValue placeholder={termsLoading ? "Loading terms..." : "Select a term"} />
                       </SelectTrigger>
@@ -199,7 +235,7 @@ export default function ExamSetupPage() {
         <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {loading ? <p>Loading examinations...</p> :
             exams.map((exam) => (
-            <Card key={exam.id}>
+            <Card key={exam.id} className="flex flex-col">
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-3">
@@ -213,10 +249,11 @@ export default function ExamSetupPage() {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                         <DropdownMenuItem onSelect={() => openEditDialog(exam)}><Pencil className="mr-2 h-4 w-4"/>Edit</DropdownMenuItem>
+                         <DropdownMenuItem onSelect={() => openEditDialog(exam)}><Pencil className="mr-2 h-4 w-4"/>Edit Details</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => openScheduleDialog(exam)}><ListPlus className="mr-2 h-4 w-4"/>Manage Schedule</DropdownMenuItem>
                          <DropdownMenuSeparator />
                          <AlertDialogTrigger asChild>
-                            <DropdownMenuItem className="text-destructive focus:text-destructive"><Trash2 className="mr-2 h-4 w-4"/>Delete</DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive focus:text-destructive"><Trash2 className="mr-2 h-4 w-4"/>Delete Exam</DropdownMenuItem>
                          </AlertDialogTrigger>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -246,7 +283,7 @@ export default function ExamSetupPage() {
       </Card>
       
        {/* Edit Exam Dialog */}
-       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+       <Dialog open={isEditDialogOpen} onOpenChange={(isOpen) => { setIsEditDialogOpen(isOpen); if(!isOpen) { setSelectedExam(null); setExamForm({}); } }}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Edit Examination</DialogTitle>
@@ -255,11 +292,11 @@ export default function ExamSetupPage() {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="edit-name" className="text-right">Exam Name</Label>
-                <Input id="edit-name" className="col-span-3" value={editExam.name} onChange={(e) => setEditExam({...editExam, name: e.target.value})} disabled={isLoading} />
+                <Input id="edit-name" className="col-span-3" value={examForm.name || ""} onChange={(e) => setExamForm({...examForm, name: e.target.value})} disabled={isLoading} />
               </div>
                <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="edit-term" className="text-right">Academic Term</Label>
-                <Select value={editExam.termId} onValueChange={(value) => setEditExam({...editExam, termId: value})} disabled={isLoading || termsLoading}>
+                <Select value={examForm.termId} onValueChange={(value) => setExamForm({...examForm, termId: value})} disabled={isLoading || termsLoading}>
                     <SelectTrigger className="col-span-3">
                         <SelectValue placeholder={termsLoading ? "Loading terms..." : "Select a term"} />
                     </SelectTrigger>
@@ -270,7 +307,7 @@ export default function ExamSetupPage() {
               </div>
                <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="edit-status" className="text-right">Status</Label>
-                 <Select value={editExam.status} onValueChange={(value: Exam["status"]) => setEditExam(prev => ({...prev, status: value}))} disabled={isLoading}>
+                 <Select value={examForm.status} onValueChange={(value: Exam["status"]) => setExamForm(prev => ({...prev, status: value}))} disabled={isLoading}>
                     <SelectTrigger className="col-span-3">
                         <SelectValue placeholder="Select status" />
                     </SelectTrigger>
@@ -289,6 +326,39 @@ export default function ExamSetupPage() {
                 Save Changes
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Schedule Dialog */}
+        <Dialog open={isScheduleDialogOpen} onOpenChange={(isOpen) => { setIsScheduleDialogOpen(isOpen); if(!isOpen) setSelectedExam(null); }}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Manage Schedule for {selectedExam?.name}</DialogTitle>
+              <DialogDescription>Add or view scheduled papers for this examination.</DialogDescription>
+            </DialogHeader>
+            <div className="grid md:grid-cols-5 gap-4 py-4">
+                 <Select onValueChange={(v) => setScheduleForm(p => ({ ...p, classId: v}))}><SelectTrigger className="md:col-span-1"><SelectValue placeholder="Class"/></SelectTrigger><SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select>
+                 <Select onValueChange={(v) => setScheduleForm(p => ({ ...p, subjectId: v}))}><SelectTrigger className="md:col-span-1"><SelectValue placeholder="Subject"/></SelectTrigger><SelectContent>{subjects.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select>
+                 <Popover>
+                    <PopoverTrigger asChild><Button variant="outline" className={cn("md:col-span-1 justify-start", !scheduleDate && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4"/>{scheduleDate ? format(scheduleDate, 'PPP') : "Date"}</Button></PopoverTrigger>
+                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={scheduleDate} onSelect={setScheduleDate}/></PopoverContent>
+                 </Popover>
+                 <Input className="md:col-span-1" placeholder="Time (e.g., 09:00)" value={scheduleForm.time || ""} onChange={e => setScheduleForm(p=>({...p, time: e.target.value}))}/>
+                 <Input className="md:col-span-1" type="number" placeholder="Max Score" value={scheduleForm.maxScore || ""} onChange={e => setScheduleForm(p=>({...p, maxScore: Number(e.target.value)}))}/>
+            </div>
+            <div className="flex justify-end">
+                <Button onClick={handleAddSchedule} disabled={isLoading}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Add to Schedule
+                </Button>
+            </div>
+            <Card className="mt-4">
+              <CardHeader><CardTitle>Current Schedule</CardTitle></CardHeader>
+              <CardContent>
+                 {examSchedules.length > 0 ? (
+                  <ul>{examSchedules.map(s => <li key={s.id}>{s.date} @ {s.time}: {subjects.find(sub => sub.id === s.subjectId)?.name} for {classes.find(c => c.id === s.classId)?.name}</li>)}</ul>
+                  ) : <p className="text-muted-foreground">No papers scheduled yet.</p>}
+              </CardContent>
+            </Card>
           </DialogContent>
         </Dialog>
     </>
