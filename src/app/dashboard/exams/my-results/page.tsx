@@ -32,26 +32,28 @@ import { Badge } from "@/components/ui/badge";
 // Data types
 type Exam = { id: string; name: string; status: "Upcoming" | "Ongoing" | "Grading" | "Published"; };
 type Subject = { id: string; name: string; };
-type ExamSchedule = { id: string; examId: string; subjectId: string; maxScore: number; };
-type StudentGrade = { id: string; examId: string; studentId: string; subjectId: string; score: number; };
+type StudentGrade = { id: string; examId: string; studentId: string; subjectId: string; classScore: number; examScore: number; };
 
 type EnrichedGrade = {
     subjectName: string;
-    score: number;
-    maxScore: number;
+    classScore: number;
+    examScore: number;
+    totalScore: number;
     grade: string;
     remarks: string;
 };
 
-// Simple grading function
-const calculateGrade = (score: number, maxScore: number): { grade: string; remarks: string } => {
-    const percentage = (score / maxScore) * 100;
-    if (percentage >= 90) return { grade: "A+", remarks: "Excellent" };
-    if (percentage >= 80) return { grade: "A", remarks: "Very Good" };
-    if (percentage >= 70) return { grade: "B", remarks: "Good" };
-    if (percentage >= 60) return { grade: "C", remarks: "Satisfactory" };
-    if (percentage >= 50) return { grade: "D", remarks: "Pass" };
-    return { grade: "F", remarks: "Needs Improvement" };
+// Grading function based on the new criteria
+const calculateGrade = (totalScore: number): { grade: string; remarks: string } => {
+    if (totalScore >= 80) return { grade: "1", remarks: "Excellent" };
+    if (totalScore >= 70) return { grade: "2", remarks: "Very Good" };
+    if (totalScore >= 65) return { grade: "3", remarks: "Good" };
+    if (totalScore >= 60) return { grade: "4", remarks: "High Average" };
+    if (totalScore >= 55) return { grade: "5", remarks: "Average" };
+    if (totalScore >= 50) return { grade: "6", remarks: "Low Average" };
+    if (totalScore >= 45) return { grade: "7", remarks: "Pass" };
+    if (totalScore >= 40) return { grade: "8", remarks: "Pass" };
+    return { grade: "9", remarks: "Fail" };
 };
 
 export default function MyResultsPage() {
@@ -61,10 +63,9 @@ export default function MyResultsPage() {
   // Database hooks
   const { data: exams, loading: examsLoading } = useDatabase<Exam>("exams");
   const { data: subjects, loading: subjectsLoading } = useDatabase<Subject>("subjects");
-  const { data: schedules, loading: schedulesLoading } = useDatabase<ExamSchedule>("examSchedules");
   const { data: grades, loading: gradesLoading } = useDatabase<StudentGrade>("studentGrades");
 
-  const loading = examsLoading || subjectsLoading || schedulesLoading || gradesLoading;
+  const loading = examsLoading || subjectsLoading || gradesLoading;
 
   const subjectsMap = React.useMemo(() => new Map(subjects.map(s => [s.id, s.name])), [subjects]);
 
@@ -74,18 +75,19 @@ export default function MyResultsPage() {
     const studentGradesForExam = grades.filter(g => g.studentId === user.uid && g.examId === selectedExamId);
     
     return studentGradesForExam.map(grade => {
-      const schedule = schedules.find(s => s.examId === selectedExamId && s.subjectId === grade.subjectId);
-      const { grade: letterGrade, remarks } = calculateGrade(grade.score, schedule?.maxScore || 100);
+      const totalScore = (grade.classScore * 0.5) + (grade.examScore * 0.5);
+      const { grade: letterGrade, remarks } = calculateGrade(totalScore);
       
       return {
         subjectName: subjectsMap.get(grade.subjectId) || 'Unknown Subject',
-        score: grade.score,
-        maxScore: schedule?.maxScore || 100,
+        classScore: grade.classScore,
+        examScore: grade.examScore,
+        totalScore: parseFloat(totalScore.toFixed(2)),
         grade: letterGrade,
         remarks: remarks,
       };
     });
-  }, [user, selectedExamId, grades, schedules, subjectsMap]);
+  }, [user, selectedExamId, grades, subjectsMap]);
   
   const publishedExams = React.useMemo(() => exams.filter(e => e.status === 'Published'), [exams]);
 
@@ -94,7 +96,7 @@ export default function MyResultsPage() {
       <CardHeader>
         <CardTitle>My Exam Results</CardTitle>
         <CardDescription>
-          View your scores and grades for past examinations.
+          View your scores and grades for past examinations. Final score is 50% class score + 50% exam score.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -121,7 +123,9 @@ export default function MyResultsPage() {
                         <TableHeader>
                         <TableRow>
                             <TableHead>Subject</TableHead>
-                            <TableHead className="text-center">Score</TableHead>
+                            <TableHead className="text-center">Class Score</TableHead>
+                            <TableHead className="text-center">Exam Score</TableHead>
+                            <TableHead className="text-center">Total Score</TableHead>
                             <TableHead className="text-center">Grade</TableHead>
                             <TableHead>Remarks</TableHead>
                         </TableRow>
@@ -131,14 +135,16 @@ export default function MyResultsPage() {
                             studentResults.map(result => (
                                 <TableRow key={result.subjectName}>
                                     <TableCell className="font-medium">{result.subjectName}</TableCell>
-                                    <TableCell className="text-center">{result.score} / {result.maxScore}</TableCell>
+                                    <TableCell className="text-center">{result.classScore}%</TableCell>
+                                    <TableCell className="text-center">{result.examScore}%</TableCell>
+                                    <TableCell className="text-center font-bold">{result.totalScore}%</TableCell>
                                     <TableCell className="text-center"><Badge variant="secondary">{result.grade}</Badge></TableCell>
                                     <TableCell>{result.remarks}</TableCell>
                                 </TableRow>
                             ))
                         ) : (
                              <TableRow>
-                                <TableCell colSpan={4} className="h-24 text-center">
+                                <TableCell colSpan={6} className="h-24 text-center">
                                 No results found for this examination period.
                                 </TableCell>
                             </TableRow>

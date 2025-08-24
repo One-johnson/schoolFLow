@@ -38,7 +38,8 @@ type Class = { id: string; name: string; teacherId?: string; studentIds?: Record
 type Subject = { id: string; name: string; classId?: string; teacherId?: string; };
 type Student = { id: string; name: string };
 type ExamSchedule = { id: string; examId: string; classId: string; subjectId: string; date: string; time: string; maxScore: number; };
-type StudentGrade = { id: string; examId: string; studentId: string; subjectId: string; score: number; };
+type StudentGrade = { id: string; examId: string; studentId: string; subjectId: string; classScore: number; examScore: number; };
+type ScoresState = { [studentId: string]: { classScore: string; examScore: string } };
 
 export default function GradingPage() {
   const { user } = useAuth();
@@ -56,7 +57,7 @@ export default function GradingPage() {
   const [selectedExamId, setSelectedExamId] = React.useState<string>();
   const [selectedClassId, setSelectedClassId] = React.useState<string>();
   const [selectedSubjectId, setSelectedSubjectId] = React.useState<string>();
-  const [scores, setScores] = React.useState<Record<string, string>>({}); // studentId -> score
+  const [scores, setScores] = React.useState<ScoresState>({}); // studentId -> { classScore, examScore }
 
   // Filter data based on teacher's role and selections
   const teacherClasses = React.useMemo(() => classes.filter(c => c.teacherId === user?.uid), [classes, user]);
@@ -85,18 +86,27 @@ export default function GradingPage() {
       setScores({});
       return;
     }
-    const newScores: Record<string, string> = {};
+    const newScores: ScoresState = {};
     studentsForClass.forEach(student => {
       const grade = grades.find(g => g.examId === selectedExamId && g.studentId === student.id && g.subjectId === selectedSubjectId);
       if (grade) {
-        newScores[student.id] = String(grade.score);
+        newScores[student.id] = {
+            classScore: String(grade.classScore),
+            examScore: String(grade.examScore)
+        };
       }
     });
     setScores(newScores);
   }, [currentSchedule, studentsForClass, grades, selectedExamId, selectedSubjectId]);
 
-  const handleScoreChange = (studentId: string, score: string) => {
-    setScores(prev => ({ ...prev, [studentId]: score }));
+  const handleScoreChange = (studentId: string, type: 'classScore' | 'examScore', value: string) => {
+    setScores(prev => ({
+        ...prev,
+        [studentId]: {
+            ...prev[studentId],
+            [type]: value
+        }
+    }));
   };
 
   const handleSaveGrades = async () => {
@@ -107,21 +117,27 @@ export default function GradingPage() {
     setIsLoading(true);
 
     const promises = studentsForClass.map(student => {
-      const score = scores[student.id];
-      if (score === undefined || score === '') return Promise.resolve(); // Skip if no score entered
-      
+      const studentScores = scores[student.id];
+      // Skip if no scores are entered for this student
+      if (!studentScores || (studentScores.classScore === undefined && studentScores.examScore === undefined)) {
+        return Promise.resolve();
+      }
+
+      const classScore = parseFloat(studentScores.classScore);
+      const examScore = parseFloat(studentScores.examScore);
+
       const gradeId = `${selectedExamId}_${student.id}_${selectedSubjectId}`;
       const gradeData = {
         examId: selectedExamId,
         studentId: student.id,
         subjectId: selectedSubjectId,
-        score: Number(score)
+        classScore: !isNaN(classScore) ? classScore : 0,
+        examScore: !isNaN(examScore) ? examScore : 0
       };
 
-      // Check if grade already exists to decide between set (addDataWithId) or update
       const existingGrade = grades.find(g => g.id === gradeId);
       if (existingGrade) {
-          return updateData(gradeId, { score: Number(score) });
+          return updateData(gradeId, { classScore: gradeData.classScore, examScore: gradeData.examScore });
       } else {
           return addDataWithId(gradeId, gradeData);
       }
@@ -144,7 +160,7 @@ export default function GradingPage() {
       <CardHeader>
         <CardTitle>Exam Grading</CardTitle>
         <CardDescription>
-          Enter and manage scores for students in your assigned subjects.
+          Enter class scores and examination scores for students in your subjects.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -186,8 +202,8 @@ export default function GradingPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Student Name</TableHead>
-                  <TableHead className="w-[150px]">Score</TableHead>
-                  <TableHead className="w-[150px]">Max Score</TableHead>
+                  <TableHead className="w-[150px]">Class Score (%)</TableHead>
+                  <TableHead className="w-[150px]">Exam Score (%)</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -197,13 +213,21 @@ export default function GradingPage() {
                     <TableCell>
                       <Input
                         type="number"
-                        placeholder="Enter score"
-                        value={scores[student.id] || ''}
-                        onChange={(e) => handleScoreChange(student.id, e.target.value)}
-                        max={currentSchedule.maxScore}
+                        placeholder="Class"
+                        value={scores[student.id]?.classScore || ''}
+                        onChange={(e) => handleScoreChange(student.id, 'classScore', e.target.value)}
+                        max={100}
                       />
                     </TableCell>
-                    <TableCell>{currentSchedule.maxScore}</TableCell>
+                     <TableCell>
+                      <Input
+                        type="number"
+                        placeholder="Exam"
+                        value={scores[student.id]?.examScore || ''}
+                        onChange={(e) => handleScoreChange(student.id, 'examScore', e.target.value)}
+                        max={100}
+                      />
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
