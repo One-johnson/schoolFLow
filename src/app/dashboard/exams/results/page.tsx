@@ -34,8 +34,8 @@ import 'jspdf-autotable';
 
 // Data Types
 type Exam = { id: string; name: string; status: string; };
-type Class = { id: string; name: string; };
-type Student = { id: string; name: string; classId?: string; }; // Assume classId is on student
+type Class = { id: string; name: string; studentIds?: Record<string, boolean>; };
+type Student = { id: string; name: string; };
 type Subject = { id: string; name: string; };
 type StudentGrade = { id: string; examId: string; studentId: string; subjectId: string; classScore: number; examScore: number; };
 
@@ -48,6 +48,9 @@ type EnrichedResult = {
     totalScore: number;
     grade: string;
     remarks: string;
+    classId?: string;
+    studentId: string;
+    examId: string;
 };
 
 // Grading logic
@@ -97,7 +100,7 @@ export default function ResultsPage() {
     }, [classes]);
 
     const filteredResults = React.useMemo<EnrichedResult[]>(() => {
-        let results = grades.map(grade => {
+        let results: EnrichedResult[] = grades.map(grade => {
             const student = studentsMap.get(grade.studentId);
             const classId = studentClassMap.get(grade.studentId);
             const totalScore = (grade.classScore * 0.5) + (grade.examScore * 0.5);
@@ -240,4 +243,3 @@ export default function ResultsPage() {
         </Card>
     );
 }
-
