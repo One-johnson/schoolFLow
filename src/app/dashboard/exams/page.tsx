@@ -9,6 +9,7 @@ import { useEffect } from "react";
 import ExamSetupPage from "./setup/page";
 import GradingPage from "./grading/page";
 import MyResultsPage from "./my-results/page";
+import ResultsPage from "./results/page"; // Import the new results page
 import { FileText } from "lucide-react";
 
 export default function ExamsPage() {
@@ -33,6 +34,7 @@ export default function ExamsPage() {
     if (pathname.includes('/setup')) return 'setup';
     if (pathname.includes('/grading')) return 'grading';
     if (pathname.includes('/my-results')) return 'my-results';
+    if (pathname.includes('/results')) return 'results'; // Add results tab
     
     // Default tab logic based on role
     if (role === 'student') return 'my-results';
@@ -43,7 +45,7 @@ export default function ExamsPage() {
   const currentTab = getTabValue();
   
   const getGridColsClass = () => {
-    if (role === 'admin') return 'grid-cols-1'; // Initially just one tab for admin
+    if (role === 'admin') return 'grid-cols-2'; // Admin now has two tabs
     if (role === 'teacher') return 'grid-cols-1';
     if (role === 'student') return 'grid-cols-1';
     return 'grid-cols-1';
@@ -72,7 +74,9 @@ export default function ExamsPage() {
               <TabsTrigger value="setup" asChild>
                 <Link href="/dashboard/exams/setup">Exam Setup</Link>
               </TabsTrigger>
-              {/* Other admin tabs will be added here */}
+              <TabsTrigger value="results" asChild>
+                <Link href="/dashboard/exams/results">Results Overview</Link>
+              </TabsTrigger>
             </>
           )}
           {role === 'teacher' && (
@@ -91,6 +95,9 @@ export default function ExamsPage() {
               <>
                 <TabsContent value="setup">
                   <ExamSetupPage />
+                </TabsContent>
+                <TabsContent value="results">
+                  <ResultsPage />
                 </TabsContent>
               </>
             )}
