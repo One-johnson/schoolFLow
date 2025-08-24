@@ -137,8 +137,8 @@ export default function ResultsPage() {
         doc.text("Exam Results Report", 14, 16);
         (doc as any).autoTable({
           startY: 20,
-          head: [['Student', 'Class', 'Subject', 'Total Score', 'Grade']],
-          body: filteredResults.map(r => [r.studentName, r.className, r.subjectName, `${r.totalScore}%`, r.grade]),
+          head: [['Student', 'Class', 'Subject', 'Class Score', 'Exam Score', 'Total Score', 'Grade']],
+          body: filteredResults.map(r => [r.studentName, r.className, r.subjectName, `${r.classScore}%`, `${r.examScore}%`, `${r.totalScore}%`, r.grade]),
         });
         doc.save('results-report.pdf');
     };
@@ -198,6 +198,8 @@ export default function ResultsPage() {
                                 <TableHead>Student</TableHead>
                                 <TableHead>Class</TableHead>
                                 <TableHead>Subject</TableHead>
+                                <TableHead className="text-center">Class Score</TableHead>
+                                <TableHead className="text-center">Exam Score</TableHead>
                                 <TableHead className="text-center">Total Score</TableHead>
                                 <TableHead className="text-center">Grade</TableHead>
                                 <TableHead>Remarks</TableHead>
@@ -206,7 +208,7 @@ export default function ResultsPage() {
                         <TableBody>
                             {loading ? (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="h-24 text-center">
+                                    <TableCell colSpan={8} className="h-24 text-center">
                                         <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
                                     </TableCell>
                                 </TableRow>
@@ -216,6 +218,8 @@ export default function ResultsPage() {
                                         <TableCell className="font-medium">{result.studentName}</TableCell>
                                         <TableCell>{result.className}</TableCell>
                                         <TableCell>{result.subjectName}</TableCell>
+                                        <TableCell className="text-center">{result.classScore}%</TableCell>
+                                        <TableCell className="text-center">{result.examScore}%</TableCell>
                                         <TableCell className="text-center font-bold">{result.totalScore}%</TableCell>
                                         <TableCell className="text-center"><Badge variant="secondary">{result.grade}</Badge></TableCell>
                                         <TableCell>{result.remarks}</TableCell>
@@ -223,7 +227,7 @@ export default function ResultsPage() {
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="h-24 text-center">
+                                    <TableCell colSpan={8} className="h-24 text-center">
                                     No results found for the selected filters.
                                     </TableCell>
                                 </TableRow>
@@ -243,3 +247,4 @@ export default function ResultsPage() {
         </Card>
     );
 }
+
