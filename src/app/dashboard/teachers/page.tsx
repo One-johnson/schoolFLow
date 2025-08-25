@@ -122,7 +122,16 @@ const generateTeacherId = (department: string): string => {
 export default function TeachersPage() {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({
+    id: false,
+    email: false,
+    dateOfBirth: false,
+    dateOfEmployment: false,
+    gender: false,
+    nationality: false,
+    address: false,
+    religion: false,
+  })
   const [rowSelection, setRowSelection] = React.useState({})
   
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false)
@@ -311,19 +320,14 @@ export default function TeachersPage() {
       cell: ({ row }) => <div className="capitalize">{row.getValue("department")}</div>,
     },
     {
-      accessorKey: "email",
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
-            Email
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        )
-      },
-      cell: ({ row }) => <div className="lowercase">{row.getValue("email")}</div>,
+        accessorKey: "contact",
+        header: "Contact",
+        cell: ({ row }) => <div className="lowercase">{row.getValue("contact")}</div>,
+    },
+    {
+        accessorKey: "academicQualification",
+        header: "Qualification",
+        cell: ({ row }) => <div className="capitalize">{row.getValue("academicQualification")}</div>,
     },
     {
       accessorKey: "status",
@@ -356,6 +360,42 @@ export default function TeachersPage() {
       accessorKey: "employmentType",
       header: "Employment Type",
       cell: ({ row }) => <div className="capitalize">{row.getValue("employmentType") || "N/A"}</div>,
+    },
+     // Hidden by default
+    {
+      accessorKey: "email",
+      header: "Email",
+      cell: ({ row }) => <div className="lowercase">{row.getValue("email")}</div>,
+    },
+    {
+      accessorKey: "dateOfBirth",
+      header: "Date of Birth",
+      cell: ({ row }) => <div>{row.getValue("dateOfBirth") ? format(new Date(row.getValue("dateOfBirth")), 'PPP') : 'N/A'}</div>,
+    },
+    {
+      accessorKey: "dateOfEmployment",
+      header: "Date of Employment",
+      cell: ({ row }) => <div>{row.getValue("dateOfEmployment") ? format(new Date(row.getValue("dateOfEmployment")), 'PPP') : 'N/A'}</div>,
+    },
+    {
+      accessorKey: "gender",
+      header: "Gender",
+      cell: ({ row }) => <div className="capitalize">{row.getValue("gender")}</div>,
+    },
+    {
+      accessorKey: "nationality",
+      header: "Nationality",
+      cell: ({ row }) => <div className="capitalize">{row.getValue("nationality")}</div>,
+    },
+    {
+      accessorKey: "address",
+      header: "Address",
+      cell: ({ row }) => <div className="capitalize">{row.getValue("address")}</div>,
+    },
+    {
+      accessorKey: "religion",
+      header: "Religion",
+      cell: ({ row }) => <div className="capitalize">{row.getValue("religion")}</div>,
     },
     {
       id: "actions",
@@ -559,10 +599,10 @@ export default function TeachersPage() {
         <div className="w-full">
           <div className="flex items-center py-4">
             <Input
-              placeholder="Filter by email..."
-              value={(table.getColumn("email")?.getFilterValue() as string) ?? ""}
+              placeholder="Filter by teacher name..."
+              value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
               onChange={(event) =>
-                table.getColumn("email")?.setFilterValue(event.target.value)
+                table.getColumn("name")?.setFilterValue(event.target.value)
               }
               className="max-w-sm"
             />

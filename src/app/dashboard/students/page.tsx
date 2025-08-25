@@ -124,7 +124,16 @@ const calculateAge = (dob: Date | undefined): number | undefined => {
 export default function StudentsPage() {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({
+    id: false,
+    email: false,
+    dateOfBirth: false,
+    placeOfBirth: false,
+    hometown: false,
+    address: false,
+    parentEmail: false,
+    nationality: false
+  })
   const [rowSelection, setRowSelection] = React.useState({})
   
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false)
@@ -303,6 +312,21 @@ export default function StudentsPage() {
       cell: ({ row }) => <div className="lowercase">{row.getValue("email")}</div>,
     },
     {
+        accessorKey: "gender",
+        header: "Gender",
+        cell: ({ row }) => <div>{row.getValue("gender")}</div>
+    },
+    {
+        accessorKey: "parentName",
+        header: "Parent's Name",
+        cell: ({ row }) => <div>{row.getValue("parentName")}</div>
+    },
+    {
+        accessorKey: "parentPhone",
+        header: "Parent's Phone",
+        cell: ({ row }) => <div>{row.getValue("parentPhone")}</div>
+    },
+    {
       accessorKey: "status",
       header: "Status",
       cell: ({ row }) => {
@@ -331,6 +355,13 @@ export default function StudentsPage() {
         )
       },
     },
+     // Hidden by default columns
+    { accessorKey: "dateOfBirth", header: "Date of Birth", cell: ({ row }) => <div>{row.getValue("dateOfBirth") ? format(new Date(row.getValue("dateOfBirth")), 'PPP') : 'N/A'}</div> },
+    { accessorKey: "placeOfBirth", header: "Place of Birth", cell: ({ row }) => <div>{row.getValue("placeOfBirth")}</div> },
+    { accessorKey: "nationality", header: "Nationality", cell: ({ row }) => <div>{row.getValue("nationality")}</div> },
+    { accessorKey: "hometown", header: "Hometown", cell: ({ row }) => <div>{row.getValue("hometown")}</div> },
+    { accessorKey: "address", header: "Address", cell: ({ row }) => <div>{row.getValue("address")}</div> },
+    { accessorKey: "parentEmail", header: "Parent's Email", cell: ({ row }) => <div>{row.getValue("parentEmail")}</div> },
     {
       id: "actions",
       enableHiding: false,
@@ -528,10 +559,10 @@ export default function StudentsPage() {
         <div className="w-full">
           <div className="flex items-center py-4">
             <Input
-              placeholder="Filter by email..."
-              value={(table.getColumn("email")?.getFilterValue() as string) ?? ""}
+              placeholder="Filter by student name..."
+              value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
               onChange={(event) =>
-                table.getColumn("email")?.setFilterValue(event.target.value)
+                table.getColumn("name")?.setFilterValue(event.target.value)
               }
               className="max-w-sm"
             />
