@@ -21,7 +21,7 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import { Megaphone, BookOpen, Users, UserCheck, DollarSign, CalendarCheck, Activity, Landmark, Users2, TrendingUp, TrendingDown } from "lucide-react";
+import { Megaphone, BookOpen, Users, UserCheck, DollarSign, CalendarCheck, Activity, Landmark, Users2, TrendingUp, TrendingDown, Calendar as CalendarIcon } from "lucide-react";
 import Link from "next/link";
 import { useDatabase } from "@/hooks/use-database";
 import { useMemo, useState } from "react";
@@ -30,16 +30,17 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
-import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval } from "date-fns";
+import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval, parseISO, isFuture } from "date-fns";
 import { Badge } from "../ui/badge";
 import { motion } from "framer-motion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
 
 type Student = { id: string; name: string; createdAt: number, gender?: 'Male' | 'Female' | 'Other' };
 type Teacher = { id: string; name: string; createdAt: number };
-type Class = { id: string; studentIds?: Record<string, boolean> };
-type Event = { id: string; startDate: string };
+type Class = { id: string; name: string, studentIds?: Record<string, boolean> };
+type Event = { id: string; title: string, startDate: string };
 type StudentFee = { id: string; amountDue: number; amountPaid: number; status: "Paid" | "Unpaid" | "Partial"; };
 type AttendanceRecord = Record<string, "Present" | "Absent" | "Late" | "Excused">;
 type DailyAttendance = { [classId: string]: AttendanceRecord };
@@ -93,6 +94,13 @@ export function AdminDashboard() {
     return [...notifications].sort((a,b) => b.createdAt - a.createdAt).slice(0, 5);
   }, [notifications]);
   
+  const upcomingEvents = useMemo(() => {
+    return [...events]
+      .filter(e => isFuture(parseISO(e.startDate)))
+      .sort((a,b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+      .slice(0, 5);
+  }, [events]);
+
   const genderDistribution = useMemo(() => {
     const distribution = students.reduce((acc, student) => {
       const gender = student.gender || 'Other';
@@ -197,7 +205,7 @@ export function AdminDashboard() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <DashboardCard i={0} title="Total Students" icon={<Users className="h-4 w-4 text-muted-foreground" />} value={totalStudents} description="Currently enrolled" />
         <DashboardCard i={1} title="Total Teachers" icon={<UserCheck className="h-4 w-4 text-muted-foreground" />} value={totalTeachers} description="On staff" />
         <DashboardCard i={2} title="Total Classes" icon={<Landmark className="h-4 w-4 text-muted-foreground" />} value={totalClasses} description="Across all grades" />
@@ -270,6 +278,50 @@ export function AdminDashboard() {
           </Card>
         </motion.div>
       </div>
+
+       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <MotionCard variants={cardVariants} initial="hidden" animate="visible" custom={6}>
+                 <CardHeader>
+                    <CardTitle>Recent Activity</CardTitle>
+                     <CardDescription>A log of recent important system events.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                     <div className="space-y-4">
+                        {recentActivity.map(item => (
+                            <div key={item.id} className="flex items-center gap-4">
+                                <div className="p-2 bg-muted rounded-full text-muted-foreground">{iconMap[item.type] || iconMap.default}</div>
+                                <div>
+                                    <p className="text-sm">{item.message}</p>
+                                    <p className="text-xs text-muted-foreground">{format(new Date(item.createdAt), "PPP p")}</p>
+                                </div>
+                            </div>
+                        ))}
+                     </div>
+                </CardContent>
+            </MotionCard>
+             <MotionCard variants={cardVariants} initial="hidden" animate="visible" custom={7}>
+                 <CardHeader>
+                    <CardTitle>Upcoming Events</CardTitle>
+                     <CardDescription>What's next on the school calendar.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-4">
+                        {upcomingEvents.map(event => (
+                            <div key={event.id} className="flex items-center gap-4">
+                                <div className="flex flex-col items-center justify-center p-2 h-12 w-12 bg-muted text-muted-foreground rounded-md">
+                                    <span className="text-xs font-bold">{format(parseISO(event.startDate), 'MMM')}</span>
+                                    <span className="text-lg font-bold">{format(parseISO(event.startDate), 'dd')}</span>
+                                </div>
+                                <p className="text-sm font-medium">{event.title}</p>
+                            </div>
+                        ))}
+                         {upcomingEvents.length === 0 && (
+                            <p className="text-sm text-center text-muted-foreground py-4">No upcoming events found.</p>
+                         )}
+                    </div>
+                </CardContent>
+            </MotionCard>
+        </div>
     </div>
   );
 }

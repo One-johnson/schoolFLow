@@ -5,7 +5,7 @@ import * as React from "react"
 import { useDatabase } from "@/hooks/use-database"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
-import { format, parseISO, isPast, isFuture } from "date-fns"
+import { format, parseISO, isPast } from "date-fns"
 import { DateRange } from "react-day-picker"
 
 import { Button } from "@/components/ui/button"
