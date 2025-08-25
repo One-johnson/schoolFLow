@@ -32,14 +32,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2, Save } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 type Exam = { id: string; name: string; status: "Upcoming" | "Ongoing" | "Grading" | "Published"; };
 type Class = { id: string; name: string; teacherId?: string; studentIds?: Record<string, boolean>; };
 type Subject = { id: string; name: string; classId?: string; teacherId?: string; };
 type Student = { id: string; name: string };
-type ExamSchedule = { id: string; examId: string; classId: string; subjectId: string; date: string; time: string; maxScore: number; };
-type StudentGrade = { id: string; examId: string; studentId: string; subjectId: string; classScore: number; examScore: number; };
-type ScoresState = { [studentId: string]: { classScore: string; examScore: string } };
+type StudentGrade = { id: string; examId: string; studentId: string; subjectId: string; classScore: number; examScore: number; teacherComment?: string; };
+type ScoresState = { [studentId: string]: { classScore: string; examScore: string; teacherComment: string } };
 
 export default function GradingPage() {
   const { user } = useAuth();
@@ -57,7 +57,7 @@ export default function GradingPage() {
   const [selectedExamId, setSelectedExamId] = React.useState<string>();
   const [selectedClassId, setSelectedClassId] = React.useState<string>();
   const [selectedSubjectId, setSelectedSubjectId] = React.useState<string>();
-  const [scores, setScores] = React.useState<ScoresState>({}); // studentId -> { classScore, examScore }
+  const [scores, setScores] = React.useState<ScoresState>({});
 
   // Filter data based on teacher's role and selections
   const teacherClasses = React.useMemo(() => classes.filter(c => c.teacherId === user?.uid), [classes, user]);
@@ -92,14 +92,15 @@ export default function GradingPage() {
       if (grade) {
         newScores[student.id] = {
             classScore: String(grade.classScore),
-            examScore: String(grade.examScore)
+            examScore: String(grade.examScore),
+            teacherComment: grade.teacherComment || ''
         };
       }
     });
     setScores(newScores);
   }, [currentSchedule, studentsForClass, grades, selectedExamId, selectedSubjectId]);
 
-  const handleScoreChange = (studentId: string, type: 'classScore' | 'examScore', value: string) => {
+  const handleScoreChange = (studentId: string, type: 'classScore' | 'examScore' | 'teacherComment', value: string) => {
     setScores(prev => ({
         ...prev,
         [studentId]: {
@@ -118,10 +119,7 @@ export default function GradingPage() {
 
     const promises = studentsForClass.map(student => {
       const studentScores = scores[student.id];
-      // Skip if no scores are entered for this student
-      if (!studentScores || (studentScores.classScore === undefined && studentScores.examScore === undefined)) {
-        return Promise.resolve();
-      }
+      if (!studentScores) return Promise.resolve();
 
       const classScore = parseFloat(studentScores.classScore);
       const examScore = parseFloat(studentScores.examScore);
@@ -132,12 +130,17 @@ export default function GradingPage() {
         studentId: student.id,
         subjectId: selectedSubjectId,
         classScore: !isNaN(classScore) ? classScore : 0,
-        examScore: !isNaN(examScore) ? examScore : 0
+        examScore: !isNaN(examScore) ? examScore : 0,
+        teacherComment: studentScores.teacherComment || ""
       };
 
       const existingGrade = grades.find(g => g.id === gradeId);
       if (existingGrade) {
-          return updateData(gradeId, { classScore: gradeData.classScore, examScore: gradeData.examScore });
+          return updateData(gradeId, { 
+              classScore: gradeData.classScore, 
+              examScore: gradeData.examScore,
+              teacherComment: gradeData.teacherComment
+          });
       } else {
           return addDataWithId(gradeId, gradeData);
       }
@@ -202,8 +205,9 @@ export default function GradingPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Student Name</TableHead>
-                  <TableHead className="w-[150px]">Class Score (%)</TableHead>
-                  <TableHead className="w-[150px]">Exam Score (%)</TableHead>
+                  <TableHead className="w-[120px]">Class Score</TableHead>
+                  <TableHead className="w-[120px]">Exam Score</TableHead>
+                  <TableHead>Teacher's Comments</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -226,6 +230,14 @@ export default function GradingPage() {
                         value={scores[student.id]?.examScore || ''}
                         onChange={(e) => handleScoreChange(student.id, 'examScore', e.target.value)}
                         max={100}
+                      />
+                    </TableCell>
+                     <TableCell>
+                      <Textarea
+                        placeholder="Add a comment..."
+                        className="min-h-[40px]"
+                        value={scores[student.id]?.teacherComment || ''}
+                        onChange={(e) => handleScoreChange(student.id, 'teacherComment', e.target.value)}
                       />
                     </TableCell>
                   </TableRow>
@@ -251,3 +263,5 @@ export default function GradingPage() {
     </Card>
   );
 }
+
+    

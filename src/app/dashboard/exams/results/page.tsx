@@ -51,7 +51,7 @@ type Exam = { id: string; name: string; status: string; };
 type Class = { id: string; name: string; studentIds?: Record<string, boolean>; };
 type Student = { id: string; name: string; };
 type Subject = { id: string; name: string; };
-type StudentGrade = { id: string; examId: string; studentId: string; subjectId: string; classScore: number; examScore: number; };
+type StudentGrade = { id: string; examId: string; studentId: string; subjectId: string; classScore: number; examScore: number; teacherComment?: string; };
 
 type EnrichedResult = {
     studentName: string;
@@ -62,6 +62,7 @@ type EnrichedResult = {
     totalScore: number;
     grade: string;
     remarks: string;
+    teacherComment?: string;
     classId?: string;
     studentId: string;
     examId: string;
@@ -178,17 +179,17 @@ export default function ResultsPage() {
         doc.text("Exam Results Report", 14, 16);
         (doc as any).autoTable({
           startY: 20,
-          head: [['Student', 'Class', 'Subject', 'Class Score', 'Exam Score', 'Total Score', 'Grade']],
-          body: filteredResults.map(r => [r.studentName, r.className, r.subjectName, `${r.classScore}%`, `${r.examScore}%`, `${r.totalScore}%`, r.grade]),
+          head: [['Student', 'Class', 'Subject', 'Class Score', 'Exam Score', 'Total Score', 'Grade', 'Comment']],
+          body: filteredResults.map(r => [r.studentName, r.className, r.subjectName, `${r.classScore}%`, `${r.examScore}%`, `${r.totalScore}%`, r.grade, r.teacherComment || ""]),
         });
         doc.save('results-report.pdf');
     };
 
     const handleExport = () => {
-        const headers = ["Student", "Class", "Subject", "Class Score", "Exam Score", "Total Score", "Grade", "Remarks"];
+        const headers = ["Student", "Class", "Subject", "Class Score", "Exam Score", "Total Score", "Grade", "Remarks", "Teacher Comment"];
         const csvContent = [
             headers.join(','),
-            ...filteredResults.map(r => [r.studentName, r.className, r.subjectName, r.classScore, r.examScore, r.totalScore, r.grade, r.remarks].join(','))
+            ...filteredResults.map(r => [r.studentName, r.className, r.subjectName, r.classScore, r.examScore, r.totalScore, r.grade, r.remarks, `"${r.teacherComment || ''}"`].join(','))
         ].join('\n');
 
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -291,12 +292,13 @@ export default function ResultsPage() {
                                     <TableHead className="text-center">Total Score</TableHead>
                                     <TableHead className="text-center">Grade</TableHead>
                                     <TableHead>Remarks</TableHead>
+                                    <TableHead>Comment</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {loading ? (
                                     <TableRow>
-                                        <TableCell colSpan={8} className="h-24 text-center">
+                                        <TableCell colSpan={9} className="h-24 text-center">
                                             <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
                                         </TableCell>
                                     </TableRow>
@@ -311,11 +313,12 @@ export default function ResultsPage() {
                                             <TableCell className="text-center font-bold">{result.totalScore}%</TableCell>
                                             <TableCell className="text-center"><Badge variant="secondary">{result.grade}</Badge></TableCell>
                                             <TableCell>{result.remarks}</TableCell>
+                                            <TableCell className="text-sm text-muted-foreground">{result.teacherComment || "N/A"}</TableCell>
                                         </TableRow>
                                     ))
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={8} className="h-24 text-center">
+                                        <TableCell colSpan={9} className="h-24 text-center">
                                         No results found for the selected filters.
                                         </TableCell>
                                     </TableRow>
@@ -336,3 +339,5 @@ export default function ResultsPage() {
         </div>
     );
 }
+
+    

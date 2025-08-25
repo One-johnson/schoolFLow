@@ -32,7 +32,7 @@ type FullAttendanceLog = { date: string; classId: string; studentId: string; stu
 type EnrichedFeeRecord = StudentFee & { feeName: string };
 type Term = { id: string; name: string; startDate?: string; endDate?: string; status: 'Active' | 'Inactive' | 'Completed' };
 type Exam = { id: string; name: string; termId: string; status: "Published" | "Grading" | "Upcoming" | "Ongoing" };
-type StudentGrade = { id: string; examId: string; studentId: string; subjectId: string; classScore: number; examScore: number; };
+type StudentGrade = { id: string; examId: string; studentId: string; subjectId: string; classScore: number; examScore: number; teacherComment?: string };
 
 type EnrichedResult = {
     subjectName: string;
@@ -41,6 +41,7 @@ type EnrichedResult = {
     totalScore: number;
     grade: string;
     remarks: string;
+    teacherComment?: string;
 };
 
 const statusColors = {
@@ -129,7 +130,7 @@ export default function StudentInfoPage() {
         return studentGradesForExam.map(grade => {
             const totalScore = (grade.classScore * 0.5) + (grade.examScore * 0.5);
             const { grade: letterGrade, remarks } = calculateGrade(totalScore);
-            return { subjectName: subjectsMap.get(grade.subjectId) || 'Unknown Subject', classScore: grade.classScore, examScore: grade.examScore, totalScore: parseFloat(totalScore.toFixed(2)), grade: letterGrade, remarks };
+            return { subjectName: subjectsMap.get(grade.subjectId) || 'Unknown Subject', classScore: grade.classScore, examScore: grade.examScore, totalScore: parseFloat(totalScore.toFixed(2)), grade: letterGrade, remarks, teacherComment: grade.teacherComment };
         });
     }, [student, selectedExamId, grades, subjectsMap]);
 
@@ -166,8 +167,8 @@ export default function StudentInfoPage() {
             // Results Table
             (doc as any).autoTable({
                 startY: 75,
-                head: [["Subject", "Class Score (50%)", "Exam Score (50%)", "Total Score", "Grade", "Remarks"]],
-                body: reportCardResults.map(r => [r.subjectName, r.classScore, r.examScore, r.totalScore, r.grade, r.remarks]),
+                head: [["Subject", "Class Score (50%)", "Exam Score (50%)", "Total Score", "Grade", "Remarks", "Comment"]],
+                body: reportCardResults.map(r => [r.subjectName, r.classScore, r.examScore, r.totalScore, r.grade, r.remarks, r.teacherComment || ""]),
                 theme: 'grid',
                 headStyles: { fillColor: [22, 163, 74] }
             });
@@ -437,6 +438,7 @@ export default function StudentInfoPage() {
                                                 <TableHead>Total</TableHead>
                                                 <TableHead>Grade</TableHead>
                                                 <TableHead>Remarks</TableHead>
+                                                <TableHead>Comment</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -449,11 +451,12 @@ export default function StudentInfoPage() {
                                                         <TableCell className="font-bold">{result.totalScore}%</TableCell>
                                                         <TableCell><Badge variant="secondary">{result.grade}</Badge></TableCell>
                                                         <TableCell>{result.remarks}</TableCell>
+                                                        <TableCell className="text-sm text-muted-foreground">{result.teacherComment || "N/A"}</TableCell>
                                                     </TableRow>
                                                 ))
                                             ) : (
                                                 <TableRow>
-                                                    <TableCell colSpan={6} className="h-24 text-center">No results found for this exam.</TableCell>
+                                                    <TableCell colSpan={7} className="h-24 text-center">No results found for this exam.</TableCell>
                                                 </TableRow>
                                             )}
                                         </TableBody>

@@ -32,7 +32,7 @@ import { Badge } from "@/components/ui/badge";
 // Data types
 type Exam = { id: string; name: string; status: "Upcoming" | "Ongoing" | "Grading" | "Published"; };
 type Subject = { id: string; name: string; };
-type StudentGrade = { id: string; examId: string; studentId: string; subjectId: string; classScore: number; examScore: number; };
+type StudentGrade = { id: string; examId: string; studentId: string; subjectId: string; classScore: number; examScore: number; teacherComment?: string };
 
 type EnrichedGrade = {
     subjectName: string;
@@ -41,6 +41,7 @@ type EnrichedGrade = {
     totalScore: number;
     grade: string;
     remarks: string;
+    teacherComment?: string;
 };
 
 // Grading function based on the new criteria
@@ -85,6 +86,7 @@ export default function MyResultsPage() {
         totalScore: parseFloat(totalScore.toFixed(2)),
         grade: letterGrade,
         remarks: remarks,
+        teacherComment: grade.teacherComment,
       };
     });
   }, [user, selectedExamId, grades, subjectsMap]);
@@ -128,6 +130,7 @@ export default function MyResultsPage() {
                             <TableHead className="text-center">Total Score</TableHead>
                             <TableHead className="text-center">Grade</TableHead>
                             <TableHead>Remarks</TableHead>
+                            <TableHead>Teacher's Comment</TableHead>
                         </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -140,11 +143,12 @@ export default function MyResultsPage() {
                                     <TableCell className="text-center font-bold">{result.totalScore}%</TableCell>
                                     <TableCell className="text-center"><Badge variant="secondary">{result.grade}</Badge></TableCell>
                                     <TableCell>{result.remarks}</TableCell>
+                                    <TableCell className="text-sm text-muted-foreground">{result.teacherComment || "N/A"}</TableCell>
                                 </TableRow>
                             ))
                         ) : (
                              <TableRow>
-                                <TableCell colSpan={6} className="h-24 text-center">
+                                <TableCell colSpan={7} className="h-24 text-center">
                                 No results found for this examination period.
                                 </TableCell>
                             </TableRow>
@@ -162,3 +166,5 @@ export default function MyResultsPage() {
     </Card>
   );
 }
+
+    
