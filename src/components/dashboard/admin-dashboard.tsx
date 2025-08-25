@@ -120,46 +120,61 @@ export function AdminDashboard() {
     let startDate;
 
     if (attendanceDateFilter === 'thisWeek') {
-        startDate = startOfWeek(today, { weekStartsOn: 1});
+      startDate = startOfWeek(today, { weekStartsOn: 1 });
     } else { // last7days
-        startDate = subDays(today, 6);
+      startDate = subDays(today, 6);
     }
     
     const dateInterval = eachDayOfInterval({ start: startDate, end: today });
-    
+
     return dateInterval.map(date => {
-        const dateStr = format(date, 'yyyy-MM-dd');
-        const todaysLog = rawAttendance.find(log => log.id === dateStr);
-        let presentCount = 0;
-        let totalCount = 0;
+      const dateStr = format(date, 'yyyy-MM-dd');
+      const todaysLog = rawAttendance.find(log => log.id === dateStr);
+      let presentCount = 0;
+      let absentCount = 0;
 
-        if (attendanceClassFilter === 'all') {
-            totalCount = studentIdsInClasses.size;
+      const relevantStudentIds = new Set<string>();
+      if (attendanceClassFilter === 'all') {
+        studentIdsInClasses.forEach(id => relevantStudentIds.add(id));
+      } else {
+        const specificClass = classes.find(c => c.id === attendanceClassFilter);
+        if (specificClass?.studentIds) {
+          Object.keys(specificClass.studentIds).forEach(id => relevantStudentIds.add(id));
+        }
+      }
+
+      const dailyStatuses: { [studentId: string]: string } = {};
+
+      if (todaysLog) {
+        Object.entries(todaysLog).forEach(([classId, classRecords]) => {
+          if (classId === 'id' || (attendanceClassFilter !== 'all' && classId !== attendanceClassFilter)) return;
+          if (typeof classRecords === 'object' && classRecords !== null) {
+            Object.entries(classRecords).forEach(([studentId, status]) => {
+              if (relevantStudentIds.has(studentId)) {
+                dailyStatuses[studentId] = status;
+              }
+            });
+          }
+        });
+      }
+
+      relevantStudentIds.forEach(studentId => {
+        const status = dailyStatuses[studentId];
+        if (status === 'Present' || status === 'Late' || status === 'Excused') {
+          presentCount++;
         } else {
-            const specificClass = classes.find(c => c.id === attendanceClassFilter);
-            totalCount = specificClass?.studentIds ? Object.keys(specificClass.studentIds).length : 0;
+          absentCount++;
         }
-
-        if (todaysLog && totalCount > 0) {
-            Object.entries(todaysLog).forEach(([classId, classRecords]) => {
-                if(classId === 'id' || (attendanceClassFilter !== 'all' && classId !== attendanceClassFilter)) return;
-
-                if (typeof classRecords === 'object' && classRecords !== null) {
-                    Object.values(classRecords).forEach(status => {
-                        if (status === 'Present' || status === 'Late' || status === 'Excused') {
-                           presentCount++;
-                        }
-                    })
-                }
-            })
-            return {
-                date: format(date, 'EEE'),
-                attendance: Math.round((presentCount / totalCount) * 100),
-            };
-        }
-        return { date: format(date, 'EEE'), attendance: 0 };
+      });
+      
+      return {
+        date: format(date, 'EEE'),
+        present: presentCount,
+        absent: absentCount,
+      };
     });
   }, [rawAttendance, attendanceClassFilter, attendanceDateFilter, classes, studentIdsInClasses]);
+
 
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -196,6 +211,11 @@ export function AdminDashboard() {
     </MotionCard>
   );
 
+  const chartConfig = {
+    present: { label: "Present", color: "hsl(var(--chart-2))" },
+    absent: { label: "Absent", color: "hsl(var(--chart-5))" },
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex-1 space-y-4">
@@ -221,7 +241,7 @@ export function AdminDashboard() {
                 <div className="flex justify-between items-center">
                     <div>
                         <CardTitle>Weekly Attendance</CardTitle>
-                        <CardDescription>Average attendance percentage.</CardDescription>
+                        <CardDescription>Present vs. Absent students.</CardDescription>
                     </div>
                      <div className="flex gap-2">
                          <Select value={attendanceDateFilter} onValueChange={setAttendanceDateFilter}>
@@ -242,13 +262,15 @@ export function AdminDashboard() {
                 </div>
             </CardHeader>
             <CardContent>
-                <ChartContainer config={{ attendance: { label: "Attendance", color: "hsl(var(--chart-1))" }}} className="h-[250px] w-full">
-                    <BarChart data={attendanceData} accessibilityLayer>
+                <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                    <BarChart data={attendanceData} accessibilityLayer stackOffset="sign">
                         <CartesianGrid vertical={false}/>
                         <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8}/>
-                        <YAxis unit="%"/>
+                        <YAxis/>
                         <Tooltip content={<ChartTooltipContent indicator="dot"/>}/>
-                        <Bar dataKey="attendance" radius={4} fill="var(--color-attendance)"/>
+                        <Legend />
+                        <Bar dataKey="present" fill="var(--color-present)" radius={[4, 4, 0, 0]} stackId="a" />
+                        <Bar dataKey="absent" fill="var(--color-absent)" radius={[4, 4, 0, 0]} stackId="a" />
                     </BarChart>
                 </ChartContainer>
             </CardContent>
