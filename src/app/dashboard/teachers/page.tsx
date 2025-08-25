@@ -25,6 +25,7 @@ import {
   Loader2,
   FileDown,
   BookCopy,
+  Book,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -86,15 +87,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { cn } from "@/lib/utils"
+import { cn, generateTeacherId } from "@/lib/utils"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { format } from "date-fns"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ImageUpload } from "@/components/ui/image-upload"
-import { MultiSelectPopover } from "@/components/ui/multi-select-popover";
-
 
 type Teacher = {
   id: string
@@ -114,18 +113,7 @@ type Teacher = {
   religion?: string
 }
 
-type Subject = { id: string, name: string, teacherId?: string };
-
-
-// Function to generate a teacher ID
-const generateTeacherId = (department: string): string => {
-  const year = new Date().getFullYear().toString().slice(-2)
-  const classType = 'T' // for Teacher
-  const deptChar = department.length > 0 ? department.charAt(0).toUpperCase() : 'X'
-  const randomPart = Math.random().toString().slice(2, 8)
-  return `${year}${classType}${deptChar}${randomPart}`
-}
-
+type Class = { id: string; name: string };
 
 export default function TeachersPage() {
   const [sorting, setSorting] = React.useState<SortingState>([])
@@ -156,13 +144,13 @@ export default function TeachersPage() {
     deleteData,
     uploadFile
   } = useDatabase<Teacher>("teachers")
-  const { data: subjects, updateData: updateSubject } = useDatabase<Subject>("subjects");
+  const { data: classes, updateData: updateClass } = useDatabase<Class>("classes");
   const { addData: addNotification } = useDatabase("notifications")
   const { toast } = useToast()
 
   const [newTeacher, setNewTeacher] = React.useState<Partial<Omit<Teacher, 'id' | 'status'>>>({});
   const [editTeacher, setEditTeacher] = React.useState<Partial<Teacher>>({});
-  const [assignSubjectIds, setAssignSubjectIds] = React.useState<string[]>([]);
+  const [assignClassId, setAssignClassId] = React.useState<string | undefined>();
 
   const [dob, setDob] = React.useState<Date | undefined>();
   const [doe, setDoe] = React.useState<Date | undefined>();
@@ -208,7 +196,7 @@ export default function TeachersPage() {
     }
     setIsLoading(true);
     try {
-      const teacherId = generateTeacherId(newTeacher.department)
+      const teacherId = generateTeacherId(newTeacher.department || 'GENERAL')
       const teacherData = {
         ...newTeacher,
         status: 'Active',
@@ -273,32 +261,34 @@ export default function TeachersPage() {
     }
   }
   
-  const handleAssignToSubjects = async () => {
+  const handleAssignToClass = async () => {
     const selectedTeacherIds = table.getFilteredSelectedRowModel().rows.map(row => row.original.id);
-    if(selectedTeacherIds.length === 0) {
-        toast({ title: "Error", description: "No teachers selected.", variant: "destructive" });
+    if(selectedTeacherIds.length > 1) {
+        toast({ title: "Error", description: "Please select only one teacher to assign to a class.", variant: "destructive" });
         return;
     }
-    if (assignSubjectIds.length === 0) {
-        toast({ title: "Error", description: "Please select at least one subject.", variant: "destructive" });
+    if (selectedTeacherIds.length === 0) {
+        toast({ title: "Error", description: "No teacher selected.", variant: "destructive" });
+        return;
+    }
+     if (!assignClassId) {
+        toast({ title: "Error", description: "Please select a class.", variant: "destructive" });
         return;
     }
     
     setIsLoading(true);
     try {
-        const updatePromises = assignSubjectIds.map(subjectId => {
-            // Assuming one teacher is assigned at a time for simplicity here from UI
-            // For bulk, you'd need a more complex UI to map teachers to subjects
-            return updateSubject(subjectId, { teacherId: selectedTeacherIds[0] });
-        });
+        const targetClass = classes.find(c => c.id === assignClassId);
+        if(!targetClass) throw new Error("Class not found");
 
-        await Promise.all(updatePromises);
-        toast({ title: "Success", description: `Teacher(s) assigned to ${assignSubjectIds.length} subject(s).` });
+        await updateClass(assignClassId, { teacherId: selectedTeacherIds[0] });
+
+        toast({ title: "Success", description: `Teacher assigned to ${targetClass.name}.` });
         setIsAssignDialogOpen(false);
-        setAssignSubjectIds([]);
+        setAssignClassId(undefined);
         table.toggleAllPageRowsSelected(false);
     } catch (error) {
-        toast({ title: "Error", description: "Failed to assign subjects.", variant: "destructive" });
+        toast({ title: "Error", description: "Failed to assign teacher.", variant: "destructive" });
     } finally {
         setIsLoading(false);
     }
@@ -427,12 +417,12 @@ export default function TeachersPage() {
     {
       accessorKey: "dateOfBirth",
       header: "Date of Birth",
-      cell: ({ row }) => <div>{row.getValue("dateOfBirth") ? format(new Date(row.getValue("dateOfBirth")), 'PPP') : 'N/A'}</div>,
+      cell: ({ row }) => <div>{row.getValue("dateOfBirth") ? format(new Date(row.getValue("dateOfBirth") as string), 'PPP') : 'N/A'}</div>,
     },
     {
       accessorKey: "dateOfEmployment",
       header: "Date of Employment",
-      cell: ({ row }) => <div>{row.getValue("dateOfEmployment") ? format(new Date(row.getValue("dateOfEmployment")), 'PPP') : 'N/A'}</div>,
+      cell: ({ row }) => <div>{row.getValue("dateOfEmployment") ? format(new Date(row.getValue("dateOfEmployment") as string), 'PPP') : 'N/A'}</div>,
     },
     {
       accessorKey: "gender",
@@ -578,31 +568,29 @@ export default function TeachersPage() {
             </Button>
             <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
                 <DialogTrigger asChild>
-                    <Button variant="outline" disabled={selectedRowsCount === 0}>
-                        <BookCopy className="mr-2 h-4 w-4"/>
-                        Assign to Subject {selectedRowsCount > 0 && `(${selectedRowsCount})`}
+                    <Button variant="outline" disabled={selectedRowsCount !== 1}>
+                        <Book className="mr-2 h-4 w-4"/>
+                        Assign to Class
                     </Button>
                 </DialogTrigger>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Assign Teacher to Subjects</DialogTitle>
+                        <DialogTitle>Assign Teacher to Class</DialogTitle>
                         <DialogDescription>
-                            Select one or more subjects to assign to the {selectedRowsCount} selected teacher(s).
-                            Note: This will overwrite any existing teacher on the selected subjects.
+                            Select a class to assign the selected teacher to.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="py-4">
-                        <Label>Subjects</Label>
-                        <MultiSelectPopover
-                            options={subjects.map(s => ({ value: s.id, label: s.name }))}
-                            selected={assignSubjectIds}
-                            onChange={setAssignSubjectIds}
-                            placeholder="Select subjects..."
-                            disabled={isLoading}
-                        />
+                        <Label>Class</Label>
+                        <Select value={assignClassId} onValueChange={setAssignClassId}>
+                            <SelectTrigger><SelectValue placeholder="Select a class..."/></SelectTrigger>
+                            <SelectContent>
+                                {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
                     </div>
                     <DialogFooter>
-                        <Button onClick={handleAssignToSubjects} disabled={isLoading || assignSubjectIds.length === 0}>
+                        <Button onClick={handleAssignToClass} disabled={isLoading || !assignClassId}>
                             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Assign
                         </Button>
                     </DialogFooter>
@@ -1027,3 +1015,5 @@ export default function TeachersPage() {
     </Card>
   )
 }
+
+    
