@@ -7,15 +7,15 @@ export function cn(...inputs: ClassValue[]) {
 
 // Centralized Grading Logic
 export const calculateGrade = (totalScore: number): { grade: string; remarks: string } => {
-    if (totalScore >= 80) return { grade: "1", remarks: "Excellent" };
-    if (totalScore >= 70) return { grade: "2", remarks: "Very Good" };
-    if (totalScore >= 65) return { grade: "3", remarks: "Good" };
-    if (totalScore >= 60) return { grade: "4", remarks: "High Average" };
-    if (totalScore >= 55) return { grade: "5", remarks: "Average" };
-    if (totalScore >= 50) return { grade: "6", remarks: "Low Average" };
-    if (totalScore >= 45) return { grade: "7", remarks: "Pass" };
-    if (totalScore >= 40) return { grade: "8", remarks: "Pass" };
-    return { grade: "9", remarks: "Fail" };
+    if (totalScore >= 80) return { grade: "A1", remarks: "Excellent" };
+    if (totalScore >= 75) return { grade: "B2", remarks: "Very Good" };
+    if (totalScore >= 70) return { grade: "B3", remarks: "Good" };
+    if (totalScore >= 65) return { grade: "C4", remarks: "Credit" };
+    if (totalScore >= 60) return { grade: "C5", remarks: "Credit" };
+    if (totalScore >= 55) return { grade: "C6", remarks: "Credit" };
+    if (totalScore >= 50) return { grade: "D7", remarks: "Pass" };
+    if (totalScore >= 45) return { grade: "E8", remarks: "Pass" };
+    return { grade: "F9", remarks: "Fail" };
 };
 
 // Centralized ID Generation

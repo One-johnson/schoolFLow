@@ -27,11 +27,13 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
-import { format, isWithinInterval, startOfToday, endOfToday, addDays } from "date-fns";
+import { format, isWithinInterval, startOfToday, endOfToday, addDays, getMonth, getYear, subMonths } from "date-fns";
 import { Badge } from "../ui/badge";
+import { motion } from "framer-motion";
 
-type Student = { id: string; name: string };
-type Teacher = { id: string; name: string };
+
+type Student = { id: string; name: string; createdAt: number };
+type Teacher = { id: string; name: string; createdAt: number };
 type Class = { id: string; studentIds?: Record<string, boolean> };
 type Event = { id: string; startDate: string };
 type StudentFee = { id: string; amountDue: number; amountPaid: number; status: "Paid" | "Unpaid" | "Partial"; };
@@ -111,24 +113,52 @@ export function AdminDashboard() {
   }, [notifications]);
 
   const onboardingData = useMemo(() => {
-    const data: { [key: string]: { month: string; students: number; teachers: number } } = {};
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    const today = new Date();
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-      const monthKey = `${d.getFullYear()}-${months[d.getMonth()]}`;
-      data[monthKey] = { month: months[d.getMonth()], students: 0, teachers: 0 };
-    }
-    // This part is placeholder logic as we don't have createdAt for students/teachers
-    // In a real app, you would iterate over actual creation dates
-    // For now, it will just show 0s.
-    return Object.values(data);
-  }, []);
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const data: { [key: string]: { month: string; students: number; teachers: number } } = {};
+      const today = new Date();
+
+      // Initialize last 6 months
+      for (let i = 5; i >= 0; i--) {
+          const d = subMonths(today, i);
+          const monthKey = `${getYear(d)}-${months[getMonth(d)]}`;
+          if (!data[monthKey]) {
+              data[monthKey] = { month: months[getMonth(d)], students: 0, teachers: 0 };
+          }
+      }
+      
+      students.forEach(student => {
+          const d = new Date(student.createdAt);
+          const monthKey = `${getYear(d)}-${months[getMonth(d)]}`;
+          if(data[monthKey]) data[monthKey].students++;
+      });
+      teachers.forEach(teacher => {
+          const d = new Date(teacher.createdAt);
+          const monthKey = `${getYear(d)}-${months[getMonth(d)]}`;
+           if(data[monthKey]) data[monthKey].teachers++;
+      });
+
+      return Object.values(data);
+  }, [students, teachers]);
+
 
   const chartConfig = {
     students: { label: "Students", color: "hsl(var(--chart-1))" },
     teachers: { label: "Teachers", color: "hsl(var(--chart-2))" },
   }
+
+  const cardVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: (i: number) => ({
+      opacity: 1,
+      y: 0,
+      transition: {
+        delay: i * 0.1,
+        type: "spring",
+        stiffness: 100,
+        damping: 10,
+      },
+    }),
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -140,16 +170,19 @@ export function AdminDashboard() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Students</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalStudents}</div>
-            <p className="text-xs text-muted-foreground">Currently enrolled</p>
-          </CardContent>
-        </Card>
+        <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={0}>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Students</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalStudents}</div>
+              <p className="text-xs text-muted-foreground">Currently enrolled</p>
+            </CardContent>
+          </Card>
+        </motion.div>
+        <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={1}>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Teachers</CardTitle>
@@ -160,6 +193,8 @@ export function AdminDashboard() {
             <p className="text-xs text-muted-foreground">On staff</p>
           </CardContent>
         </Card>
+        </motion.div>
+        <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={2}>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Classes</CardTitle>
@@ -170,6 +205,8 @@ export function AdminDashboard() {
             <p className="text-xs text-muted-foreground">Across all grades</p>
           </CardContent>
         </Card>
+        </motion.div>
+        <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={3}>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Today's Attendance</CardTitle>
@@ -180,59 +217,43 @@ export function AdminDashboard() {
             <p className="text-xs text-muted-foreground">{attendanceStats.present} of {totalStudents} present</p>
           </CardContent>
         </Card>
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Fees Collected</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">GH₵{feeStats.totalPaid.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">GH₵{(feeStats.totalDue - feeStats.totalPaid).toLocaleString()} outstanding</p>
-          </CardContent>
-        </Card>
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Upcoming Events</CardTitle>
-            <CalendarPlus className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{eventStats.upcoming}</div>
-            <p className="text-xs text-muted-foreground">In the next 7 days</p>
-          </CardContent>
-        </Card>
+        </motion.div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4">
-          <CardHeader>
-            <CardTitle>Onboarding Overview</CardTitle>
-            <CardDescription>New students and teachers from the last 6 months.</CardDescription>
-          </CardHeader>
-          <CardContent className="pl-2">
-            <ChartContainer config={chartConfig} className="h-[300px] w-full">
-              <ResponsiveContainer>
-                <BarChart data={onboardingData}>
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="month"
-                    tickLine={false}
-                    tickMargin={10}
-                    axisLine={false}
-                  />
-                  <YAxis />
-                  <Tooltip
-                    cursor={false}
-                    content={<ChartTooltipContent indicator="dot" />}
-                  />
-                  <Legend />
-                  <Bar dataKey="students" fill="var(--color-students)" radius={4} />
-                  <Bar dataKey="teachers" fill="var(--color-teachers)" radius={4} />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-        <Card className="col-span-4 md:col-span-3">
+       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={4} className="col-span-full lg:col-span-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Onboarding Overview</CardTitle>
+              <CardDescription>New students and teachers from the last 6 months.</CardDescription>
+            </CardHeader>
+            <CardContent className="pl-2">
+              <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                <ResponsiveContainer>
+                  <BarChart data={onboardingData}>
+                    <CartesianGrid vertical={false} />
+                    <XAxis
+                      dataKey="month"
+                      tickLine={false}
+                      tickMargin={10}
+                      axisLine={false}
+                    />
+                    <YAxis />
+                    <Tooltip
+                      cursor={false}
+                      content={<ChartTooltipContent indicator="dot" />}
+                    />
+                    <Legend />
+                    <Bar dataKey="students" fill="var(--color-students)" radius={4} />
+                    <Bar dataKey="teachers" fill="var(--color-teachers)" radius={4} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+        </motion.div>
+        <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={5} className="col-span-full lg:col-span-3">
+          <Card>
              <CardHeader>
                 <CardTitle>Recent Activity</CardTitle>
                 <CardDescription>A log of the latest events across the system.</CardDescription>
@@ -256,7 +277,35 @@ export function AdminDashboard() {
                     )}
                 </div>
             </CardContent>
-        </Card>
+          </Card>
+        </motion.div>
+      </div>
+
+       <div className="grid gap-4 md:grid-cols-2">
+           <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={6}>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Fees Collected</CardTitle>
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">GH₵{feeStats.totalPaid.toLocaleString()}</div>
+                    <p className="text-xs text-muted-foreground">GH₵{(feeStats.totalDue - feeStats.totalPaid).toLocaleString()} outstanding</p>
+                </CardContent>
+            </Card>
+           </motion.div>
+            <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={7}>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Upcoming Events</CardTitle>
+                    <CalendarPlus className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{eventStats.upcoming}</div>
+                    <p className="text-xs text-muted-foreground">In the next 7 days</p>
+                </CardContent>
+            </Card>
+           </motion.div>
       </div>
     </div>
   );

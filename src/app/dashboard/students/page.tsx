@@ -108,7 +108,8 @@ type Student = {
   parentName?: string
   parentPhone?: string
   parentEmail?: string
-  avatarUrl?: string
+  avatarUrl?: string;
+  createdAt: number;
 }
 
 const calculateAge = (dob: Date | undefined): number | undefined => {
@@ -388,7 +389,7 @@ export default function StudentsPage() {
       },
     },
      // Hidden by default columns
-    { accessorKey: "dateOfBirth", header: "Date of Birth", cell: ({ row }) => <div>{row.getValue("dateOfBirth") ? format(new Date(row.getValue("dateOfBirth")), 'PPP') : 'N/A'}</div> },
+    { accessorKey: "dateOfBirth", header: "Date of Birth", cell: ({ row }) => <div>{row.getValue("dateOfBirth") ? format(new Date(row.getValue("dateOfBirth") as string), 'PPP') : 'N/A'}</div> },
     { accessorKey: "placeOfBirth", header: "Place of Birth", cell: ({ row }) => <div>{row.getValue("placeOfBirth")}</div> },
     { accessorKey: "nationality", header: "Nationality", cell: ({ row }) => <div>{row.getValue("nationality")}</div> },
     { accessorKey: "hometown", header: "Hometown", cell: ({ row }) => <div>{row.getValue("hometown")}</div> },
