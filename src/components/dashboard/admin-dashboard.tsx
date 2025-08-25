@@ -139,8 +139,8 @@ export function AdminDashboard() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <Card className="xl:col-span-1">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Students</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
@@ -150,7 +150,7 @@ export function AdminDashboard() {
             <p className="text-xs text-muted-foreground">Currently enrolled</p>
           </CardContent>
         </Card>
-        <Card className="xl:col-span-1">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Teachers</CardTitle>
             <UserCheck className="h-4 w-4 text-muted-foreground" />
@@ -160,7 +160,7 @@ export function AdminDashboard() {
             <p className="text-xs text-muted-foreground">On staff</p>
           </CardContent>
         </Card>
-        <Card className="xl:col-span-1">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Classes</CardTitle>
             <Landmark className="h-4 w-4 text-muted-foreground" />
@@ -170,7 +170,7 @@ export function AdminDashboard() {
             <p className="text-xs text-muted-foreground">Across all grades</p>
           </CardContent>
         </Card>
-        <Card className="xl:col-span-1">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Today's Attendance</CardTitle>
             <CalendarCheck className="h-4 w-4 text-muted-foreground" />
@@ -180,7 +180,7 @@ export function AdminDashboard() {
             <p className="text-xs text-muted-foreground">{attendanceStats.present} of {totalStudents} present</p>
           </CardContent>
         </Card>
-        <Card className="xl:col-span-1">
+        <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Fees Collected</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -190,7 +190,7 @@ export function AdminDashboard() {
             <p className="text-xs text-muted-foreground">GH₵{(feeStats.totalDue - feeStats.totalPaid).toLocaleString()} outstanding</p>
           </CardContent>
         </Card>
-        <Card className="xl:col-span-1">
+        <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Upcoming Events</CardTitle>
             <CalendarPlus className="h-4 w-4 text-muted-foreground" />

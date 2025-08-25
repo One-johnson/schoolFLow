@@ -90,6 +90,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { format } from "date-fns"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { ImageUpload } from "@/components/ui/image-upload"
 
 type Teacher = {
   id: string
@@ -145,6 +146,7 @@ export default function TeachersPage() {
     addDataWithId,
     updateData,
     deleteData,
+    uploadFile
   } = useDatabase<Teacher>("teachers")
   const { addData: addNotification } = useDatabase("notifications")
   const { toast } = useToast()
@@ -161,6 +163,24 @@ export default function TeachersPage() {
         setNewTeacher(prev => ({...prev, [id]: value}));
       } else {
         setEditTeacher(prev => ({...prev, [id]: value}));
+      }
+  }
+
+   const handleFileChange = async (file: File | null, form: 'new' | 'edit') => {
+      if (!file) return;
+      setIsLoading(true);
+      try {
+          const downloadURL = await uploadFile(file, `avatars/teachers/${file.name}`);
+           if (form === 'new') {
+                setNewTeacher(prev => ({ ...prev, avatarUrl: downloadURL }));
+            } else {
+                setEditTeacher(prev => ({ ...prev, avatarUrl: downloadURL }));
+            }
+          toast({ title: "Image uploaded", description: "Avatar has been updated."});
+      } catch (error) {
+           toast({ title: "Upload failed", description: "Could not upload image.", variant: "destructive" });
+      } finally {
+          setIsLoading(false);
       }
   }
   
@@ -187,10 +207,6 @@ export default function TeachersPage() {
       } as Omit<Teacher, 'id'>
 
       await addDataWithId(teacherId, teacherData)
-
-      // We will replace this with a server-side call in a future step
-      // for better security and to assign roles.
-      // For now, this creates the user but without a specific role claim.
 
       await addNotification({
         type: 'teacher_added',
@@ -487,6 +503,16 @@ export default function TeachersPage() {
             <ScrollArea className="h-[60vh] pr-6">
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
+                    <Label className="text-right">Avatar</Label>
+                    <div className="col-span-3">
+                       <ImageUpload
+                            currentImage={newTeacher.avatarUrl}
+                            onFileChange={(file) => handleFileChange(file, 'new')}
+                            disabled={isLoading}
+                        />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="name" className="text-right">Name</Label>
                     <Input id="name" placeholder="Full Name" className="col-span-3" value={newTeacher.name || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
                   </div>
@@ -554,10 +580,6 @@ export default function TeachersPage() {
                    <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="academicQualification" className="text-right">Academic Qualification</Label>
                     <Input id="academicQualification" placeholder="e.g., M.Sc. Physics" className="col-span-3" value={newTeacher.academicQualification || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="avatarUrl" className="text-right">Avatar URL</Label>
-                    <Input id="avatarUrl" placeholder="https://example.com/avatar.png" className="col-span-3" value={newTeacher.avatarUrl || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="gender" className="text-right">Gender</Label>
@@ -728,6 +750,16 @@ export default function TeachersPage() {
            <ScrollArea className="h-[60vh] pr-6">
                 <div className="grid gap-4 py-4">
                     <div className="grid grid-cols-4 items-center gap-4">
+                        <Label className="text-right">Avatar</Label>
+                        <div className="col-span-3">
+                        <ImageUpload
+                                currentImage={editTeacher.avatarUrl}
+                                onFileChange={(file) => handleFileChange(file, 'edit')}
+                                disabled={isLoading}
+                            />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="name" className="text-right">Name</Label>
                         <Input id="name" className="col-span-3" value={editTeacher.name || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
                     </div>
@@ -797,10 +829,6 @@ export default function TeachersPage() {
                         <Input id="academicQualification" placeholder="e.g., M.Sc. Physics" className="col-span-3" value={editTeacher.academicQualification || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="avatarUrl" className="text-right">Avatar URL</Label>
-                        <Input id="avatarUrl" placeholder="https://example.com/avatar.png" className="col-span-3" value={editTeacher.avatarUrl || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
-                    </div>
-                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="gender" className="text-right">Gender</Label>
                         <Select onValueChange={(value) => setEditTeacher(prev => ({ ...prev, gender: value as any}))} value={editTeacher.gender} disabled={isLoading}>
                             <SelectTrigger className="col-span-3">
