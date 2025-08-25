@@ -116,12 +116,32 @@ export function AdminDashboard() {
     ]
   }, [students]);
 
+  const studentsMap = useMemo(() => new Map(students.map(s => [s.id, s])), [students]);
+
   const classEnrollment = useMemo(() => {
-    return classes.map(c => ({
-      name: c.name,
-      students: c.studentIds ? Object.keys(c.studentIds).length : 0,
-    })).sort((a,b) => b.students - a.students);
-  }, [classes]);
+    return classes.map(c => {
+      let male = 0;
+      let female = 0;
+      let other = 0;
+      if (c.studentIds) {
+        Object.keys(c.studentIds).forEach(studentId => {
+          const student = studentsMap.get(studentId);
+          if (student) {
+            if (student.gender === 'Male') male++;
+            else if (student.gender === 'Female') female++;
+            else other++;
+          }
+        });
+      }
+      return {
+        name: c.name,
+        male,
+        female,
+        other,
+      };
+    }).sort((a,b) => (b.male + b.female + b.other) - (a.male + a.female + a.other));
+  }, [classes, studentsMap]);
+
 
   const attendanceData = useMemo(() => {
     const today = new Date();
@@ -222,7 +242,8 @@ export function AdminDashboard() {
   const chartConfig = {
     present: { label: "Present", color: "hsl(var(--chart-2))" },
     absent: { label: "Absent", color: "hsl(var(--chart-5))" },
-    students: { label: "Students", color: "hsl(var(--chart-1))" },
+    male: { label: "Male", color: "hsl(var(--chart-1))" },
+    female: { label: "Female", color: "hsl(var(--chart-3))" },
   }
 
   return (
@@ -272,7 +293,7 @@ export function AdminDashboard() {
             </CardHeader>
             <CardContent>
                 <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                    <BarChart data={attendanceData} accessibilityLayer stackOffset="sign">
+                    <BarChart data={attendanceData} accessibilityLayer>
                         <CartesianGrid vertical={false}/>
                         <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8}/>
                         <YAxis/>
@@ -333,15 +354,17 @@ export function AdminDashboard() {
              <MotionCard variants={cardVariants} initial="hidden" animate="visible" custom={7} className="xl:col-span-2">
                  <CardHeader>
                     <CardTitle>Class Enrollment Breakdown</CardTitle>
-                     <CardDescription>Number of students per class.</CardDescription>
+                     <CardDescription>Number of male and female students per class.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <ChartContainer config={chartConfig} className="h-[200px] w-full">
-                        <BarChart data={classEnrollment} layout="vertical" margin={{ left: 10, right: 20 }}>
+                        <BarChart data={classEnrollment} layout="vertical" margin={{ left: 10, right: 20 }} stackOffset="sign">
                             <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={10} className="text-xs w-20 truncate"/>
-                            <XAxis dataKey="students" type="number" hide />
+                            <XAxis type="number" hide />
                             <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent indicator="dot" />} />
-                            <Bar dataKey="students" fill="var(--color-students)" radius={4} />
+                            <Legend />
+                            <Bar dataKey="male" fill="var(--color-male)" radius={[0, 4, 4, 0]} stackId="a" />
+                            <Bar dataKey="female" fill="var(--color-female)" radius={[0, 4, 4, 0]} stackId="a" />
                         </BarChart>
                     </ChartContainer>
                 </CardContent>
