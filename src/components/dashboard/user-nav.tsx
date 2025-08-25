@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -23,7 +24,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import {
   AlertDialog,
@@ -39,18 +39,58 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/hooks/use-auth"
-import { auth } from "@/lib/firebase"
+import { auth, database } from "@/lib/firebase"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { updateProfile } from "firebase/auth"
+import { ref, update } from "firebase/database"
+import { useToast } from "@/hooks/use-toast"
+import { Loader2 } from "lucide-react"
 
 export function UserNav() {
   const { user } = useAuth();
   const router = useRouter();
+  const { toast } = useToast();
+  
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [name, setName] = useState(user?.displayName || "");
+
+  useEffect(() => {
+    if(user?.displayName) {
+        setName(user.displayName);
+    }
+  }, [user?.displayName]);
+
 
   const handleLogout = async () => {
     await auth.signOut();
     router.push("/");
+  }
+  
+  const handleProfileUpdate = async () => {
+    if (!user || !name.trim()) {
+        toast({ title: "Error", description: "Name cannot be empty.", variant: "destructive" });
+        return;
+    }
+    
+    setIsLoading(true);
+    try {
+        // Update Firebase Auth profile
+        await updateProfile(user, { displayName: name });
+
+        // Update Realtime Database
+        const userRef = ref(database, `users/${user.uid}`);
+        await update(userRef, { name: name });
+
+        toast({ title: "Success", description: "Profile updated successfully." });
+        setIsProfileDialogOpen(false);
+    } catch (error) {
+        toast({ title: "Error", description: "Failed to update profile.", variant: "destructive" });
+        console.error("Profile update error:", error);
+    } finally {
+        setIsLoading(false);
+    }
   }
 
   const getInitials = (name: string | null | undefined) => {
@@ -122,13 +162,13 @@ export function UserNav() {
             <DialogHeader>
                 <DialogTitle>Edit Profile</DialogTitle>
                 <DialogDescription>
-                    Update your account information. Changes will be saved automatically.
+                    Update your account information. Click save when you are done.
                 </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="name" className="text-right">Name</Label>
-                    <Input id="name" defaultValue={user?.displayName || ''} className="col-span-3" />
+                    <Input id="name" value={name} onChange={(e) => setName(e.target.value)} className="col-span-3" disabled={isLoading} />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="email" className="text-right">Email</Label>
@@ -136,7 +176,10 @@ export function UserNav() {
                 </div>
             </div>
             <DialogFooter>
-                <Button onClick={() => setIsProfileDialogOpen(false)}>Done</Button>
+                <Button onClick={handleProfileUpdate} disabled={isLoading}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save Changes
+                </Button>
             </DialogFooter>
         </DialogContent>
       </Dialog>

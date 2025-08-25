@@ -87,11 +87,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
-import { cn } from "@/lib/utils"
+import { cn, generateStudentId } from "@/lib/utils"
 import { format } from "date-fns"
 import { Calendar as CalendarIcon } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
-
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { ImageUpload } from "@/components/ui/image-upload"
 
 type Student = {
   id: string
@@ -107,14 +108,8 @@ type Student = {
   parentName?: string
   parentPhone?: string
   parentEmail?: string
-}
-
-// Function to generate a student ID
-const generateStudentId = (): string => {
-  const year = new Date().getFullYear().toString().slice(-2)
-  const classType = 'S' // for Student
-  const randomPart = Math.random().toString().slice(2, 8)
-  return `${year}${classType}${randomPart}`
+  avatarUrl?: string;
+  createdAt: number;
 }
 
 const calculateAge = (dob: Date | undefined): number | undefined => {
@@ -128,11 +123,26 @@ const calculateAge = (dob: Date | undefined): number | undefined => {
     return age;
 }
 
+const getInitials = (name: string | null | undefined) => {
+    if (!name) return "S";
+    const names = name.split(' ');
+    return (names[0][0] + (names.length > 1 ? names[names.length - 1][0] : '')).toUpperCase();
+}
+
 
 export default function StudentsPage() {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({
+    id: false,
+    email: false,
+    dateOfBirth: false,
+    placeOfBirth: false,
+    hometown: false,
+    address: false,
+    parentEmail: false,
+    nationality: false
+  })
   const [rowSelection, setRowSelection] = React.useState({})
   
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false)
@@ -146,6 +156,7 @@ export default function StudentsPage() {
     addDataWithId,
     updateData,
     deleteData,
+    uploadFile
   } = useDatabase<Student>("students")
   const { addData: addNotification } = useDatabase("notifications")
   const { toast } = useToast()
@@ -162,6 +173,25 @@ export default function StudentsPage() {
         setEditStudent(prev => ({...prev, [id]: value}));
       }
   }
+  
+  const handleFileChange = async (file: File | null, form: 'new' | 'edit') => {
+      if (!file) return;
+      setIsLoading(true);
+      try {
+          const downloadURL = await uploadFile(file, `avatars/${file.name}`);
+           if (form === 'new') {
+                setNewStudent(prev => ({ ...prev, avatarUrl: downloadURL }));
+            } else {
+                setEditStudent(prev => ({ ...prev, avatarUrl: downloadURL }));
+            }
+          toast({ title: "Image uploaded", description: "Avatar has been updated."});
+      } catch (error) {
+           toast({ title: "Upload failed", description: "Could not upload image.", variant: "destructive" });
+      } finally {
+          setIsLoading(false);
+      }
+  }
+
 
   const handleAddStudent = async () => {
     if (!newStudent.name?.trim() || !newStudent.email?.trim()) {
@@ -179,10 +209,6 @@ export default function StudentsPage() {
 
       await addDataWithId(studentId, studentData);
 
-      // We will replace this with a server-side call in a future step
-      // for better security and to assign roles.
-      // For now, this creates the user but without a specific role claim.
-      
       await addNotification({
         type: 'student_enrolled',
         message: `New student "${newStudent.name}" was enrolled.`,
@@ -289,11 +315,19 @@ export default function StudentsPage() {
           </Button>
         )
       },
-      cell: ({ row }) => (
-          <Link href={`/dashboard/students/${row.original.id}`} className="capitalize font-medium text-primary hover:underline">
-            {row.getValue("name")}
-          </Link>
-      ),
+      cell: ({ row }) => {
+        const student = row.original;
+        return (
+          <div className="flex items-center gap-2">
+             <Avatar className="h-8 w-8">
+                <AvatarImage src={student.avatarUrl} alt={student.name} />
+                <AvatarFallback>{getInitials(student.name)}</AvatarFallback>
+            </Avatar>
+            <Link href={`/dashboard/students/${row.original.id}`} className="capitalize font-medium text-primary hover:underline">
+              {row.getValue("name")}
+            </Link>
+          </div>
+      )},
     },
     {
       accessorKey: "email",
@@ -309,6 +343,21 @@ export default function StudentsPage() {
         )
       },
       cell: ({ row }) => <div className="lowercase">{row.getValue("email")}</div>,
+    },
+    {
+        accessorKey: "gender",
+        header: "Gender",
+        cell: ({ row }) => <div>{row.getValue("gender")}</div>
+    },
+    {
+        accessorKey: "parentName",
+        header: "Parent's Name",
+        cell: ({ row }) => <div>{row.getValue("parentName")}</div>
+    },
+    {
+        accessorKey: "parentPhone",
+        header: "Parent's Phone",
+        cell: ({ row }) => <div>{row.getValue("parentPhone")}</div>
     },
     {
       accessorKey: "status",
@@ -339,6 +388,13 @@ export default function StudentsPage() {
         )
       },
     },
+     // Hidden by default columns
+    { accessorKey: "dateOfBirth", header: "Date of Birth", cell: ({ row }) => <div>{row.getValue("dateOfBirth") ? format(new Date(row.getValue("dateOfBirth") as string), 'PPP') : 'N/A'}</div> },
+    { accessorKey: "placeOfBirth", header: "Place of Birth", cell: ({ row }) => <div>{row.getValue("placeOfBirth")}</div> },
+    { accessorKey: "nationality", header: "Nationality", cell: ({ row }) => <div>{row.getValue("nationality")}</div> },
+    { accessorKey: "hometown", header: "Hometown", cell: ({ row }) => <div>{row.getValue("hometown")}</div> },
+    { accessorKey: "address", header: "Address", cell: ({ row }) => <div>{row.getValue("address")}</div> },
+    { accessorKey: "parentEmail", header: "Parent's Email", cell: ({ row }) => <div>{row.getValue("parentEmail")}</div> },
     {
       id: "actions",
       enableHiding: false,
@@ -428,14 +484,24 @@ export default function StudentsPage() {
               <DialogTitle>Add New Student</DialogTitle>
               <DialogDescription>Fill in the details to add a new student to the system.</DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto px-2">
+            <ScrollArea className="max-h-[60vh] overflow-y-auto px-2">
                 <Tabs defaultValue="student-details" className="w-full">
                     <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="student-details">Student Details</TabsTrigger>
                         <TabsTrigger value="parent-details">Parent Details</TabsTrigger>
                     </TabsList>
                     <TabsContent value="student-details" className="mt-4">
-                        <div className="grid gap-4 py-4">
+                       <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label className="text-right">Avatar</Label>
+                                <div className="col-span-3">
+                                    <ImageUpload
+                                        currentImage={newStudent.avatarUrl}
+                                        onFileChange={(file) => handleFileChange(file, 'new')}
+                                        disabled={isLoading}
+                                    />
+                                </div>
+                            </div>
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <Label htmlFor="name" className="text-right">Full Name</Label>
                                 <Input id="name" placeholder="John Doe" className="col-span-3" value={newStudent.name || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
@@ -522,7 +588,7 @@ export default function StudentsPage() {
                         </div>
                     </TabsContent>
                 </Tabs>
-            </div>
+            </ScrollArea>
             <DialogFooter>
               <Button type="submit" onClick={handleAddStudent} disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -536,10 +602,10 @@ export default function StudentsPage() {
         <div className="w-full">
           <div className="flex items-center py-4">
             <Input
-              placeholder="Filter by email..."
-              value={(table.getColumn("email")?.getFilterValue() as string) ?? ""}
+              placeholder="Filter by student name..."
+              value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
               onChange={(event) =>
-                table.getColumn("email")?.setFilterValue(event.target.value)
+                table.getColumn("name")?.setFilterValue(event.target.value)
               }
               className="max-w-sm"
             />
@@ -669,7 +735,17 @@ export default function StudentsPage() {
                         <TabsTrigger value="parent-details">Parent Details</TabsTrigger>
                     </TabsList>
                     <TabsContent value="student-details" className="mt-4">
-                        <div className="grid gap-4 py-4">
+                         <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label className="text-right">Avatar</Label>
+                                <div className="col-span-3">
+                                    <ImageUpload
+                                        currentImage={editStudent.avatarUrl}
+                                        onFileChange={(file) => handleFileChange(file, 'edit')}
+                                        disabled={isLoading}
+                                    />
+                                </div>
+                            </div>
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <Label htmlFor="name" className="text-right">Full Name</Label>
                                 <Input id="name" placeholder="John Doe" className="col-span-3" value={editStudent.name || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />

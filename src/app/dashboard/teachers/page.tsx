@@ -90,6 +90,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { format } from "date-fns"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { ImageUpload } from "@/components/ui/image-upload"
 
 type Teacher = {
   id: string
@@ -122,7 +123,16 @@ const generateTeacherId = (department: string): string => {
 export default function TeachersPage() {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({
+    id: false,
+    email: false,
+    dateOfBirth: false,
+    dateOfEmployment: false,
+    gender: false,
+    nationality: false,
+    address: false,
+    religion: false,
+  })
   const [rowSelection, setRowSelection] = React.useState({})
   
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false)
@@ -136,6 +146,7 @@ export default function TeachersPage() {
     addDataWithId,
     updateData,
     deleteData,
+    uploadFile
   } = useDatabase<Teacher>("teachers")
   const { addData: addNotification } = useDatabase("notifications")
   const { toast } = useToast()
@@ -152,6 +163,24 @@ export default function TeachersPage() {
         setNewTeacher(prev => ({...prev, [id]: value}));
       } else {
         setEditTeacher(prev => ({...prev, [id]: value}));
+      }
+  }
+
+   const handleFileChange = async (file: File | null, form: 'new' | 'edit') => {
+      if (!file) return;
+      setIsLoading(true);
+      try {
+          const downloadURL = await uploadFile(file, `avatars/teachers/${file.name}`);
+           if (form === 'new') {
+                setNewTeacher(prev => ({ ...prev, avatarUrl: downloadURL }));
+            } else {
+                setEditTeacher(prev => ({ ...prev, avatarUrl: downloadURL }));
+            }
+          toast({ title: "Image uploaded", description: "Avatar has been updated."});
+      } catch (error) {
+           toast({ title: "Upload failed", description: "Could not upload image.", variant: "destructive" });
+      } finally {
+          setIsLoading(false);
       }
   }
   
@@ -178,10 +207,6 @@ export default function TeachersPage() {
       } as Omit<Teacher, 'id'>
 
       await addDataWithId(teacherId, teacherData)
-
-      // We will replace this with a server-side call in a future step
-      // for better security and to assign roles.
-      // For now, this creates the user but without a specific role claim.
 
       await addNotification({
         type: 'teacher_added',
@@ -311,19 +336,14 @@ export default function TeachersPage() {
       cell: ({ row }) => <div className="capitalize">{row.getValue("department")}</div>,
     },
     {
-      accessorKey: "email",
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
-            Email
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        )
-      },
-      cell: ({ row }) => <div className="lowercase">{row.getValue("email")}</div>,
+        accessorKey: "contact",
+        header: "Contact",
+        cell: ({ row }) => <div className="lowercase">{row.getValue("contact")}</div>,
+    },
+    {
+        accessorKey: "academicQualification",
+        header: "Qualification",
+        cell: ({ row }) => <div className="capitalize">{row.getValue("academicQualification")}</div>,
     },
     {
       accessorKey: "status",
@@ -356,6 +376,42 @@ export default function TeachersPage() {
       accessorKey: "employmentType",
       header: "Employment Type",
       cell: ({ row }) => <div className="capitalize">{row.getValue("employmentType") || "N/A"}</div>,
+    },
+     // Hidden by default
+    {
+      accessorKey: "email",
+      header: "Email",
+      cell: ({ row }) => <div className="lowercase">{row.getValue("email")}</div>,
+    },
+    {
+      accessorKey: "dateOfBirth",
+      header: "Date of Birth",
+      cell: ({ row }) => <div>{row.getValue("dateOfBirth") ? format(new Date(row.getValue("dateOfBirth")), 'PPP') : 'N/A'}</div>,
+    },
+    {
+      accessorKey: "dateOfEmployment",
+      header: "Date of Employment",
+      cell: ({ row }) => <div>{row.getValue("dateOfEmployment") ? format(new Date(row.getValue("dateOfEmployment")), 'PPP') : 'N/A'}</div>,
+    },
+    {
+      accessorKey: "gender",
+      header: "Gender",
+      cell: ({ row }) => <div className="capitalize">{row.getValue("gender")}</div>,
+    },
+    {
+      accessorKey: "nationality",
+      header: "Nationality",
+      cell: ({ row }) => <div className="capitalize">{row.getValue("nationality")}</div>,
+    },
+    {
+      accessorKey: "address",
+      header: "Address",
+      cell: ({ row }) => <div className="capitalize">{row.getValue("address")}</div>,
+    },
+    {
+      accessorKey: "religion",
+      header: "Religion",
+      cell: ({ row }) => <div className="capitalize">{row.getValue("religion")}</div>,
     },
     {
       id: "actions",
@@ -447,6 +503,16 @@ export default function TeachersPage() {
             <ScrollArea className="h-[60vh] pr-6">
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
+                    <Label className="text-right">Avatar</Label>
+                    <div className="col-span-3">
+                       <ImageUpload
+                            currentImage={newTeacher.avatarUrl}
+                            onFileChange={(file) => handleFileChange(file, 'new')}
+                            disabled={isLoading}
+                        />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="name" className="text-right">Name</Label>
                     <Input id="name" placeholder="Full Name" className="col-span-3" value={newTeacher.name || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
                   </div>
@@ -516,10 +582,6 @@ export default function TeachersPage() {
                     <Input id="academicQualification" placeholder="e.g., M.Sc. Physics" className="col-span-3" value={newTeacher.academicQualification || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="avatarUrl" className="text-right">Avatar URL</Label>
-                    <Input id="avatarUrl" placeholder="https://example.com/avatar.png" className="col-span-3" value={newTeacher.avatarUrl || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="gender" className="text-right">Gender</Label>
                     <Select onValueChange={(value) => setNewTeacher(prev => ({ ...prev, gender: value as any}))} value={newTeacher.gender} disabled={isLoading}>
                         <SelectTrigger className="col-span-3">
@@ -559,10 +621,10 @@ export default function TeachersPage() {
         <div className="w-full">
           <div className="flex items-center py-4">
             <Input
-              placeholder="Filter by email..."
-              value={(table.getColumn("email")?.getFilterValue() as string) ?? ""}
+              placeholder="Filter by teacher name..."
+              value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
               onChange={(event) =>
-                table.getColumn("email")?.setFilterValue(event.target.value)
+                table.getColumn("name")?.setFilterValue(event.target.value)
               }
               className="max-w-sm"
             />
@@ -688,6 +750,16 @@ export default function TeachersPage() {
            <ScrollArea className="h-[60vh] pr-6">
                 <div className="grid gap-4 py-4">
                     <div className="grid grid-cols-4 items-center gap-4">
+                        <Label className="text-right">Avatar</Label>
+                        <div className="col-span-3">
+                        <ImageUpload
+                                currentImage={editTeacher.avatarUrl}
+                                onFileChange={(file) => handleFileChange(file, 'edit')}
+                                disabled={isLoading}
+                            />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="name" className="text-right">Name</Label>
                         <Input id="name" className="col-span-3" value={editTeacher.name || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
                     </div>
@@ -757,10 +829,6 @@ export default function TeachersPage() {
                         <Input id="academicQualification" placeholder="e.g., M.Sc. Physics" className="col-span-3" value={editTeacher.academicQualification || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="avatarUrl" className="text-right">Avatar URL</Label>
-                        <Input id="avatarUrl" placeholder="https://example.com/avatar.png" className="col-span-3" value={editTeacher.avatarUrl || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
-                    </div>
-                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="gender" className="text-right">Gender</Label>
                         <Select onValueChange={(value) => setEditTeacher(prev => ({ ...prev, gender: value as any}))} value={editTeacher.gender} disabled={isLoading}>
                             <SelectTrigger className="col-span-3">

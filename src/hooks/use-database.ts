@@ -2,8 +2,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { database } from '@/lib/firebase';
-import { ref, onValue, push, remove, set, serverTimestamp, update } from 'firebase/database';
+import { database, storage } from '@/lib/firebase';
+import { ref as dbRef, onValue, push, remove, set, serverTimestamp, update } from 'firebase/database';
+import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+
 
 export function useDatabase<T extends { id?: string }>(path: string) {
   const [data, setData] = useState<T[]>([]);
@@ -12,8 +14,8 @@ export function useDatabase<T extends { id?: string }>(path: string) {
   const stablePath = path; // To satisfy dependency array
 
   useEffect(() => {
-    const dbRef = ref(database, stablePath);
-    const unsubscribe = onValue(dbRef, (snapshot) => {
+    const databaseRef = dbRef(database, stablePath);
+    const unsubscribe = onValue(databaseRef, (snapshot) => {
       const val = snapshot.val();
       const loadedData: T[] = [];
       if (val) {
@@ -46,30 +48,36 @@ export function useDatabase<T extends { id?: string }>(path: string) {
   }, [stablePath]);
 
   const addData = useCallback(async (newData: Omit<T, 'id'>) => {
-    const dbRef = ref(database, path);
-    const newRef = push(dbRef);
+    const databaseRef = dbRef(database, path);
+    const newRef = push(databaseRef);
     return set(newRef, { ...newData, createdAt: serverTimestamp() });
   }, [path]);
   
   const addDataWithId = useCallback(async (id: string, newData: Omit<T, 'id'>) => {
-    const dbRef = ref(database, `${path}/${id}`);
-    return set(dbRef, { ...newData, createdAt: serverTimestamp() });
+    const databaseRef = dbRef(database, `${path}/${id}`);
+    return set(databaseRef, { ...newData, createdAt: serverTimestamp() });
   }, [path]);
 
   const updateData = useCallback(async (id: string, updates: Partial<T> | any) => {
-    const dbRef = ref(database, `${path}/${id}`);
-    return update(dbRef, updates);
+    const databaseRef = dbRef(database, `${path}/${id}`);
+    return update(databaseRef, updates);
   }, [path]);
   
   const updatePath = useCallback(async (fullPath: string, updates: object) => {
-      const dbRef = ref(database, fullPath);
-      return update(dbRef, updates);
+      const databaseRef = dbRef(database, fullPath);
+      return update(databaseRef, updates);
   }, []);
 
   const deleteData = useCallback(async (id: string) => {
-    const dbRef = ref(database, `${path}/${id}`);
-    return remove(dbRef);
+    const databaseRef = dbRef(database, `${path}/${id}`);
+    return remove(databaseRef);
   }, [path]);
+  
+  const uploadFile = useCallback(async (file: File, filePath: string) => {
+    const fileRef = storageRef(storage, filePath);
+    await uploadBytes(fileRef, file);
+    return getDownloadURL(fileRef);
+  }, []);
 
-  return { data, loading, addData, addDataWithId, updateData, updatePath, deleteData };
+  return { data, loading, addData, addDataWithId, updateData, updatePath, deleteData, uploadFile };
 }

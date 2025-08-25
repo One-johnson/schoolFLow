@@ -47,26 +47,14 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge";
-import { PlusCircle, Trash2, UserPlus, BookOpen, ChevronsUpDown, Check, MoreHorizontal, Pencil, Loader2 } from "lucide-react";
+import { PlusCircle, Trash2, UserPlus, BookOpen, MoreHorizontal, Pencil, Loader2 } from "lucide-react";
 import { useDatabase } from "@/hooks/use-database";
 import { useState, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils"
+import { cn, generateClassId } from "@/lib/utils"
+import { MultiSelectPopover } from "@/components/ui/multi-select-popover";
 
 type Student = {
   id: string;
@@ -92,14 +80,6 @@ type Class = {
   status: "Active" | "Inactive";
 };
 
-// Function to generate a class ID
-const generateClassId = (className: string): string => {
-    const year = new Date().getFullYear().toString().slice(-2);
-    const classType = 'C'; // for Class
-    const nameChar = className.length > 0 ? className.charAt(0).toUpperCase() : 'X';
-    const randomPart = Math.random().toString().slice(2, 8);
-    return `${year}${classType}${nameChar}${randomPart}`;
-};
 
 export default function ClassesPage() {
   const { data: classes, addDataWithId: addClass, updateData: updateClass, deleteData: deleteClass } = useDatabase<Class>('classes');
@@ -417,70 +397,4 @@ export default function ClassesPage() {
       </Dialog>
     </div>
   );
-}
-
-
-// A helper component for multi-select with a search popover
-function MultiSelectPopover({ options, selected, onChange, disabled }: { 
-    options: { value: string, label: string }[], 
-    selected: string[], 
-    onChange: (selected: string[]) => void,
-    disabled?: boolean
-}) {
-  const [open, setOpen] = useState(false)
-
-  const handleSelect = (value: string) => {
-    const newSelected = selected.includes(value)
-      ? selected.filter((item) => item !== value)
-      : [...selected, value]
-    onChange(newSelected)
-  }
-
-  const selectedLabels = selected.map(value => options.find(opt => opt.value === value)?.label).filter(Boolean);
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="w-full justify-between"
-          disabled={disabled}
-        >
-          <span className="truncate">
-             {selectedLabels.length > 0 ? selectedLabels.join(", ") : "Select students..."}
-          </span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[300px] p-0">
-        <Command>
-          <CommandInput placeholder="Search students..." />
-          <CommandList>
-            <CommandEmpty>No students found.</CommandEmpty>
-            <CommandGroup>
-              <ScrollArea className="h-48">
-              {options.map((option) => (
-                <CommandItem
-                  key={option.value}
-                  onSelect={() => handleSelect(option.value)}
-                  value={option.label}
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      selected.includes(option.value) ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  {option.label}
-                </CommandItem>
-              ))}
-              </ScrollArea>
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  )
 }

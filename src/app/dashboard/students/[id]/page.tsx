@@ -7,13 +7,25 @@ import { useDatabase } from '@/hooks/use-database';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, User, BookOpen, ClipboardCheck, DollarSign, CalendarIcon, GraduationCap } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { Loader2, User, BookOpen, ClipboardCheck, DollarSign, Download, Award, ChevronDown } from 'lucide-react';
+import { format, parseISO, isWithinInterval } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { cn } from '@/lib/utils';
+import { cn, calculateGrade } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
-// Data types from other modules
+
+// Data types
 type Student = { id: string; name: string; email: string; status: "Active" | "Inactive" | "Graduated" | "Continuing"; dateOfBirth?: string; placeOfBirth?: string; nationality?: string; hometown?: string; gender?: "Male" | "Female" | "Other"; address?: string; parentName?: string; parentPhone?: string; parentEmail?: string; avatarUrl?: string; };
 type Class = { id: string; name: string; studentIds?: Record<string, boolean> };
 type Subject = { id: string; name: string; classId?: string; };
@@ -24,6 +36,19 @@ type AttendanceRecord = Record<string, AttendanceStatus>;
 type DailyAttendance = { [classId: string]: AttendanceRecord };
 type FullAttendanceLog = { date: string; classId: string; studentId: string; studentName: string; status: AttendanceStatus; className: string };
 type EnrichedFeeRecord = StudentFee & { feeName: string };
+type Term = { id: string; name: string; startDate?: string; endDate?: string; status: 'Active' | 'Inactive' | 'Completed' };
+type Exam = { id: string; name: string; termId: string; status: "Published" | "Grading" | "Upcoming" | "Ongoing" };
+type StudentGrade = { id: string; examId: string; studentId: string; subjectId: string; classScore: number; examScore: number; teacherComment?: string };
+
+type EnrichedResult = {
+    subjectName: string;
+    classScore: number;
+    examScore: number;
+    totalScore: number;
+    grade: string;
+    remarks: string;
+    teacherComment?: string;
+};
 
 const statusColors = {
   Present: "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300",
@@ -32,71 +57,166 @@ const statusColors = {
   Excused: "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300",
 };
 
-
 export default function StudentInfoPage() {
     const params = useParams();
     const studentId = params.id as string;
+    const { toast } = useToast();
 
-    const { data: students, loading: studentsLoading } = useDatabase<Student>('students');
+    // Database Hooks
+    const { data: students, updateData: updateStudent, loading: studentsLoading } = useDatabase<Student>('students');
     const { data: classes, loading: classesLoading } = useDatabase<Class>('classes');
     const { data: subjects, loading: subjectsLoading } = useDatabase<Subject>('subjects');
     const { data: studentFees, loading: feesLoading } = useDatabase<StudentFee>('studentFees');
     const { data: feeStructures, loading: feeStructuresLoading } = useDatabase<FeeStructure>('feeStructures');
     const { data: rawAttendance, loading: attendanceLoading } = useDatabase<DailyAttendance>("attendance");
+    const { data: terms, loading: termsLoading } = useDatabase<Term>("terms");
+    const { data: exams, loading: examsLoading } = useDatabase<Exam>("exams");
+    const { data: grades, loading: gradesLoading } = useDatabase<StudentGrade>("studentGrades");
 
-    const loading = studentsLoading || classesLoading || subjectsLoading || feesLoading || feeStructuresLoading || attendanceLoading;
+    // Report Card State
+    const [selectedTermId, setSelectedTermId] = React.useState<string>();
+    const [selectedExamId, setSelectedExamId] = React.useState<string>();
 
+    const loading = studentsLoading || classesLoading || subjectsLoading || feesLoading || feeStructuresLoading || attendanceLoading || termsLoading || examsLoading || gradesLoading;
+
+    // Memoized Data
     const student = React.useMemo(() => students.find(s => s.id === studentId), [students, studentId]);
-
-    const enrolledClasses = React.useMemo(() => {
-        return classes.filter(c => c.studentIds && c.studentIds[studentId]);
-    }, [classes, studentId]);
-
+    const enrolledClasses = React.useMemo(() => classes.filter(c => c.studentIds && c.studentIds[studentId]), [classes, studentId]);
     const enrolledSubjects = React.useMemo(() => {
         const enrolledClassIds = new Set(enrolledClasses.map(c => c.id));
         return subjects.filter(s => s.classId && enrolledClassIds.has(s.classId));
     }, [subjects, enrolledClasses]);
-    
     const feesMap = React.useMemo(() => new Map(feeStructures.map(f => [f.id, f.name])), [feeStructures]);
-    
     const feesRecords: EnrichedFeeRecord[] = React.useMemo(() => {
         if (!studentId) return [];
-        return studentFees
-            .filter(sf => sf.studentId === studentId)
-            .map(sf => ({
-                ...sf,
-                feeName: feesMap.get(sf.feeId) || "Unknown Fee",
-            }));
+        return studentFees.filter(sf => sf.studentId === studentId).map(sf => ({ ...sf, feeName: feesMap.get(sf.feeId) || "Unknown Fee" }));
     }, [studentFees, feesMap, studentId]);
-
     const studentsMap = React.useMemo(() => new Map(students.map(s => [s.id, s.name])), [students]);
     const classesMap = React.useMemo(() => new Map(classes.map(c => [c.id, c.name])), [classes]);
+    const subjectsMap = React.useMemo(() => new Map(subjects.map(s => [s.id, s.name])), [subjects]);
 
     const attendanceHistory = React.useMemo<FullAttendanceLog[]>(() => {
-        if (attendanceLoading || studentsLoading || classesLoading || !studentId) return [];
-        
+        if (attendanceLoading || !studentId) return [];
         const flatData: FullAttendanceLog[] = [];
         rawAttendance.forEach(dailyRecord => {
-        const date = dailyRecord.id; // date is the key, e.g., '2024-07-25'
-        if (!dailyRecord || typeof dailyRecord !== 'object') return;
-
-        Object.entries(dailyRecord).forEach(([classId, attendanceRecords]) => {
-            if (classId === 'id') return;
-            if (typeof attendanceRecords !== 'object' || attendanceRecords === null || !attendanceRecords[studentId]) return;
-            
-            const status = attendanceRecords[studentId];
-             flatData.push({
-                date,
-                classId,
-                studentId,
-                status: status as AttendanceStatus,
-                studentName: studentsMap.get(studentId) || 'Unknown Student',
-                className: classesMap.get(classId) || 'Unknown Class'
+            const date = dailyRecord.id;
+            if (!dailyRecord || typeof dailyRecord !== 'object') return;
+            Object.entries(dailyRecord).forEach(([classId, attendanceRecords]) => {
+                if (classId === 'id' || !attendanceRecords || typeof attendanceRecords !== 'object') return;
+                const status = (attendanceRecords as AttendanceRecord)[studentId];
+                if (status) {
+                    flatData.push({ date, classId, studentId, status, studentName: studentsMap.get(studentId) || 'Unknown', className: classesMap.get(classId) || 'Unknown' });
+                }
             });
         });
-        });
         return flatData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [rawAttendance, studentsMap, classesMap, attendanceLoading, studentsLoading, classesLoading, studentId]);
+    }, [rawAttendance, studentsMap, classesMap, attendanceLoading, studentId]);
+
+    const examsForTerm = React.useMemo(() => {
+        if (!selectedTermId) return [];
+        return exams.filter(e => e.termId === selectedTermId && e.status === "Published");
+    }, [exams, selectedTermId]);
+
+    const reportCardResults = React.useMemo<EnrichedResult[]>(() => {
+        if (!student || !selectedExamId) return [];
+        const studentGradesForExam = grades.filter(g => g.studentId === student.id && g.examId === selectedExamId);
+        return studentGradesForExam.map(grade => {
+            const totalScore = (grade.classScore * 0.5) + (grade.examScore * 0.5);
+            const { grade: letterGrade, remarks } = calculateGrade(totalScore);
+            return { subjectName: subjectsMap.get(grade.subjectId) || 'Unknown Subject', classScore: grade.classScore, examScore: grade.examScore, totalScore: parseFloat(totalScore.toFixed(2)), grade: letterGrade, remarks, teacherComment: grade.teacherComment };
+        });
+    }, [student, selectedExamId, grades, subjectsMap]);
+
+
+    const handleGenerateReportCard = () => {
+        const term = terms.find(t => t.id === selectedTermId);
+        if (!student || !term || !selectedExamId) {
+            toast({ title: "Selection Required", description: "Please select a term and an exam period.", variant: "destructive"});
+            return;
+        }
+        
+        try {
+            const doc = new jsPDF();
+            const examName = exams.find(e => e.id === selectedExamId)?.name;
+            const className = enrolledClasses[0]?.name || "N/A";
+            
+            // Header
+            doc.setFontSize(20);
+            doc.setFont("helvetica", "bold");
+            doc.text("SchoolFlow Academy", doc.internal.pageSize.getWidth() / 2, 20, { align: "center" });
+            doc.setFontSize(14);
+            doc.text("Student Academic Report", doc.internal.pageSize.getWidth() / 2, 30, { align: "center" });
+            
+            // Student Info
+            doc.setFontSize(11);
+            doc.setFont("helvetica", "normal");
+            doc.text(`Student Name: ${student.name}`, 15, 45);
+            doc.text(`Class: ${className}`, 15, 52);
+            doc.text(`Academic Term: ${term.name || 'N/A'}`, 15, 59);
+            doc.text(`Examination: ${examName || 'N/A'}`, 15, 66);
+            doc.text(`Date Issued: ${format(new Date(), 'PPP')}`, doc.internal.pageSize.getWidth() - 15, 45, { align: 'right' });
+
+
+            // Results Table
+            (doc as any).autoTable({
+                startY: 75,
+                head: [["Subject", "Class Score (50%)", "Exam Score (50%)", "Total Score", "Grade", "Remarks", "Comment"]],
+                body: reportCardResults.map(r => [r.subjectName, r.classScore, r.examScore, r.totalScore, r.grade, r.remarks, r.teacherComment || ""]),
+                theme: 'grid',
+                headStyles: { fillColor: [22, 163, 74] }
+            });
+
+            let finalY = (doc as any).lastAutoTable.finalY || 150;
+
+            // Attendance Summary
+            if (term.startDate && term.endDate) {
+                const termStart = parseISO(term.startDate);
+                const termEnd = parseISO(term.endDate);
+                const termAttendance = attendanceHistory.filter(log => isWithinInterval(parseISO(log.date), { start: termStart, end: termEnd }));
+                
+                const summary = termAttendance.reduce((acc, log) => {
+                    acc[log.status] = (acc[log.status] || 0) + 1;
+                    return acc;
+                }, {} as Record<AttendanceStatus, number>);
+
+                (doc as any).autoTable({
+                    startY: finalY + 10,
+                    head: [["Attendance Summary"]],
+                    body: [
+                        [`Present: ${summary.Present || 0} days`],
+                        [`Absent: ${summary.Absent || 0} days`],
+                        [`Late: ${summary.Late || 0} days`],
+                        [`Excused: ${summary.Excused || 0} days`],
+                    ],
+                    theme: 'plain',
+                    headStyles: { fontStyle: 'bold', fillColor: false, textColor: 20 },
+                });
+                finalY = (doc as any).lastAutoTable.finalY;
+            }
+            
+            // Footer
+            doc.setFontSize(10);
+            doc.text("Headmaster's Signature: ...................................", 15, finalY + 20);
+            doc.text("Parent's Signature: ...................................", doc.internal.pageSize.getWidth() - 15, finalY + 20, { align: 'right'});
+            
+            doc.save(`report-card-${student.name.replace(/ /g, '_')}-${term.name?.replace(/ /g, '_')}.pdf`);
+            toast({ title: "Report Card Generated", description: "PDF has been downloaded." });
+
+        } catch (error) {
+            console.error(error);
+            toast({ title: "Error Generating Report", variant: "destructive" });
+        }
+    }
+    
+    const handleStatusChange = async (status: Student['status']) => {
+        if (!student) return;
+        try {
+            await updateStudent(student.id, { status });
+            toast({ title: "Success", description: "Student status updated." });
+        } catch(err) {
+            toast({ title: "Error", description: "Failed to update status.", variant: "destructive" });
+        }
+    }
 
 
     if (loading) {
@@ -119,6 +239,8 @@ export default function StudentInfoPage() {
             <p className="font-medium">{value || 'N/A'}</p>
         </div>
     );
+    
+    const statusOptions: Student['status'][] = ["Active", "Inactive", "Graduated", "Continuing"];
 
     return (
         <div className="flex flex-col gap-6">
@@ -136,19 +258,31 @@ export default function StudentInfoPage() {
                             <span>{student.email}</span>
                         </CardDescription>
                     </div>
-                     <Badge className={cn("border-transparent text-base px-4 py-2", {
-                        "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300": student.status === 'Active',
-                        "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300": student.status === 'Inactive',
-                     })}>{student.status}</Badge>
+                     <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" className="w-[160px] justify-between">
+                                {student.status}
+                                <ChevronDown className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-[160px]">
+                            {statusOptions.map(status => (
+                                <DropdownMenuItem key={status} onSelect={() => handleStatusChange(status)}>
+                                    {status}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                     </DropdownMenu>
                 </CardHeader>
             </Card>
 
             <Tabs defaultValue="profile">
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className="grid w-full grid-cols-5">
                     <TabsTrigger value="profile"><User className="mr-2" /> Profile</TabsTrigger>
                     <TabsTrigger value="enrollment"><BookOpen className="mr-2" /> Enrollment</TabsTrigger>
                     <TabsTrigger value="attendance"><ClipboardCheck className="mr-2" /> Attendance</TabsTrigger>
                     <TabsTrigger value="fees"><DollarSign className="mr-2" /> Fees</TabsTrigger>
+                    <TabsTrigger value="academics"><Award className="mr-2" /> Academics</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="profile" className="mt-4">
@@ -276,6 +410,79 @@ export default function StudentInfoPage() {
                         </CardContent>
                     </Card>
                 </TabsContent>
+                
+                <TabsContent value="academics" className="mt-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Academic Reports</CardTitle>
+                            <CardDescription>Select a term and exam to view results and generate a report card.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                             <div className="flex flex-wrap gap-4 items-end">
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor="term">Academic Term</Label>
+                                    <Select value={selectedTermId} onValueChange={setSelectedTermId}>
+                                        <SelectTrigger className="w-[250px]"><SelectValue placeholder="Select Term" /></SelectTrigger>
+                                        <SelectContent>
+                                            {terms.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor="exam">Examination</Label>
+                                    <Select value={selectedExamId} onValueChange={setSelectedExamId} disabled={!selectedTermId}>
+                                        <SelectTrigger className="w-[250px]"><SelectValue placeholder="Select Exam" /></SelectTrigger>
+                                        <SelectContent>
+                                            {examsForTerm.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <Button onClick={handleGenerateReportCard} disabled={!selectedExamId || reportCardResults.length === 0}>
+                                    <Download className="mr-2 h-4 w-4" />
+                                    Generate Report Card
+                                </Button>
+                             </div>
+
+                             {selectedExamId && (
+                                <div className="pt-4">
+                                     <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Subject</TableHead>
+                                                <TableHead>Class Score</TableHead>
+                                                <TableHead>Exam Score</TableHead>
+                                                <TableHead>Total</TableHead>
+                                                <TableHead>Grade</TableHead>
+                                                <TableHead>Remarks</TableHead>
+                                                <TableHead>Comment</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {reportCardResults.length > 0 ? (
+                                                reportCardResults.map((result, index) => (
+                                                    <TableRow key={index}>
+                                                        <TableCell className="font-medium">{result.subjectName}</TableCell>
+                                                        <TableCell>{result.classScore}%</TableCell>
+                                                        <TableCell>{result.examScore}%</TableCell>
+                                                        <TableCell className="font-bold">{result.totalScore}%</TableCell>
+                                                        <TableCell><Badge variant="secondary">{result.grade}</Badge></TableCell>
+                                                        <TableCell>{result.remarks}</TableCell>
+                                                        <TableCell className="text-sm text-muted-foreground">{result.teacherComment || "N/A"}</TableCell>
+                                                    </TableRow>
+                                                ))
+                                            ) : (
+                                                <TableRow>
+                                                    <TableCell colSpan={7} className="h-24 text-center">No results found for this exam.</TableCell>
+                                                </TableRow>
+                                            )}
+                                        </TableBody>
+                                     </Table>
+                                </div>
+                             )}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
             </Tabs>
         </div>
     );
