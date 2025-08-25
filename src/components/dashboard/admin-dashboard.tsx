@@ -21,7 +21,7 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import { Megaphone, BookOpen, Users, UserCheck, DollarSign, CalendarCheck, Activity, Landmark, Users2, TrendingUp, TrendingDown, Calendar as CalendarIcon } from "lucide-react";
+import { Megaphone, BookOpen, Users, UserCheck, DollarSign, Activity, Landmark, UserPlus, AlertCircle, TrendingUp, TrendingDown } from "lucide-react";
 import Link from "next/link";
 import { useDatabase } from "@/hooks/use-database";
 import { useMemo, useState } from "react";
@@ -35,6 +35,7 @@ import { Badge } from "../ui/badge";
 import { motion } from "framer-motion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { Button } from "../ui/button";
 
 
 type Student = { id: string; name: string; createdAt: number, gender?: 'Male' | 'Female' | 'Other' };
@@ -45,6 +46,7 @@ type StudentFee = { id: string; amountDue: number; amountPaid: number; status: "
 type AttendanceRecord = Record<string, "Present" | "Absent" | "Late" | "Excused">;
 type DailyAttendance = { [classId: string]: AttendanceRecord };
 type Notification = { id: string, message: string, createdAt: number, type: string };
+type Subject = { id: string; name: string; teacherId?: string; };
 
 const iconMap: { [key: string]: React.ReactNode } = {
   student_enrolled: <Users className="h-4 w-4" />,
@@ -58,6 +60,7 @@ export function AdminDashboard() {
   const { data: students } = useDatabase<Student>('students');
   const { data: teachers } = useDatabase<Teacher>('teachers');
   const { data: classes } = useDatabase<Class>('classes');
+  const { data: subjects } = useDatabase<Subject>('subjects');
   const { data: events } = useDatabase<Event>('events');
   const { data: studentFees } = useDatabase<StudentFee>('studentFees');
   const { data: rawAttendance } = useDatabase<DailyAttendance>(`attendance`);
@@ -70,6 +73,27 @@ export function AdminDashboard() {
   const totalTeachers = teachers.length;
   const totalClasses = classes.length;
   
+  const unassignedStudents = useMemo(() => {
+      const assignedStudentIds = new Set<string>();
+      classes.forEach(c => {
+          if (c.studentIds) {
+              Object.keys(c.studentIds).forEach(id => assignedStudentIds.add(id));
+          }
+      });
+      return students.filter(s => !assignedStudentIds.has(s.id)).length;
+  }, [students, classes]);
+  
+  const unassignedTeachers = useMemo(() => {
+      const assignedTeacherIds = new Set<string>();
+      subjects.forEach(s => {
+        if(s.teacherId) {
+            assignedTeacherIds.add(s.teacherId);
+        }
+      });
+      return teachers.filter(t => !assignedTeacherIds.has(t.id)).length;
+  }, [teachers, subjects]);
+
+
   const studentIdsInClasses = useMemo(() => {
     const ids = new Set<string>();
     classes.forEach(c => {
@@ -85,7 +109,7 @@ export function AdminDashboard() {
         acc.totalPaid += fee.amountPaid;
         acc.totalDue += fee.amountDue;
         return acc;
-    }, { totalPaid: 0, totalDue: 0, totalOwed: 0 });
+    }, { totalPaid: 0, totalDue: 0 });
   }, [studentFees]);
   
   const totalFeesOwed = feeStats.totalDue - feeStats.totalPaid;
@@ -115,51 +139,93 @@ export function AdminDashboard() {
     ]
   }, [students]);
 
+  const studentsMap = useMemo(() => new Map(students.map(s => [s.id, s])), [students]);
+
+  const classEnrollment = useMemo(() => {
+    return classes.map(c => {
+      let male = 0;
+      let female = 0;
+      let other = 0;
+      if (c.studentIds) {
+        Object.keys(c.studentIds).forEach(studentId => {
+          const student = studentsMap.get(studentId);
+          if (student) {
+            if (student.gender === 'Male') male++;
+            else if (student.gender === 'Female') female++;
+            else other++;
+          }
+        });
+      }
+      return {
+        name: c.name,
+        male,
+        female,
+        other,
+      };
+    }).sort((a,b) => (b.male + b.female + b.other) - (a.male + a.female + a.other));
+  }, [classes, studentsMap]);
+
+
   const attendanceData = useMemo(() => {
     const today = new Date();
     let startDate;
 
     if (attendanceDateFilter === 'thisWeek') {
-        startDate = startOfWeek(today, { weekStartsOn: 1});
+      startDate = startOfWeek(today, { weekStartsOn: 1 });
     } else { // last7days
-        startDate = subDays(today, 6);
+      startDate = subDays(today, 6);
     }
     
     const dateInterval = eachDayOfInterval({ start: startDate, end: today });
-    
+
     return dateInterval.map(date => {
-        const dateStr = format(date, 'yyyy-MM-dd');
-        const todaysLog = rawAttendance.find(log => log.id === dateStr);
-        let presentCount = 0;
-        let totalCount = 0;
+      const dateStr = format(date, 'yyyy-MM-dd');
+      const todaysLog = rawAttendance.find(log => log.id === dateStr);
+      let presentCount = 0;
+      let absentCount = 0;
 
-        if (attendanceClassFilter === 'all') {
-            totalCount = studentIdsInClasses.size;
+      const relevantStudentIds = new Set<string>();
+      if (attendanceClassFilter === 'all') {
+        studentIdsInClasses.forEach(id => relevantStudentIds.add(id));
+      } else {
+        const specificClass = classes.find(c => c.id === attendanceClassFilter);
+        if (specificClass?.studentIds) {
+          Object.keys(specificClass.studentIds).forEach(id => relevantStudentIds.add(id));
+        }
+      }
+
+      const dailyStatuses: { [studentId: string]: string } = {};
+
+      if (todaysLog) {
+        Object.entries(todaysLog).forEach(([classId, classRecords]) => {
+          if (classId === 'id' || (attendanceClassFilter !== 'all' && classId !== attendanceClassFilter)) return;
+          if (typeof classRecords === 'object' && classRecords !== null) {
+            Object.entries(classRecords).forEach(([studentId, status]) => {
+              if (relevantStudentIds.has(studentId)) {
+                dailyStatuses[studentId] = status;
+              }
+            });
+          }
+        });
+      }
+
+      relevantStudentIds.forEach(studentId => {
+        const status = dailyStatuses[studentId];
+        if (status === 'Present' || status === 'Late' || status === 'Excused') {
+          presentCount++;
         } else {
-            const specificClass = classes.find(c => c.id === attendanceClassFilter);
-            totalCount = specificClass?.studentIds ? Object.keys(specificClass.studentIds).length : 0;
+          absentCount++;
         }
-
-        if (todaysLog && totalCount > 0) {
-            Object.entries(todaysLog).forEach(([classId, classRecords]) => {
-                if(classId === 'id' || (attendanceClassFilter !== 'all' && classId !== attendanceClassFilter)) return;
-
-                if (typeof classRecords === 'object' && classRecords !== null) {
-                    Object.values(classRecords).forEach(status => {
-                        if (status === 'Present' || status === 'Late' || status === 'Excused') {
-                           presentCount++;
-                        }
-                    })
-                }
-            })
-            return {
-                date: format(date, 'EEE'),
-                attendance: Math.round((presentCount / totalCount) * 100),
-            };
-        }
-        return { date: format(date, 'EEE'), attendance: 0 };
+      });
+      
+      return {
+        date: format(date, 'EEE'),
+        present: presentCount,
+        absent: absentCount,
+      };
     });
   }, [rawAttendance, attendanceClassFilter, attendanceDateFilter, classes, studentIdsInClasses]);
+
 
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -196,6 +262,13 @@ export function AdminDashboard() {
     </MotionCard>
   );
 
+  const chartConfig = {
+    present: { label: "Present", color: "hsl(var(--chart-2))" },
+    absent: { label: "Absent", color: "hsl(var(--chart-5))" },
+    male: { label: "Male", color: "hsl(var(--chart-1))" },
+    female: { label: "Female", color: "hsl(var(--chart-3))" },
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex-1 space-y-4">
@@ -205,13 +278,13 @@ export function AdminDashboard() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
         <DashboardCard i={0} title="Total Students" icon={<Users className="h-4 w-4 text-muted-foreground" />} value={totalStudents} description="Currently enrolled" />
         <DashboardCard i={1} title="Total Teachers" icon={<UserCheck className="h-4 w-4 text-muted-foreground" />} value={totalTeachers} description="On staff" />
         <DashboardCard i={2} title="Total Classes" icon={<Landmark className="h-4 w-4 text-muted-foreground" />} value={totalClasses} description="Across all grades" />
-        <DashboardCard i={3} title="Fees Collected" icon={<TrendingUp className="h-4 w-4 text-green-500" />} value={`GH₵${feeStats.totalPaid.toLocaleString()}`} description="Total payments received" />
-        <DashboardCard i={4} title="Fees Owed" icon={<TrendingDown className="h-4 w-4 text-red-500" />} value={`GH₵${totalFeesOwed.toLocaleString()}`} description="Outstanding balance" />
-        <DashboardCard i={5} title="Total Revenue" icon={<DollarSign className="h-4 w-4 text-muted-foreground" />} value={`GH₵${feeStats.totalDue.toLocaleString()}`} description="Total fees generated" />
+        <DashboardCard i={4} title="Fees Collected" icon={<TrendingUp className="h-4 w-4 text-green-600" />} value={`GH₵${feeStats.totalPaid.toLocaleString()}`} description="Total payments received" />
+        <DashboardCard i={5} title="Fees Owed" icon={<TrendingDown className="h-4 w-4 text-red-600" />} value={`GH₵${totalFeesOwed.toLocaleString()}`} description="Outstanding balance" />
+        <DashboardCard i={3} title="Total Revenue" icon={<DollarSign className="h-4 w-4 text-muted-foreground" />} value={`GH₵${feeStats.totalDue.toLocaleString()}`} description="Total fees generated" />
       </div>
 
        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
@@ -221,7 +294,7 @@ export function AdminDashboard() {
                 <div className="flex justify-between items-center">
                     <div>
                         <CardTitle>Weekly Attendance</CardTitle>
-                        <CardDescription>Average attendance percentage.</CardDescription>
+                        <CardDescription>Present vs. Absent students.</CardDescription>
                     </div>
                      <div className="flex gap-2">
                          <Select value={attendanceDateFilter} onValueChange={setAttendanceDateFilter}>
@@ -242,13 +315,15 @@ export function AdminDashboard() {
                 </div>
             </CardHeader>
             <CardContent>
-                <ChartContainer config={{ attendance: { label: "Attendance", color: "hsl(var(--chart-1))" }}} className="h-[250px] w-full">
+                <ChartContainer config={chartConfig} className="h-[250px] w-full">
                     <BarChart data={attendanceData} accessibilityLayer>
                         <CartesianGrid vertical={false}/>
                         <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8}/>
-                        <YAxis unit="%"/>
+                        <YAxis/>
                         <Tooltip content={<ChartTooltipContent indicator="dot"/>}/>
-                        <Bar dataKey="attendance" radius={4} fill="var(--color-attendance)"/>
+                        <Legend />
+                        <Bar dataKey="present" fill="var(--color-present)" radius={[4, 4, 0, 0]} stackId="a" />
+                        <Bar dataKey="absent" fill="var(--color-absent)" radius={[4, 4, 0, 0]} stackId="a" />
                     </BarChart>
                 </ChartContainer>
             </CardContent>
@@ -279,8 +354,65 @@ export function AdminDashboard() {
         </motion.div>
       </div>
 
+       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+            <MotionCard variants={cardVariants} initial="hidden" animate="visible" custom={6} className="xl:col-span-1">
+                 <CardHeader>
+                    <CardTitle>Administrative Actions</CardTitle>
+                    <CardDescription>Quick links and data health checks.</CardDescription>
+                 </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-4">
+                    <Button asChild variant="outline">
+                        <Link href="/dashboard/students"><UserPlus className="mr-2"/> Add Student</Link>
+                    </Button>
+                    <Button asChild variant="outline">
+                        <Link href="/dashboard/teachers"><UserCheck className="mr-2"/> Add Teacher</Link>
+                    </Button>
+                     <Button asChild variant="outline">
+                        <Link href="/dashboard/classes"><BookOpen className="mr-2"/> Create Class</Link>
+                    </Button>
+                    <Button asChild variant="outline">
+                        <Link href="/dashboard/announcements"><Megaphone className="mr-2"/> New Announcement</Link>
+                    </Button>
+                    <Link href="/dashboard/students" className="block col-span-1">
+                        <Card className="bg-amber-50 dark:bg-amber-900/30 hover:shadow-md transition-shadow">
+                            <CardHeader className="p-4">
+                                <CardTitle className="flex items-center text-base"><AlertCircle className="mr-2 text-amber-600"/>Unassigned Students</CardTitle>
+                                <p className="text-2xl font-bold">{unassignedStudents}</p>
+                            </CardHeader>
+                        </Card>
+                    </Link>
+                    <Link href="/dashboard/subjects" className="block col-span-1">
+                        <Card className="bg-amber-50 dark:bg-amber-900/30 hover:shadow-md transition-shadow">
+                             <CardHeader className="p-4">
+                                <CardTitle className="flex items-center text-base"><AlertCircle className="mr-2 text-amber-600"/>Unassigned Teachers</CardTitle>
+                                <p className="text-2xl font-bold">{unassignedTeachers}</p>
+                            </CardHeader>
+                        </Card>
+                    </Link>
+                </CardContent>
+            </MotionCard>
+             <MotionCard variants={cardVariants} initial="hidden" animate="visible" custom={7} className="xl:col-span-2">
+                 <CardHeader>
+                    <CardTitle>Class Enrollment Breakdown</CardTitle>
+                     <CardDescription>Number of male and female students per class.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                        <BarChart data={classEnrollment} layout="vertical" margin={{ left: 10, right: 20 }} stackOffset="sign">
+                            <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={10} className="text-xs w-20 truncate"/>
+                            <XAxis type="number" hide />
+                            <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent indicator="dot" />} />
+                            <Legend />
+                            <Bar dataKey="male" fill="var(--color-male)" radius={[0, 4, 4, 0]} stackId="a" />
+                            <Bar dataKey="female" fill="var(--color-female)" radius={[0, 4, 4, 0]} stackId="a" />
+                        </BarChart>
+                    </ChartContainer>
+                </CardContent>
+            </MotionCard>
+        </div>
+
        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <MotionCard variants={cardVariants} initial="hidden" animate="visible" custom={6}>
+            <MotionCard variants={cardVariants} initial="hidden" animate="visible" custom={8}>
                  <CardHeader>
                     <CardTitle>Recent Activity</CardTitle>
                      <CardDescription>A log of recent important system events.</CardDescription>
@@ -299,7 +431,7 @@ export function AdminDashboard() {
                      </div>
                 </CardContent>
             </MotionCard>
-             <MotionCard variants={cardVariants} initial="hidden" animate="visible" custom={7}>
+             <MotionCard variants={cardVariants} initial="hidden" animate="visible" custom={9}>
                  <CardHeader>
                     <CardTitle>Upcoming Events</CardTitle>
                      <CardDescription>What's next on the school calendar.</CardDescription>
