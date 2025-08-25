@@ -22,6 +22,8 @@ import {
   Trash2,
   Pencil,
   Loader2,
+  FileDown,
+  Book,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -111,6 +113,7 @@ type Student = {
   avatarUrl?: string;
   createdAt: number;
 }
+type Class = { id: string; name: string; studentIds?: Record<string, boolean> };
 
 const calculateAge = (dob: Date | undefined): number | undefined => {
     if (!dob) return undefined;
@@ -147,6 +150,7 @@ export default function StudentsPage() {
   
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false)
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = React.useState(false)
   const [selectedStudent, setSelectedStudent] = React.useState<Student | null>(null)
   const [isLoading, setIsLoading] = React.useState(false);
 
@@ -158,12 +162,26 @@ export default function StudentsPage() {
     deleteData,
     uploadFile
   } = useDatabase<Student>("students")
+  const { data: classes, updateData: updateClass } = useDatabase<Class>("classes");
   const { addData: addNotification } = useDatabase("notifications")
   const { toast } = useToast()
 
   const [newStudent, setNewStudent] = React.useState<Partial<Omit<Student, 'id' | 'status'>>>({});
   const [editStudent, setEditStudent] = React.useState<Partial<Student>>({});
+  const [assignClassId, setAssignClassId] = React.useState<string | undefined>();
   const [dob, setDob] = React.useState<Date | undefined>();
+
+  const studentClassMap = React.useMemo(() => {
+    const map = new Map<string, string>();
+    classes.forEach(c => {
+        if(c.studentIds) {
+            Object.keys(c.studentIds).forEach(studentId => {
+                map.set(studentId, c.name);
+            });
+        }
+    });
+    return map;
+  }, [classes]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, form: 'new' | 'edit') => {
       const { id, value } = e.target;
@@ -271,6 +289,41 @@ export default function StudentsPage() {
       setIsLoading(false);
     }
   }
+  
+  const handleAssignToClass = async () => {
+    if (!assignClassId) {
+        toast({ title: "Error", description: "Please select a class.", variant: "destructive" });
+        return;
+    }
+    const selectedStudentIds = table.getFilteredSelectedRowModel().rows.map(row => row.original.id);
+    if(selectedStudentIds.length === 0) {
+        toast({ title: "Error", description: "No students selected.", variant: "destructive" });
+        return;
+    }
+
+    setIsLoading(true);
+    try {
+        const targetClass = classes.find(c => c.id === assignClassId);
+        if(!targetClass) throw new Error("Class not found");
+
+        const updatedStudentIds = { ...(targetClass.studentIds || {}) };
+        selectedStudentIds.forEach(id => {
+            updatedStudentIds[id] = true;
+        });
+        
+        await updateClass(assignClassId, { studentIds: updatedStudentIds });
+
+        toast({ title: "Success", description: `${selectedStudentIds.length} student(s) assigned to ${targetClass.name}.` });
+        setIsAssignDialogOpen(false);
+        setAssignClassId(undefined);
+        table.toggleAllPageRowsSelected(false);
+
+    } catch (error) {
+        toast({ title: "Error", description: "Failed to assign students.", variant: "destructive" });
+    } finally {
+        setIsLoading(false);
+    }
+  }
 
   const columns: ColumnDef<Student>[] = [
     {
@@ -328,6 +381,11 @@ export default function StudentsPage() {
             </Link>
           </div>
       )},
+    },
+     {
+      accessorKey: "class",
+      header: "Class",
+      cell: ({ row }) => studentClassMap.get(row.original.id) || <span className="text-muted-foreground">N/A</span>,
     },
     {
       accessorKey: "email",
@@ -464,7 +522,48 @@ export default function StudentsPage() {
     },
   })
   
+  const handleExportCSV = () => {
+    const selectedRows = table.getFilteredSelectedRowModel().rows;
+    const rowsToExport = selectedRows.length > 0 ? selectedRows : table.getCoreRowModel().rows;
+
+    if (rowsToExport.length === 0) {
+        toast({ title: "No Data", description: "There is no data to export.", variant: "destructive" });
+        return;
+    }
+
+    const headers = ["ID", "Name", "Email", "Status", "Class", "Gender", "Parent's Name", "Parent's Phone"];
+    const csvContent = [
+        headers.join(','),
+        ...rowsToExport.map(row => {
+            const student = row.original;
+            return [
+                student.id,
+                `"${student.name}"`,
+                student.email,
+                student.status,
+                `"${studentClassMap.get(student.id) || 'N/A'}"`,
+                student.gender || 'N/A',
+                `"${student.parentName || 'N/A'}"`,
+                `"${student.parentPhone || 'N/A'}"`
+            ].join(',');
+        })
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'students.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({ title: "Export Successful", description: `${rowsToExport.length} students exported.` });
+  };
+  
   const age = calculateAge(dob);
+  const selectedRowsCount = table.getFilteredSelectedRowModel().rows.length;
+
 
   return (
     <Card>
@@ -473,130 +572,164 @@ export default function StudentsPage() {
           <CardTitle>Student Directory</CardTitle>
           <CardDescription>Manage student profiles and information.</CardDescription>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => { setNewStudent({}); setDob(undefined) }}>
-              <PlusCircle className="mr-2 h-4 w-4" /> Add Student
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Add New Student</DialogTitle>
-              <DialogDescription>Fill in the details to add a new student to the system.</DialogDescription>
-            </DialogHeader>
-            <ScrollArea className="max-h-[60vh] overflow-y-auto px-2">
-                <Tabs defaultValue="student-details" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="student-details">Student Details</TabsTrigger>
-                        <TabsTrigger value="parent-details">Parent Details</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="student-details" className="mt-4">
-                       <div className="grid gap-4 py-4">
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label className="text-right">Avatar</Label>
-                                <div className="col-span-3">
-                                    <ImageUpload
-                                        currentImage={newStudent.avatarUrl}
-                                        onFileChange={(file) => handleFileChange(file, 'new')}
-                                        disabled={isLoading}
-                                    />
+        <div className="flex items-center gap-2">
+             <Button variant="outline" onClick={handleExportCSV}>
+                <FileDown className="mr-2 h-4 w-4"/>
+                Export CSV {selectedRowsCount > 0 && `(${selectedRowsCount})`}
+             </Button>
+             <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
+                <DialogTrigger asChild>
+                    <Button variant="outline" disabled={selectedRowsCount === 0}>
+                        <Book className="mr-2 h-4 w-4"/>
+                        Assign to Class {selectedRowsCount > 0 && `(${selectedRowsCount})`}
+                    </Button>
+                </DialogTrigger>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Assign Students to Class</DialogTitle>
+                        <DialogDescription>Select a class to assign the {selectedRowsCount} selected student(s) to.</DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Label>Class</Label>
+                        <Select value={assignClassId} onValueChange={setAssignClassId}>
+                            <SelectTrigger><SelectValue placeholder="Select a class..."/></SelectTrigger>
+                            <SelectContent>
+                                {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <DialogFooter>
+                        <Button onClick={handleAssignToClass} disabled={isLoading || !assignClassId}>
+                            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Assign
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+             </Dialog>
+            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+                <Button onClick={() => { setNewStudent({}); setDob(undefined) }}>
+                <PlusCircle className="mr-2 h-4 w-4" /> Add Student
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-2xl">
+                <DialogHeader>
+                <DialogTitle>Add New Student</DialogTitle>
+                <DialogDescription>Fill in the details to add a new student to the system.</DialogDescription>
+                </DialogHeader>
+                <ScrollArea className="max-h-[60vh] overflow-y-auto px-2">
+                    <Tabs defaultValue="student-details" className="w-full">
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="student-details">Student Details</TabsTrigger>
+                            <TabsTrigger value="parent-details">Parent Details</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="student-details" className="mt-4">
+                        <div className="grid gap-4 py-4">
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label className="text-right">Avatar</Label>
+                                    <div className="col-span-3">
+                                        <ImageUpload
+                                            currentImage={newStudent.avatarUrl}
+                                            onFileChange={(file) => handleFileChange(file, 'new')}
+                                            disabled={isLoading}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="name" className="text-right">Full Name</Label>
+                                    <Input id="name" placeholder="John Doe" className="col-span-3" value={newStudent.name || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="email" className="text-right">Email</Label>
+                                    <Input id="email" type="email" placeholder="student@school.edu" className="col-span-3" value={newStudent.email || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label className="text-right">Date of Birth</Label>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                        <Button
+                                            variant={"outline"}
+                                            className={cn(
+                                            "col-span-3 justify-start text-left font-normal",
+                                            !dob && "text-muted-foreground"
+                                            )}
+                                            disabled={isLoading}
+                                        >
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {dob ? format(dob, "PPP") : <span>Pick a date</span>}
+                                        </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0">
+                                        <Calendar
+                                            mode="single"
+                                            selected={dob}
+                                            onSelect={setDob}
+                                            initialFocus
+                                        />
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="age" className="text-right">Age</Label>
+                                    <Input id="age" className="col-span-3" value={age !== undefined ? age : "Select DOB"} disabled />
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="placeOfBirth" className="text-right">Place of Birth</Label>
+                                    <Input id="placeOfBirth" placeholder="City, Country" className="col-span-3" value={newStudent.placeOfBirth || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="gender" className="text-right">Gender</Label>
+                                    <Select onValueChange={(value) => setNewStudent(prev => ({ ...prev, gender: value as any}))} value={newStudent.gender} disabled={isLoading}>
+                                        <SelectTrigger className="col-span-3">
+                                            <SelectValue placeholder="Select gender" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Male">Male</SelectItem>
+                                            <SelectItem value="Female">Female</SelectItem>
+                                            <SelectItem value="Other">Other</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="nationality" className="text-right">Nationality</Label>
+                                    <Input id="nationality" placeholder="e.g., American" className="col-span-3" value={newStudent.nationality || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="hometown" className="text-right">Hometown</Label>
+                                    <Input id="hometown" placeholder="City, State" className="col-span-3" value={newStudent.hometown || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="address" className="text-right">Address</Label>
+                                    <Input id="address" placeholder="123 Main St, Anytown" className="col-span-3" value={newStudent.address || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
                                 </div>
                             </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="name" className="text-right">Full Name</Label>
-                                <Input id="name" placeholder="John Doe" className="col-span-3" value={newStudent.name || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
+                        </TabsContent>
+                        <TabsContent value="parent-details" className="mt-4">
+                        <div className="grid gap-4 py-4">
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="parentName" className="text-right">Parent's Name</Label>
+                                    <Input id="parentName" placeholder="Jane Doe" className="col-span-3" value={newStudent.parentName || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="parentPhone" className="text-right">Parent's Phone</Label>
+                                    <Input id="parentPhone" placeholder="+1 123 456 7890" className="col-span-3" value={newStudent.parentPhone || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="parentEmail" className="text-right">Parent's Email</Label>
+                                    <Input id="parentEmail" type="email" placeholder="parent@example.com" className="col-span-3" value={newStudent.parentEmail || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
+                                </div>
                             </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="email" className="text-right">Email</Label>
-                                <Input id="email" type="email" placeholder="student@school.edu" className="col-span-3" value={newStudent.email || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label className="text-right">Date of Birth</Label>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                    <Button
-                                        variant={"outline"}
-                                        className={cn(
-                                        "col-span-3 justify-start text-left font-normal",
-                                        !dob && "text-muted-foreground"
-                                        )}
-                                        disabled={isLoading}
-                                    >
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {dob ? format(dob, "PPP") : <span>Pick a date</span>}
-                                    </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0">
-                                    <Calendar
-                                        mode="single"
-                                        selected={dob}
-                                        onSelect={setDob}
-                                        initialFocus
-                                    />
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="age" className="text-right">Age</Label>
-                                <Input id="age" className="col-span-3" value={age !== undefined ? age : "Select DOB"} disabled />
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="placeOfBirth" className="text-right">Place of Birth</Label>
-                                <Input id="placeOfBirth" placeholder="City, Country" className="col-span-3" value={newStudent.placeOfBirth || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="gender" className="text-right">Gender</Label>
-                                <Select onValueChange={(value) => setNewStudent(prev => ({ ...prev, gender: value as any}))} value={newStudent.gender} disabled={isLoading}>
-                                    <SelectTrigger className="col-span-3">
-                                        <SelectValue placeholder="Select gender" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="Male">Male</SelectItem>
-                                        <SelectItem value="Female">Female</SelectItem>
-                                        <SelectItem value="Other">Other</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="nationality" className="text-right">Nationality</Label>
-                                <Input id="nationality" placeholder="e.g., American" className="col-span-3" value={newStudent.nationality || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="hometown" className="text-right">Hometown</Label>
-                                <Input id="hometown" placeholder="City, State" className="col-span-3" value={newStudent.hometown || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="address" className="text-right">Address</Label>
-                                <Input id="address" placeholder="123 Main St, Anytown" className="col-span-3" value={newStudent.address || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
-                            </div>
-                        </div>
-                    </TabsContent>
-                    <TabsContent value="parent-details" className="mt-4">
-                       <div className="grid gap-4 py-4">
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="parentName" className="text-right">Parent's Name</Label>
-                                <Input id="parentName" placeholder="Jane Doe" className="col-span-3" value={newStudent.parentName || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="parentPhone" className="text-right">Parent's Phone</Label>
-                                <Input id="parentPhone" placeholder="+1 123 456 7890" className="col-span-3" value={newStudent.parentPhone || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="parentEmail" className="text-right">Parent's Email</Label>
-                                <Input id="parentEmail" type="email" placeholder="parent@example.com" className="col-span-3" value={newStudent.parentEmail || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
-                            </div>
-                        </div>
-                    </TabsContent>
-                </Tabs>
-            </ScrollArea>
-            <DialogFooter>
-              <Button type="submit" onClick={handleAddStudent} disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save Student
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+                        </TabsContent>
+                    </Tabs>
+                </ScrollArea>
+                <DialogFooter>
+                <Button type="submit" onClick={handleAddStudent} disabled={isLoading}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save Student
+                </Button>
+                </DialogFooter>
+            </DialogContent>
+            </Dialog>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="w-full">

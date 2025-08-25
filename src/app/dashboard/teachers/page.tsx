@@ -23,6 +23,8 @@ import {
   Pencil,
   Calendar as CalendarIcon,
   Loader2,
+  FileDown,
+  BookCopy,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -91,6 +93,8 @@ import { format } from "date-fns"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ImageUpload } from "@/components/ui/image-upload"
+import { MultiSelectPopover } from "@/components/ui/multi-select-popover";
+
 
 type Teacher = {
   id: string
@@ -109,6 +113,9 @@ type Teacher = {
   address?: string
   religion?: string
 }
+
+type Subject = { id: string, name: string, teacherId?: string };
+
 
 // Function to generate a teacher ID
 const generateTeacherId = (department: string): string => {
@@ -137,6 +144,7 @@ export default function TeachersPage() {
   
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false)
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = React.useState(false);
   const [selectedTeacher, setSelectedTeacher] = React.useState<Teacher | null>(null)
   const [isLoading, setIsLoading] = React.useState(false)
 
@@ -148,11 +156,13 @@ export default function TeachersPage() {
     deleteData,
     uploadFile
   } = useDatabase<Teacher>("teachers")
+  const { data: subjects, updateData: updateSubject } = useDatabase<Subject>("subjects");
   const { addData: addNotification } = useDatabase("notifications")
   const { toast } = useToast()
 
   const [newTeacher, setNewTeacher] = React.useState<Partial<Omit<Teacher, 'id' | 'status'>>>({});
   const [editTeacher, setEditTeacher] = React.useState<Partial<Teacher>>({});
+  const [assignSubjectIds, setAssignSubjectIds] = React.useState<string[]>([]);
 
   const [dob, setDob] = React.useState<Date | undefined>();
   const [doe, setDoe] = React.useState<Date | undefined>();
@@ -262,6 +272,37 @@ export default function TeachersPage() {
       setIsLoading(false);
     }
   }
+  
+  const handleAssignToSubjects = async () => {
+    const selectedTeacherIds = table.getFilteredSelectedRowModel().rows.map(row => row.original.id);
+    if(selectedTeacherIds.length === 0) {
+        toast({ title: "Error", description: "No teachers selected.", variant: "destructive" });
+        return;
+    }
+    if (assignSubjectIds.length === 0) {
+        toast({ title: "Error", description: "Please select at least one subject.", variant: "destructive" });
+        return;
+    }
+    
+    setIsLoading(true);
+    try {
+        const updatePromises = assignSubjectIds.map(subjectId => {
+            // Assuming one teacher is assigned at a time for simplicity here from UI
+            // For bulk, you'd need a more complex UI to map teachers to subjects
+            return updateSubject(subjectId, { teacherId: selectedTeacherIds[0] });
+        });
+
+        await Promise.all(updatePromises);
+        toast({ title: "Success", description: `Teacher(s) assigned to ${assignSubjectIds.length} subject(s).` });
+        setIsAssignDialogOpen(false);
+        setAssignSubjectIds([]);
+        table.toggleAllPageRowsSelected(false);
+    } catch (error) {
+        toast({ title: "Error", description: "Failed to assign subjects.", variant: "destructive" });
+    } finally {
+        setIsLoading(false);
+    }
+  };
 
   const columns: ColumnDef<Teacher>[] = [
     {
@@ -481,6 +522,47 @@ export default function TeachersPage() {
       rowSelection,
     },
   })
+  
+  const handleExportCSV = () => {
+    const selectedRows = table.getFilteredSelectedRowModel().rows;
+    const rowsToExport = selectedRows.length > 0 ? selectedRows : table.getCoreRowModel().rows;
+
+    if (rowsToExport.length === 0) {
+        toast({ title: "No Data", description: "There is no data to export.", variant: "destructive" });
+        return;
+    }
+
+    const headers = ["ID", "Name", "Email", "Department", "Contact", "Status", "Qualification", "Gender"];
+    const csvContent = [
+        headers.join(','),
+        ...rowsToExport.map(row => {
+            const teacher = row.original;
+            return [
+                teacher.id,
+                `"${teacher.name}"`,
+                teacher.email,
+                teacher.department,
+                teacher.contact || 'N/A',
+                teacher.status,
+                `"${teacher.academicQualification || 'N/A'}"`,
+                teacher.gender || 'N/A',
+            ].join(',');
+        })
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'teachers.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({ title: "Export Successful", description: `${rowsToExport.length} teachers exported.` });
+  };
+  
+  const selectedRowsCount = table.getFilteredSelectedRowModel().rows.length;
 
   return (
     <Card>
@@ -489,133 +571,171 @@ export default function TeachersPage() {
           <CardTitle>Teacher Directory</CardTitle>
           <CardDescription>Manage teacher profiles and information.</CardDescription>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={resetFormStates}>
-              <PlusCircle className="mr-2 h-4 w-4" /> Add Teacher
+         <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handleExportCSV}>
+                <FileDown className="mr-2 h-4 w-4"/>
+                Export CSV {selectedRowsCount > 0 && `(${selectedRowsCount})`}
             </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Add New Teacher</DialogTitle>
-              <DialogDescription>Fill in the details to add a new teacher to the system.</DialogDescription>
-            </DialogHeader>
-            <ScrollArea className="h-[60vh] pr-6">
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label className="text-right">Avatar</Label>
-                    <div className="col-span-3">
-                       <ImageUpload
-                            currentImage={newTeacher.avatarUrl}
-                            onFileChange={(file) => handleFileChange(file, 'new')}
+            <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
+                <DialogTrigger asChild>
+                    <Button variant="outline" disabled={selectedRowsCount === 0}>
+                        <BookCopy className="mr-2 h-4 w-4"/>
+                        Assign to Subject {selectedRowsCount > 0 && `(${selectedRowsCount})`}
+                    </Button>
+                </DialogTrigger>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Assign Teacher to Subjects</DialogTitle>
+                        <DialogDescription>
+                            Select one or more subjects to assign to the {selectedRowsCount} selected teacher(s).
+                            Note: This will overwrite any existing teacher on the selected subjects.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Label>Subjects</Label>
+                        <MultiSelectPopover
+                            options={subjects.map(s => ({ value: s.id, label: s.name }))}
+                            selected={assignSubjectIds}
+                            onChange={setAssignSubjectIds}
+                            placeholder="Select subjects..."
                             disabled={isLoading}
                         />
                     </div>
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="name" className="text-right">Name</Label>
-                    <Input id="name" placeholder="Full Name" className="col-span-3" value={newTeacher.name || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
-                  </div>
-                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="email" className="text-right">Email</Label>
-                    <Input id="email" type="email" placeholder="teacher@school.edu" className="col-span-3" value={newTeacher.email || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="department" className="text-right">Department</Label>
-                    <Input id="department" placeholder="e.g., Science" className="col-span-3" value={newTeacher.department || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="contact" className="text-right">Contact</Label>
-                    <Input id="contact" placeholder="Phone number" className="col-span-3" value={newTeacher.contact || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label className="text-right">Date of Birth</Label>
-                    <Popover>
-                        <PopoverTrigger asChild>
-                        <Button
-                            variant={"outline"}
-                            className={cn("col-span-3 justify-start text-left font-normal", !dob && "text-muted-foreground")}
-                            disabled={isLoading}
-                        >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {dob ? format(dob, "PPP") : <span>Pick a date</span>}
+                    <DialogFooter>
+                        <Button onClick={handleAssignToSubjects} disabled={isLoading || assignSubjectIds.length === 0}>
+                            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Assign
                         </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                        <Calendar mode="single" selected={dob} onSelect={setDob} initialFocus />
-                        </PopoverContent>
-                    </Popover>
-                  </div>
-                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label className="text-right">Date of Employment</Label>
-                    <Popover>
-                        <PopoverTrigger asChild>
-                        <Button
-                            variant={"outline"}
-                            className={cn("col-span-3 justify-start text-left font-normal", !doe && "text-muted-foreground")}
-                            disabled={isLoading}
-                        >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {doe ? format(doe, "PPP") : <span>Pick a date</span>}
-                        </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                        <Calendar mode="single" selected={doe} onSelect={setDoe} initialFocus />
-                        </PopoverContent>
-                    </Popover>
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="employmentType" className="text-right">Employment Type</Label>
-                    <Select onValueChange={(value) => setNewTeacher(prev => ({ ...prev, employmentType: value as any}))} value={newTeacher.employmentType} disabled={isLoading}>
-                        <SelectTrigger className="col-span-3">
-                            <SelectValue placeholder="Select type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="Full Time">Full Time</SelectItem>
-                            <SelectItem value="Part Time">Part Time</SelectItem>
-                            <SelectItem value="Contract">Contract</SelectItem>
-                        </SelectContent>
-                    </Select>
-                  </div>
-                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="academicQualification" className="text-right">Academic Qualification</Label>
-                    <Input id="academicQualification" placeholder="e.g., M.Sc. Physics" className="col-span-3" value={newTeacher.academicQualification || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="gender" className="text-right">Gender</Label>
-                    <Select onValueChange={(value) => setNewTeacher(prev => ({ ...prev, gender: value as any}))} value={newTeacher.gender} disabled={isLoading}>
-                        <SelectTrigger className="col-span-3">
-                            <SelectValue placeholder="Select gender" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="Male">Male</SelectItem>
-                            <SelectItem value="Female">Female</SelectItem>
-                            <SelectItem value="Other">Other</SelectItem>
-                        </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="nationality" className="text-right">Nationality</Label>
-                    <Input id="nationality" placeholder="e.g., Nigerian" className="col-span-3" value={newTeacher.nationality || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="address" className="text-right">Address</Label>
-                    <Input id="address" placeholder="123 Main St, Anytown" className="col-span-3" value={newTeacher.address || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="religion" className="text-right">Religion</Label>
-                    <Input id="religion" placeholder="e.g., Christianity" className="col-span-3" value={newTeacher.religion || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
-                  </div>
-                </div>
-            </ScrollArea>
-            <DialogFooter>
-              <Button type="submit" onClick={handleAddTeacher} disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save Teacher
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+                <Button onClick={resetFormStates}>
+                <PlusCircle className="mr-2 h-4 w-4" /> Add Teacher
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-2xl">
+                <DialogHeader>
+                <DialogTitle>Add New Teacher</DialogTitle>
+                <DialogDescription>Fill in the details to add a new teacher to the system.</DialogDescription>
+                </DialogHeader>
+                <ScrollArea className="h-[60vh] pr-6">
+                    <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label className="text-right">Avatar</Label>
+                        <div className="col-span-3">
+                        <ImageUpload
+                                currentImage={newTeacher.avatarUrl}
+                                onFileChange={(file) => handleFileChange(file, 'new')}
+                                disabled={isLoading}
+                            />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="name" className="text-right">Name</Label>
+                        <Input id="name" placeholder="Full Name" className="col-span-3" value={newTeacher.name || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="email" className="text-right">Email</Label>
+                        <Input id="email" type="email" placeholder="teacher@school.edu" className="col-span-3" value={newTeacher.email || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="department" className="text-right">Department</Label>
+                        <Input id="department" placeholder="e.g., Science" className="col-span-3" value={newTeacher.department || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="contact" className="text-right">Contact</Label>
+                        <Input id="contact" placeholder="Phone number" className="col-span-3" value={newTeacher.contact || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label className="text-right">Date of Birth</Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                            <Button
+                                variant={"outline"}
+                                className={cn("col-span-3 justify-start text-left font-normal", !dob && "text-muted-foreground")}
+                                disabled={isLoading}
+                            >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {dob ? format(dob, "PPP") : <span>Pick a date</span>}
+                            </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
+                            <Calendar mode="single" selected={dob} onSelect={setDob} initialFocus />
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label className="text-right">Date of Employment</Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                            <Button
+                                variant={"outline"}
+                                className={cn("col-span-3 justify-start text-left font-normal", !doe && "text-muted-foreground")}
+                                disabled={isLoading}
+                            >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {doe ? format(doe, "PPP") : <span>Pick a date</span>}
+                            </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
+                            <Calendar mode="single" selected={doe} onSelect={setDoe} initialFocus />
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="employmentType" className="text-right">Employment Type</Label>
+                        <Select onValueChange={(value) => setNewTeacher(prev => ({ ...prev, employmentType: value as any}))} value={newTeacher.employmentType} disabled={isLoading}>
+                            <SelectTrigger className="col-span-3">
+                                <SelectValue placeholder="Select type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Full Time">Full Time</SelectItem>
+                                <SelectItem value="Part Time">Part Time</SelectItem>
+                                <SelectItem value="Contract">Contract</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="academicQualification" className="text-right">Academic Qualification</Label>
+                        <Input id="academicQualification" placeholder="e.g., M.Sc. Physics" className="col-span-3" value={newTeacher.academicQualification || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="gender" className="text-right">Gender</Label>
+                        <Select onValueChange={(value) => setNewTeacher(prev => ({ ...prev, gender: value as any}))} value={newTeacher.gender} disabled={isLoading}>
+                            <SelectTrigger className="col-span-3">
+                                <SelectValue placeholder="Select gender" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Male">Male</SelectItem>
+                                <SelectItem value="Female">Female</SelectItem>
+                                <SelectItem value="Other">Other</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="nationality" className="text-right">Nationality</Label>
+                        <Input id="nationality" placeholder="e.g., Nigerian" className="col-span-3" value={newTeacher.nationality || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="address" className="text-right">Address</Label>
+                        <Input id="address" placeholder="123 Main St, Anytown" className="col-span-3" value={newTeacher.address || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="religion" className="text-right">Religion</Label>
+                        <Input id="religion" placeholder="e.g., Christianity" className="col-span-3" value={newTeacher.religion || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
+                    </div>
+                    </div>
+                </ScrollArea>
+                <DialogFooter>
+                <Button type="submit" onClick={handleAddTeacher} disabled={isLoading}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save Teacher
+                </Button>
+                </DialogFooter>
+            </DialogContent>
+            </Dialog>
+         </div>
       </CardHeader>
       <CardContent>
         <div className="w-full">
