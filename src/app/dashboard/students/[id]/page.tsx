@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2, User, BookOpen, ClipboardCheck, DollarSign, Download, Award } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isWithinInterval } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
@@ -30,7 +30,7 @@ type AttendanceRecord = Record<string, AttendanceStatus>;
 type DailyAttendance = { [classId: string]: AttendanceRecord };
 type FullAttendanceLog = { date: string; classId: string; studentId: string; studentName: string; status: AttendanceStatus; className: string };
 type EnrichedFeeRecord = StudentFee & { feeName: string };
-type Term = { id: string; name: string };
+type Term = { id: string; name: string; startDate?: string; endDate?: string; status: 'Active' | 'Inactive' | 'Completed' };
 type Exam = { id: string; name: string; termId: string; status: "Published" | "Grading" | "Upcoming" | "Ongoing" };
 type StudentGrade = { id: string; examId: string; studentId: string; subjectId: string; classScore: number; examScore: number; };
 
@@ -135,14 +135,14 @@ export default function StudentInfoPage() {
 
 
     const handleGenerateReportCard = () => {
-        if (!student || !selectedTermId || !selectedExamId) {
+        const term = terms.find(t => t.id === selectedTermId);
+        if (!student || !term || !selectedExamId) {
             toast({ title: "Selection Required", description: "Please select a term and an exam period.", variant: "destructive"});
             return;
         }
         
         try {
             const doc = new jsPDF();
-            const termName = terms.find(t => t.id === selectedTermId)?.name;
             const examName = exams.find(e => e.id === selectedExamId)?.name;
             const className = enrolledClasses[0]?.name || "N/A";
             
@@ -158,37 +158,60 @@ export default function StudentInfoPage() {
             doc.setFont("helvetica", "normal");
             doc.text(`Student Name: ${student.name}`, 15, 45);
             doc.text(`Class: ${className}`, 15, 52);
-            doc.text(`Academic Term: ${termName || 'N/A'}`, 15, 59);
+            doc.text(`Academic Term: ${term.name || 'N/A'}`, 15, 59);
             doc.text(`Examination: ${examName || 'N/A'}`, 15, 66);
             doc.text(`Date Issued: ${format(new Date(), 'PPP')}`, doc.internal.pageSize.getWidth() - 15, 45, { align: 'right' });
 
 
             // Results Table
-            const tableColumn = ["Subject", "Class Score (50%)", "Exam Score (50%)", "Total Score", "Grade", "Remarks"];
-            const tableRows = reportCardResults.map(r => [r.subjectName, r.classScore, r.examScore, r.totalScore, r.grade, r.remarks]);
-            
             (doc as any).autoTable({
                 startY: 75,
-                head: [tableColumn],
-                body: tableRows,
+                head: [["Subject", "Class Score (50%)", "Exam Score (50%)", "Total Score", "Grade", "Remarks"]],
+                body: reportCardResults.map(r => [r.subjectName, r.classScore, r.examScore, r.totalScore, r.grade, r.remarks]),
                 theme: 'grid',
-                headStyles: { fillColor: [22, 163, 74] } // Example color
+                headStyles: { fillColor: [22, 163, 74] }
             });
+
+            let finalY = (doc as any).lastAutoTable.finalY || 150;
+
+            // Attendance Summary
+            if (term.startDate && term.endDate) {
+                const termStart = parseISO(term.startDate);
+                const termEnd = parseISO(term.endDate);
+                const termAttendance = attendanceHistory.filter(log => isWithinInterval(parseISO(log.date), { start: termStart, end: termEnd }));
+                
+                const summary = termAttendance.reduce((acc, log) => {
+                    acc[log.status] = (acc[log.status] || 0) + 1;
+                    return acc;
+                }, {} as Record<AttendanceStatus, number>);
+
+                (doc as any).autoTable({
+                    startY: finalY + 10,
+                    head: [["Attendance Summary"]],
+                    body: [
+                        [`Present: ${summary.Present || 0} days`],
+                        [`Absent: ${summary.Absent || 0} days`],
+                        [`Late: ${summary.Late || 0} days`],
+                        [`Excused: ${summary.Excused || 0} days`],
+                    ],
+                    theme: 'plain',
+                    headStyles: { fontStyle: 'bold', fillColor: false, textColor: 20 },
+                });
+                finalY = (doc as any).lastAutoTable.finalY;
+            }
             
             // Footer
-            const finalY = (doc as any).lastAutoTable.finalY || 150;
             doc.setFontSize(10);
             doc.text("Headmaster's Signature: ...................................", 15, finalY + 20);
             doc.text("Parent's Signature: ...................................", doc.internal.pageSize.getWidth() - 15, finalY + 20, { align: 'right'});
             
-            doc.save(`report-card-${student.name.replace(/ /g, '_')}-${termName?.replace(/ /g, '_')}.pdf`);
+            doc.save(`report-card-${student.name.replace(/ /g, '_')}-${term.name?.replace(/ /g, '_')}.pdf`);
             toast({ title: "Report Card Generated", description: "PDF has been downloaded." });
 
         } catch (error) {
             console.error(error);
             toast({ title: "Error Generating Report", variant: "destructive" });
         }
-
     }
 
 
@@ -446,3 +469,4 @@ export default function StudentInfoPage() {
     );
 }
 
+    

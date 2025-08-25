@@ -129,7 +129,7 @@ export function DashboardSidebar({
     {
       path: "/dashboard/exams",
       icon: FileText,
-      label: "Exams",
+      label: "Exams & Results",
       roles: ["admin", "teacher", "student"],
       subItems: [
         { path: "/dashboard/exams/setup", label: "Exam Setup", roles: ["admin"] },
