@@ -21,7 +21,7 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import { Megaphone, BookOpen, Users, UserCheck, DollarSign, CalendarCheck, Activity, Landmark, Users2, TrendingUp, TrendingDown, Calendar as CalendarIcon, UserPlus } from "lucide-react";
+import { Megaphone, BookOpen, Users, UserCheck, DollarSign, CalendarCheck, Activity, Landmark, Users2, TrendingUp, TrendingDown, Calendar as CalendarIcon, UserPlus, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { useDatabase } from "@/hooks/use-database";
 import { useMemo, useState } from "react";
@@ -46,6 +46,7 @@ type StudentFee = { id: string; amountDue: number; amountPaid: number; status: "
 type AttendanceRecord = Record<string, "Present" | "Absent" | "Late" | "Excused">;
 type DailyAttendance = { [classId: string]: AttendanceRecord };
 type Notification = { id: string, message: string, createdAt: number, type: string };
+type Subject = { id: string; name: string; teacherId?: string; };
 
 const iconMap: { [key: string]: React.ReactNode } = {
   student_enrolled: <Users className="h-4 w-4" />,
@@ -59,6 +60,7 @@ export function AdminDashboard() {
   const { data: students } = useDatabase<Student>('students');
   const { data: teachers } = useDatabase<Teacher>('teachers');
   const { data: classes } = useDatabase<Class>('classes');
+  const { data: subjects } = useDatabase<Subject>('subjects');
   const { data: events } = useDatabase<Event>('events');
   const { data: studentFees } = useDatabase<StudentFee>('studentFees');
   const { data: rawAttendance } = useDatabase<DailyAttendance>(`attendance`);
@@ -71,6 +73,27 @@ export function AdminDashboard() {
   const totalTeachers = teachers.length;
   const totalClasses = classes.length;
   
+  const unassignedStudents = useMemo(() => {
+      const assignedStudentIds = new Set<string>();
+      classes.forEach(c => {
+          if (c.studentIds) {
+              Object.keys(c.studentIds).forEach(id => assignedStudentIds.add(id));
+          }
+      });
+      return students.filter(s => !assignedStudentIds.has(s.id)).length;
+  }, [students, classes]);
+  
+  const unassignedTeachers = useMemo(() => {
+      const assignedTeacherIds = new Set<string>();
+      subjects.forEach(s => {
+        if(s.teacherId) {
+            assignedTeacherIds.add(s.teacherId);
+        }
+      });
+      return teachers.filter(t => !assignedTeacherIds.has(t.id)).length;
+  }, [teachers, subjects]);
+
+
   const studentIdsInClasses = useMemo(() => {
     const ids = new Set<string>();
     classes.forEach(c => {
@@ -255,13 +278,11 @@ export function AdminDashboard() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <DashboardCard i={0} title="Total Students" icon={<Users className="h-4 w-4 text-muted-foreground" />} value={totalStudents} description="Currently enrolled" />
         <DashboardCard i={1} title="Total Teachers" icon={<UserCheck className="h-4 w-4 text-muted-foreground" />} value={totalTeachers} description="On staff" />
         <DashboardCard i={2} title="Total Classes" icon={<Landmark className="h-4 w-4 text-muted-foreground" />} value={totalClasses} description="Across all grades" />
-        <DashboardCard i={3} title="Fees Collected" icon={<TrendingUp className="h-4 w-4 text-green-500" />} value={`GH₵${feeStats.totalPaid.toLocaleString()}`} description="Total payments received" />
-        <DashboardCard i={4} title="Fees Owed" icon={<TrendingDown className="h-4 w-4 text-red-500" />} value={`GH₵${totalFeesOwed.toLocaleString()}`} description="Outstanding balance" />
-        <DashboardCard i={5} title="Total Revenue" icon={<DollarSign className="h-4 w-4 text-muted-foreground" />} value={`GH₵${feeStats.totalDue.toLocaleString()}`} description="Total fees generated" />
+        <DashboardCard i={3} title="Total Revenue" icon={<DollarSign className="h-4 w-4 text-muted-foreground" />} value={`GH₵${feeStats.totalDue.toLocaleString()}`} description="Total fees generated" />
       </div>
 
        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
@@ -332,9 +353,10 @@ export function AdminDashboard() {
       </div>
 
        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
-            <MotionCard variants={cardVariants} initial="hidden" animate="visible" custom={6}>
+            <MotionCard variants={cardVariants} initial="hidden" animate="visible" custom={6} className="xl:col-span-1">
                  <CardHeader>
-                    <CardTitle>Quick Actions</CardTitle>
+                    <CardTitle>Administrative Actions</CardTitle>
+                    <CardDescription>Quick links and data health checks.</CardDescription>
                  </CardHeader>
                 <CardContent className="grid grid-cols-2 gap-4">
                     <Button asChild variant="outline">
@@ -349,6 +371,22 @@ export function AdminDashboard() {
                     <Button asChild variant="outline">
                         <Link href="/dashboard/announcements"><Megaphone className="mr-2"/> New Announcement</Link>
                     </Button>
+                    <Link href="/dashboard/students" className="block col-span-1">
+                        <Card className="bg-amber-50 dark:bg-amber-900/30 hover:shadow-md transition-shadow">
+                            <CardHeader className="p-4">
+                                <CardTitle className="flex items-center text-base"><AlertCircle className="mr-2 text-amber-600"/>Unassigned Students</CardTitle>
+                                <p className="text-2xl font-bold">{unassignedStudents}</p>
+                            </CardHeader>
+                        </Card>
+                    </Link>
+                    <Link href="/dashboard/subjects" className="block col-span-1">
+                        <Card className="bg-amber-50 dark:bg-amber-900/30 hover:shadow-md transition-shadow">
+                             <CardHeader className="p-4">
+                                <CardTitle className="flex items-center text-base"><AlertCircle className="mr-2 text-amber-600"/>Unassigned Teachers</CardTitle>
+                                <p className="text-2xl font-bold">{unassignedTeachers}</p>
+                            </CardHeader>
+                        </Card>
+                    </Link>
                 </CardContent>
             </MotionCard>
              <MotionCard variants={cardVariants} initial="hidden" animate="visible" custom={7} className="xl:col-span-2">
@@ -357,7 +395,7 @@ export function AdminDashboard() {
                      <CardDescription>Number of male and female students per class.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <ChartContainer config={chartConfig} className="h-[200px] w-full">
+                    <ChartContainer config={chartConfig} className="h-[250px] w-full">
                         <BarChart data={classEnrollment} layout="vertical" margin={{ left: 10, right: 20 }} stackOffset="sign">
                             <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={10} className="text-xs w-20 truncate"/>
                             <XAxis type="number" hide />
@@ -417,3 +455,4 @@ export function AdminDashboard() {
     </div>
   );
 }
+

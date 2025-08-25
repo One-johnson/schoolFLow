@@ -96,6 +96,7 @@ type Teacher = { id: string; name: string };
 type Class = { id: string; name: string };
 
 const generateSubjectCode = (subjectName: string): string => {
+    if (!subjectName) return Math.random().toString().slice(2, 8);
     const namePart = subjectName.slice(0, 3).toUpperCase();
     const randomPart = Math.random().toString().slice(2, 6);
     return `${namePart}${randomPart}`;
