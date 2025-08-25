@@ -87,7 +87,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
-import { cn } from "@/lib/utils"
+import { cn, generateStudentId } from "@/lib/utils"
 import { format } from "date-fns"
 import { Calendar as CalendarIcon } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -107,14 +107,6 @@ type Student = {
   parentName?: string
   parentPhone?: string
   parentEmail?: string
-}
-
-// Function to generate a student ID
-const generateStudentId = (): string => {
-  const year = new Date().getFullYear().toString().slice(-2)
-  const classType = 'S' // for Student
-  const randomPart = Math.random().toString().slice(2, 8)
-  return `${year}${classType}${randomPart}`
 }
 
 const calculateAge = (dob: Date | undefined): number | undefined => {
@@ -428,7 +420,7 @@ export default function StudentsPage() {
               <DialogTitle>Add New Student</DialogTitle>
               <DialogDescription>Fill in the details to add a new student to the system.</DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto px-2">
+            <ScrollArea className="max-h-[60vh] overflow-y-auto px-2">
                 <Tabs defaultValue="student-details" className="w-full">
                     <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="student-details">Student Details</TabsTrigger>
@@ -522,7 +514,7 @@ export default function StudentsPage() {
                         </div>
                     </TabsContent>
                 </Tabs>
-            </div>
+            </ScrollArea>
             <DialogFooter>
               <Button type="submit" onClick={handleAddStudent} disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

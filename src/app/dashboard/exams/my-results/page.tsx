@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { calculateGrade } from "@/lib/utils";
 
 // Data types
 type Exam = { id: string; name: string; status: "Upcoming" | "Ongoing" | "Grading" | "Published"; };
@@ -42,19 +43,6 @@ type EnrichedGrade = {
     grade: string;
     remarks: string;
     teacherComment?: string;
-};
-
-// Grading function based on the new criteria
-const calculateGrade = (totalScore: number): { grade: string; remarks: string } => {
-    if (totalScore >= 80) return { grade: "1", remarks: "Excellent" };
-    if (totalScore >= 70) return { grade: "2", remarks: "Very Good" };
-    if (totalScore >= 65) return { grade: "3", remarks: "Good" };
-    if (totalScore >= 60) return { grade: "4", remarks: "High Average" };
-    if (totalScore >= 55) return { grade: "5", remarks: "Average" };
-    if (totalScore >= 50) return { grade: "6", remarks: "Low Average" };
-    if (totalScore >= 45) return { grade: "7", remarks: "Pass" };
-    if (totalScore >= 40) return { grade: "8", remarks: "Pass" };
-    return { grade: "9", remarks: "Fail" };
 };
 
 export default function MyResultsPage() {
@@ -166,5 +154,3 @@ export default function MyResultsPage() {
     </Card>
   );
 }
-
-    

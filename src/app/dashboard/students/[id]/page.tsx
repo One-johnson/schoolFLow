@@ -7,16 +7,22 @@ import { useDatabase } from '@/hooks/use-database';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, User, BookOpen, ClipboardCheck, DollarSign, Download, Award } from 'lucide-react';
+import { Loader2, User, BookOpen, ClipboardCheck, DollarSign, Download, Award, ChevronDown } from 'lucide-react';
 import { format, parseISO, isWithinInterval } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { cn } from '@/lib/utils';
+import { cn, calculateGrade } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 
 // Data types
@@ -51,26 +57,13 @@ const statusColors = {
   Excused: "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300",
 };
 
-const calculateGrade = (totalScore: number): { grade: string; remarks: string } => {
-    if (totalScore >= 80) return { grade: "1", remarks: "Excellent" };
-    if (totalScore >= 70) return { grade: "2", remarks: "Very Good" };
-    if (totalScore >= 65) return { grade: "3", remarks: "Good" };
-    if (totalScore >= 60) return { grade: "4", remarks: "High Average" };
-    if (totalScore >= 55) return { grade: "5", remarks: "Average" };
-    if (totalScore >= 50) return { grade: "6", remarks: "Low Average" };
-    if (totalScore >= 45) return { grade: "7", remarks: "Pass" };
-    if (totalScore >= 40) return { grade: "8", remarks: "Pass" };
-    return { grade: "9", remarks: "Fail" };
-};
-
-
 export default function StudentInfoPage() {
     const params = useParams();
     const studentId = params.id as string;
     const { toast } = useToast();
 
     // Database Hooks
-    const { data: students, loading: studentsLoading } = useDatabase<Student>('students');
+    const { data: students, updateData: updateStudent, loading: studentsLoading } = useDatabase<Student>('students');
     const { data: classes, loading: classesLoading } = useDatabase<Class>('classes');
     const { data: subjects, loading: subjectsLoading } = useDatabase<Subject>('subjects');
     const { data: studentFees, loading: feesLoading } = useDatabase<StudentFee>('studentFees');
@@ -214,6 +207,16 @@ export default function StudentInfoPage() {
             toast({ title: "Error Generating Report", variant: "destructive" });
         }
     }
+    
+    const handleStatusChange = async (status: Student['status']) => {
+        if (!student) return;
+        try {
+            await updateStudent(student.id, { status });
+            toast({ title: "Success", description: "Student status updated." });
+        } catch(err) {
+            toast({ title: "Error", description: "Failed to update status.", variant: "destructive" });
+        }
+    }
 
 
     if (loading) {
@@ -236,6 +239,8 @@ export default function StudentInfoPage() {
             <p className="font-medium">{value || 'N/A'}</p>
         </div>
     );
+    
+    const statusOptions: Student['status'][] = ["Active", "Inactive", "Graduated", "Continuing"];
 
     return (
         <div className="flex flex-col gap-6">
@@ -253,10 +258,21 @@ export default function StudentInfoPage() {
                             <span>{student.email}</span>
                         </CardDescription>
                     </div>
-                     <Badge className={cn("border-transparent text-base px-4 py-2", {
-                        "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300": student.status === 'Active',
-                        "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300": student.status === 'Inactive',
-                     })}>{student.status}</Badge>
+                     <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" className="w-[160px] justify-between">
+                                {student.status}
+                                <ChevronDown className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-[160px]">
+                            {statusOptions.map(status => (
+                                <DropdownMenuItem key={status} onSelect={() => handleStatusChange(status)}>
+                                    {status}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                     </DropdownMenu>
                 </CardHeader>
             </Card>
 
@@ -471,5 +487,3 @@ export default function StudentInfoPage() {
         </div>
     );
 }
-
-    

@@ -45,6 +45,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { calculateGrade } from "@/lib/utils";
 
 // Data Types
 type Exam = { id: string; name: string; status: string; };
@@ -67,20 +68,6 @@ type EnrichedResult = {
     studentId: string;
     examId: string;
 };
-
-// Grading logic
-const calculateGrade = (totalScore: number): { grade: string; remarks: string } => {
-    if (totalScore >= 80) return { grade: "1", remarks: "Excellent" };
-    if (totalScore >= 70) return { grade: "2", remarks: "Very Good" };
-    if (totalScore >= 65) return { grade: "3", remarks: "Good" };
-    if (totalScore >= 60) return { grade: "4", remarks: "High Average" };
-    if (totalScore >= 55) return { grade: "5", remarks: "Average" };
-    if (totalScore >= 50) return { grade: "6", remarks: "Low Average" };
-    if (totalScore >= 45) return { grade: "7", remarks: "Pass" };
-    if (totalScore >= 40) return { grade: "8", remarks: "Pass" };
-    return { grade: "9", remarks: "Fail" };
-};
-
 
 export default function ResultsPage() {
     const [selectedExamId, setSelectedExamId] = React.useState<string>("all");
