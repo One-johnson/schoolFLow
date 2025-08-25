@@ -16,23 +16,27 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend
+  Legend,
+  PieChart,
+  Pie,
+  Cell,
 } from 'recharts';
-import { Megaphone, BookOpen, Users, UserCheck, DollarSign, CalendarCheck, Activity, CalendarPlus, Landmark } from "lucide-react";
+import { Megaphone, BookOpen, Users, UserCheck, DollarSign, CalendarCheck, Activity, Landmark, Users2, TrendingUp, TrendingDown } from "lucide-react";
 import Link from "next/link";
 import { useDatabase } from "@/hooks/use-database";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
-import { format, isWithinInterval, startOfToday, endOfToday, addDays, getMonth, getYear, subMonths } from "date-fns";
+import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval } from "date-fns";
 import { Badge } from "../ui/badge";
 import { motion } from "framer-motion";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 
-type Student = { id: string; name: string; createdAt: number };
+type Student = { id: string; name: string; createdAt: number, gender?: 'Male' | 'Female' | 'Other' };
 type Teacher = { id: string; name: string; createdAt: number };
 type Class = { id: string; studentIds?: Record<string, boolean> };
 type Event = { id: string; startDate: string };
@@ -58,93 +62,96 @@ export function AdminDashboard() {
   const { data: rawAttendance } = useDatabase<DailyAttendance>(`attendance`);
   const { data: notifications } = useDatabase<Notification>("notifications");
 
+  const [attendanceClassFilter, setAttendanceClassFilter] = useState('all');
+  const [attendanceDateFilter, setAttendanceDateFilter] = useState('last7days');
+
   const totalStudents = students.length;
   const totalTeachers = teachers.length;
   const totalClasses = classes.length;
-
-  const attendanceStats = useMemo(() => {
-    const todayStr = format(new Date(), 'yyyy-MM-dd');
-    const todaysLog = rawAttendance.find(log => log.id === todayStr);
-
-    if (!todaysLog || totalStudents === 0) return { present: 0, percentage: 0 };
-    
-    let presentCount = 0;
-    Object.values(todaysLog).forEach(classRecords => {
-      if (typeof classRecords === 'object' && classRecords !== null) {
-        Object.values(classRecords).forEach(status => {
-          if (status === 'Present') {
-            presentCount++;
-          }
-        })
-      }
-    });
-
-    return {
-        present: presentCount,
-        percentage: Math.round((presentCount / totalStudents) * 100)
-    };
-
-  }, [rawAttendance, totalStudents]);
-
-  const eventStats = useMemo(() => {
-    const today = startOfToday();
-    const nextWeek = addDays(today, 7);
-    const upcoming = events.filter(event => {
-        try {
-           const eventDate = new Date(event.startDate + 'T00:00:00'); // Ensure date is parsed correctly
-           return isWithinInterval(eventDate, { start: today, end: nextWeek });
-        } catch {
-            return false;
+  
+  const studentIdsInClasses = useMemo(() => {
+    const ids = new Set<string>();
+    classes.forEach(c => {
+        if(c.studentIds) {
+            Object.keys(c.studentIds).forEach(id => ids.add(id));
         }
-    }).length;
-    return { upcoming };
-  }, [events]);
+    });
+    return ids;
+  }, [classes]);
 
   const feeStats = useMemo(() => {
     return studentFees.reduce((acc, fee) => {
         acc.totalPaid += fee.amountPaid;
         acc.totalDue += fee.amountDue;
         return acc;
-    }, { totalPaid: 0, totalDue: 0 });
+    }, { totalPaid: 0, totalDue: 0, totalOwed: 0 });
   }, [studentFees]);
+  
+  const totalFeesOwed = feeStats.totalDue - feeStats.totalPaid;
 
   const recentActivity = useMemo(() => {
     return [...notifications].sort((a,b) => b.createdAt - a.createdAt).slice(0, 5);
   }, [notifications]);
+  
+  const genderDistribution = useMemo(() => {
+    const distribution = students.reduce((acc, student) => {
+      const gender = student.gender || 'Other';
+      acc[gender] = (acc[gender] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
 
-  const onboardingData = useMemo(() => {
-      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-      const data: { [key: string]: { month: string; students: number; teachers: number } } = {};
-      const today = new Date();
+    return [
+      { name: 'Male', value: distribution['Male'] || 0, fill: 'hsl(var(--chart-1))' },
+      { name: 'Female', value: distribution['Female'] || 0, fill: 'hsl(var(--chart-2))' },
+      { name: 'Other', value: distribution['Other'] || 0, fill: 'hsl(var(--chart-3))' },
+    ]
+  }, [students]);
 
-      // Initialize last 6 months
-      for (let i = 5; i >= 0; i--) {
-          const d = subMonths(today, i);
-          const monthKey = `${getYear(d)}-${months[getMonth(d)]}`;
-          if (!data[monthKey]) {
-              data[monthKey] = { month: months[getMonth(d)], students: 0, teachers: 0 };
-          }
-      }
-      
-      students.forEach(student => {
-          const d = new Date(student.createdAt);
-          const monthKey = `${getYear(d)}-${months[getMonth(d)]}`;
-          if(data[monthKey]) data[monthKey].students++;
-      });
-      teachers.forEach(teacher => {
-          const d = new Date(teacher.createdAt);
-          const monthKey = `${getYear(d)}-${months[getMonth(d)]}`;
-           if(data[monthKey]) data[monthKey].teachers++;
-      });
+  const attendanceData = useMemo(() => {
+    const today = new Date();
+    let startDate;
 
-      return Object.values(data);
-  }, [students, teachers]);
+    if (attendanceDateFilter === 'thisWeek') {
+        startDate = startOfWeek(today, { weekStartsOn: 1});
+    } else { // last7days
+        startDate = subDays(today, 6);
+    }
+    
+    const dateInterval = eachDayOfInterval({ start: startDate, end: today });
+    
+    return dateInterval.map(date => {
+        const dateStr = format(date, 'yyyy-MM-dd');
+        const todaysLog = rawAttendance.find(log => log.id === dateStr);
+        let presentCount = 0;
+        let totalCount = 0;
 
+        if (attendanceClassFilter === 'all') {
+            totalCount = studentIdsInClasses.size;
+        } else {
+            const specificClass = classes.find(c => c.id === attendanceClassFilter);
+            totalCount = specificClass?.studentIds ? Object.keys(specificClass.studentIds).length : 0;
+        }
 
-  const chartConfig = {
-    students: { label: "Students", color: "hsl(var(--chart-1))" },
-    teachers: { label: "Teachers", color: "hsl(var(--chart-2))" },
-  }
+        if (todaysLog && totalCount > 0) {
+            Object.entries(todaysLog).forEach(([classId, classRecords]) => {
+                if(classId === 'id' || (attendanceClassFilter !== 'all' && classId !== attendanceClassFilter)) return;
+
+                if (typeof classRecords === 'object' && classRecords !== null) {
+                    Object.values(classRecords).forEach(status => {
+                        if (status === 'Present' || status === 'Late' || status === 'Excused') {
+                           presentCount++;
+                        }
+                    })
+                }
+            })
+            return {
+                date: format(date, 'EEE'),
+                attendance: Math.round((presentCount / totalCount) * 100),
+            };
+        }
+        return { date: format(date, 'EEE'), attendance: 0 };
+    });
+  }, [rawAttendance, attendanceClassFilter, attendanceDateFilter, classes, studentIdsInClasses]);
 
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -160,6 +167,27 @@ export function AdminDashboard() {
     }),
   };
 
+  const MotionCard = motion(Card);
+
+  const DashboardCard = ({ title, icon, value, description, i }: { title: string, icon: React.ReactNode, value: string | number, description: string, i: number }) => (
+    <MotionCard
+        variants={cardVariants}
+        initial="hidden"
+        animate="visible"
+        custom={i}
+        whileHover={{ y: -5, scale: 1.02, transition: { type: "spring", stiffness: 300 } }}
+    >
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{title}</CardTitle>
+            {icon}
+        </CardHeader>
+        <CardContent>
+            <div className="text-2xl font-bold">{value}</div>
+            <p className="text-xs text-muted-foreground">{description}</p>
+        </CardContent>
+    </MotionCard>
+  );
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex-1 space-y-4">
@@ -169,143 +197,78 @@ export function AdminDashboard() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={0}>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Students</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalStudents}</div>
-              <p className="text-xs text-muted-foreground">Currently enrolled</p>
-            </CardContent>
-          </Card>
-        </motion.div>
-        <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={1}>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Teachers</CardTitle>
-            <UserCheck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalTeachers}</div>
-            <p className="text-xs text-muted-foreground">On staff</p>
-          </CardContent>
-        </Card>
-        </motion.div>
-        <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={2}>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Classes</CardTitle>
-            <Landmark className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalClasses}</div>
-            <p className="text-xs text-muted-foreground">Across all grades</p>
-          </CardContent>
-        </Card>
-        </motion.div>
-        <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={3}>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today's Attendance</CardTitle>
-            <CalendarCheck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{attendanceStats.percentage}%</div>
-            <p className="text-xs text-muted-foreground">{attendanceStats.present} of {totalStudents} present</p>
-          </CardContent>
-        </Card>
-        </motion.div>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <DashboardCard i={0} title="Total Students" icon={<Users className="h-4 w-4 text-muted-foreground" />} value={totalStudents} description="Currently enrolled" />
+        <DashboardCard i={1} title="Total Teachers" icon={<UserCheck className="h-4 w-4 text-muted-foreground" />} value={totalTeachers} description="On staff" />
+        <DashboardCard i={2} title="Total Classes" icon={<Landmark className="h-4 w-4 text-muted-foreground" />} value={totalClasses} description="Across all grades" />
+        <DashboardCard i={3} title="Fees Collected" icon={<TrendingUp className="h-4 w-4 text-green-500" />} value={`GH₵${feeStats.totalPaid.toLocaleString()}`} description="Total payments received" />
+        <DashboardCard i={4} title="Fees Owed" icon={<TrendingDown className="h-4 w-4 text-red-500" />} value={`GH₵${totalFeesOwed.toLocaleString()}`} description="Outstanding balance" />
+        <DashboardCard i={5} title="Total Revenue" icon={<DollarSign className="h-4 w-4 text-muted-foreground" />} value={`GH₵${feeStats.totalDue.toLocaleString()}`} description="Total fees generated" />
       </div>
 
        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={4} className="col-span-full lg:col-span-4">
-          <Card>
+           <Card>
             <CardHeader>
-              <CardTitle>Onboarding Overview</CardTitle>
-              <CardDescription>New students and teachers from the last 6 months.</CardDescription>
+                <div className="flex justify-between items-center">
+                    <div>
+                        <CardTitle>Weekly Attendance</CardTitle>
+                        <CardDescription>Average attendance percentage.</CardDescription>
+                    </div>
+                     <div className="flex gap-2">
+                         <Select value={attendanceDateFilter} onValueChange={setAttendanceDateFilter}>
+                            <SelectTrigger className="w-[140px]"><SelectValue/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="last7days">Last 7 Days</SelectItem>
+                                <SelectItem value="thisWeek">This Week</SelectItem>
+                            </SelectContent>
+                         </Select>
+                         <Select value={attendanceClassFilter} onValueChange={setAttendanceClassFilter}>
+                            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Filter by class..."/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All School</SelectItem>
+                                {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                            </SelectContent>
+                         </Select>
+                     </div>
+                </div>
             </CardHeader>
-            <CardContent className="pl-2">
-              <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                <ResponsiveContainer>
-                  <BarChart data={onboardingData}>
-                    <CartesianGrid vertical={false} />
-                    <XAxis
-                      dataKey="month"
-                      tickLine={false}
-                      tickMargin={10}
-                      axisLine={false}
-                    />
-                    <YAxis />
-                    <Tooltip
-                      cursor={false}
-                      content={<ChartTooltipContent indicator="dot" />}
-                    />
-                    <Legend />
-                    <Bar dataKey="students" fill="var(--color-students)" radius={4} />
-                    <Bar dataKey="teachers" fill="var(--color-teachers)" radius={4} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </ChartContainer>
+            <CardContent>
+                <ChartContainer config={{ attendance: { label: "Attendance", color: "hsl(var(--chart-1))" }}} className="h-[250px] w-full">
+                    <BarChart data={attendanceData} accessibilityLayer>
+                        <CartesianGrid vertical={false}/>
+                        <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8}/>
+                        <YAxis unit="%"/>
+                        <Tooltip content={<ChartTooltipContent indicator="dot"/>}/>
+                        <Bar dataKey="attendance" radius={4} fill="var(--color-attendance)"/>
+                    </BarChart>
+                </ChartContainer>
             </CardContent>
-          </Card>
+           </Card>
         </motion.div>
         <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={5} className="col-span-full lg:col-span-3">
           <Card>
              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>A log of the latest events across the system.</CardDescription>
+                <CardTitle>Student Demographics</CardTitle>
+                <CardDescription>Distribution of students by gender.</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="space-y-4">
-                    {recentActivity.length > 0 ? recentActivity.map(item => (
-                       <div key={item.id} className="flex items-center">
-                           <div className="p-2 bg-muted rounded-full mr-3">
-                            {iconMap[item.type] || iconMap.default}
-                           </div>
-                           <div className="flex-grow">
-                             <p className="text-sm">{item.message}</p>
-                             <p className="text-xs text-muted-foreground">
-                                {format(new Date(item.createdAt), "MMM d, yyyy 'at' h:mm a")}
-                             </p>
-                           </div>
-                       </div>
-                    )) : (
-                        <p className="text-sm text-muted-foreground text-center py-8">No recent activities.</p>
-                    )}
-                </div>
+                <ChartContainer config={{}} className="h-[250px] w-full">
+                   <ResponsiveContainer>
+                        <PieChart>
+                            <Tooltip content={<ChartTooltipContent nameKey="name" hideLabel/>}/>
+                            <Pie data={genderDistribution} dataKey="value" nameKey="name" innerRadius="50%">
+                               {genderDistribution.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                                ))}
+                            </Pie>
+                             <Legend content={<ChartTooltipContent nameKey="name" hideLabel />} />
+                        </PieChart>
+                   </ResponsiveContainer>
+                </ChartContainer>
             </CardContent>
           </Card>
         </motion.div>
-      </div>
-
-       <div className="grid gap-4 md:grid-cols-2">
-           <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={6}>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Fees Collected</CardTitle>
-                    <DollarSign className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">GH₵{feeStats.totalPaid.toLocaleString()}</div>
-                    <p className="text-xs text-muted-foreground">GH₵{(feeStats.totalDue - feeStats.totalPaid).toLocaleString()} outstanding</p>
-                </CardContent>
-            </Card>
-           </motion.div>
-            <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={7}>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Upcoming Events</CardTitle>
-                    <CalendarPlus className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{eventStats.upcoming}</div>
-                    <p className="text-xs text-muted-foreground">In the next 7 days</p>
-                </CardContent>
-            </Card>
-           </motion.div>
       </div>
     </div>
   );
