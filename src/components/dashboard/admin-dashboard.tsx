@@ -21,7 +21,7 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import { Megaphone, BookOpen, Users, UserCheck, DollarSign, CalendarCheck, Activity, Landmark, Users2, TrendingUp, TrendingDown, Calendar as CalendarIcon } from "lucide-react";
+import { Megaphone, BookOpen, Users, UserCheck, DollarSign, CalendarCheck, Activity, Landmark, Users2, TrendingUp, TrendingDown, Calendar as CalendarIcon, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useDatabase } from "@/hooks/use-database";
 import { useMemo, useState } from "react";
@@ -35,6 +35,7 @@ import { Badge } from "../ui/badge";
 import { motion } from "framer-motion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { Button } from "../ui/button";
 
 
 type Student = { id: string; name: string; createdAt: number, gender?: 'Male' | 'Female' | 'Other' };
@@ -114,6 +115,13 @@ export function AdminDashboard() {
       { name: 'Other', value: distribution['Other'] || 0, fill: 'hsl(var(--chart-3))' },
     ]
   }, [students]);
+
+  const classEnrollment = useMemo(() => {
+    return classes.map(c => ({
+      name: c.name,
+      students: c.studentIds ? Object.keys(c.studentIds).length : 0,
+    })).sort((a,b) => b.students - a.students);
+  }, [classes]);
 
   const attendanceData = useMemo(() => {
     const today = new Date();
@@ -214,6 +222,7 @@ export function AdminDashboard() {
   const chartConfig = {
     present: { label: "Present", color: "hsl(var(--chart-2))" },
     absent: { label: "Absent", color: "hsl(var(--chart-5))" },
+    students: { label: "Students", color: "hsl(var(--chart-1))" },
   }
 
   return (
@@ -301,8 +310,46 @@ export function AdminDashboard() {
         </motion.div>
       </div>
 
-       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
             <MotionCard variants={cardVariants} initial="hidden" animate="visible" custom={6}>
+                 <CardHeader>
+                    <CardTitle>Quick Actions</CardTitle>
+                 </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-4">
+                    <Button asChild variant="outline">
+                        <Link href="/dashboard/students"><UserPlus className="mr-2"/> Add Student</Link>
+                    </Button>
+                    <Button asChild variant="outline">
+                        <Link href="/dashboard/teachers"><UserCheck className="mr-2"/> Add Teacher</Link>
+                    </Button>
+                     <Button asChild variant="outline">
+                        <Link href="/dashboard/classes"><BookOpen className="mr-2"/> Create Class</Link>
+                    </Button>
+                    <Button asChild variant="outline">
+                        <Link href="/dashboard/announcements"><Megaphone className="mr-2"/> New Announcement</Link>
+                    </Button>
+                </CardContent>
+            </MotionCard>
+             <MotionCard variants={cardVariants} initial="hidden" animate="visible" custom={7} className="xl:col-span-2">
+                 <CardHeader>
+                    <CardTitle>Class Enrollment Breakdown</CardTitle>
+                     <CardDescription>Number of students per class.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <ChartContainer config={chartConfig} className="h-[200px] w-full">
+                        <BarChart data={classEnrollment} layout="vertical" margin={{ left: 10, right: 20 }}>
+                            <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={10} className="text-xs w-20 truncate"/>
+                            <XAxis dataKey="students" type="number" hide />
+                            <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent indicator="dot" />} />
+                            <Bar dataKey="students" fill="var(--color-students)" radius={4} />
+                        </BarChart>
+                    </ChartContainer>
+                </CardContent>
+            </MotionCard>
+        </div>
+
+       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <MotionCard variants={cardVariants} initial="hidden" animate="visible" custom={8}>
                  <CardHeader>
                     <CardTitle>Recent Activity</CardTitle>
                      <CardDescription>A log of recent important system events.</CardDescription>
@@ -321,7 +368,7 @@ export function AdminDashboard() {
                      </div>
                 </CardContent>
             </MotionCard>
-             <MotionCard variants={cardVariants} initial="hidden" animate="visible" custom={7}>
+             <MotionCard variants={cardVariants} initial="hidden" animate="visible" custom={9}>
                  <CardHeader>
                     <CardTitle>Upcoming Events</CardTitle>
                      <CardDescription>What's next on the school calendar.</CardDescription>
