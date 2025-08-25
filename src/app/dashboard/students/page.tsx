@@ -600,7 +600,7 @@ export default function StudentsPage() {
       </CardHeader>
       <CardContent>
         <div className="w-full">
-          <div className="flex items-center py-4">
+          <div className="flex flex-wrap items-center py-4 gap-2">
             <Input
               placeholder="Filter by student name..."
               value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
@@ -609,6 +609,35 @@ export default function StudentsPage() {
               }
               className="max-w-sm"
             />
+             <Select
+              value={(table.getColumn("gender")?.getFilterValue() as string) ?? "all"}
+              onValueChange={(value) => table.getColumn("gender")?.setFilterValue(value === "all" ? undefined : value)}
+            >
+                <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Filter by Gender" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Genders</SelectItem>
+                    <SelectItem value="Male">Male</SelectItem>
+                    <SelectItem value="Female">Female</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+            </Select>
+            <Select
+              value={(table.getColumn("status")?.getFilterValue() as string) ?? "all"}
+              onValueChange={(value) => table.getColumn("status")?.setFilterValue(value === "all" ? undefined : value)}
+            >
+                <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Filter by Status" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="Active">Active</SelectItem>
+                    <SelectItem value="Inactive">Inactive</SelectItem>
+                    <SelectItem value="Graduated">Graduated</SelectItem>
+                    <SelectItem value="Continuing">Continuing</SelectItem>
+                </SelectContent>
+            </Select>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="ml-auto">

@@ -279,8 +279,8 @@ export function AdminDashboard() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
-        <DashboardCard i={0} title="Total Students" icon={<Users className="h-4 w-4 text-muted-foreground" />} value={totalStudents} description="Currently enrolled" />
-        <DashboardCard i={1} title="Total Teachers" icon={<UserCheck className="h-4 w-4 text-muted-foreground" />} value={totalTeachers} description="On staff" />
+        <DashboardCard i={0} title="Total Students" icon={<Users className="h-4 w-4 text-blue-600" />} value={totalStudents} description="Currently enrolled" />
+        <DashboardCard i={1} title="Total Teachers" icon={<UserCheck className="h-4 w-4 text-orange-600" />} value={totalTeachers} description="On staff" />
         <DashboardCard i={2} title="Total Classes" icon={<Landmark className="h-4 w-4 text-muted-foreground" />} value={totalClasses} description="Across all grades" />
         <DashboardCard i={4} title="Fees Collected" icon={<TrendingUp className="h-4 w-4 text-green-600" />} value={`GH₵${feeStats.totalPaid.toLocaleString()}`} description="Total payments received" />
         <DashboardCard i={5} title="Fees Owed" icon={<TrendingDown className="h-4 w-4 text-red-600" />} value={`GH₵${totalFeesOwed.toLocaleString()}`} description="Outstanding balance" />
