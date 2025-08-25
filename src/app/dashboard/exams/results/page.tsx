@@ -31,6 +31,20 @@ import { Loader2, FileDown, Printer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from 'recharts';
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 
 // Data Types
 type Exam = { id: string; name: string; status: string; };
@@ -132,6 +146,33 @@ export default function ResultsPage() {
 
     }, [grades, studentsMap, classesMap, subjectsMap, studentClassMap, selectedExamId, selectedClassId, selectedStudentId]);
 
+    const analyticsData = React.useMemo(() => {
+        if (!filteredResults.length) return { gradeDistribution: [], classAverages: [] };
+        
+        const gradeDistribution = filteredResults.reduce((acc, result) => {
+            acc[result.grade] = (acc[result.grade] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>);
+
+        const classAverages = Object.values(filteredResults.reduce((acc, result) => {
+            if(!result.classId) return acc;
+            if (!acc[result.classId]) {
+                acc[result.classId] = { name: result.className, totalScore: 0, count: 0 };
+            }
+            acc[result.classId].totalScore += result.totalScore;
+            acc[result.classId].count++;
+            return acc;
+        }, {} as Record<string, {name: string, totalScore: number, count: number}>))
+        .map(c => ({ name: c.name, averageScore: parseFloat((c.totalScore / c.count).toFixed(2)) }))
+        .sort((a,b) => b.averageScore - a.averageScore);
+
+        return {
+            gradeDistribution: Object.entries(gradeDistribution).map(([grade, count]) => ({ grade, count })).sort((a,b) => a.grade.localeCompare(b.grade)),
+            classAverages,
+        }
+    }, [filteredResults]);
+
+
     const handlePrint = () => {
         const doc = new jsPDF();
         doc.text("Exam Results Report", 14, 16);
@@ -160,91 +201,138 @@ export default function ResultsPage() {
         link.click();
         document.body.removeChild(link);
     }
+    
+    const gradeDistConfig = { count: { label: 'Students' }};
+    const classAvgConfig = { averageScore: { label: 'Avg. Score'}};
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Results Overview</CardTitle>
-                <CardDescription>Filter and view results for all students across the school.</CardDescription>
-                <div className="flex flex-wrap gap-4 pt-4">
-                    <Select value={selectedExamId} onValueChange={setSelectedExamId}>
-                        <SelectTrigger className="w-[200px]"><SelectValue placeholder="Select Exam..."/></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Exams</SelectItem>
-                            {exams.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                     <Select value={selectedClassId} onValueChange={setSelectedClassId}>
-                        <SelectTrigger className="w-[200px]"><SelectValue placeholder="Select Class..."/></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Classes</SelectItem>
-                            {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                     <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
-                        <SelectTrigger className="w-[200px]"><SelectValue placeholder="Select Student..."/></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Students</SelectItem>
-                            {students.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                </div>
-            </CardHeader>
-            <CardContent>
-                 <div className="rounded-md border">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Student</TableHead>
-                                <TableHead>Class</TableHead>
-                                <TableHead>Subject</TableHead>
-                                <TableHead className="text-center">Class Score</TableHead>
-                                <TableHead className="text-center">Exam Score</TableHead>
-                                <TableHead className="text-center">Total Score</TableHead>
-                                <TableHead className="text-center">Grade</TableHead>
-                                <TableHead>Remarks</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {loading ? (
+        <div className="space-y-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Results Overview</CardTitle>
+                    <CardDescription>Filter and view results for all students across the school.</CardDescription>
+                    <div className="flex flex-wrap gap-4 pt-4">
+                        <Select value={selectedExamId} onValueChange={setSelectedExamId}>
+                            <SelectTrigger className="w-[200px]"><SelectValue placeholder="Select Exam..."/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Exams</SelectItem>
+                                {exams.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <Select value={selectedClassId} onValueChange={setSelectedClassId}>
+                            <SelectTrigger className="w-[200px]"><SelectValue placeholder="Select Class..."/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Classes</SelectItem>
+                                {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
+                            <SelectTrigger className="w-[200px]"><SelectValue placeholder="Select Student..."/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Students</SelectItem>
+                                {students.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </CardHeader>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Visual Analytics</CardTitle>
+                    <CardDescription>A visual summary of the filtered results.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                   {loading ? <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" /> : filteredResults.length > 0 ? (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <div>
+                                <h3 className="font-semibold text-center mb-2">Grade Distribution</h3>
+                                <ChartContainer config={gradeDistConfig} className="h-[300px] w-full">
+                                    <BarChart data={analyticsData.gradeDistribution} accessibilityLayer>
+                                        <XAxis dataKey="grade" tickLine={false} axisLine={false} />
+                                        <YAxis />
+                                        <Tooltip content={<ChartTooltipContent />} />
+                                        <Bar dataKey="count" fill="var(--color-primary)" radius={4} />
+                                    </BarChart>
+                                </ChartContainer>
+                            </div>
+                             <div>
+                                <h3 className="font-semibold text-center mb-2">Average Score by Class</h3>
+                                <ChartContainer config={classAvgConfig} className="h-[300px] w-full">
+                                     <BarChart data={analyticsData.classAverages} accessibilityLayer layout="vertical">
+                                        <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={80}/>
+                                        <XAxis dataKey="averageScore" type="number" />
+                                        <Tooltip content={<ChartTooltipContent />} />
+                                        <Bar dataKey="averageScore" fill="var(--color-secondary)" radius={4} />
+                                    </BarChart>
+                                </ChartContainer>
+                            </div>
+                        </div>
+                   ) : (
+                       <p className="text-center text-muted-foreground py-8">No data to display. Select different filters.</p>
+                   )}
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Detailed Results Table</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="rounded-md border">
+                        <Table>
+                            <TableHeader>
                                 <TableRow>
-                                    <TableCell colSpan={8} className="h-24 text-center">
-                                        <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
-                                    </TableCell>
+                                    <TableHead>Student</TableHead>
+                                    <TableHead>Class</TableHead>
+                                    <TableHead>Subject</TableHead>
+                                    <TableHead className="text-center">Class Score</TableHead>
+                                    <TableHead className="text-center">Exam Score</TableHead>
+                                    <TableHead className="text-center">Total Score</TableHead>
+                                    <TableHead className="text-center">Grade</TableHead>
+                                    <TableHead>Remarks</TableHead>
                                 </TableRow>
-                            ) : filteredResults.length > 0 ? (
-                                filteredResults.map((result, index) => (
-                                    <TableRow key={index}>
-                                        <TableCell className="font-medium">{result.studentName}</TableCell>
-                                        <TableCell>{result.className}</TableCell>
-                                        <TableCell>{result.subjectName}</TableCell>
-                                        <TableCell className="text-center">{result.classScore}%</TableCell>
-                                        <TableCell className="text-center">{result.examScore}%</TableCell>
-                                        <TableCell className="text-center font-bold">{result.totalScore}%</TableCell>
-                                        <TableCell className="text-center"><Badge variant="secondary">{result.grade}</Badge></TableCell>
-                                        <TableCell>{result.remarks}</TableCell>
+                            </TableHeader>
+                            <TableBody>
+                                {loading ? (
+                                    <TableRow>
+                                        <TableCell colSpan={8} className="h-24 text-center">
+                                            <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+                                        </TableCell>
                                     </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell colSpan={8} className="h-24 text-center">
-                                    No results found for the selected filters.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
-            </CardContent>
-             <CardFooter className="flex justify-end gap-2">
-                <Button variant="outline" onClick={handlePrint} disabled={loading || filteredResults.length === 0}>
-                    <Printer className="mr-2 h-4 w-4"/> Print Report
-                </Button>
-                <Button onClick={handleExport} disabled={loading || filteredResults.length === 0}>
-                    <FileDown className="mr-2 h-4 w-4"/> Export to CSV
-                </Button>
-            </CardFooter>
-        </Card>
+                                ) : filteredResults.length > 0 ? (
+                                    filteredResults.map((result, index) => (
+                                        <TableRow key={index}>
+                                            <TableCell className="font-medium">{result.studentName}</TableCell>
+                                            <TableCell>{result.className}</TableCell>
+                                            <TableCell>{result.subjectName}</TableCell>
+                                            <TableCell className="text-center">{result.classScore}%</TableCell>
+                                            <TableCell className="text-center">{result.examScore}%</TableCell>
+                                            <TableCell className="text-center font-bold">{result.totalScore}%</TableCell>
+                                            <TableCell className="text-center"><Badge variant="secondary">{result.grade}</Badge></TableCell>
+                                            <TableCell>{result.remarks}</TableCell>
+                                        </TableRow>
+                                    ))
+                                ) : (
+                                    <TableRow>
+                                        <TableCell colSpan={8} className="h-24 text-center">
+                                        No results found for the selected filters.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </CardContent>
+                <CardFooter className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={handlePrint} disabled={loading || filteredResults.length === 0}>
+                        <Printer className="mr-2 h-4 w-4"/> Print Report
+                    </Button>
+                    <Button onClick={handleExport} disabled={loading || filteredResults.length === 0}>
+                        <FileDown className="mr-2 h-4 w-4"/> Export to CSV
+                    </Button>
+                </CardFooter>
+            </Card>
+        </div>
     );
 }
-
