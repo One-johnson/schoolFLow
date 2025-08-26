@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast"
 import { format, parseISO, isPast, addDays, startOfWeek, getDay, parse } from "date-fns"
 import { enUS } from 'date-fns/locale'
 import { DateRange } from "react-day-picker"
-import { Calendar as BigCalendar, dateFnsLocalizer, EventProps } from 'react-big-calendar'
+import { Calendar as BigCalendar, dateFnsLocalizer, EventProps, View, NavigateAction } from 'react-big-calendar'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
 
 import { Button } from "@/components/ui/button"
@@ -131,6 +131,8 @@ export default function EventsPage() {
   const [formState, setFormState] = React.useState<Partial<Omit<Event, "id" | "createdAt">>>({});
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>();
 
+  const [currentDate, setCurrentDate] = React.useState(new Date());
+
   const userClasses = React.useMemo(() => {
     if (!user) return [];
     if (role === 'student') {
@@ -194,6 +196,8 @@ export default function EventsPage() {
       setDateRange(undefined);
     }
   }, [selectedEvent]);
+  
+  const handleNavigate = React.useCallback((newDate: Date) => setCurrentDate(newDate), []);
 
   const handleOpenDialog = (event?: Event) => {
     setSelectedEvent(event || null);
@@ -251,20 +255,22 @@ export default function EventsPage() {
   }
   
   const eventStyleGetter = (event: {resource: Event}) => {
-    const backgroundColor = {
-        Academic: "hsl(var(--primary))",
-        Holiday: "hsl(var(--chart-2))",
-        Sports: "hsl(var(--chart-4))",
-        Meeting: "hsl(var(--accent))",
-        Other: "hsl(var(--muted-foreground))"
-    }[event.resource.type] || 'gray';
+    const colorMap = {
+        Academic: "#3b82f6", // blue-500
+        Holiday: "#16a34a", // green-600
+        Sports: "#f97316", // orange-500
+        Meeting: "#9333ea", // purple-600
+        Other: "#6b7280" // gray-500
+    };
+    
+    const backgroundColor = colorMap[event.resource.type] || 'gray';
     
     var style = {
         backgroundColor: backgroundColor,
         borderRadius: '5px',
         opacity: 0.8,
         color: 'white',
-        border: '0px',
+        border: '1px solid #fff',
         display: 'block'
     };
     return {
@@ -301,6 +307,8 @@ export default function EventsPage() {
                           endAccessor="end"
                           onSelectEvent={handleEventClick}
                           eventPropGetter={eventStyleGetter}
+                          date={currentDate}
+                          onNavigate={handleNavigate}
                        />
                     )}
                 </CardContent>
@@ -488,5 +496,3 @@ export default function EventsPage() {
     </>
   );
 }
-
-    
