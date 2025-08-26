@@ -82,14 +82,19 @@ import {
 import { useDatabase } from "@/hooks/use-database"
 import { useToast } from "@/hooks/use-toast"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
+import { MultiSelectPopover } from "@/components/ui/multi-select-popover"
+
+type SubjectLevel = "Nursery" | "Kindergarten" | "Primary" | "Junior High";
 
 type Subject = {
   id: string;
   name: string;
   code: string;
-  classId?: string;
-  teacherId?: string;
-  level?: string;
+  classIds?: Record<string, boolean>;
+  teacherIds?: Record<string, boolean>;
+  level?: SubjectLevel;
 }
 
 type Teacher = { id: string; name: string };
@@ -101,6 +106,14 @@ const generateSubjectCode = (subjectName: string): string => {
     const randomPart = Math.random().toString().slice(2, 6);
     return `${namePart}${randomPart}`;
 };
+
+const levelColors: Record<SubjectLevel, string> = {
+    Nursery: "bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-300",
+    Kindergarten: "bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300",
+    Primary: "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300",
+    "Junior High": "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300",
+}
+
 
 export default function SubjectsPage() {
   const [sorting, setSorting] = React.useState<SortingState>([])
@@ -131,8 +144,16 @@ export default function SubjectsPage() {
     }
     setIsLoading(true);
     try {
-      const subjectCode = generateSubjectCode(newSubject.name)
-      await addData({ code: subjectCode, ...newSubject } as Omit<Subject, "id">)
+      const subjectCode = generateSubjectCode(newSubject.name);
+      
+      const dataToSave = {
+          ...newSubject,
+          code: subjectCode,
+          classIds: newSubject.classIds ? Object.keys(newSubject.classIds).reduce((acc, id) => ({...acc, [id]: true}), {}) : {},
+          teacherIds: newSubject.teacherIds ? Object.keys(newSubject.teacherIds).reduce((acc, id) => ({...acc, [id]: true}), {}) : {},
+      } as Omit<Subject, "id">;
+
+      await addData(dataToSave)
       toast({ title: "Success", description: "Subject added." })
       setNewSubject({})
       setIsCreateDialogOpen(false)
@@ -152,8 +173,15 @@ export default function SubjectsPage() {
   const handleUpdateSubject = async () => {
     if (!selectedSubject || !editSubject) return
     setIsLoading(true);
+
+    const dataToUpdate = {
+        ...editSubject,
+        classIds: editSubject.classIds ? Object.keys(editSubject.classIds).reduce((acc, id) => ({...acc, [id]: true}), {}) : {},
+        teacherIds: editSubject.teacherIds ? Object.keys(editSubject.teacherIds).reduce((acc, id) => ({...acc, [id]: true}), {}) : {},
+    };
+
     try {
-      await updateData(selectedSubject.id, editSubject)
+      await updateData(selectedSubject.id, dataToUpdate);
       toast({ title: "Success", description: "Subject updated." })
       setIsEditDialogOpen(false)
       setSelectedSubject(null)
@@ -188,9 +216,33 @@ export default function SubjectsPage() {
     },
     { accessorKey: "name", header: ({ column }) => <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>Name <ArrowUpDown className="ml-2 h-4 w-4" /></Button>, cell: ({ row }) => <div>{row.getValue("name")}</div> },
     { accessorKey: "code", header: "Code", cell: ({ row }) => <div>{row.getValue("code")}</div> },
-    { accessorKey: "level", header: "Level/Grade", cell: ({ row }) => <div>{row.getValue("level") || 'N/A'}</div> },
-    { accessorKey: "classId", header: "Class", cell: ({ row }) => <div>{classesMap.get(row.getValue("classId")) || 'N/A'}</div> },
-    { accessorKey: "teacherId", header: "Teacher", cell: ({ row }) => <div>{teachersMap.get(row.getValue("teacherId")) || 'N/A'}</div> },
+    { 
+        accessorKey: "level", 
+        header: "Level", 
+        cell: ({ row }) => {
+            const level = row.getValue("level") as SubjectLevel | undefined;
+            if (!level) return 'N/A';
+            return <Badge className={cn("border-transparent", levelColors[level])}>{level}</Badge>
+        }
+    },
+    { 
+        accessorKey: "classIds", 
+        header: "Classes", 
+        cell: ({ row }) => {
+            const classIds = row.getValue("classIds") as Record<string, boolean> | undefined;
+            if (!classIds || Object.keys(classIds).length === 0) return 'N/A';
+            return <div className="flex flex-wrap gap-1">{Object.keys(classIds).map(id => <Badge key={id} variant="secondary">{classesMap.get(id)}</Badge>)}</div>
+        } 
+    },
+    { 
+        accessorKey: "teacherIds", 
+        header: "Teachers", 
+        cell: ({ row }) => {
+            const teacherIds = row.getValue("teacherIds") as Record<string, boolean> | undefined;
+            if (!teacherIds || Object.keys(teacherIds).length === 0) return 'N/A';
+            return <div className="flex flex-wrap gap-1">{Object.keys(teacherIds).map(id => <Badge key={id} variant="outline">{teachersMap.get(id)}</Badge>)}</div>
+        } 
+    },
     {
       id: "actions",
       enableHiding: false,
@@ -245,7 +297,7 @@ export default function SubjectsPage() {
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild><Button onClick={() => setNewSubject({})}><PlusCircle className="mr-2 h-4 w-4" /> Add Subject</Button></DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-[480px]">
             <DialogHeader><DialogTitle>Add New Subject</DialogTitle><DialogDescription>Fill in the details for the new subject.</DialogDescription></DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
@@ -253,22 +305,40 @@ export default function SubjectsPage() {
                 <Input id="name" placeholder="e.g., Algebra II" className="col-span-3" value={newSubject.name || ""} onChange={(e) => setNewSubject(p => ({ ...p, name: e.target.value }))} disabled={isLoading} />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="level" className="text-right">Level/Grade</Label>
-                <Input id="level" placeholder="e.g., 11" className="col-span-3" value={newSubject.level || ""} onChange={(e) => setNewSubject(p => ({ ...p, level: e.target.value }))} disabled={isLoading} />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="classId" className="text-right">Class</Label>
-                <Select onValueChange={(value) => setNewSubject(p => ({ ...p, classId: value }))} value={newSubject.classId} disabled={isLoading}>
-                  <SelectTrigger className="col-span-3"><SelectValue placeholder="Assign a class" /></SelectTrigger>
-                  <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                <Label htmlFor="level" className="text-right">Level</Label>
+                <Select onValueChange={(value: SubjectLevel) => setNewSubject(p => ({ ...p, level: value }))} value={newSubject.level} disabled={isLoading}>
+                  <SelectTrigger className="col-span-3"><SelectValue placeholder="Select a level" /></SelectTrigger>
+                  <SelectContent>
+                      <SelectItem value="Nursery">Nursery</SelectItem>
+                      <SelectItem value="Kindergarten">Kindergarten</SelectItem>
+                      <SelectItem value="Primary">Primary</SelectItem>
+                      <SelectItem value="Junior High">Junior High</SelectItem>
+                  </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="teacherId" className="text-right">Teacher</Label>
-                <Select onValueChange={(value) => setNewSubject(p => ({ ...p, teacherId: value }))} value={newSubject.teacherId} disabled={isLoading}>
-                  <SelectTrigger className="col-span-3"><SelectValue placeholder="Assign a teacher" /></SelectTrigger>
-                  <SelectContent>{teachers.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
-                </Select>
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label htmlFor="classId" className="text-right pt-2">Classes</Label>
+                 <div className="col-span-3">
+                    <MultiSelectPopover 
+                        options={classes.map(c => ({value: c.id, label: c.name}))}
+                        selected={newSubject.classIds ? Object.keys(newSubject.classIds) : []}
+                        onChange={(selected) => setNewSubject(p => ({ ...p, classIds: selected.reduce((acc, id) => ({...acc, [id]: true}), {})}))}
+                        disabled={isLoading}
+                        placeholder="Assign to classes..."
+                    />
+                 </div>
+              </div>
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label htmlFor="teacherId" className="text-right pt-2">Teachers</Label>
+                 <div className="col-span-3">
+                    <MultiSelectPopover 
+                        options={teachers.map(t => ({value: t.id, label: t.name}))}
+                        selected={newSubject.teacherIds ? Object.keys(newSubject.teacherIds) : []}
+                        onChange={(selected) => setNewSubject(p => ({ ...p, teacherIds: selected.reduce((acc, id) => ({...acc, [id]: true}), {})}))}
+                        disabled={isLoading}
+                        placeholder="Assign to teachers..."
+                    />
+                 </div>
               </div>
             </div>
             <DialogFooter><Button type="submit" onClick={handleAddSubject} disabled={isLoading}>{isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Add Subject</Button></DialogFooter>
@@ -279,9 +349,7 @@ export default function SubjectsPage() {
         <div className="w-full">
           <div className="flex items-center py-4 gap-2">
             <Input placeholder="Filter by subject name..." value={(table.getColumn("name")?.getFilterValue() as string) ?? ""} onChange={(event) => table.getColumn("name")?.setFilterValue(event.target.value)} className="max-w-sm" />
-            <Select onValueChange={(value) => table.getColumn("classId")?.setFilterValue(value === "all" ? "" : value)}><SelectTrigger className="w-[180px]"><SelectValue placeholder="Filter by Class" /></SelectTrigger><SelectContent><SelectItem value="all">All Classes</SelectItem>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select>
-            <Select onValueChange={(value) => table.getColumn("teacherId")?.setFilterValue(value === "all" ? "" : value)}><SelectTrigger className="w-[180px]"><SelectValue placeholder="Filter by Teacher" /></SelectTrigger><SelectContent><SelectItem value="all">All Teachers</SelectItem>{teachers.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent></Select>
-            <Select onValueChange={(value) => table.getColumn("level")?.setFilterValue(value === "all" ? "" : value)}><SelectTrigger className="w-[180px]"><SelectValue placeholder="Filter by Level" /></SelectTrigger><SelectContent><SelectItem value="all">All Levels</SelectItem>{[...new Set(subjects.map(s => s.level).filter(Boolean))].map(level => <SelectItem key={level} value={level!}>{level}</SelectItem>)}</SelectContent></Select>
+             <Select onValueChange={(value) => table.getColumn("level")?.setFilterValue(value === "all" ? "" : value)}><SelectTrigger className="w-[180px]"><SelectValue placeholder="Filter by Level" /></SelectTrigger><SelectContent><SelectItem value="all">All Levels</SelectItem>{[...new Set(subjects.map(s => s.level).filter(Boolean))].map(level => <SelectItem key={level} value={level!}>{level}</SelectItem>)}</SelectContent></Select>
             <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" className="ml-auto">Columns <ChevronDown className="ml-2 h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end">{table.getAllColumns().filter((column) => column.getCanHide()).map((column) => (<DropdownMenuCheckboxItem key={column.id} className="capitalize" checked={column.getIsVisible()} onCheckedChange={(value) => column.toggleVisibility(!!value)}>{column.id}</DropdownMenuCheckboxItem>))}</DropdownMenuContent></DropdownMenu>
           </div>
           <div className="rounded-md border">
@@ -302,7 +370,7 @@ export default function SubjectsPage() {
       </CardContent>
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[480px]">
           <DialogHeader><DialogTitle>Edit Subject</DialogTitle><DialogDescription>Update the subject details below.</DialogDescription></DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
@@ -311,25 +379,41 @@ export default function SubjectsPage() {
               </div>
                <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="code" className="text-right">Code</Label>
-                <Input id="code" className="col-span-3" value={editSubject.code || ""} onChange={(e) => setEditSubject(p => ({ ...p, code: e.target.value }))} disabled={isLoading} />
+                <Input id="code" className="col-span-3" value={editSubject.code || ""} disabled />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="level" className="text-right">Level/Grade</Label>
-                <Input id="level" className="col-span-3" value={editSubject.level || ""} onChange={(e) => setEditSubject(p => ({ ...p, level: e.target.value }))} disabled={isLoading} />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="classId" className="text-right">Class</Label>
-                <Select onValueChange={(value) => setEditSubject(p => ({ ...p, classId: value }))} value={editSubject.classId} disabled={isLoading}>
-                  <SelectTrigger className="col-span-3"><SelectValue placeholder="Assign a class" /></SelectTrigger>
-                  <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                <Label htmlFor="level" className="text-right">Level</Label>
+                 <Select onValueChange={(value: SubjectLevel) => setEditSubject(p => ({ ...p, level: value }))} value={editSubject.level} disabled={isLoading}>
+                  <SelectTrigger className="col-span-3"><SelectValue placeholder="Select a level" /></SelectTrigger>
+                  <SelectContent>
+                      <SelectItem value="Nursery">Nursery</SelectItem>
+                      <SelectItem value="Kindergarten">Kindergarten</SelectItem>
+                      <SelectItem value="Primary">Primary</SelectItem>
+                      <SelectItem value="Junior High">Junior High</SelectItem>
+                  </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="teacherId" className="text-right">Teacher</Label>
-                <Select onValueChange={(value) => setEditSubject(p => ({ ...p, teacherId: value }))} value={editSubject.teacherId} disabled={isLoading}>
-                  <SelectTrigger className="col-span-3"><SelectValue placeholder="Assign a teacher" /></SelectTrigger>
-                  <SelectContent>{teachers.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
-                </Select>
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label className="text-right pt-2">Classes</Label>
+                 <div className="col-span-3">
+                    <MultiSelectPopover 
+                        options={classes.map(c => ({value: c.id, label: c.name}))}
+                        selected={editSubject.classIds ? Object.keys(editSubject.classIds) : []}
+                        onChange={(selected) => setEditSubject(p => ({ ...p, classIds: selected.reduce((acc, id) => ({...acc, [id]: true}), {})}))}
+                        disabled={isLoading}
+                    />
+                 </div>
+              </div>
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label className="text-right pt-2">Teachers</Label>
+                 <div className="col-span-3">
+                    <MultiSelectPopover 
+                        options={teachers.map(t => ({value: t.id, label: t.name}))}
+                        selected={editSubject.teacherIds ? Object.keys(editSubject.teacherIds) : []}
+                        onChange={(selected) => setEditSubject(p => ({ ...p, teacherIds: selected.reduce((acc, id) => ({...acc, [id]: true}), {})}))}
+                        disabled={isLoading}
+                    />
+                 </div>
               </div>
             </div>
           <DialogFooter><Button type="submit" onClick={handleUpdateSubject} disabled={isLoading}>{isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Save Changes</Button></DialogFooter>
