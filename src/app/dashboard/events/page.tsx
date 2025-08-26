@@ -5,8 +5,11 @@ import * as React from "react"
 import { useDatabase } from "@/hooks/use-database"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
-import { format, parseISO, isPast, addDays } from "date-fns"
+import { format, parseISO, isPast, addDays, startOfWeek, getDay, parse } from "date-fns"
+import { enUS } from 'date-fns/locale'
 import { DateRange } from "react-day-picker"
+import { Calendar as BigCalendar, dateFnsLocalizer, EventProps } from 'react-big-calendar'
+import 'react-big-calendar/lib/css/react-big-calendar.css'
 
 import { Button } from "@/components/ui/button"
 import { Calendar as DayPickerCalendar } from "@/components/ui/calendar"
@@ -64,9 +67,6 @@ import {
 import { cn } from "@/lib/utils"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
-import FullCalendar from '@fullcalendar/react'
-import dayGridPlugin from '@fullcalendar/daygrid'
-import interactionPlugin from '@fullcalendar/interaction'
 
 type Event = {
   id: string;
@@ -102,6 +102,18 @@ const eventStatusColors: { [key in Event['status']]: string } = {
     Postponed: "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/50 dark:text-yellow-300",
     Cancelled: "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/50 dark:text-red-300",
 };
+
+const locales = {
+  'en-US': enUS,
+}
+
+const localizer = dateFnsLocalizer({
+  format,
+  parse,
+  startOfWeek: (date) => startOfWeek(date, { locale: enUS }),
+  getDay,
+  locales,
+})
 
 
 export default function EventsPage() {
@@ -155,20 +167,11 @@ export default function EventsPage() {
 
   const calendarEvents = React.useMemo(() => {
     return filteredEventsForUser.map(event => ({
-      id: event.id,
       title: event.title,
-      start: event.startDate,
-      end: format(addDays(parseISO(event.endDate), 1), 'yyyy-MM-dd'), // FullCalendar's end date is exclusive
+      start: parseISO(event.startDate),
+      end: addDays(parseISO(event.endDate), 1), // end date is exclusive for all-day events
       allDay: true,
-      extendedProps: event,
-      className: cn(eventTypeColors[event.type], 'cursor-pointer border-l-4 p-1'),
-      borderColor: {
-        Academic: "hsl(var(--primary))",
-        Holiday: "hsl(var(--chart-2))",
-        Sports: "hsl(var(--chart-4))",
-        Meeting: "hsl(var(--accent))",
-        Other: "hsl(var(--muted-foreground))"
-      }[event.type],
+      resource: event, // Keep original event data
     }));
   }, [filteredEventsForUser]);
 
@@ -197,11 +200,8 @@ export default function EventsPage() {
     setIsDialogOpen(true);
   };
   
-  const handleEventClick = (clickInfo: any) => {
-    const event = events.find(e => e.id === clickInfo.event.id);
-    if(event) {
-        handleOpenDialog(event);
-    }
+  const handleEventClick = (calEvent: { resource: Event }) => {
+    handleOpenDialog(calEvent.resource);
   }
 
   const handleSubmit = async () => {
@@ -249,6 +249,28 @@ export default function EventsPage() {
         setIsLoading(false);
     }
   }
+  
+  const eventStyleGetter = (event: {resource: Event}) => {
+    const backgroundColor = {
+        Academic: "hsl(var(--primary))",
+        Holiday: "hsl(var(--chart-2))",
+        Sports: "hsl(var(--chart-4))",
+        Meeting: "hsl(var(--accent))",
+        Other: "hsl(var(--muted-foreground))"
+    }[event.resource.type] || 'gray';
+    
+    var style = {
+        backgroundColor: backgroundColor,
+        borderRadius: '5px',
+        opacity: 0.8,
+        color: 'white',
+        border: '0px',
+        display: 'block'
+    };
+    return {
+        style: style
+    };
+  }
 
   return (
     <>
@@ -266,37 +288,20 @@ export default function EventsPage() {
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
              <Card className="lg:col-span-2">
-                <CardContent className="p-2 md:p-4">
+                <CardContent className="p-2 md:p-4 h-[75vh]">
                     {loading ? (
-                        <div className="flex h-[60vh] items-center justify-center">
+                        <div className="flex h-full items-center justify-center">
                             <Loader2 className="h-12 w-12 animate-spin text-primary" />
                         </div>
                     ) : (
-                        <div className='fullcalendar-wrapper'>
-                           <style jsx global>{`
-                                .fc .fc-toolbar.fc-header-toolbar {
-                                    margin-bottom: 1.5rem;
-                                }
-                                .fc .fc-toolbar-title {
-                                    font-size: 1.25rem;
-                                    font-weight: 600;
-                                }
-                                .fc-event {
-                                    border-radius: 4px;
-                                }
-                                .fc .fc-daygrid-day.fc-day-today {
-                                    background-color: hsl(var(--accent) / 0.5);
-                                }
-                            `}</style>
-                           <FullCalendar
-                                plugins={[dayGridPlugin, interactionPlugin]}
-                                initialView="dayGridMonth"
-                                weekends={true}
-                                events={calendarEvents}
-                                eventClick={handleEventClick}
-                                height="auto"
-                            />
-                        </div>
+                       <BigCalendar
+                          localizer={localizer}
+                          events={calendarEvents}
+                          startAccessor="start"
+                          endAccessor="end"
+                          onSelectEvent={handleEventClick}
+                          eventPropGetter={eventStyleGetter}
+                       />
                     )}
                 </CardContent>
             </Card>
@@ -483,3 +488,5 @@ export default function EventsPage() {
     </>
   );
 }
+
+    
