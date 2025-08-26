@@ -114,6 +114,22 @@ const levelColors: Record<SubjectLevel, string> = {
     "Junior High": "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300",
 }
 
+const filterClassesByLevel = (classes: Class[], level?: SubjectLevel): Class[] => {
+    if (!level) return classes;
+    switch (level) {
+        case "Nursery":
+            return classes.filter(c => c.name.toLowerCase().includes("nursery"));
+        case "Kindergarten":
+            return classes.filter(c => c.name.toLowerCase().includes("kindergarten"));
+        case "Primary":
+            return classes.filter(c => c.name.toLowerCase().includes("primary"));
+        case "Junior High":
+            return classes.filter(c => c.name.toLowerCase().includes("basic") || c.name.toLowerCase().includes("jhs"));
+        default:
+            return classes;
+    }
+};
+
 
 export default function SubjectsPage() {
   const [sorting, setSorting] = React.useState<SortingState>([])
@@ -136,6 +152,31 @@ export default function SubjectsPage() {
 
   const teachersMap = React.useMemo(() => new Map(teachers.map(t => [t.id, t.name])), [teachers]);
   const classesMap = React.useMemo(() => new Map(classes.map(c => [c.id, c.name])), [classes]);
+
+  const availableClassesForNew = React.useMemo(() => filterClassesByLevel(classes, newSubject.level), [classes, newSubject.level]);
+  const availableClassesForEdit = React.useMemo(() => filterClassesByLevel(classes, editSubject.level), [classes, editSubject.level]);
+
+  React.useEffect(() => {
+    if (newSubject.level) {
+        const availableClassIds = new Set(availableClassesForNew.map(c => c.id));
+        const currentSelected = newSubject.classIds ? Object.keys(newSubject.classIds) : [];
+        const filteredSelected = currentSelected.filter(id => availableClassIds.has(id));
+        if(filteredSelected.length !== currentSelected.length) {
+            setNewSubject(p => ({...p, classIds: filteredSelected.reduce((acc, id) => ({...acc, [id]: true}), {}) }));
+        }
+    }
+  }, [newSubject.level, availableClassesForNew, newSubject.classIds]);
+
+  React.useEffect(() => {
+    if (editSubject.level) {
+        const availableClassIds = new Set(availableClassesForEdit.map(c => c.id));
+        const currentSelected = editSubject.classIds ? Object.keys(editSubject.classIds) : [];
+        const filteredSelected = currentSelected.filter(id => availableClassIds.has(id));
+        if(filteredSelected.length !== currentSelected.length) {
+            setEditSubject(p => ({...p, classIds: filteredSelected.reduce((acc, id) => ({...acc, [id]: true}), {}) }));
+        }
+    }
+  }, [editSubject.level, availableClassesForEdit, editSubject.classIds]);
 
   const handleAddSubject = async () => {
     if (!newSubject.name?.trim()) {
@@ -320,11 +361,11 @@ export default function SubjectsPage() {
                 <Label htmlFor="classId" className="text-right pt-2">Classes</Label>
                  <div className="col-span-3">
                     <MultiSelectPopover 
-                        options={classes.map(c => ({value: c.id, label: c.name}))}
+                        options={availableClassesForNew.map(c => ({value: c.id, label: c.name}))}
                         selected={newSubject.classIds ? Object.keys(newSubject.classIds) : []}
                         onChange={(selected) => setNewSubject(p => ({ ...p, classIds: selected.reduce((acc, id) => ({...acc, [id]: true}), {})}))}
-                        disabled={isLoading}
-                        placeholder="Assign to classes..."
+                        disabled={isLoading || !newSubject.level}
+                        placeholder={!newSubject.level ? "Select a level first" : "Assign to classes..."}
                     />
                  </div>
               </div>
@@ -397,10 +438,11 @@ export default function SubjectsPage() {
                 <Label className="text-right pt-2">Classes</Label>
                  <div className="col-span-3">
                     <MultiSelectPopover 
-                        options={classes.map(c => ({value: c.id, label: c.name}))}
+                        options={availableClassesForEdit.map(c => ({value: c.id, label: c.name}))}
                         selected={editSubject.classIds ? Object.keys(editSubject.classIds) : []}
                         onChange={(selected) => setEditSubject(p => ({ ...p, classIds: selected.reduce((acc, id) => ({...acc, [id]: true}), {})}))}
-                        disabled={isLoading}
+                        disabled={isLoading || !editSubject.level}
+                        placeholder={!editSubject.level ? "Select a level first" : "Assign to classes..."}
                     />
                  </div>
               </div>
