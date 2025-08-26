@@ -5,11 +5,14 @@ import * as React from "react"
 import { useDatabase } from "@/hooks/use-database"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
-import { format, parseISO, isPast } from "date-fns"
+import { format, parseISO, isPast, addDays, startOfWeek, getDay, parse } from "date-fns"
+import { enUS } from 'date-fns/locale'
 import { DateRange } from "react-day-picker"
+import { Calendar as BigCalendar, dateFnsLocalizer, EventProps, View, NavigateAction } from 'react-big-calendar'
+import 'react-big-calendar/lib/css/react-big-calendar.css'
 
 import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
+import { Calendar as DayPickerCalendar } from "@/components/ui/calendar"
 import {
   Card,
   CardContent,
@@ -61,8 +64,15 @@ import {
   Trash2,
   Eye,
 } from "lucide-react"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils"
 import { ScrollArea } from "@/components/ui/scroll-area"
+
 
 type Event = {
   id: string;
@@ -83,13 +93,21 @@ type Class = {
   studentIds?: Record<string, boolean>;
 };
 
+type CalendarEvent = {
+  title: string;
+  start: Date;
+  end: Date;
+  allDay: true;
+  resource: Event;
+};
+
 
 const eventTypeColors: { [key in Event['type']]: string } = {
-    Academic: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/50 dark:text-blue-300",
-    Holiday: "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/50 dark:text-green-300",
-    Sports: "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/50 dark:text-orange-300",
-    Meeting: "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/50 dark:text-purple-300",
-    Other: "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-900/50 dark:text-gray-300",
+    Academic: "bg-blue-500 text-blue-800 border-blue-200 dark:bg-blue-900/50 dark:text-blue-300",
+    Holiday: "bg-green-500 text-green-800 border-green-200 dark:bg-green-900/50 dark:text-green-300",
+    Sports: "bg-orange-500 text-orange-800 border-orange-200 dark:bg-orange-900/50 dark:text-orange-300",
+    Meeting: "bg-purple-500 text-purple-800 border-purple-200 dark:bg-purple-900/50 dark:text-purple-300",
+    Other: "bg-gray-300 text-gray-800 border-gray-200 dark:bg-gray-900/50 dark:text-gray-300",
 };
 
 const eventStatusColors: { [key in Event['status']]: string } = {
@@ -98,6 +116,46 @@ const eventStatusColors: { [key in Event['status']]: string } = {
     Postponed: "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/50 dark:text-yellow-300",
     Cancelled: "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/50 dark:text-red-300",
 };
+
+const locales = {
+  'en-US': enUS,
+}
+
+const localizer = dateFnsLocalizer({
+  format,
+  parse,
+  startOfWeek: (date) => startOfWeek(date, { locale: enUS }),
+  getDay,
+  locales,
+})
+
+const CustomEvent = ({ event }: EventProps<CalendarEvent>) => (
+  <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="w-full h-full">
+            <div className={cn("text-xs font-bold truncate", event.resource.status === "Cancelled" && "line-through")}>
+                {event.title}
+            </div>
+            {event.resource.type && (
+                <Badge variant="outline" className={cn("text-xs w-full justify-center mt-1", eventTypeColors[event.resource.type])}>{event.resource.type}</Badge>
+            )}
+        </div>
+      </TooltipTrigger>
+      <TooltipContent className="bg-background border">
+        <div className="max-w-xs p-2">
+          <p className="font-bold">{event.title}</p>
+          <p className="text-sm text-muted-foreground">{format(event.start, "PPP")} - {format(event.end, "PPP")}</p>
+          <p className="text-sm mt-2">{event.resource.description}</p>
+          <div className="flex gap-2 mt-2">
+            <Badge className={cn(eventTypeColors[event.resource.type])}>{event.resource.type}</Badge>
+            <Badge className={cn(eventStatusColors[event.resource.status])}>{event.resource.status}</Badge>
+          </div>
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+);
 
 
 export default function EventsPage() {
@@ -110,10 +168,12 @@ export default function EventsPage() {
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [selectedEvent, setSelectedEvent] = React.useState<Event | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
-  const [filter, setFilter] = React.useState<"all" | "upcoming" | "past">("upcoming");
 
   const [formState, setFormState] = React.useState<Partial<Omit<Event, "id" | "createdAt">>>({});
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>();
+
+  const [currentDate, setCurrentDate] = React.useState(new Date());
+  const [view, setView] = React.useState<View>('month');
 
   const userClasses = React.useMemo(() => {
     if (!user) return [];
@@ -138,16 +198,16 @@ export default function EventsPage() {
       })
   }, [events, role, user, userClasses])
 
-  const filteredEventsForDisplay = React.useMemo(() => {
-    let sorted = [...filteredEventsForUser].sort((a,b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
-    if (filter === "upcoming") {
-        return sorted.filter(e => !isPast(parseISO(e.endDate)));
-    }
-    if (filter === "past") {
-        return sorted.filter(e => isPast(parseISO(e.endDate)));
-    }
-    return sorted;
-  }, [filteredEventsForUser, filter]);
+  const calendarEvents = React.useMemo(() => {
+    return filteredEventsForUser.map(event => ({
+      title: event.title,
+      start: parseISO(event.startDate),
+      end: addDays(parseISO(event.endDate), 1), // end date is exclusive for all-day events
+      allDay: true,
+      resource: event, // Keep original event data
+    }));
+  }, [filteredEventsForUser]);
+
 
   React.useEffect(() => {
     if (selectedEvent) {
@@ -167,17 +227,19 @@ export default function EventsPage() {
       setDateRange(undefined);
     }
   }, [selectedEvent]);
+  
+  const handleNavigate = React.useCallback((newDate: Date) => setCurrentDate(newDate), []);
+  const handleView = React.useCallback((newView: View) => setView(newView), []);
+
 
   const handleOpenDialog = (event?: Event) => {
-    if (role !== 'admin' && event) {
-        // Non-admins can only view details. We can enhance this later.
-        setSelectedEvent(event);
-        setIsDialogOpen(true); // Open dialog in read-only mode (future enhancement)
-        return;
-    }
     setSelectedEvent(event || null);
     setIsDialogOpen(true);
   };
+  
+  const handleEventClick = (calEvent: { resource: Event }) => {
+    handleOpenDialog(calEvent.resource);
+  }
 
   const handleSubmit = async () => {
     if (!formState.title || !dateRange?.from || !formState.type || !formState.status) {
@@ -224,36 +286,30 @@ export default function EventsPage() {
         setIsLoading(false);
     }
   }
-
-  const DayCellContent: React.FC<{ date: Date }> = ({ date }) => {
-    const dayString = format(date, "yyyy-MM-dd");
-    const dayEvents = filteredEventsForUser.filter(e => {
-        const startDate = e.startDate;
-        const endDate = e.endDate;
-        return dayString >= startDate && dayString <= endDate;
-    });
-
-    return (
-        <div className="flex flex-col h-full">
-            <div className={cn("self-end", isPast(date) && "opacity-50")}>{format(date, "d")}</div>
-            <div className="flex flex-col gap-1 flex-grow overflow-hidden mt-1">
-                {dayEvents.slice(0, 2).map(event => (
-                    <Badge
-                        key={event.id}
-                        className={cn("w-full justify-start truncate text-xs", eventTypeColors[event.type], event.status === 'Cancelled' && "line-through opacity-70", role === 'admin' && "cursor-pointer")}
-                        onClick={() => handleOpenDialog(event)}
-                    >
-                        {event.title}
-                    </Badge>
-                ))}
-                {dayEvents.length > 2 && (
-                    <p className="text-xs text-muted-foreground text-center">
-                        {dayEvents.length - 2} more...
-                    </p>
-                )}
-            </div>
-        </div>
-    );
+  
+  const eventStyleGetter = (event: CalendarEvent) => {
+    const colorMap = {
+        Academic: "#3b82f6", // blue-500
+        Holiday: "#16a34a", // green-600
+        Sports: "#f97316", // orange-500
+        Meeting: "#9333ea", // purple-600
+        Other: "#6b7280" // gray-500
+    };
+    
+    const backgroundColor = colorMap[event.resource.type] || 'gray';
+    
+    var style = {
+        backgroundColor: backgroundColor,
+        borderRadius: '5px',
+        opacity: 1.0,
+        color: 'white',
+        border: '1px solid #3b82f6',
+        display: 'block',
+        height: '60px'
+    };
+    return {
+        style: style
+    };
   }
 
   return (
@@ -270,77 +326,31 @@ export default function EventsPage() {
                 </Button>
             )}
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-             <Card className="lg:col-span-2">
-                <CardContent className="p-2 md:p-6">
-                    {loading ? (
-                        <div className="flex h-[60vh] items-center justify-center">
-                            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                        </div>
-                    ) : (
-                        <Calendar
-                            mode="single"
-                            className="w-full"
-                            classNames={{
-                                day_cell: "h-24 align-top p-1",
-                                day_selected: "bg-accent text-accent-foreground",
-                                day_today: "bg-accent text-accent-foreground rounded-md",
-                            }}
-                            components={{
-                                DayContent: DayCellContent
-                            }}
-                        />
-                    )}
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>School Events</CardTitle>
-                     <div className="flex items-center justify-between">
-                       <CardDescription>A look at what's happening.</CardDescription>
-                        <div className="flex space-x-1 rounded-lg bg-secondary p-1">
-                            <Button size="xs" variant={filter === 'all' ? 'default' : 'ghost'} onClick={() => setFilter('all')}>All</Button>
-                            <Button size="xs" variant={filter === 'upcoming' ? 'default' : 'ghost'} onClick={() => setFilter('upcoming')}>Upcoming</Button>
-                            <Button size="xs" variant={filter === 'past' ? 'default' : 'ghost'} onClick={() => setFilter('past')}>Past</Button>
-                        </div>
+        <Card>
+            <CardContent className="p-2 md:p-4 h-[110vh]">
+                {loading ? (
+                    <div className="flex h-full items-center justify-center">
+                        <Loader2 className="h-12 w-12 animate-spin text-primary" />
                     </div>
-                </CardHeader>
-                <CardContent>
-                    <ScrollArea className="h-[60vh]">
-                        <div className="space-y-4 pr-4">
-                            {filteredEventsForDisplay.length > 0 ? filteredEventsForDisplay.map(event => (
-                                <Card key={event.id} className="group transition-all hover:shadow-md">
-                                    <CardHeader>
-                                        <div className="flex items-center justify-between">
-                                          <div className={cn("text-xs font-bold", event.status === "Cancelled" && "line-through")}>
-                                              {format(parseISO(event.startDate), "MMM dd")}
-                                              {event.startDate !== event.endDate && ` - ${format(parseISO(event.endDate), "dd, yyyy")}`}
-                                          </div>
-                                           <Badge className={cn(eventStatusColors[event.status])}>{event.status}</Badge>
-                                        </div>
-                                        <CardTitle className="text-base pt-2">{event.title}</CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <p className="text-sm text-muted-foreground line-clamp-2">{event.description}</p>
-                                    </CardContent>
-                                    <CardFooter className="flex justify-between items-center">
-                                         <Badge variant="outline" className={cn(eventTypeColors[event.type])}>{event.type}</Badge>
-                                         <Button variant="outline" size="sm" onClick={() => handleOpenDialog(event)}>
-                                            <Eye className="mr-2 h-4 w-4"/> {role === 'admin' ? 'View/Edit' : 'View'}
-                                        </Button>
-                                    </CardFooter>
-                                </Card>
-                            )) : (
-                                <div className="text-center py-16">
-                                    <p className="text-muted-foreground">No {filter} events.</p>
-                                </div>
-                            )}
-                        </div>
-                    </ScrollArea>
-                </CardContent>
-            </Card>
-        </div>
+                ) : (
+                    <BigCalendar
+                        localizer={localizer}
+                        events={calendarEvents}
+                        startAccessor="start"
+                        endAccessor="end"
+                        onSelectEvent={handleEventClick}
+                        eventPropGetter={eventStyleGetter}
+                        date={currentDate}
+                        onNavigate={handleNavigate}
+                        view={view}
+                        onView={handleView}
+                        components={{
+                            event: CustomEvent
+                        }}
+                    />
+                )}
+            </CardContent>
+        </Card>
     </div>
 
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -353,7 +363,7 @@ export default function EventsPage() {
              <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="title" className="text-right">Title</Label>
-                    <Input id="title" className="col-span-3" value={formState.title || ''} onChange={e => setFormState(p => ({...p, title: e.target.value}))} disabled={isLoading || role !== 'admin'} />
+                    <Input id="title" className="col-span-3" value={formState.title || ''} onChange={e => setFormState(p => ({...p, title: e.target.value}))} disabled={isLoading || (role !== 'admin' && !!selectedEvent)} />
                 </div>
                  <div className="grid grid-cols-4 items-center gap-4">
                     <Label className="text-right">Date Range</Label>
@@ -362,7 +372,7 @@ export default function EventsPage() {
                             <Button
                             variant={"outline"}
                             className={cn("col-span-3 justify-start text-left font-normal", !dateRange && "text-muted-foreground")}
-                            disabled={isLoading || role !== 'admin'}
+                            disabled={isLoading || (role !== 'admin' && !!selectedEvent)}
                             >
                             <CalendarIcon className="mr-2 h-4 w-4" />
                             {dateRange?.from ? (
@@ -379,7 +389,7 @@ export default function EventsPage() {
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
+                            <DayPickerCalendar
                             initialFocus
                             mode="range"
                             defaultMonth={dateRange?.from}
@@ -392,7 +402,7 @@ export default function EventsPage() {
                 </div>
                  <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="type" className="text-right">Type</Label>
-                     <Select value={formState.type} onValueChange={(value: Event['type']) => setFormState(p => ({...p, type: value}))} disabled={isLoading || role !== 'admin'}>
+                     <Select value={formState.type} onValueChange={(value: Event['type']) => setFormState(p => ({...p, type: value}))} disabled={isLoading || (role !== 'admin' && !!selectedEvent)}>
                         <SelectTrigger className="col-span-3">
                             <SelectValue placeholder="Select event type" />
                         </SelectTrigger>
@@ -407,7 +417,7 @@ export default function EventsPage() {
                 </div>
                  <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="status" className="text-right">Status</Label>
-                     <Select value={formState.status} onValueChange={(value: Event['status']) => setFormState(p => ({...p, status: value}))} disabled={isLoading || role !== 'admin'}>
+                     <Select value={formState.status} onValueChange={(value: Event['status']) => setFormState(p => ({...p, status: value}))} disabled={isLoading || (role !== 'admin' && !!selectedEvent)}>
                         <SelectTrigger className="col-span-3">
                             <SelectValue placeholder="Select status" />
                         </SelectTrigger>
@@ -421,7 +431,7 @@ export default function EventsPage() {
                 </div>
                  <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="audience" className="text-right">Audience</Label>
-                     <Select value={formState.audience} onValueChange={(value: Event['audience']) => setFormState(p => ({...p, audience: value}))} disabled={isLoading || role !== 'admin'}>
+                     <Select value={formState.audience} onValueChange={(value: Event['audience']) => setFormState(p => ({...p, audience: value}))} disabled={isLoading || (role !== 'admin' && !!selectedEvent)}>
                         <SelectTrigger className="col-span-3">
                             <SelectValue placeholder="Select audience" />
                         </SelectTrigger>
@@ -436,7 +446,7 @@ export default function EventsPage() {
                 </div>
                 <div className="grid grid-cols-4 items-start gap-4">
                     <Label htmlFor="description" className="text-right pt-2">Description</Label>
-                    <Textarea id="description" className="col-span-3" value={formState.description || ''} onChange={e => setFormState(p => ({...p, description: e.target.value}))} disabled={isLoading || role !== 'admin'} />
+                    <Textarea id="description" className="col-span-3" value={formState.description || ''} onChange={e => setFormState(p => ({...p, description: e.target.value}))} disabled={isLoading || (role !== 'admin' && !!selectedEvent)} />
                 </div>
              </div>
              </ScrollArea>
