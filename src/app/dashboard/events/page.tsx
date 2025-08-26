@@ -103,11 +103,11 @@ type CalendarEvent = {
 
 
 const eventTypeColors: { [key in Event['type']]: string } = {
-    Academic: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/50 dark:text-blue-300",
-    Holiday: "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/50 dark:text-green-300",
-    Sports: "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/50 dark:text-orange-300",
-    Meeting: "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/50 dark:text-purple-300",
-    Other: "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-900/50 dark:text-gray-300",
+    Academic: "bg-blue-500 text-blue-800 border-blue-200 dark:bg-blue-900/50 dark:text-blue-300",
+    Holiday: "bg-green-500 text-green-800 border-green-200 dark:bg-green-900/50 dark:text-green-300",
+    Sports: "bg-orange-500 text-orange-800 border-orange-200 dark:bg-orange-900/50 dark:text-orange-300",
+    Meeting: "bg-purple-500 text-purple-800 border-purple-200 dark:bg-purple-900/50 dark:text-purple-300",
+    Other: "bg-gray-300 text-gray-800 border-gray-200 dark:bg-gray-900/50 dark:text-gray-300",
 };
 
 const eventStatusColors: { [key in Event['status']]: string } = {
@@ -301,10 +301,11 @@ export default function EventsPage() {
     var style = {
         backgroundColor: backgroundColor,
         borderRadius: '5px',
-        opacity: 0.8,
+        opacity: 1.0,
         color: 'white',
-        border: '1px solid #fff',
-        display: 'block'
+        border: '1px solid #3b82f6',
+        display: 'block',
+        height: '60px'
     };
     return {
         style: style
@@ -326,7 +327,7 @@ export default function EventsPage() {
             )}
         </div>
         <Card>
-            <CardContent className="p-2 md:p-4 h-[80vh]">
+            <CardContent className="p-2 md:p-4 h-[110vh]">
                 {loading ? (
                     <div className="flex h-full items-center justify-center">
                         <Loader2 className="h-12 w-12 animate-spin text-primary" />
