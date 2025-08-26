@@ -281,8 +281,10 @@ export default function EventsPage() {
                         <Calendar
                             mode="single"
                             classNames={{
-                                month: "space-y-4 w-full",
-                                day_cell: "h-24 align-top p-1 w-full",
+                                month: "space-y-4",
+                                table: "w-full",
+                                head_cell: "w-full font-normal",
+                                day_cell: "h-24 w-full align-top p-1",
                                 day_selected: "bg-accent text-accent-foreground",
                                 day_today: "bg-accent text-accent-foreground rounded-md",
                             }}
@@ -476,4 +478,3 @@ export default function EventsPage() {
     </>
   );
 }
-
