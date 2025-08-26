@@ -877,6 +877,21 @@ export default function StudentsPage() {
                 </SelectContent>
             </Select>
             <Select
+              value={(table.getColumn("house")?.getFilterValue() as string) ?? "all"}
+              onValueChange={(value) => table.getColumn("house")?.setFilterValue(value === "all" ? undefined : value)}
+            >
+                <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Filter by House" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Houses</SelectItem>
+                    <SelectItem value="Ambassadors">Ambassadors</SelectItem>
+                    <SelectItem value="Royals">Royals</SelectItem>
+                    <SelectItem value="Dependable">Dependable</SelectItem>
+                    <SelectItem value="Jubilee">Jubilee</SelectItem>
+                </SelectContent>
+            </Select>
+            <Select
               value={(table.getColumn("status")?.getFilterValue() as string) ?? "all"}
               onValueChange={(value) => table.getColumn("status")?.setFilterValue(value === "all" ? undefined : value)}
             >
@@ -1162,5 +1177,3 @@ export default function StudentsPage() {
     </Card>
   )
 }
-
-    
