@@ -235,7 +235,7 @@ export default function EventsPage() {
 
     return (
         <div className="flex flex-col h-full">
-            <div className={cn("self-end", isPast(date) && "opacity-50")}>{format(date, "d")}</div>
+            <div className="self-end">{format(date, "d")}</div>
             <div className="flex flex-col gap-1 flex-grow overflow-hidden mt-1">
                 {dayEvents.slice(0, 2).map(event => (
                     <Badge
@@ -282,7 +282,6 @@ export default function EventsPage() {
                             mode="single"
                             classNames={{
                                 month: "space-y-4 w-full",
-                                table: "w-full",
                                 day_cell: "h-24 align-top p-1 w-full",
                                 day_selected: "bg-accent text-accent-foreground",
                                 day_today: "bg-accent text-accent-foreground rounded-md",
@@ -477,3 +476,5 @@ export default function EventsPage() {
     </>
   );
 }
+
+    
