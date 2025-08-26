@@ -142,7 +142,7 @@ const CustomEvent = ({ event }: EventProps<CalendarEvent>) => (
             )}
         </div>
       </TooltipTrigger>
-      <TooltipContent>
+      <TooltipContent className="bg-background border">
         <div className="max-w-xs p-2">
           <p className="font-bold">{event.title}</p>
           <p className="text-sm text-muted-foreground">{format(event.start, "PPP")} - {format(event.end, "PPP")}</p>
@@ -173,6 +173,7 @@ export default function EventsPage() {
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>();
 
   const [currentDate, setCurrentDate] = React.useState(new Date());
+  const [view, setView] = React.useState<View>('month');
 
   const userClasses = React.useMemo(() => {
     if (!user) return [];
@@ -228,6 +229,8 @@ export default function EventsPage() {
   }, [selectedEvent]);
   
   const handleNavigate = React.useCallback((newDate: Date) => setCurrentDate(newDate), []);
+  const handleView = React.useCallback((newView: View) => setView(newView), []);
+
 
   const handleOpenDialog = (event?: Event) => {
     setSelectedEvent(event || null);
@@ -338,6 +341,8 @@ export default function EventsPage() {
                         eventPropGetter={eventStyleGetter}
                         date={currentDate}
                         onNavigate={handleNavigate}
+                        view={view}
+                        onView={handleView}
                         components={{
                             event: CustomEvent
                         }}
