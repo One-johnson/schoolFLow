@@ -221,7 +221,7 @@ export default function StudentsPage() {
 
   const studentStatusCounts = React.useMemo(() => {
     return allStudents.reduce((acc, student) => {
-      acc.total++;
+      acc.total = (acc.total || 0) + 1;
       acc[student.status] = (acc[student.status] || 0) + 1;
       return acc;
     }, { total: 0, Active: 0, Inactive: 0, Graduated: 0, Continuing: 0 });
@@ -833,46 +833,26 @@ export default function StudentsPage() {
         )}
       </CardHeader>
       <CardContent>
-        {role === 'admin' && (
-          <div className="mb-6 grid gap-4 grid-cols-2 md:grid-cols-5">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">All Students</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent><div className="text-2xl font-bold">{studentStatusCounts.total}</div></CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Active</CardTitle>
-                <UserCheck className="h-4 w-4 text-green-600" />
-              </CardHeader>
-              <CardContent><div className="text-2xl font-bold">{studentStatusCounts.Active}</div></CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Inactive</CardTitle>
-                <UserX className="h-4 w-4 text-red-600" />
-              </CardHeader>
-              <CardContent><div className="text-2xl font-bold">{studentStatusCounts.Inactive}</div></CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Graduated</CardTitle>
-                <GraduationCap className="h-4 w-4 text-blue-600" />
-              </CardHeader>
-              <CardContent><div className="text-2xl font-bold">{studentStatusCounts.Graduated}</div></CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Continuing</CardTitle>
-                <ArrowUpDown className="h-4 w-4 text-orange-600" />
-              </CardHeader>
-              <CardContent><div className="text-2xl font-bold">{studentStatusCounts.Continuing}</div></CardContent>
-            </Card>
-          </div>
-        )}
         <div className="w-full">
+           {role === 'admin' && (
+             <div className="mb-4 flex flex-wrap items-center gap-1 rounded-md bg-muted p-1 sm:w-fit">
+                <Button variant="ghost" className="h-8 justify-start gap-2 px-3 text-muted-foreground hover:bg-background hover:text-foreground data-[active=true]:bg-background data-[active=true]:text-foreground data-[active=true]:shadow-sm" data-active={true}>
+                    <Users className="h-4 w-4" /> All Students <Badge className="ml-2">{studentStatusCounts.total}</Badge>
+                </Button>
+                <Button variant="ghost" className="h-8 justify-start gap-2 px-3 text-muted-foreground hover:bg-background hover:text-foreground data-[active=true]:bg-background data-[active=true]:text-foreground data-[active=true]:shadow-sm">
+                    <UserCheck className="h-4 w-4" /> Active <Badge variant="secondary" className="ml-2 bg-green-200 text-green-900">{studentStatusCounts.Active}</Badge>
+                </Button>
+                 <Button variant="ghost" className="h-8 justify-start gap-2 px-3 text-muted-foreground hover:bg-background hover:text-foreground data-[active=true]:bg-background data-[active=true]:text-foreground data-[active=true]:shadow-sm">
+                    <UserX className="h-4 w-4" /> Inactive <Badge variant="secondary" className="ml-2 bg-red-200 text-red-900">{studentStatusCounts.Inactive}</Badge>
+                </Button>
+                 <Button variant="ghost" className="h-8 justify-start gap-2 px-3 text-muted-foreground hover:bg-background hover:text-foreground data-[active=true]:bg-background data-[active=true]:text-foreground data-[active=true]:shadow-sm">
+                    <GraduationCap className="h-4 w-4" /> Graduated <Badge variant="secondary" className="ml-2 bg-blue-200 text-blue-900">{studentStatusCounts.Graduated}</Badge>
+                </Button>
+                 <Button variant="ghost" className="h-8 justify-start gap-2 px-3 text-muted-foreground hover:bg-background hover:text-foreground data-[active=true]:bg-background data-[active=true]:text-foreground data-[active=true]:shadow-sm">
+                    <ArrowUpDown className="h-4 w-4" /> Continuing <Badge variant="secondary" className="ml-2 bg-orange-200 text-orange-900">{studentStatusCounts.Continuing}</Badge>
+                </Button>
+            </div>
+            )}
           <div className="flex flex-wrap items-center py-4 gap-2">
             <Input
               placeholder="Filter by student name..."
@@ -1182,3 +1162,5 @@ export default function StudentsPage() {
     </Card>
   )
 }
+
+    
