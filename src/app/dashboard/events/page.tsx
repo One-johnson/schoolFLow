@@ -5,11 +5,11 @@ import * as React from "react"
 import { useDatabase } from "@/hooks/use-database"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
-import { format, parseISO, isPast } from "date-fns"
+import { format, parseISO, isPast, addDays } from "date-fns"
 import { DateRange } from "react-day-picker"
 
 import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
+import { Calendar as DayPickerCalendar } from "@/components/ui/calendar"
 import {
   Card,
   CardContent,
@@ -63,6 +63,10 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ScrollArea } from "@/components/ui/scroll-area"
+
+import FullCalendar from '@fullcalendar/react'
+import dayGridPlugin from '@fullcalendar/daygrid'
+import interactionPlugin from '@fullcalendar/interaction'
 
 type Event = {
   id: string;
@@ -149,6 +153,26 @@ export default function EventsPage() {
     return sorted;
   }, [filteredEventsForUser, filter]);
 
+  const calendarEvents = React.useMemo(() => {
+    return filteredEventsForUser.map(event => ({
+      id: event.id,
+      title: event.title,
+      start: event.startDate,
+      end: format(addDays(parseISO(event.endDate), 1), 'yyyy-MM-dd'), // FullCalendar's end date is exclusive
+      allDay: true,
+      extendedProps: event,
+      className: cn(eventTypeColors[event.type], 'cursor-pointer border-l-4 p-1'),
+      borderColor: {
+        Academic: "hsl(var(--primary))",
+        Holiday: "hsl(var(--chart-2))",
+        Sports: "hsl(var(--chart-4))",
+        Meeting: "hsl(var(--accent))",
+        Other: "hsl(var(--muted-foreground))"
+      }[event.type],
+    }));
+  }, [filteredEventsForUser]);
+
+
   React.useEffect(() => {
     if (selectedEvent) {
       setFormState({
@@ -169,15 +193,16 @@ export default function EventsPage() {
   }, [selectedEvent]);
 
   const handleOpenDialog = (event?: Event) => {
-    if (role !== 'admin' && event) {
-        // Non-admins can only view details. We can enhance this later.
-        setSelectedEvent(event);
-        setIsDialogOpen(true); // Open dialog in read-only mode (future enhancement)
-        return;
-    }
     setSelectedEvent(event || null);
     setIsDialogOpen(true);
   };
+  
+  const handleEventClick = (clickInfo: any) => {
+    const event = events.find(e => e.id === clickInfo.event.id);
+    if(event) {
+        handleOpenDialog(event);
+    }
+  }
 
   const handleSubmit = async () => {
     if (!formState.title || !dateRange?.from || !formState.type || !formState.status) {
@@ -225,37 +250,6 @@ export default function EventsPage() {
     }
   }
 
-  const DayCellContent: React.FC<{ date: Date }> = ({ date }) => {
-    const dayString = format(date, "yyyy-MM-dd");
-    const dayEvents = filteredEventsForUser.filter(e => {
-        const startDate = e.startDate;
-        const endDate = e.endDate;
-        return dayString >= startDate && dayString <= endDate;
-    });
-
-    return (
-        <div className="flex flex-col h-full">
-            <div className="self-end">{format(date, "d")}</div>
-            <div className="flex flex-col gap-1 flex-grow overflow-hidden mt-1">
-                {dayEvents.slice(0, 2).map(event => (
-                    <Badge
-                        key={event.id}
-                        className={cn("w-full justify-start truncate text-xs", eventTypeColors[event.type], event.status === 'Cancelled' && "line-through opacity-70", role === 'admin' && "cursor-pointer")}
-                        onClick={() => handleOpenDialog(event)}
-                    >
-                        {event.title}
-                    </Badge>
-                ))}
-                {dayEvents.length > 2 && (
-                    <p className="text-xs text-muted-foreground text-center">
-                        {dayEvents.length - 2} more...
-                    </p>
-                )}
-            </div>
-        </div>
-    );
-  }
-
   return (
     <>
     <div className="flex flex-col gap-6">
@@ -272,26 +266,37 @@ export default function EventsPage() {
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
              <Card className="lg:col-span-2">
-                <CardContent className="p-2 md:p-6">
+                <CardContent className="p-2 md:p-4">
                     {loading ? (
                         <div className="flex h-[60vh] items-center justify-center">
                             <Loader2 className="h-12 w-12 animate-spin text-primary" />
                         </div>
                     ) : (
-                        <Calendar
-                            mode="single"
-                            classNames={{
-                                month: "space-y-4",
-                                table: "w-full",
-                                head_cell: "w-full font-normal",
-                                day_cell: "h-24 w-full align-top p-1",
-                                day_selected: "bg-accent text-accent-foreground",
-                                day_today: "bg-accent text-accent-foreground rounded-md",
-                            }}
-                            components={{
-                                DayContent: DayCellContent
-                            }}
-                        />
+                        <div className='fullcalendar-wrapper'>
+                           <style jsx global>{`
+                                .fc .fc-toolbar.fc-header-toolbar {
+                                    margin-bottom: 1.5rem;
+                                }
+                                .fc .fc-toolbar-title {
+                                    font-size: 1.25rem;
+                                    font-weight: 600;
+                                }
+                                .fc-event {
+                                    border-radius: 4px;
+                                }
+                                .fc .fc-daygrid-day.fc-day-today {
+                                    background-color: hsl(var(--accent) / 0.5);
+                                }
+                            `}</style>
+                           <FullCalendar
+                                plugins={[dayGridPlugin, interactionPlugin]}
+                                initialView="dayGridMonth"
+                                weekends={true}
+                                events={calendarEvents}
+                                eventClick={handleEventClick}
+                                height="auto"
+                            />
+                        </div>
                     )}
                 </CardContent>
             </Card>
@@ -355,7 +360,7 @@ export default function EventsPage() {
              <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="title" className="text-right">Title</Label>
-                    <Input id="title" className="col-span-3" value={formState.title || ''} onChange={e => setFormState(p => ({...p, title: e.target.value}))} disabled={isLoading || role !== 'admin'} />
+                    <Input id="title" className="col-span-3" value={formState.title || ''} onChange={e => setFormState(p => ({...p, title: e.target.value}))} disabled={isLoading || (role !== 'admin' && !!selectedEvent)} />
                 </div>
                  <div className="grid grid-cols-4 items-center gap-4">
                     <Label className="text-right">Date Range</Label>
@@ -364,7 +369,7 @@ export default function EventsPage() {
                             <Button
                             variant={"outline"}
                             className={cn("col-span-3 justify-start text-left font-normal", !dateRange && "text-muted-foreground")}
-                            disabled={isLoading || role !== 'admin'}
+                            disabled={isLoading || (role !== 'admin' && !!selectedEvent)}
                             >
                             <CalendarIcon className="mr-2 h-4 w-4" />
                             {dateRange?.from ? (
@@ -381,7 +386,7 @@ export default function EventsPage() {
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
+                            <DayPickerCalendar
                             initialFocus
                             mode="range"
                             defaultMonth={dateRange?.from}
@@ -394,7 +399,7 @@ export default function EventsPage() {
                 </div>
                  <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="type" className="text-right">Type</Label>
-                     <Select value={formState.type} onValueChange={(value: Event['type']) => setFormState(p => ({...p, type: value}))} disabled={isLoading || role !== 'admin'}>
+                     <Select value={formState.type} onValueChange={(value: Event['type']) => setFormState(p => ({...p, type: value}))} disabled={isLoading || (role !== 'admin' && !!selectedEvent)}>
                         <SelectTrigger className="col-span-3">
                             <SelectValue placeholder="Select event type" />
                         </SelectTrigger>
@@ -409,7 +414,7 @@ export default function EventsPage() {
                 </div>
                  <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="status" className="text-right">Status</Label>
-                     <Select value={formState.status} onValueChange={(value: Event['status']) => setFormState(p => ({...p, status: value}))} disabled={isLoading || role !== 'admin'}>
+                     <Select value={formState.status} onValueChange={(value: Event['status']) => setFormState(p => ({...p, status: value}))} disabled={isLoading || (role !== 'admin' && !!selectedEvent)}>
                         <SelectTrigger className="col-span-3">
                             <SelectValue placeholder="Select status" />
                         </SelectTrigger>
@@ -423,7 +428,7 @@ export default function EventsPage() {
                 </div>
                  <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="audience" className="text-right">Audience</Label>
-                     <Select value={formState.audience} onValueChange={(value: Event['audience']) => setFormState(p => ({...p, audience: value}))} disabled={isLoading || role !== 'admin'}>
+                     <Select value={formState.audience} onValueChange={(value: Event['audience']) => setFormState(p => ({...p, audience: value}))} disabled={isLoading || (role !== 'admin' && !!selectedEvent)}>
                         <SelectTrigger className="col-span-3">
                             <SelectValue placeholder="Select audience" />
                         </SelectTrigger>
@@ -438,7 +443,7 @@ export default function EventsPage() {
                 </div>
                 <div className="grid grid-cols-4 items-start gap-4">
                     <Label htmlFor="description" className="text-right pt-2">Description</Label>
-                    <Textarea id="description" className="col-span-3" value={formState.description || ''} onChange={e => setFormState(p => ({...p, description: e.target.value}))} disabled={isLoading || role !== 'admin'} />
+                    <Textarea id="description" className="col-span-3" value={formState.description || ''} onChange={e => setFormState(p => ({...p, description: e.target.value}))} disabled={isLoading || (role !== 'admin' && !!selectedEvent)} />
                 </div>
              </div>
              </ScrollArea>
