@@ -89,7 +89,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
-import { cn, generateStudentId } from "@/lib/utils"
+import { cn, generateStudentId, generateAdmissionNo, generateRollNo } from "@/lib/utils"
 import { format } from "date-fns"
 import { Calendar as CalendarIcon } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -101,6 +101,8 @@ type Student = {
   name: string
   email: string
   status: "Active" | "Inactive" | "Graduated" | "Continuing"
+  admissionNo: string;
+  rollNo: string;
   dateOfBirth?: string
   placeOfBirth?: string
   nationality?: string
@@ -218,10 +220,15 @@ export default function StudentsPage() {
     }
     setIsLoading(true);
     try {
-      const studentId = generateStudentId()
+      const studentId = generateStudentId();
+      const admissionNo = generateAdmissionNo();
+      const rollNo = generateRollNo();
+      
       const studentData = {
         ...newStudent,
         status: 'Active',
+        admissionNo,
+        rollNo,
         dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
       } as Omit<Student, 'id'>;
 
@@ -354,6 +361,16 @@ export default function StudentsPage() {
       cell: ({ row }) => (
         <div className="font-mono text-xs">{row.getValue("id")}</div>
       ),
+    },
+     {
+      accessorKey: "admissionNo",
+      header: "Admission No.",
+      cell: ({ row }) => <div>{row.getValue("admissionNo")}</div>,
+    },
+     {
+      accessorKey: "rollNo",
+      header: "Roll No.",
+      cell: ({ row }) => <div>{row.getValue("rollNo")}</div>,
     },
     {
       accessorKey: "name",
@@ -531,13 +548,15 @@ export default function StudentsPage() {
         return;
     }
 
-    const headers = ["ID", "Name", "Email", "Status", "Class", "Gender", "Parent's Name", "Parent's Phone"];
+    const headers = ["ID", "Admission No.", "Roll No.", "Name", "Email", "Status", "Class", "Gender", "Parent's Name", "Parent's Phone"];
     const csvContent = [
         headers.join(','),
         ...rowsToExport.map(row => {
             const student = row.original;
             return [
                 student.id,
+                student.admissionNo,
+                student.rollNo,
                 `"${student.name}"`,
                 student.email,
                 student.status,
@@ -907,6 +926,14 @@ export default function StudentsPage() {
                                         disabled={isLoading}
                                     />
                                 </div>
+                            </div>
+                             <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="admissionNo" className="text-right">Admission No.</Label>
+                                <Input id="admissionNo" className="col-span-3" value={editStudent.admissionNo || ""} disabled />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="rollNo" className="text-right">Roll No.</Label>
+                                <Input id="rollNo" className="col-span-3" value={editStudent.rollNo || ""} disabled />
                             </div>
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <Label htmlFor="name" className="text-right">Full Name</Label>

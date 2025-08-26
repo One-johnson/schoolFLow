@@ -26,6 +26,18 @@ export const generateStudentId = (): string => {
   return `${year}${classType}${randomPart}`
 }
 
+export const generateAdmissionNo = (): string => {
+  const year = new Date().getFullYear();
+  const randomPart = Math.random().toString().slice(2, 7); // 5 digits
+  return `ADM-${year}-${randomPart}`;
+};
+
+export const generateRollNo = (): string => {
+  const randomPart = Math.floor(100000 + Math.random() * 900000).toString();
+  return `ROLL-${randomPart}`;
+};
+
+
 export const generateTeacherId = (department: string): string => {
   const year = new Date().getFullYear().toString().slice(-2)
   const classType = 'T' // for Teacher
