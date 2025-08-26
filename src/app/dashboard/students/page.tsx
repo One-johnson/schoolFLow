@@ -95,6 +95,7 @@ import { Calendar as CalendarIcon } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ImageUpload } from "@/components/ui/image-upload"
+import { serverTimestamp } from "firebase/database"
 
 type Student = {
   id: string
@@ -115,6 +116,7 @@ type Student = {
   avatarUrl?: string;
   house?: "Ambassadors" | "Royals" | "Dependable" | "Jubilee";
   createdAt: number;
+  updatedAt?: number;
 }
 type Class = { id: string; name: string; studentIds?: Record<string, boolean> };
 
@@ -154,7 +156,9 @@ export default function StudentsPage() {
     hometown: false,
     address: false,
     parentEmail: false,
-    nationality: false
+    nationality: false,
+    createdAt: false,
+    updatedAt: false,
   })
   const [rowSelection, setRowSelection] = React.useState({})
   
@@ -176,7 +180,7 @@ export default function StudentsPage() {
   const { addData: addNotification } = useDatabase("notifications")
   const { toast } = useToast()
 
-  const [newStudent, setNewStudent] = React.useState<Partial<Omit<Student, 'id' | 'status'>>>({});
+  const [newStudent, setNewStudent] = React.useState<Partial<Omit<Student, 'id' | 'status' | 'createdAt'>>>({});
   const [editStudent, setEditStudent] = React.useState<Partial<Student>>({});
   const [assignClassId, setAssignClassId] = React.useState<string | undefined>();
   const [dob, setDob] = React.useState<Date | undefined>();
@@ -238,7 +242,7 @@ export default function StudentsPage() {
         admissionNo,
         rollNo,
         dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
-      } as Omit<Student, 'id'>;
+      } as Omit<Student, 'id' | 'createdAt'>;
 
       await addDataWithId(studentId, studentData);
 
@@ -280,6 +284,7 @@ export default function StudentsPage() {
       await updateData(selectedStudent.id, {
         ...editStudent,
         dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
+        updatedAt: serverTimestamp(),
       })
       toast({ title: "Success", description: "Student updated." })
       setIsEditDialogOpen(false)
@@ -480,6 +485,16 @@ export default function StudentsPage() {
           </Badge>
         )
       },
+    },
+    {
+      accessorKey: "createdAt",
+      header: "Created At",
+      cell: ({ row }) => <div>{row.getValue("createdAt") ? format(new Date(row.getValue("createdAt") as number), 'PPP') : 'N/A'}</div>,
+    },
+    {
+      accessorKey: "updatedAt",
+      header: "Updated At",
+      cell: ({ row }) => <div>{row.getValue("updatedAt") ? format(new Date(row.getValue("updatedAt") as number), 'PPP') : 'N/A'}</div>,
     },
      // Hidden by default columns
     { accessorKey: "dateOfBirth", header: "Date of Birth", cell: ({ row }) => <div>{row.getValue("dateOfBirth") ? format(new Date(row.getValue("dateOfBirth") as string), 'PPP') : 'N/A'}</div> },

@@ -94,6 +94,7 @@ import { format } from "date-fns"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ImageUpload } from "@/components/ui/image-upload"
+import { serverTimestamp } from "firebase/database"
 
 type Teacher = {
   id: string
@@ -111,6 +112,8 @@ type Teacher = {
   nationality?: string
   address?: string
   religion?: string
+  createdAt: number;
+  updatedAt?: number;
 }
 
 type Class = { id: string; name: string };
@@ -127,6 +130,8 @@ export default function TeachersPage() {
     nationality: false,
     address: false,
     religion: false,
+    createdAt: false,
+    updatedAt: false,
   })
   const [rowSelection, setRowSelection] = React.useState({})
   
@@ -148,7 +153,7 @@ export default function TeachersPage() {
   const { addData: addNotification } = useDatabase("notifications")
   const { toast } = useToast()
 
-  const [newTeacher, setNewTeacher] = React.useState<Partial<Omit<Teacher, 'id' | 'status'>>>({});
+  const [newTeacher, setNewTeacher] = React.useState<Partial<Omit<Teacher, 'id' | 'status' | 'createdAt'>>>({});
   const [editTeacher, setEditTeacher] = React.useState<Partial<Teacher>>({});
   const [assignClassId, setAssignClassId] = React.useState<string | undefined>();
 
@@ -202,7 +207,7 @@ export default function TeachersPage() {
         status: 'Active',
         dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
         dateOfEmployment: doe ? format(doe, "yyyy-MM-dd") : undefined,
-      } as Omit<Teacher, 'id'>
+      } as Omit<Teacher, 'id' | 'createdAt'>
 
       await addDataWithId(teacherId, teacherData)
 
@@ -237,6 +242,7 @@ export default function TeachersPage() {
         ...editTeacher,
         dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
         dateOfEmployment: doe ? format(doe, "yyyy-MM-dd") : undefined,
+        updatedAt: serverTimestamp(),
       })
       toast({ title: "Success", description: "Teacher updated." })
       setIsEditDialogOpen(false)
@@ -402,6 +408,16 @@ export default function TeachersPage() {
           </Badge>
         )
       },
+    },
+    {
+      accessorKey: "createdAt",
+      header: "Created At",
+      cell: ({ row }) => <div>{row.getValue("createdAt") ? format(new Date(row.getValue("createdAt") as number), 'PPP') : 'N/A'}</div>,
+    },
+    {
+      accessorKey: "updatedAt",
+      header: "Updated At",
+      cell: ({ row }) => <div>{row.getValue("updatedAt") ? format(new Date(row.getValue("updatedAt") as number), 'PPP') : 'N/A'}</div>,
     },
      {
       accessorKey: "employmentType",
@@ -1015,5 +1031,3 @@ export default function TeachersPage() {
     </Card>
   )
 }
-
-    
