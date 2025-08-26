@@ -64,6 +64,12 @@ import {
   Trash2,
   Eye,
 } from "lucide-react"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
@@ -85,6 +91,14 @@ type Class = {
   name: string;
   teacherId?: string;
   studentIds?: Record<string, boolean>;
+};
+
+type CalendarEvent = {
+  title: string;
+  start: Date;
+  end: Date;
+  allDay: true;
+  resource: Event;
 };
 
 
@@ -115,6 +129,34 @@ const localizer = dateFnsLocalizer({
   locales,
 })
 
+const CustomEvent = ({ event }: EventProps<CalendarEvent>) => (
+  <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="w-full h-full">
+            <div className={cn("text-xs font-bold truncate", event.resource.status === "Cancelled" && "line-through")}>
+                {event.title}
+            </div>
+            {event.resource.type && (
+                <Badge variant="outline" className={cn("text-xs w-full justify-center mt-1", eventTypeColors[event.resource.type])}>{event.resource.type}</Badge>
+            )}
+        </div>
+      </TooltipTrigger>
+      <TooltipContent>
+        <div className="max-w-xs p-2">
+          <p className="font-bold">{event.title}</p>
+          <p className="text-sm text-muted-foreground">{format(event.start, "PPP")} - {format(event.end, "PPP")}</p>
+          <p className="text-sm mt-2">{event.resource.description}</p>
+          <div className="flex gap-2 mt-2">
+            <Badge className={cn(eventTypeColors[event.resource.type])}>{event.resource.type}</Badge>
+            <Badge className={cn(eventStatusColors[event.resource.status])}>{event.resource.status}</Badge>
+          </div>
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+);
+
 
 export default function EventsPage() {
   const { user, role } = useAuth();
@@ -126,7 +168,6 @@ export default function EventsPage() {
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [selectedEvent, setSelectedEvent] = React.useState<Event | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
-  const [filter, setFilter] = React.useState<"all" | "upcoming" | "past">("upcoming");
 
   const [formState, setFormState] = React.useState<Partial<Omit<Event, "id" | "createdAt">>>({});
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>();
@@ -155,17 +196,6 @@ export default function EventsPage() {
           return userClasses.includes(event.audience);
       })
   }, [events, role, user, userClasses])
-
-  const filteredEventsForDisplay = React.useMemo(() => {
-    let sorted = [...filteredEventsForUser].sort((a,b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
-    if (filter === "upcoming") {
-        return sorted.filter(e => !isPast(parseISO(e.endDate)));
-    }
-    if (filter === "past") {
-        return sorted.filter(e => isPast(parseISO(e.endDate)));
-    }
-    return sorted;
-  }, [filteredEventsForUser, filter]);
 
   const calendarEvents = React.useMemo(() => {
     return filteredEventsForUser.map(event => ({
@@ -254,7 +284,7 @@ export default function EventsPage() {
     }
   }
   
-  const eventStyleGetter = (event: {resource: Event}) => {
+  const eventStyleGetter = (event: CalendarEvent) => {
     const colorMap = {
         Academic: "#3b82f6", // blue-500
         Holiday: "#16a34a", // green-600
@@ -292,75 +322,29 @@ export default function EventsPage() {
                 </Button>
             )}
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-             <Card className="lg:col-span-2">
-                <CardContent className="p-2 md:p-4 h-[75vh]">
-                    {loading ? (
-                        <div className="flex h-full items-center justify-center">
-                            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                        </div>
-                    ) : (
-                       <BigCalendar
-                          localizer={localizer}
-                          events={calendarEvents}
-                          startAccessor="start"
-                          endAccessor="end"
-                          onSelectEvent={handleEventClick}
-                          eventPropGetter={eventStyleGetter}
-                          date={currentDate}
-                          onNavigate={handleNavigate}
-                       />
-                    )}
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>School Events</CardTitle>
-                     <div className="flex items-center justify-between">
-                       <CardDescription>A look at what's happening.</CardDescription>
-                        <div className="flex space-x-1 rounded-lg bg-secondary p-1">
-                            <Button size="xs" variant={filter === 'all' ? 'default' : 'ghost'} onClick={() => setFilter('all')}>All</Button>
-                            <Button size="xs" variant={filter === 'upcoming' ? 'default' : 'ghost'} onClick={() => setFilter('upcoming')}>Upcoming</Button>
-                            <Button size="xs" variant={filter === 'past' ? 'default' : 'ghost'} onClick={() => setFilter('past')}>Past</Button>
-                        </div>
+        <Card>
+            <CardContent className="p-2 md:p-4 h-[80vh]">
+                {loading ? (
+                    <div className="flex h-full items-center justify-center">
+                        <Loader2 className="h-12 w-12 animate-spin text-primary" />
                     </div>
-                </CardHeader>
-                <CardContent>
-                    <ScrollArea className="h-[60vh]">
-                        <div className="space-y-4 pr-4">
-                            {filteredEventsForDisplay.length > 0 ? filteredEventsForDisplay.map(event => (
-                                <Card key={event.id} className="group transition-all hover:shadow-md">
-                                    <CardHeader>
-                                        <div className="flex items-center justify-between">
-                                          <div className={cn("text-xs font-bold", event.status === "Cancelled" && "line-through")}>
-                                              {format(parseISO(event.startDate), "MMM dd")}
-                                              {event.startDate !== event.endDate && ` - ${format(parseISO(event.endDate), "dd, yyyy")}`}
-                                          </div>
-                                           <Badge className={cn(eventStatusColors[event.status])}>{event.status}</Badge>
-                                        </div>
-                                        <CardTitle className="text-base pt-2">{event.title}</CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <p className="text-sm text-muted-foreground line-clamp-2">{event.description}</p>
-                                    </CardContent>
-                                    <CardFooter className="flex justify-between items-center">
-                                         <Badge variant="outline" className={cn(eventTypeColors[event.type])}>{event.type}</Badge>
-                                         <Button variant="outline" size="sm" onClick={() => handleOpenDialog(event)}>
-                                            <Eye className="mr-2 h-4 w-4"/> {role === 'admin' ? 'View/Edit' : 'View'}
-                                        </Button>
-                                    </CardFooter>
-                                </Card>
-                            )) : (
-                                <div className="text-center py-16">
-                                    <p className="text-muted-foreground">No {filter} events.</p>
-                                </div>
-                            )}
-                        </div>
-                    </ScrollArea>
-                </CardContent>
-            </Card>
-        </div>
+                ) : (
+                    <BigCalendar
+                        localizer={localizer}
+                        events={calendarEvents}
+                        startAccessor="start"
+                        endAccessor="end"
+                        onSelectEvent={handleEventClick}
+                        eventPropGetter={eventStyleGetter}
+                        date={currentDate}
+                        onNavigate={handleNavigate}
+                        components={{
+                            event: CustomEvent
+                        }}
+                    />
+                )}
+            </CardContent>
+        </Card>
     </div>
 
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
