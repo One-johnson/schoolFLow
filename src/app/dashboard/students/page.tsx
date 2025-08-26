@@ -24,6 +24,10 @@ import {
   Loader2,
   FileDown,
   Book,
+  Users,
+  UserCheck,
+  UserX,
+  GraduationCap,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -214,6 +218,14 @@ export default function StudentsPage() {
     });
     return map;
   }, [classes]);
+
+  const studentStatusCounts = React.useMemo(() => {
+    return allStudents.reduce((acc, student) => {
+      acc.total++;
+      acc[student.status] = (acc[student.status] || 0) + 1;
+      return acc;
+    }, { total: 0, Active: 0, Inactive: 0, Graduated: 0, Continuing: 0 });
+  }, [allStudents]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, form: 'new' | 'edit') => {
       const { id, value } = e.target;
@@ -821,6 +833,45 @@ export default function StudentsPage() {
         )}
       </CardHeader>
       <CardContent>
+        {role === 'admin' && (
+          <div className="mb-6 grid gap-4 grid-cols-2 md:grid-cols-5">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">All Students</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent><div className="text-2xl font-bold">{studentStatusCounts.total}</div></CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Active</CardTitle>
+                <UserCheck className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent><div className="text-2xl font-bold">{studentStatusCounts.Active}</div></CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Inactive</CardTitle>
+                <UserX className="h-4 w-4 text-red-600" />
+              </CardHeader>
+              <CardContent><div className="text-2xl font-bold">{studentStatusCounts.Inactive}</div></CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Graduated</CardTitle>
+                <GraduationCap className="h-4 w-4 text-blue-600" />
+              </CardHeader>
+              <CardContent><div className="text-2xl font-bold">{studentStatusCounts.Graduated}</div></CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Continuing</CardTitle>
+                <ArrowUpDown className="h-4 w-4 text-orange-600" />
+              </CardHeader>
+              <CardContent><div className="text-2xl font-bold">{studentStatusCounts.Continuing}</div></CardContent>
+            </Card>
+          </div>
+        )}
         <div className="w-full">
           <div className="flex flex-wrap items-center py-4 gap-2">
             <Input
