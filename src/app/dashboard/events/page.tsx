@@ -281,8 +281,9 @@ export default function EventsPage() {
                         <Calendar
                             mode="single"
                             classNames={{
-                                month: "w-full",
-                                day_cell: "h-24 align-top p-1",
+                                month: "space-y-4 w-full",
+                                table: "w-full",
+                                day_cell: "h-24 align-top p-1 w-full",
                                 day_selected: "bg-accent text-accent-foreground",
                                 day_today: "bg-accent text-accent-foreground rounded-md",
                             }}
