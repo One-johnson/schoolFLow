@@ -89,7 +89,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
-import { cn, generateStudentId, generateAdmissionNo, generateRollNo } from "@/lib/utils"
+import { cn, generateStudentId, generateAdmissionNo } from "@/lib/utils"
 import { format } from "date-fns"
 import { Calendar as CalendarIcon } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -113,9 +113,17 @@ type Student = {
   parentPhone?: string
   parentEmail?: string
   avatarUrl?: string;
+  house?: "Ambassadors" | "Royals" | "Dependable" | "Jubilee";
   createdAt: number;
 }
 type Class = { id: string; name: string; studentIds?: Record<string, boolean> };
+
+const houseColors: Record<NonNullable<Student["house"]>, string> = {
+  Ambassadors: "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300",
+  Royals: "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300",
+  Dependable: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300",
+  Jubilee: "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300",
+};
 
 const calculateAge = (dob: Date | undefined): number | undefined => {
     if (!dob) return undefined;
@@ -222,7 +230,7 @@ export default function StudentsPage() {
     try {
       const studentId = generateStudentId();
       const admissionNo = generateAdmissionNo();
-      const rollNo = generateRollNo();
+      const rollNo = (students.length + 1).toString().padStart(4, '0');
       
       const studentData = {
         ...newStudent,
@@ -405,6 +413,16 @@ export default function StudentsPage() {
       cell: ({ row }) => studentClassMap.get(row.original.id) || <span className="text-muted-foreground">N/A</span>,
     },
     {
+      accessorKey: "house",
+      header: "House",
+      cell: ({ row }) => {
+        const house = row.getValue("house") as Student["house"];
+        if (!house) return <span className="text-muted-foreground">N/A</span>;
+        const colorClass = houseColors[house];
+        return <Badge className={cn("border-transparent", colorClass)}>{house}</Badge>
+      }
+    },
+    {
       accessorKey: "email",
       header: ({ column }) => {
         return (
@@ -548,7 +566,7 @@ export default function StudentsPage() {
         return;
     }
 
-    const headers = ["ID", "Admission No.", "Roll No.", "Name", "Email", "Status", "Class", "Gender", "Parent's Name", "Parent's Phone"];
+    const headers = ["ID", "Admission No.", "Roll No.", "Name", "Email", "Status", "Class", "Gender", "Parent's Name", "Parent's Phone", "House"];
     const csvContent = [
         headers.join(','),
         ...rowsToExport.map(row => {
@@ -563,7 +581,8 @@ export default function StudentsPage() {
                 `"${studentClassMap.get(student.id) || 'N/A'}"`,
                 student.gender || 'N/A',
                 `"${student.parentName || 'N/A'}"`,
-                `"${student.parentPhone || 'N/A'}"`
+                `"${student.parentPhone || 'N/A'}"`,
+                student.house || 'N/A'
             ].join(',');
         })
     ].join('\n');
@@ -705,6 +724,20 @@ export default function StudentsPage() {
                                             <SelectItem value="Male">Male</SelectItem>
                                             <SelectItem value="Female">Female</SelectItem>
                                             <SelectItem value="Other">Other</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                 <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="house" className="text-right">House</Label>
+                                    <Select onValueChange={(value: Student["house"]) => setNewStudent(prev => ({ ...prev, house: value as any}))} value={newStudent.house} disabled={isLoading}>
+                                        <SelectTrigger className="col-span-3">
+                                            <SelectValue placeholder="Select house" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Ambassadors">Ambassadors</SelectItem>
+                                            <SelectItem value="Royals">Royals</SelectItem>
+                                            <SelectItem value="Dependable">Dependable</SelectItem>
+                                            <SelectItem value="Jubilee">Jubilee</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -987,6 +1020,20 @@ export default function StudentsPage() {
                                         <SelectItem value="Male">Male</SelectItem>
                                         <SelectItem value="Female">Female</SelectItem>
                                         <SelectItem value="Other">Other</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                             <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="house" className="text-right">House</Label>
+                                <Select onValueChange={(value: Student["house"]) => setEditStudent(prev => ({...prev, house: value}))} value={editStudent.house} disabled={isLoading}>
+                                    <SelectTrigger className="col-span-3">
+                                        <SelectValue placeholder="Select house" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Ambassadors">Ambassadors</SelectItem>
+                                        <SelectItem value="Royals">Royals</SelectItem>
+                                        <SelectItem value="Dependable">Dependable</SelectItem>
+                                        <SelectItem value="Jubilee">Jubilee</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
