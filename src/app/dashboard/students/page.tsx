@@ -76,6 +76,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import { useDatabase } from "@/hooks/use-database"
+import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -118,7 +119,7 @@ type Student = {
   createdAt: number;
   updatedAt?: number;
 }
-type Class = { id: string; name: string; studentIds?: Record<string, boolean> };
+type Class = { id: string; name: string; studentIds?: Record<string, boolean>, teacherId?: string };
 
 const houseColors: Record<NonNullable<Student["house"]>, string> = {
   Ambassadors: "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300",
@@ -146,6 +147,7 @@ const getInitials = (name: string | null | undefined) => {
 
 
 export default function StudentsPage() {
+  const { user, role } = useAuth();
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({
@@ -169,7 +171,7 @@ export default function StudentsPage() {
   const [isLoading, setIsLoading] = React.useState(false);
 
   const {
-    data: students,
+    data: allStudents,
     loading: dataLoading,
     addDataWithId,
     updateData,
@@ -184,6 +186,22 @@ export default function StudentsPage() {
   const [editStudent, setEditStudent] = React.useState<Partial<Student>>({});
   const [assignClassId, setAssignClassId] = React.useState<string | undefined>();
   const [dob, setDob] = React.useState<Date | undefined>();
+
+  const students = React.useMemo(() => {
+    if (role === 'admin') return allStudents;
+    if (role === 'teacher') {
+        const teacherClassIds = new Set(classes.filter(c => c.teacherId === user?.uid).map(c => c.id));
+        const studentIdsInTeacherClasses = new Set<string>();
+        classes.forEach(c => {
+            if (teacherClassIds.has(c.id) && c.studentIds) {
+                Object.keys(c.studentIds).forEach(id => studentIdsInTeacherClasses.add(id));
+            }
+        });
+        return allStudents.filter(s => studentIdsInTeacherClasses.has(s.id));
+    }
+    return [];
+  }, [role, allStudents, classes, user]);
+
 
   const studentClassMap = React.useMemo(() => {
     const map = new Map<string, string>();
@@ -623,8 +641,11 @@ export default function StudentsPage() {
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Student Directory</CardTitle>
-          <CardDescription>Manage student profiles and information.</CardDescription>
+          <CardDescription>
+            {role === 'admin' ? "Manage student profiles and information." : "View student profiles."}
+          </CardDescription>
         </div>
+        {role === 'admin' && (
         <div className="flex items-center gap-2">
              <Button variant="outline" onClick={handleExportCSV}>
                 <FileDown className="mr-2 h-4 w-4"/>
@@ -797,6 +818,7 @@ export default function StudentsPage() {
             </DialogContent>
             </Dialog>
         </div>
+        )}
       </CardHeader>
       <CardContent>
         <div className="w-full">
@@ -1109,5 +1131,3 @@ export default function StudentsPage() {
     </Card>
   )
 }
-
-    

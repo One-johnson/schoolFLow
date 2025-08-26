@@ -2,12 +2,13 @@
 "use client";
 
 import * as React from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useDatabase } from '@/hooks/use-database';
+import { useAuth } from '@/hooks/use-auth';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, User, BookOpen, ClipboardCheck, DollarSign, Download, Award, ChevronDown } from 'lucide-react';
+import { Loader2, User, BookOpen, ClipboardCheck, DollarSign, Download, Award, ChevronDown, ShieldAlert } from 'lucide-react';
 import { format, parseISO, isWithinInterval } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -28,7 +29,7 @@ import {
 
 // Data types
 type Student = { id: string; name: string; email: string; status: "Active" | "Inactive" | "Graduated" | "Continuing"; dateOfBirth?: string; placeOfBirth?: string; nationality?: string; hometown?: string; gender?: "Male" | "Female" | "Other"; address?: string; parentName?: string; parentPhone?: string; parentEmail?: string; avatarUrl?: string; };
-type Class = { id: string; name: string; studentIds?: Record<string, boolean> };
+type Class = { id: string; name: string; studentIds?: Record<string, boolean>, teacherId?: string };
 type Subject = { id: string; name: string; classId?: string; };
 type StudentFee = { id: string; studentId: string; feeId: string; amountDue: number; amountPaid: number; status: "Paid" | "Unpaid" | "Partial"; };
 type FeeStructure = { id: string; name: string; };
@@ -60,7 +61,9 @@ const statusColors = {
 
 export default function StudentInfoPage() {
     const params = useParams();
+    const router = useRouter();
     const studentId = params.id as string;
+    const { user, role } = useAuth();
     const { toast } = useToast();
 
     // Database Hooks
@@ -72,7 +75,7 @@ export default function StudentInfoPage() {
     const { data: rawAttendance, loading: attendanceLoading } = useDatabase<DailyAttendance>("attendance");
     const { data: terms, loading: termsLoading } = useDatabase<Term>("terms");
     const { data: exams, loading: examsLoading } = useDatabase<Exam>("exams");
-    const { data: grades, loading: gradesLoading } = useDatabase<StudentGrade>("studentGrades");
+    const { data: grades, loading: gradesLoading } = useDatabase<StudentGrade>("grades");
 
     // Report Card State
     const [selectedTermId, setSelectedTermId] = React.useState<string>();
@@ -83,6 +86,26 @@ export default function StudentInfoPage() {
     // Memoized Data
     const student = React.useMemo(() => students.find(s => s.id === studentId), [students, studentId]);
     const enrolledClasses = React.useMemo(() => classes.filter(c => c.studentIds && c.studentIds[studentId]), [classes, studentId]);
+    
+    // Check permissions
+    React.useEffect(() => {
+        if (loading || !user || !role || !student) return;
+
+        if (role === 'student' && user.uid !== studentId) {
+            router.replace('/dashboard');
+        }
+
+        if (role === 'teacher') {
+            const teacherClasses = classes.filter(c => c.teacherId === user.uid);
+            const isStudentInTeacherClass = teacherClasses.some(c => c.studentIds && c.studentIds[studentId]);
+            if (!isStudentInTeacherClass) {
+                router.replace('/dashboard/students');
+            }
+        }
+
+    }, [loading, user, role, student, classes, studentId, router]);
+    
+    
     const enrolledSubjects = React.useMemo(() => {
         const enrolledClassIds = new Set(enrolledClasses.map(c => c.id));
         return subjects.filter(s => s.classId && enrolledClassIds.has(s.classId));
@@ -220,12 +243,22 @@ export default function StudentInfoPage() {
     }
 
 
-    if (loading) {
+    if (loading || !role || !student) {
         return <div className="flex h-screen items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
     }
+    
+    const isAllowedToEdit = role === 'admin';
 
-    if (!student) {
-        return <div className="flex h-screen items-center justify-center">Student not found.</div>;
+
+    if (role === 'student' && user?.uid !== studentId) {
+        return (
+            <div className="flex flex-col items-center justify-center h-[calc(100vh-200px)] gap-4">
+                <ShieldAlert className="h-16 w-16 text-destructive"/>
+                <h2 className="text-2xl font-bold">Access Denied</h2>
+                <p className="text-muted-foreground">You do not have permission to view this page.</p>
+                <Button onClick={() => router.push('/dashboard')}>Go to Dashboard</Button>
+            </div>
+        )
     }
 
     const getInitials = (name: string | null | undefined) => {
@@ -259,21 +292,23 @@ export default function StudentInfoPage() {
                             <span>{student.email}</span>
                         </CardDescription>
                     </div>
-                     <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" className="w-[160px] justify-between">
-                                {student.status}
-                                <ChevronDown className="h-4 w-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-[160px]">
-                            {statusOptions.map(status => (
-                                <DropdownMenuItem key={status} onSelect={() => handleStatusChange(status)}>
-                                    {status}
-                                </DropdownMenuItem>
-                            ))}
-                        </DropdownMenuContent>
-                     </DropdownMenu>
+                    {isAllowedToEdit && (
+                         <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" className="w-[160px] justify-between">
+                                    {student.status}
+                                    <ChevronDown className="h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="w-[160px]">
+                                {statusOptions.map(status => (
+                                    <DropdownMenuItem key={status} onSelect={() => handleStatusChange(status)}>
+                                        {status}
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    )}
                 </CardHeader>
             </Card>
 
@@ -488,4 +523,3 @@ export default function StudentInfoPage() {
         </div>
     );
 }
-
