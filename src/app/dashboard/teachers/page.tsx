@@ -31,6 +31,10 @@ import {
   UserCheck,
 } from "lucide-react"
 import Link from "next/link"
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { set, ref } from 'firebase/database';
+
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -99,6 +103,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ImageUpload } from "@/components/ui/image-upload"
 import { serverTimestamp } from "firebase/database"
+import { database } from "@/lib/firebase";
 
 type Teacher = {
   id: string
@@ -223,15 +228,26 @@ export default function TeachersPage() {
     }
     setIsLoading(true);
     try {
-      const teacherId = generateTeacherId(newTeacher.department || 'GENERAL')
+        const teacherId = generateTeacherId(newTeacher.department || 'GENERAL');
+
+        // Create Auth user
+        const userCredential = await createUserWithEmailAndPassword(auth, newTeacher.email, teacherId);
+        const authUser = userCredential.user;
+        await updateProfile(authUser, { displayName: newTeacher.name });
+
+        // Add to 'users' table
+        const userRef = ref(database, `users/${authUser.uid}`);
+        await set(userRef, { role: 'teacher', email: authUser.email, name: newTeacher.name });
+
       const teacherData = {
         ...newTeacher,
+        id: authUser.uid,
         status: 'Active',
         dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
         dateOfEmployment: doe ? format(doe, "yyyy-MM-dd") : undefined,
-      } as Omit<Teacher, 'id' | 'createdAt'>
+      } as Omit<Teacher, 'createdAt'>
 
-      await addDataWithId(teacherId, teacherData)
+      await addDataWithId(authUser.uid, teacherData)
 
       await addNotification({
         type: 'teacher_added',

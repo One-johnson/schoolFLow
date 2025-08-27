@@ -30,6 +30,10 @@ import {
   GraduationCap,
 } from "lucide-react"
 import Link from "next/link"
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { set, ref } from 'firebase/database';
+
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -101,6 +105,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ImageUpload } from "@/components/ui/image-upload"
 import { serverTimestamp } from "firebase/database"
+import { database } from "@/lib/firebase";
 
 type Student = {
   id: string
@@ -262,19 +267,29 @@ export default function StudentsPage() {
     }
     setIsLoading(true);
     try {
-      const studentId = generateStudentId();
-      const admissionNo = generateAdmissionNo();
-      const rollNo = (students.length + 1).toString().padStart(4, '0');
-      
-      const studentData = {
-        ...newStudent,
-        status: 'Active',
-        admissionNo,
-        rollNo,
-        dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
-      } as Omit<Student, 'id' | 'createdAt'>;
+        const studentId = generateStudentId();
+        const admissionNo = generateAdmissionNo();
+        const rollNo = (allStudents.length + 1).toString().padStart(4, '0');
 
-      await addDataWithId(studentId, studentData);
+        // Create Auth user
+        const userCredential = await createUserWithEmailAndPassword(auth, newStudent.email, studentId);
+        const authUser = userCredential.user;
+        await updateProfile(authUser, { displayName: newStudent.name });
+        
+        // Add to 'users' table
+        const userRef = ref(database, `users/${authUser.uid}`);
+        await set(userRef, { role: 'student', email: authUser.email, name: newStudent.name });
+
+        const studentData = {
+            ...newStudent,
+            id: authUser.uid,
+            status: 'Active',
+            admissionNo,
+            rollNo,
+            dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
+        } as Omit<Student, 'createdAt'>;
+
+        await addDataWithId(authUser.uid, studentData);
 
       await addNotification({
         type: 'student_enrolled',
