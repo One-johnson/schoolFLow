@@ -123,6 +123,7 @@ type Teacher = {
   religion?: string
   createdAt: number;
   updatedAt?: number;
+  teacherId?: string; // Custom readable ID
 }
 
 type Class = { id: string; name: string, teacherId?: string };
@@ -230,18 +231,19 @@ export default function TeachersPage() {
     try {
         const teacherId = generateTeacherId(newTeacher.department || 'GENERAL');
 
-        // Create Auth user
+        // Create Auth user with email and the custom teacher ID as password
         const userCredential = await createUserWithEmailAndPassword(auth, newTeacher.email, teacherId);
         const authUser = userCredential.user;
         await updateProfile(authUser, { displayName: newTeacher.name });
 
-        // Add to 'users' table
+        // Add to 'users' table for role management
         const userRef = ref(database, `users/${authUser.uid}`);
         await set(userRef, { role: 'teacher', email: authUser.email, name: newTeacher.name });
 
       const teacherData = {
         ...newTeacher,
-        id: authUser.uid,
+        id: authUser.uid, // The secure, unique Firebase Auth ID
+        teacherId: teacherId, // The custom, human-readable ID
         status: 'Active',
         dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
         dateOfEmployment: doe ? format(doe, "yyyy-MM-dd") : undefined,
@@ -254,7 +256,7 @@ export default function TeachersPage() {
         message: `New teacher "${newTeacher.name}" was added.`,
         read: false,
       })
-      toast({ title: "Success", description: "Teacher added. Account needs to be created separately." })
+      toast({ title: "Success", description: "Teacher added successfully." })
       resetFormStates();
       setIsCreateDialogOpen(false)
     } catch (error: any) {
@@ -391,10 +393,10 @@ export default function TeachersPage() {
       }
     },
     {
-      accessorKey: "id",
-      header: "ID",
+      accessorKey: "teacherId",
+      header: "Teacher ID",
       cell: ({ row }) => (
-        <div className="font-mono text-xs">{row.getValue("id")}</div>
+        <div className="font-mono text-xs">{row.getValue("teacherId")}</div>
       ),
     },
     {
@@ -1090,3 +1092,5 @@ export default function TeachersPage() {
     </Card>
   )
 }
+
+    
