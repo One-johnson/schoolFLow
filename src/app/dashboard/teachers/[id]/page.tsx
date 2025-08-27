@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2, User, BookOpen, Briefcase, Calendar } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
-type Teacher = { id: string; name: string; email: string; status: "Active" | "On Leave" | "Retired"; dateOfBirth?: string; academicQualification?: string; dateOfEmployment?: string; contact?: string; department?: string; employmentType?: "Full Time" | "Part Time" | "Contract"; gender?: "Male" | "Female" | "Other"; address?: string; avatarUrl?: string; };
+type Teacher = { id: string; name: string; email: string; status: "Active" | "On Leave" | "Retired"; dateOfBirth?: string; academicQualification?: string; dateOfEmployment?: string; contact?: string; department?: string; employmentType?: "Full Time" | "Part Time" | "Contract"; gender?: "Male" | "Female" | "Other"; address?: string; avatarUrl?: string; teacherId?: string; };
 type Class = { id: string; name: string; teacherId?: string };
 type Subject = { id: string; name: string; teacherIds?: Record<string, boolean> };
 
@@ -60,7 +60,7 @@ export default function TeacherProfilePage() {
                     <div className="flex-1">
                         <CardTitle className="text-3xl">{teacher.name}</CardTitle>
                         <CardDescription className="flex items-center gap-4 mt-1">
-                            <span>ID: {teacher.id}</span>
+                            <span>ID: {teacher.teacherId}</span>
                             <span>|</span>
                             <span>{teacher.email}</span>
                         </CardDescription>
@@ -133,4 +133,3 @@ export default function TeacherProfilePage() {
         </div>
     );
 }
-
