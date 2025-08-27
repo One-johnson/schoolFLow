@@ -835,7 +835,7 @@ export default function StudentsPage() {
       <CardContent>
         <div className="w-full">
            {role === 'admin' && (
-             <div className="mb-4 flex flex-wrap items-center gap-1 rounded-md bg-muted p-1 sm:w-fit">
+             <div className="mb-4 flex flex-wrap items-center gap-6 rounded-md bg-muted p-1 sm:w-fit">
                 <Button variant="ghost" className="h-8 justify-start gap-2 px-3 text-muted-foreground hover:bg-background hover:text-foreground data-[active=true]:bg-background data-[active=true]:text-foreground data-[active=true]:shadow-sm" data-active={true}>
                     <Users className="h-4 w-4" /> All Students <Badge className="ml-2">{studentStatusCounts.total}</Badge>
                 </Button>
@@ -860,13 +860,13 @@ export default function StudentsPage() {
               onChange={(event) =>
                 table.getColumn("name")?.setFilterValue(event.target.value)
               }
-              className="max-w-sm"
+              className="max-w-xs"
             />
              <Select
               value={(table.getColumn("gender")?.getFilterValue() as string) ?? "all"}
               onValueChange={(value) => table.getColumn("gender")?.setFilterValue(value === "all" ? undefined : value)}
             >
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-[160px]">
                     <SelectValue placeholder="Filter by Gender" />
                 </SelectTrigger>
                 <SelectContent>
@@ -880,7 +880,7 @@ export default function StudentsPage() {
               value={(table.getColumn("house")?.getFilterValue() as string) ?? "all"}
               onValueChange={(value) => table.getColumn("house")?.setFilterValue(value === "all" ? undefined : value)}
             >
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-[160px]">
                     <SelectValue placeholder="Filter by House" />
                 </SelectTrigger>
                 <SelectContent>
@@ -895,7 +895,7 @@ export default function StudentsPage() {
               value={(table.getColumn("status")?.getFilterValue() as string) ?? "all"}
               onValueChange={(value) => table.getColumn("status")?.setFilterValue(value === "all" ? undefined : value)}
             >
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-[160px]">
                     <SelectValue placeholder="Filter by Status" />
                 </SelectTrigger>
                 <SelectContent>

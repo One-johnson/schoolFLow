@@ -26,7 +26,11 @@ import {
   FileDown,
   BookCopy,
   Book,
+  Users,
+  UserX,
+  UserCheck,
 } from "lucide-react"
+import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -116,7 +120,7 @@ type Teacher = {
   updatedAt?: number;
 }
 
-type Class = { id: string; name: string };
+type Class = { id: string; name: string, teacherId?: string };
 
 export default function TeachersPage() {
   const [sorting, setSorting] = React.useState<SortingState>([])
@@ -159,6 +163,24 @@ export default function TeachersPage() {
 
   const [dob, setDob] = React.useState<Date | undefined>();
   const [doe, setDoe] = React.useState<Date | undefined>();
+
+  const teacherClassMap = React.useMemo(() => {
+    const map = new Map<string, string>();
+    classes.forEach(c => {
+        if(c.teacherId) {
+            map.set(c.teacherId, c.name);
+        }
+    });
+    return map;
+  }, [classes]);
+
+  const teacherStatusCounts = React.useMemo(() => {
+    return teachers.reduce((acc, teacher) => {
+      acc.total = (acc.total || 0) + 1;
+      acc[teacher.status] = (acc[teacher.status] || 0) + 1;
+      return acc;
+    }, { total: 0, Active: 0, "On Leave": 0, Retired: 0 });
+  }, [teachers]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, form: 'new' | 'edit') => {
       const { id, value } = e.target;
@@ -345,7 +367,9 @@ export default function TeachersPage() {
                     <AvatarImage src={teacher.avatarUrl} alt={teacher.name} />
                     <AvatarFallback>{initials}</AvatarFallback>
                 </Avatar>
-                <span className="capitalize">{teacher.name}</span>
+                <Link href={`/dashboard/teachers/${teacher.id}`} className="capitalize font-medium text-primary hover:underline">
+                    {teacher.name}
+                </Link>
             </div>
           )
       }
@@ -356,6 +380,11 @@ export default function TeachersPage() {
       cell: ({ row }) => (
         <div className="font-mono text-xs">{row.getValue("id")}</div>
       ),
+    },
+    {
+      accessorKey: "class",
+      header: "Class",
+      cell: ({ row }) => teacherClassMap.get(row.original.id) || <span className="text-muted-foreground">N/A</span>,
     },
      {
       accessorKey: "department",
@@ -743,6 +772,20 @@ export default function TeachersPage() {
       </CardHeader>
       <CardContent>
         <div className="w-full">
+            <div className="mb-4 flex flex-wrap items-center gap-6 rounded-md bg-muted p-1 sm:w-fit">
+                <Button variant="ghost" className="h-8 justify-start gap-2 px-3 text-muted-foreground hover:bg-background hover:text-foreground data-[active=true]:bg-background data-[active=true]:text-foreground data-[active=true]:shadow-sm" data-active={true}>
+                    <Users className="h-4 w-4" /> All Teachers <Badge className="ml-2">{teacherStatusCounts.total}</Badge>
+                </Button>
+                <Button variant="ghost" className="h-8 justify-start gap-2 px-3 text-muted-foreground hover:bg-background hover:text-foreground data-[active=true]:bg-background data-[active=true]:text-foreground data-[active=true]:shadow-sm">
+                    <UserCheck className="h-4 w-4" /> Active <Badge variant="secondary" className="ml-2 bg-green-200 text-green-900">{teacherStatusCounts.Active}</Badge>
+                </Button>
+                 <Button variant="ghost" className="h-8 justify-start gap-2 px-3 text-muted-foreground hover:bg-background hover:text-foreground data-[active=true]:bg-background data-[active=true]:text-foreground data-[active=true]:shadow-sm">
+                    <UserX className="h-4 w-4" /> On Leave <Badge variant="secondary" className="ml-2 bg-yellow-200 text-yellow-900">{teacherStatusCounts["On Leave"]}</Badge>
+                </Button>
+                 <Button variant="ghost" className="h-8 justify-start gap-2 px-3 text-muted-foreground hover:bg-background hover:text-foreground data-[active=true]:bg-background data-[active=true]:text-foreground data-[active=true]:shadow-sm">
+                    <UserX className="h-4 w-4" /> Retired <Badge variant="secondary" className="ml-2 bg-gray-200 text-gray-900">{teacherStatusCounts.Retired}</Badge>
+                </Button>
+            </div>
           <div className="flex flex-wrap items-center py-4 gap-2">
             <Input
               placeholder="Filter by teacher name..."
