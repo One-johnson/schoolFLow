@@ -122,9 +122,9 @@ const filterClassesByLevel = (classes: Class[], level?: SubjectLevel): Class[] =
         case "Kindergarten":
             return classes.filter(c => c.name.toLowerCase().includes("kindergarten"));
         case "Primary":
-            return classes.filter(c => c.name.toLowerCase().includes("primary"));
+            return classes.filter(c => c.name.toLowerCase().includes("primary") || c.name.toLowerCase().includes("basic 1") || c.name.toLowerCase().includes("basic 2") || c.name.toLowerCase().includes("basic 3") || c.name.toLowerCase().includes("basic 4") || c.name.toLowerCase().includes("basic 5") || c.name.toLowerCase().includes("basic 6"));
         case "Junior High":
-            return classes.filter(c => c.name.toLowerCase().includes("basic") || c.name.toLowerCase().includes("jhs"));
+            return classes.filter(c => c.name.toLowerCase().includes("basic 7") || c.name.toLowerCase().includes("basic 8") || c.name.toLowerCase().includes("basic 9") || c.name.toLowerCase().includes("jhs"));
         default:
             return classes;
     }
