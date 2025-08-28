@@ -31,7 +31,7 @@ import { Input } from "../ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { ImageUpload } from "../ui/image-upload";
 import { Loader2 } from "lucide-react";
-import { ScrollArea } from "../ui/scroll-area";
+import { ScrollArea, ScrollBar } from "../ui/scroll-area";
 
 // Data Types
 type Teacher = { id: string; name: string; email: string; status: "Active" | "On Leave" | "Retired"; dateOfBirth?: string; academicQualification?: string; dateOfEmployment?: string; contact?: string; department?: string; employmentType?: "Full Time" | "Part Time" | "Contract"; gender?: "Male" | "Female" | "Other"; address?: string; avatarUrl?: string; teacherId?: string; };
