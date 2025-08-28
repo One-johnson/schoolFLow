@@ -3,7 +3,7 @@
 
 import * as React from "react"
 import { format } from "date-fns"
-import { Calendar as CalendarIcon, CheckCircle, XCircle, Clock, Loader2, BarChart3, UserCheck, ShieldCheck } from "lucide-react"
+import { Calendar as CalendarIcon, CheckCircle, XCircle, Clock, Loader2, BarChart3, UserCheck, ShieldCheck, Save } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -150,17 +150,33 @@ export default function AttendancePage() {
     setAttendance(prev => ({ ...prev, [studentId]: status }))
   }
   
-  const handleMarkAllPresent = () => {
-    if(role !== 'teacher') return;
-    const newAttendance = { ...attendance };
+  const handleSaveAndMarkAllPresent = async () => {
+    if (!selectedClassId) {
+      toast({ title: "Error", description: "Please select a class.", variant: "destructive" });
+      return;
+    }
+    
+    setIsLoading(true);
+
+    const completedAttendance = { ...attendance };
     classStudents.forEach(student => {
-      if (!newAttendance[student.id]) {
-        newAttendance[student.id] = "Present";
-      }
+        if (!completedAttendance[student.id]) {
+            completedAttendance[student.id] = "Present";
+        }
     });
-    setAttendance(newAttendance);
-    toast({ title: "Success", description: "All remaining students marked as Present." });
+    setAttendance(completedAttendance);
+
+    try {
+        await updateAttendanceDb(`attendance/${formattedDate}/${selectedClassId}`, completedAttendance);
+        toast({ title: "Success", description: "Attendance saved successfully." });
+    } catch (error) {
+        toast({ title: "Error", description: "Failed to save attendance.", variant: "destructive" });
+        console.error(error);
+    } finally {
+        setIsLoading(false);
+    }
   }
+
 
   const handleSaveAttendance = async () => {
     if (!selectedClassId) {
@@ -224,6 +240,7 @@ export default function AttendancePage() {
   }, [role, user, selectedClass, attendance]);
 
   const atLeastOneMarked = Object.keys(attendance).length > 0;
+  const isAllMarked = attendanceStats.Unmarked === 0;
 
 
   if (classesLoading || studentsLoading) {
@@ -416,13 +433,14 @@ export default function AttendancePage() {
         {role === 'teacher' && selectedClassId && classStudents.length > 0 && (
            <CardFooter className="border-t px-6 py-4 flex justify-between">
               <div className="flex gap-2">
-                <Button onClick={handleSaveAttendance} disabled={isLoading}>
+                <Button onClick={handleSaveAttendance} disabled={isLoading || !isAllMarked}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    <Save className="mr-2 h-4 w-4" />
                     Save Attendance
                 </Button>
-                 <Button onClick={handleMarkAllPresent} variant="secondary" disabled={!atLeastOneMarked || attendanceStats.Unmarked === 0}>
+                 <Button onClick={handleSaveAndMarkAllPresent} variant="secondary" disabled={isLoading || isAllMarked}>
                     <UserCheck className="mr-2 h-4 w-4" />
-                    Mark all as Present
+                    Save and Mark all as Present
                 </Button>
               </div>
            </CardFooter>
