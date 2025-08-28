@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { useDatabase } from "@/hooks/use-database";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import Link from "next/link";
-import { BookOpen, Users, BookCopy, ArrowRight, ClipboardCheck, Edit, MailCheck, Clock, XCircle, User as UserIcon, Calendar, Contact, Briefcase, CalendarClock } from "lucide-react";
+import { BookOpen, Users, BookCopy, ArrowRight, ClipboardCheck, Edit, MailCheck, Clock, XCircle, User as UserIcon, Calendar, Contact, Briefcase, CalendarClock, DollarSign } from "lucide-react";
 import { format, parseISO, isFuture, startOfWeek, subDays, eachDayOfInterval } from 'date-fns';
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -50,6 +50,7 @@ type AttendanceRecord = Record<string, AttendanceStatus>;
 type DailyAttendance = { [classId: string]: AttendanceRecord };
 type TimetableEntry = { subjectId: string; teacherId: string; };
 type ClassTimetable = { id: string, [day: string]: { [timeSlot: string]: TimetableEntry | null } };
+type StudentFee = { id: string; studentId: string; feeId: string; amountDue: number; amountPaid: number; status: "Paid" | "Unpaid" | "Partial"; };
 
 
 export function TeacherDashboard() {
@@ -66,11 +67,12 @@ export function TeacherDashboard() {
   const { data: grades, loading: gradesLoading } = useDatabase<StudentGrade>("studentGrades");
   const { data: rawAttendance, loading: attendanceLoading } = useDatabase<DailyAttendance>("attendance");
   const { data: timetables, loading: timetablesLoading } = useDatabase<ClassTimetable>("timetables");
+  const { data: studentFees, loading: feesLoading } = useDatabase<StudentFee>("studentFees");
   
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const loading = classesLoading || subjectsLoading || studentsLoading || announcementsLoading || eventsLoading || permissionsLoading || examsLoading || gradesLoading || attendanceLoading || teachersLoading || timetablesLoading;
+  const loading = classesLoading || subjectsLoading || studentsLoading || announcementsLoading || eventsLoading || permissionsLoading || examsLoading || gradesLoading || attendanceLoading || teachersLoading || timetablesLoading || feesLoading;
 
   const [attendanceDateFilter, setAttendanceDateFilter] = useState('last7days');
   const [performanceExamFilter, setPerformanceExamFilter] = useState<string | undefined>();
@@ -293,6 +295,22 @@ export function TeacherDashboard() {
         total: totalSubjectsToGrade
     };
   }, [exams, grades, teacherSubjects, studentIdsInTeacherClasses]);
+
+  const feeStats = useMemo(() => {
+    if (feesLoading || !studentIdsInTeacherClasses.size) return { totalDue: 0, totalPaid: 0, totalOwed: 0 };
+    const classFees = studentFees.filter(fee => studentIdsInTeacherClasses.has(fee.studentId));
+    const stats = classFees.reduce((acc, fee) => {
+        acc.totalDue += fee.amountDue;
+        acc.totalPaid += fee.amountPaid;
+        return acc;
+    }, { totalDue: 0, totalPaid: 0 });
+
+    return {
+      totalDue: stats.totalDue,
+      totalPaid: stats.totalPaid,
+      totalOwed: stats.totalDue - stats.totalPaid,
+    }
+  }, [studentFees, feesLoading, studentIdsInTeacherClasses]);
 
 
   const getInitials = (name: string | null | undefined) => {
@@ -541,6 +559,31 @@ export function TeacherDashboard() {
                      <CardFooter>
                          <Button asChild variant="outline" className="w-full">
                             <Link href="/dashboard/students">View All Students <ArrowRight className="ml-2 h-4 w-4"/></Link>
+                        </Button>
+                    </CardFooter>
+                </MotionCard>
+                <MotionCard custom={13} variants={cardVariants} initial="hidden" animate="visible" whileHover={{ y: -5 }}>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2"><DollarSign className="h-5 w-5 text-green-600"/> Student Fees Overview</CardTitle>
+                      <CardDescription>A summary of fee payments for students in your classes.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Total Fees</p>
+                        {loading ? <Skeleton className="h-6 w-3/4 mx-auto mt-1" /> : <p className="text-2xl font-bold">GH₵{feeStats.totalDue.toLocaleString()}</p>}
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Total Paid</p>
+                        {loading ? <Skeleton className="h-6 w-3/4 mx-auto mt-1" /> : <p className="text-2xl font-bold text-green-600">GH₵{feeStats.totalPaid.toLocaleString()}</p>}
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Total Owed</p>
+                        {loading ? <Skeleton className="h-6 w-3/4 mx-auto mt-1" /> : <p className="text-2xl font-bold text-red-600">GH₵{feeStats.totalOwed.toLocaleString()}</p>}
+                      </div>
+                    </CardContent>
+                     <CardFooter>
+                         <Button asChild variant="outline" className="w-full">
+                            <Link href="/dashboard/fees/class-fees">View Detailed Fee Status <ArrowRight className="ml-2 h-4 w-4"/></Link>
                         </Button>
                     </CardFooter>
                 </MotionCard>
