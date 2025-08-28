@@ -1,6 +1,7 @@
 
 "use client"
 
+import * as React from "react";
 import { useAuth } from "@/hooks/use-auth"
 import { useDatabase } from "@/hooks/use-database";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -292,4 +293,3 @@ export function TeacherDashboard() {
     </div>
   );
 }
-
