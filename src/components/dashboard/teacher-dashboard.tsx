@@ -31,6 +31,7 @@ import { Input } from "../ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { ImageUpload } from "../ui/image-upload";
 import { Loader2 } from "lucide-react";
+import { ScrollArea } from "../ui/scroll-area";
 
 // Data Types
 type Teacher = { id: string; name: string; email: string; status: "Active" | "On Leave" | "Retired"; dateOfBirth?: string; academicQualification?: string; dateOfEmployment?: string; contact?: string; department?: string; employmentType?: "Full Time" | "Part Time" | "Contract"; gender?: "Male" | "Female" | "Other"; address?: string; avatarUrl?: string; teacherId?: string; };
@@ -86,7 +87,7 @@ export function TeacherDashboard() {
   const totalStudents = studentIdsInTeacherClasses.size;
   const recentAnnouncements = useMemo(() => [...announcements].sort((a, b) => b.createdAt - a.createdAt).slice(0, 3), [announcements]);
   const studentsMap = useMemo(() => new Map(students.map(s => [s.id, s])), [students]);
-  const subjectsMap = useMemo(() => new Map(subjects.map(s => [s.id, s])), [subjects]);
+  const subjectsMap = useMemo(() => new Map(subjects.map(s => [s.id, s.name])), [subjects]);
   const classesMap = useMemo(() => new Map(classes.map(c => [c.id, c.name])), [classes]);
 
   const [editTeacherState, setEditTeacherState] = useState<Partial<Teacher>>({});
@@ -257,6 +258,12 @@ export function TeacherDashboard() {
 
     return schedule.sort((a, b) => a.time.localeCompare(b.time));
   }, [timetables, user, subjectsMap, classesMap, timetablesLoading]);
+  
+  const primaryClass = useMemo(() => teacherClasses[0], [teacherClasses]);
+  const primaryClassStudents = useMemo(() => {
+    if (!primaryClass || !primaryClass.studentIds) return [];
+    return Object.keys(primaryClass.studentIds).map(id => studentsMap.get(id)).filter(Boolean) as Student[];
+  }, [primaryClass, studentsMap]);
 
 
   const getInitials = (name: string | null | undefined) => {
@@ -297,6 +304,14 @@ export function TeacherDashboard() {
                 </div>
             </CardHeader>
             <CardContent className="text-sm space-y-2">
+                 <div className="flex items-center gap-2 text-muted-foreground">
+                    <Briefcase className="h-4 w-4"/>
+                    <span>{teacher?.academicQualification || "Qualification not set"}</span>
+                 </div>
+                 <div className="flex items-center gap-2 text-muted-foreground">
+                    <Contact className="h-4 w-4"/>
+                    <span>{teacher?.contact || "Contact not set"}</span>
+                 </div>
                  <div className="flex items-center gap-2 text-muted-foreground">
                     <BookOpen className="h-4 w-4"/>
                     <span>Class Teacher for <b>{teacherClasses[0]?.name || 'N/A'}</b></span>
@@ -443,6 +458,39 @@ export function TeacherDashboard() {
                         )) : <p className="text-center text-sm text-muted-foreground py-4">No published results for this exam yet.</p>
                        }
                     </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>My Students</CardTitle>
+                        <CardDescription>A quick view of students in your primary class: <b>{primaryClass?.name || "N/A"}</b></CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                       {loading ? <Skeleton className="h-20 w-full" /> :
+                        primaryClassStudents.length > 0 ? (
+                           <ScrollArea>
+                            <div className="flex space-x-6 pb-4">
+                                {primaryClassStudents.map(student => (
+                                    <Link key={student.id} href={`/dashboard/students/${student.id}`} className="flex flex-col items-center gap-2 flex-shrink-0 w-20 text-center">
+                                        <Avatar className="h-14 w-14">
+                                            <AvatarImage src={student.avatarUrl} />
+                                            <AvatarFallback>{getInitials(student.name)}</AvatarFallback>
+                                        </Avatar>
+                                        <span className="text-xs font-medium truncate w-full">{student.name}</span>
+                                    </Link>
+                                ))}
+                            </div>
+                             <ScrollBar orientation="horizontal" />
+                           </ScrollArea>
+                        ) : (
+                             <p className="text-center text-sm text-muted-foreground py-4">No students assigned to your primary class yet.</p>
+                        )
+                       }
+                    </CardContent>
+                     <CardFooter>
+                         <Button asChild variant="outline" className="w-full">
+                            <Link href="/dashboard/students">View All Students <ArrowRight className="ml-2 h-4 w-4"/></Link>
+                        </Button>
+                    </CardFooter>
                 </Card>
             </div>
             <div className="lg:col-span-1 space-y-6">
