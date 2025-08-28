@@ -287,9 +287,9 @@ export default function StudentsPage() {
             admissionNo,
             rollNo,
             dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
-        } as Omit<Student, 'createdAt'>;
+        } as Omit<Student, 'createdAt' | 'id'>;
 
-        await addDataWithId(authUser.uid, studentData);
+        await addDataWithId(authUser.uid, studentData as any);
 
       await addNotification({
         type: 'student_enrolled',
