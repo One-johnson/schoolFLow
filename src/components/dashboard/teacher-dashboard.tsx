@@ -600,6 +600,36 @@ export function TeacherDashboard() {
                         </Button>
                     </CardFooter>
                 </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Upcoming Events</CardTitle>
+                        <CardDescription>What's next on the school calendar.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {loading ? (
+                            <Skeleton className="h-24 w-full" />
+                        ) : upcomingEvents.length > 0 ? (
+                            upcomingEvents.map((event) => (
+                                <div key={event.id} className="flex items-center gap-4">
+                                    <div className="flex flex-col items-center justify-center p-2 h-12 w-12 bg-muted text-muted-foreground rounded-md">
+                                        <span className="text-xs font-bold">{format(parseISO(event.startDate), 'MMM')}</span>
+                                        <span className="text-lg font-bold">{format(parseISO(event.startDate), 'dd')}</span>
+                                    </div>
+                                    <p className="text-sm font-medium">{event.title}</p>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-sm text-center text-muted-foreground py-4">
+                                No upcoming events found.
+                            </p>
+                        )}
+                    </CardContent>
+                    <CardFooter>
+                        <Button asChild variant="outline" className="w-full">
+                            <Link href="/dashboard/events">View Full Calendar <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                        </Button>
+                    </CardFooter>
+                </Card>
             </div>
        </div>
     </div>
