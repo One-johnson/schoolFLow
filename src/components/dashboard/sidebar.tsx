@@ -96,7 +96,7 @@ export function DashboardSidebar({
       path: "/dashboard/subjects",
       icon: BookCopy,
       label: "Subjects",
-      roles: ["admin", "teacher"],
+      roles: ["admin"],
     },
     {
       path: "/dashboard/terms",
@@ -126,7 +126,7 @@ export function DashboardSidebar({
       path: "/dashboard/reports",
       icon: BarChart3,
       label: "Reports",
-      roles: ["admin"],
+      roles: ["admin", "teacher"],
     },
     {
       path: "/dashboard/events",
