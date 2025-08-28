@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { useDatabase } from "@/hooks/use-database";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import Link from "next/link";
-import { BookOpen, Users, BookCopy, ArrowRight, ClipboardCheck, Edit, MailCheck, Clock, XCircle, User as UserIcon, Calendar, Contact, Briefcase } from "lucide-react";
+import { BookOpen, Users, BookCopy, ArrowRight, ClipboardCheck, Edit, MailCheck, Clock, XCircle, User as UserIcon, Calendar, Contact, Briefcase, CalendarClock } from "lucide-react";
 import { format, parseISO, isFuture, startOfWeek, subDays, eachDayOfInterval } from 'date-fns';
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -45,6 +45,8 @@ type StudentGrade = { id: string; examId: string; studentId: string; subjectId: 
 type AttendanceStatus = "Present" | "Absent" | "Late" | "Excused";
 type AttendanceRecord = Record<string, AttendanceStatus>;
 type DailyAttendance = { [classId: string]: AttendanceRecord };
+type TimetableEntry = { subjectId: string; teacherId: string; };
+type ClassTimetable = { id: string, [day: string]: { [timeSlot: string]: TimetableEntry | null } };
 
 
 export function TeacherDashboard() {
@@ -60,11 +62,12 @@ export function TeacherDashboard() {
   const { data: exams, loading: examsLoading } = useDatabase<Exam>("exams");
   const { data: grades, loading: gradesLoading } = useDatabase<StudentGrade>("studentGrades");
   const { data: rawAttendance, loading: attendanceLoading } = useDatabase<DailyAttendance>("attendance");
+  const { data: timetables, loading: timetablesLoading } = useDatabase<ClassTimetable>("timetables");
   
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const loading = classesLoading || subjectsLoading || studentsLoading || announcementsLoading || eventsLoading || permissionsLoading || examsLoading || gradesLoading || attendanceLoading || teachersLoading;
+  const loading = classesLoading || subjectsLoading || studentsLoading || announcementsLoading || eventsLoading || permissionsLoading || examsLoading || gradesLoading || attendanceLoading || teachersLoading || timetablesLoading;
 
   const [attendanceDateFilter, setAttendanceDateFilter] = useState('last7days');
   const [performanceExamFilter, setPerformanceExamFilter] = useState<string | undefined>();
@@ -83,7 +86,9 @@ export function TeacherDashboard() {
   const totalStudents = studentIdsInTeacherClasses.size;
   const recentAnnouncements = useMemo(() => [...announcements].sort((a, b) => b.createdAt - a.createdAt).slice(0, 3), [announcements]);
   const studentsMap = useMemo(() => new Map(students.map(s => [s.id, s])), [students]);
-  
+  const subjectsMap = useMemo(() => new Map(subjects.map(s => [s.id, s])), [subjects]);
+  const classesMap = useMemo(() => new Map(classes.map(c => [c.id, c.name])), [classes]);
+
   const [editTeacherState, setEditTeacherState] = useState<Partial<Teacher>>({});
 
   React.useEffect(() => {
@@ -228,6 +233,30 @@ export function TeacherDashboard() {
     ];
     return items.sort((a,b) => b.date - a.date).slice(0,3);
   }, [permissionSlips, studentIdsInTeacherClasses]);
+  
+  // Today's Schedule Data
+  const todaysSchedule = useMemo(() => {
+    if (!user || timetablesLoading) return [];
+    const todayStr = format(new Date(), 'eeee'); // "Monday", "Tuesday", etc.
+    const schedule: { time: string, subject: string, class: string }[] = [];
+    
+    timetables.forEach(tt => {
+      const daySchedule = tt[todayStr];
+      if (daySchedule) {
+        Object.entries(daySchedule).forEach(([time, entry]) => {
+          if (entry?.teacherId === user.uid) {
+            schedule.push({
+              time: time,
+              subject: subjectsMap.get(entry.subjectId) || 'Unknown Subject',
+              class: classesMap.get(tt.id) || 'Unknown Class'
+            });
+          }
+        });
+      }
+    });
+
+    return schedule.sort((a, b) => a.time.localeCompare(b.time));
+  }, [timetables, user, subjectsMap, classesMap, timetablesLoading]);
 
 
   const getInitials = (name: string | null | undefined) => {
@@ -419,26 +448,31 @@ export function TeacherDashboard() {
             <div className="lg:col-span-1 space-y-6">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Upcoming Events</CardTitle>
-                        <CardDescription>What's next on the school calendar.</CardDescription>
+                        <CardTitle>Today's Schedule</CardTitle>
+                        <CardDescription>{format(new Date(), "eeee, MMMM d")}</CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                        {loading ? <Skeleton className="h-20 w-full" /> :
-                        upcomingEvents.length > 0 ? upcomingEvents.map(event => (
-                            <div key={event.id} className="flex items-center gap-4">
-                                 <div className="flex flex-col items-center justify-center p-2 h-12 w-12 bg-muted text-muted-foreground rounded-md">
-                                    <span className="text-xs font-bold">{format(parseISO(event.startDate), 'MMM')}</span>
-                                    <span className="text-lg font-bold">{format(parseISO(event.startDate), 'dd')}</span>
+                    <CardContent className="space-y-3">
+                        {loading ? <Skeleton className="h-24 w-full" /> :
+                        todaysSchedule.length > 0 ? (
+                            todaysSchedule.map((item, index) => (
+                                <div key={index} className="flex items-center gap-3">
+                                    <div className="flex flex-col items-center justify-center p-2 h-12 w-14 bg-muted text-muted-foreground rounded-md">
+                                        <span className="text-xs font-bold">{item.time.split('-')[0]}</span>
+                                        <span className="text-xs text-muted-foreground">{item.time.split('-')[1]}</span>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-semibold">{item.subject}</p>
+                                        <p className="text-xs text-muted-foreground">{item.class}</p>
+                                    </div>
                                 </div>
-                                <p className="text-sm font-medium">{event.title}</p>
+                            ))
+                        ) : (
+                            <div className="flex flex-col items-center justify-center text-center text-muted-foreground py-4">
+                                <CalendarClock className="h-8 w-8 mb-2"/>
+                                <p>No classes scheduled for today.</p>
                             </div>
-                        )) : <p className="text-sm text-center text-muted-foreground py-4">No upcoming events.</p>}
+                        )}
                     </CardContent>
-                    <CardFooter>
-                         <Button asChild variant="outline" className="w-full">
-                            <Link href="/dashboard/events">View Full Calendar <ArrowRight className="ml-2 h-4 w-4"/></Link>
-                        </Button>
-                    </CardFooter>
                 </Card>
                  <Card>
                     <CardHeader>
