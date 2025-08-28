@@ -265,6 +265,33 @@ export function TeacherDashboard() {
     return Object.keys(primaryClass.studentIds).map(id => studentsMap.get(id)).filter(Boolean) as Student[];
   }, [primaryClass, studentsMap]);
 
+  // Grading Progress
+  const gradingProgress = useMemo(() => {
+    const activeGradingExam = exams.find(e => e.status === "Grading");
+    if (!activeGradingExam) {
+        return null;
+    }
+    const totalSubjectsToGrade = teacherSubjects.length;
+    if (totalSubjectsToGrade === 0) return { examName: activeGradingExam.name, completed: 0, total: 0 };
+    
+    // Check which subjects have complete grades for all students in the teacher's classes
+    const gradedSubjects = new Set<string>();
+    teacherSubjects.forEach(subject => {
+        const allStudentsGradedForSubject = Array.from(studentIdsInTeacherClasses).every(studentId => {
+            return grades.some(g => g.examId === activeGradingExam.id && g.studentId === studentId && g.subjectId === subject.id);
+        });
+        if (allStudentsGradedForSubject) {
+            gradedSubjects.add(subject.id);
+        }
+    });
+
+    return {
+        examName: activeGradingExam.name,
+        completed: gradedSubjects.size,
+        total: totalSubjectsToGrade
+    };
+  }, [exams, grades, teacherSubjects, studentIdsInTeacherClasses]);
+
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return "?";
@@ -332,27 +359,35 @@ export function TeacherDashboard() {
                 <CardTitle>Quick Links</CardTitle>
                 <CardDescription>Your essential tools, just a click away.</CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <CardContent className="grid grid-cols-2 md:grid-cols-2 gap-4">
                 <Link href="/dashboard/attendance">
-                    <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-center hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors">
+                    <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-center hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors h-full flex flex-col justify-center">
                         <ClipboardCheck className="h-8 w-8 text-blue-600 mx-auto"/>
                         <p className="mt-2 text-sm font-medium text-blue-800 dark:text-blue-200">Take Attendance</p>
                     </div>
                 </Link>
                 <Link href="/dashboard/exams/grading">
-                    <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/30 text-center hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors">
+                    <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/30 text-center hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors h-full flex flex-col justify-center">
                         <Edit className="h-8 w-8 text-green-600 mx-auto"/>
                         <p className="mt-2 text-sm font-medium text-green-800 dark:text-green-200">Enter Grades</p>
+                        {gradingProgress && (
+                            <div className="mt-2 text-xs text-muted-foreground">
+                                <p className="font-semibold">{gradingProgress.examName}</p>
+                                <p>{gradingProgress.completed} of {gradingProgress.total} subjects graded</p>
+                                <Progress value={(gradingProgress.completed / gradingProgress.total) * 100} className="h-1 mt-1" />
+                            </div>
+                        )}
+                         {!gradingProgress && !examsLoading && <p className="text-xs text-muted-foreground mt-2">No active grading period.</p>}
                     </div>
                 </Link>
                 <Link href="/dashboard/permissions">
-                     <div className="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/30 text-center hover:bg-yellow-100 dark:hover:bg-yellow-900/50 transition-colors">
+                     <div className="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/30 text-center hover:bg-yellow-100 dark:hover:bg-yellow-900/50 transition-colors h-full flex flex-col justify-center">
                         <MailCheck className="h-8 w-8 text-yellow-600 mx-auto"/>
                         <p className="mt-2 text-sm font-medium text-yellow-800 dark:text-yellow-200">Leave Requests</p>
                     </div>
                 </Link>
                 <Link href="/dashboard/timetable">
-                    <div className="p-4 rounded-lg bg-purple-50 dark:bg-purple-900/30 text-center hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors">
+                    <div className="p-4 rounded-lg bg-purple-50 dark:bg-purple-900/30 text-center hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors h-full flex flex-col justify-center">
                         <Calendar className="h-8 w-8 text-purple-600 mx-auto"/>
                         <p className="mt-2 text-sm font-medium text-purple-800 dark:text-purple-200">My Timetable</p>
                     </div>
