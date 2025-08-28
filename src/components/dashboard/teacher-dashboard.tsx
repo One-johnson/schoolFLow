@@ -4,9 +4,9 @@
 import * as React from "react";
 import { useAuth } from "@/hooks/use-auth"
 import { useDatabase } from "@/hooks/use-database";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import Link from "next/link";
-import { BookOpen, Users, BookCopy, Calendar, Megaphone, ArrowRight, ClipboardCheck, Edit, BarChart, Award, MailCheck, ShieldCheck, Clock, XCircle, UserCheck } from "lucide-react";
+import { BookOpen, Users, BookCopy, Calendar, Megaphone, ArrowRight, ClipboardCheck, Edit, BarChart, Award, MailCheck, ShieldCheck, Clock, XCircle, UserCheck, Activity } from "lucide-react";
 import { useMemo, useState } from "react";
 import { format, parseISO, isFuture, startOfWeek, subDays, eachDayOfInterval } from 'date-fns';
 import { Badge } from "../ui/badge";
@@ -24,7 +24,7 @@ type Subject = { id: string; name: string; teacherIds?: Record<string, boolean>;
 type Student = { id: string; name: string; avatarUrl?: string; };
 type Announcement = { id: string; title: string; content: string; createdAt: number; };
 type Event = { id: string; title: string; startDate: string; };
-type PermissionSlip = { id: string; studentName: string; startDate: string; endDate: string; status: "Pending" | "Approved" | "Rejected"; createdAt: number; };
+type PermissionSlip = { id: string; studentName: string; studentId: string; startDate: string; endDate: string; status: "Pending" | "Approved" | "Rejected"; createdAt: number; };
 type Exam = { id: string; name: string; status: "Published" | "Grading" | "Upcoming" | "Ongoing"; };
 type StudentGrade = { id: string; examId: string; studentId: string; subjectId: string; classScore: number; examScore: number; };
 type AttendanceRecord = Record<string, "Present" | "Absent" | "Late" | "Excused">;
@@ -60,8 +60,16 @@ export function TeacherDashboard() {
     return ids;
   }, [teacherClasses]);
   const totalStudents = studentIdsInTeacherClasses.size;
-  const recentAnnouncements = useMemo(() => [...announcements].sort((a, b) => b.createdAt - a.createdAt).slice(0, 3), [announcements]);
+  const recentAnnouncements = useMemo(() => [...announcements].sort((a, b) => b.createdAt - a.createdAt).slice(0, 5), [announcements]);
   const studentsMap = useMemo(() => new Map(students.map(s => [s.id, s])), [students]);
+  
+  // Upcoming Events
+  const upcomingEvents = useMemo(() => {
+    return [...events]
+        .filter(e => isFuture(parseISO(e.startDate)))
+        .sort((a,b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+        .slice(0, 5);
+  }, [events]);
   
   // Attendance Chart Data
   const attendanceData = useMemo(() => {
@@ -132,7 +140,7 @@ export function TeacherDashboard() {
   // Permission Slips Data
   const filteredPermissions = useMemo(() => {
      return [...permissionSlips]
-        .filter(p => studentIdsInTeacherClasses.has(p.id.split('_')[0])) // Assuming ID is studentId_...
+        .filter(p => studentIdsInTeacherClasses.has(p.studentId))
         .sort((a, b) => b.createdAt - a.createdAt)
         .slice(0, 5);
   }, [permissionSlips, studentIdsInTeacherClasses]);
@@ -143,6 +151,19 @@ export function TeacherDashboard() {
     const names = name.split(' ');
     return (names[0][0] + (names.length > 1 ? names[names.length - 1][0] : '')).toUpperCase();
   }
+  
+  const noticeBoardItems = useMemo(() => {
+    const items = [
+      ...permissionSlips.filter(p => studentIdsInTeacherClasses.has(p.studentId)).map(p => ({
+        id: p.id,
+        type: 'permission',
+        text: `${p.studentName} submitted a leave request.`,
+        date: p.createdAt,
+        icon: <MailCheck className="h-4 w-4 text-blue-500" />
+      }))
+    ];
+    return items.sort((a,b) => b.date - a.date).slice(0,5);
+  }, [permissionSlips, studentIdsInTeacherClasses]);
 
   const attendanceChartConfig = { present: { label: "Present", color: "hsl(var(--chart-2))" }, absent: { label: "Absent", color: "hsl(var(--chart-5))" } };
   const performanceChartConfig = { score: { label: "Avg. Score", color: "hsl(var(--chart-1))" }};
@@ -258,7 +279,7 @@ export function TeacherDashboard() {
                     <CardContent className="flex-grow space-y-4">
                         {loading ? [...Array(4)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />) :
                         filteredPermissions.length > 0 ? filteredPermissions.map(p => {
-                            const student = studentsMap.get(p.id.split('_')[0]);
+                            const student = studentsMap.get(p.studentId);
                             const statusIcons = { Pending: <Clock className="h-4 w-4 text-yellow-500" />, Approved: <ShieldCheck className="h-4 w-4 text-green-500"/>, Rejected: <XCircle className="h-4 w-4 text-red-500"/> };
                             return(
                                 <div key={p.id} className="flex items-center gap-3">
@@ -282,14 +303,84 @@ export function TeacherDashboard() {
                         }) : <p className="text-sm text-center text-muted-foreground py-8">No recent leave requests.</p>
                         }
                     </CardContent>
-                    <CardHeader>
+                    <CardFooter>
                         <Button asChild variant="outline" className="w-full">
                             <Link href="/dashboard/permissions">View All Requests <ArrowRight className="ml-2 h-4 w-4"/></Link>
                         </Button>
-                    </CardHeader>
+                    </CardFooter>
                 </Card>
             </div>
        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Upcoming Events</CardTitle>
+                    <CardDescription>What's next on the school calendar.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {loading ? <Skeleton className="h-20 w-full" /> :
+                    upcomingEvents.length > 0 ? upcomingEvents.map(event => (
+                        <div key={event.id} className="flex items-center gap-4">
+                             <div className="flex flex-col items-center justify-center p-2 h-12 w-12 bg-muted text-muted-foreground rounded-md">
+                                <span className="text-xs font-bold">{format(parseISO(event.startDate), 'MMM')}</span>
+                                <span className="text-lg font-bold">{format(parseISO(event.startDate), 'dd')}</span>
+                            </div>
+                            <p className="text-sm font-medium">{event.title}</p>
+                        </div>
+                    )) : <p className="text-sm text-center text-muted-foreground py-4">No upcoming events.</p>}
+                </CardContent>
+                <CardFooter>
+                     <Button asChild variant="outline" className="w-full">
+                        <Link href="/dashboard/events">View Full Calendar <ArrowRight className="ml-2 h-4 w-4"/></Link>
+                    </Button>
+                </CardFooter>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Announcements</CardTitle>
+                    <CardDescription>Latest news and updates from the school.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                     {loading ? <Skeleton className="h-20 w-full" /> :
+                     recentAnnouncements.length > 0 ? recentAnnouncements.map(item => (
+                         <div key={item.id}>
+                             <h4 className="font-semibold text-sm">{item.title}</h4>
+                             <p className="text-xs text-muted-foreground">{item.content.substring(0, 70)}...</p>
+                         </div>
+                     )) : <p className="text-sm text-center text-muted-foreground py-4">No recent announcements.</p>}
+                </CardContent>
+                 <CardFooter>
+                     <Button asChild variant="outline" className="w-full">
+                        <Link href="/dashboard/announcements">View All Announcements <ArrowRight className="ml-2 h-4 w-4"/></Link>
+                    </Button>
+                </CardFooter>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Notice Board</CardTitle>
+                    <CardDescription>Recent activities from your students.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                     {loading ? <Skeleton className="h-20 w-full" /> :
+                     noticeBoardItems.length > 0 ? noticeBoardItems.map(item => (
+                         <div key={item.id} className="flex items-center gap-3">
+                             <div className="p-2 bg-muted rounded-full text-muted-foreground">{item.icon}</div>
+                             <div>
+                                 <p className="text-sm">{item.text}</p>
+                                 <p className="text-xs text-muted-foreground">{format(new Date(item.date), "PPP p")}</p>
+                             </div>
+                         </div>
+                     )) : <p className="text-sm text-center text-muted-foreground py-4">No recent activities.</p>}
+                </CardContent>
+                 <CardFooter>
+                     <Button variant="outline" className="w-full" disabled>
+                        View All Activities <ArrowRight className="ml-2 h-4 w-4"/>
+                    </Button>
+                </CardFooter>
+            </Card>
+        </div>
+
     </div>
   );
 }
