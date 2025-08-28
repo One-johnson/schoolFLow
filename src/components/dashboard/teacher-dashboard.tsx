@@ -1,13 +1,12 @@
 
 "use client"
 
-import * as React from "react";
+import React, { useMemo, useState } from "react";
 import { useAuth } from "@/hooks/use-auth"
 import { useDatabase } from "@/hooks/use-database";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import Link from "next/link";
-import { BookOpen, Users, BookCopy, Calendar, Megaphone, ArrowRight, ClipboardCheck, Edit, BarChart, Award, MailCheck, ShieldCheck, Clock, XCircle, UserCheck, Activity } from "lucide-react";
-import { useMemo, useState } from "react";
+import { BookOpen, Users, BookCopy, ArrowRight, ClipboardCheck, Edit, MailCheck, Clock, XCircle } from "lucide-react";
 import { format, parseISO, isFuture, startOfWeek, subDays, eachDayOfInterval } from 'date-fns';
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -15,8 +14,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Skeleton } from "../ui/skeleton";
 import { ResponsiveContainer, BarChart as RechartsBarChart, Bar, XAxis, YAxis, Tooltip, Legend } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "../ui/chart";
-import { cn, calculateGrade } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { Progress } from "../ui/progress";
 
 // Data Types
 type Class = { id: string; name: string; teacherId?: string; studentIds?: Record<string, boolean>; };
@@ -27,7 +27,8 @@ type Event = { id: string; title: string; startDate: string; };
 type PermissionSlip = { id: string; studentName: string; studentId: string; startDate: string; endDate: string; status: "Pending" | "Approved" | "Rejected"; createdAt: number; };
 type Exam = { id: string; name: string; status: "Published" | "Grading" | "Upcoming" | "Ongoing"; };
 type StudentGrade = { id: string; examId: string; studentId: string; subjectId: string; classScore: number; examScore: number; };
-type AttendanceRecord = Record<string, "Present" | "Absent" | "Late" | "Excused">;
+type AttendanceStatus = "Present" | "Absent" | "Late" | "Excused";
+type AttendanceRecord = Record<string, AttendanceStatus>;
 type DailyAttendance = { [classId: string]: AttendanceRecord };
 
 
@@ -47,7 +48,6 @@ export function TeacherDashboard() {
 
   const [attendanceDateFilter, setAttendanceDateFilter] = useState('last7days');
   const [performanceExamFilter, setPerformanceExamFilter] = useState<string | undefined>();
-  const [permissionDateFilter, setPermissionDateFilter] = useState('thisWeek');
   
   // Memoized data calculations
   const teacherClasses = useMemo(() => user ? classes.filter(c => c.teacherId === user.uid) : [], [classes, user]);
@@ -60,7 +60,7 @@ export function TeacherDashboard() {
     return ids;
   }, [teacherClasses]);
   const totalStudents = studentIdsInTeacherClasses.size;
-  const recentAnnouncements = useMemo(() => [...announcements].sort((a, b) => b.createdAt - a.createdAt).slice(0, 5), [announcements]);
+  const recentAnnouncements = useMemo(() => [...announcements].sort((a, b) => b.createdAt - a.createdAt).slice(0, 3), [announcements]);
   const studentsMap = useMemo(() => new Map(students.map(s => [s.id, s])), [students]);
   
   // Upcoming Events
@@ -68,7 +68,7 @@ export function TeacherDashboard() {
     return [...events]
         .filter(e => isFuture(parseISO(e.startDate)))
         .sort((a,b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
-        .slice(0, 5);
+        .slice(0, 3);
   }, [events]);
   
   // Attendance Chart Data
@@ -86,28 +86,31 @@ export function TeacherDashboard() {
     return dateInterval.map(date => {
         const dateStr = format(date, 'yyyy-MM-dd');
         const todaysLog = rawAttendance.find(log => log.id === dateStr);
-        let present = 0, absent = 0;
+        const dailyCounts = { Present: 0, Absent: 0, Late: 0, Excused: 0 };
         
-        studentIdsInTeacherClasses.forEach(studentId => {
-            let studentStatus: string | undefined;
-            if (todaysLog) {
-                for (const classId in todaysLog) {
-                    if(classId === 'id') continue;
-                    const classRecords = todaysLog[classId] as AttendanceRecord;
-                    if(classRecords[studentId]) {
-                        studentStatus = classRecords[studentId];
-                        break;
-                    }
-                }
+        const dailyStatuses: { [studentId: string]: AttendanceStatus } = {};
+         if (todaysLog) {
+            for (const classId in todaysLog) {
+                if(classId === 'id') continue;
+                const classRecords = todaysLog[classId] as AttendanceRecord;
+                 Object.entries(classRecords).forEach(([studentId, status]) => {
+                     if (studentIdsInTeacherClasses.has(studentId)) {
+                        dailyStatuses[studentId] = status;
+                     }
+                 });
             }
-            if (studentStatus === 'Present' || studentStatus === 'Late' || studentStatus === 'Excused') {
-                present++;
+        }
+
+        studentIdsInTeacherClasses.forEach(studentId => {
+            const status = dailyStatuses[studentId];
+            if (status) {
+                dailyCounts[status]++;
             } else {
-                absent++;
+                dailyCounts.Absent++;
             }
         });
 
-        return { date: format(date, 'EEE'), present, absent };
+        return { date: format(date, 'EEE'), ...dailyCounts };
     });
   }, [rawAttendance, attendanceDateFilter, studentIdsInTeacherClasses]);
 
@@ -124,34 +127,33 @@ export function TeacherDashboard() {
     if (!performanceExamFilter) return [];
     const scores = grades
       .filter(g => g.examId === performanceExamFilter && studentIdsInTeacherClasses.has(g.studentId))
-      .map(g => ({ ...g, total: (g.classScore * 0.5) + (g.examScore * 0.5) }));
+      .map(g => ({ studentId: g.studentId, total: (g.classScore * 0.5) + (g.examScore * 0.5) }));
     
-    return scores
-        .sort((a,b) => b.total - a.total)
+    // Aggregate scores if a student took multiple subjects
+    const aggregatedScores = Array.from(
+        scores.reduce((acc, { studentId, total }) => {
+            if (!acc.has(studentId)) acc.set(studentId, { sum: 0, count: 0 });
+            const current = acc.get(studentId)!;
+            current.sum += total;
+            current.count++;
+            return acc;
+        }, new Map<string, { sum: number, count: number}>()).entries()
+    ).map(([studentId, {sum, count}]) => ({ studentId, average: sum / count }));
+
+
+    return aggregatedScores
+        .sort((a,b) => b.average - a.average)
         .slice(0, 5)
         .map(s => ({
-            name: studentsMap.get(s.studentId)?.name.split(' ')[0] || "N/A",
-            score: s.total
+            name: studentsMap.get(s.studentId)?.name || "N/A",
+            score: parseFloat(s.average.toFixed(2)),
+            avatarUrl: studentsMap.get(s.studentId)?.avatarUrl
         }));
 
   }, [grades, performanceExamFilter, studentIdsInTeacherClasses, studentsMap]);
 
 
-  // Permission Slips Data
-  const filteredPermissions = useMemo(() => {
-     return [...permissionSlips]
-        .filter(p => studentIdsInTeacherClasses.has(p.studentId))
-        .sort((a, b) => b.createdAt - a.createdAt)
-        .slice(0, 5);
-  }, [permissionSlips, studentIdsInTeacherClasses]);
-
-
-  const getInitials = (name: string | null | undefined) => {
-    if (!name) return "?";
-    const names = name.split(' ');
-    return (names[0][0] + (names.length > 1 ? names[names.length - 1][0] : '')).toUpperCase();
-  }
-  
+  // Notice Board Data
   const noticeBoardItems = useMemo(() => {
     const items = [
       ...permissionSlips.filter(p => studentIdsInTeacherClasses.has(p.studentId)).map(p => ({
@@ -162,10 +164,22 @@ export function TeacherDashboard() {
         icon: <MailCheck className="h-4 w-4 text-blue-500" />
       }))
     ];
-    return items.sort((a,b) => b.date - a.date).slice(0,5);
+    return items.sort((a,b) => b.date - a.date).slice(0,3);
   }, [permissionSlips, studentIdsInTeacherClasses]);
 
-  const attendanceChartConfig = { present: { label: "Present", color: "hsl(var(--chart-2))" }, absent: { label: "Absent", color: "hsl(var(--chart-5))" } };
+
+  const getInitials = (name: string | null | undefined) => {
+    if (!name) return "?";
+    const names = name.split(' ');
+    return (names[0][0] + (names.length > 1 ? names[names.length - 1][0] : '')).toUpperCase();
+  }
+  
+  const attendanceChartConfig = { 
+      Present: { label: "Present", color: "hsl(var(--chart-2))" }, 
+      Absent: { label: "Absent", color: "hsl(var(--chart-5))" },
+      Late: { label: "Late", color: "hsl(var(--chart-4))" },
+      Excused: { label: "Excused", color: "hsl(var(--chart-3))" }
+  };
   const performanceChartConfig = { score: { label: "Avg. Score", color: "hsl(var(--chart-1))" }};
 
   return (
@@ -204,12 +218,12 @@ export function TeacherDashboard() {
                 <CardContent><div className="text-2xl font-bold">{teacherSubjects.length}</div></CardContent>
             </Card>
              <Card className="bg-purple-50 dark:bg-purple-900/30">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium text-purple-800 dark:text-purple-200">Quick Actions</CardTitle>
                 </CardHeader>
                 <CardContent className="flex gap-2">
-                    <Button asChild size="sm" variant="outline" className="flex-1"><Link href="/dashboard/attendance"><ClipboardCheck/> Attendance</Link></Button>
-                    <Button asChild size="sm" variant="outline" className="flex-1"><Link href="/dashboard/exams/grading"><Edit/> Grading</Link></Button>
+                    <Button asChild size="sm" variant="outline" className="flex-1"><Link href="/dashboard/attendance"><ClipboardCheck className="h-4 w-4"/> Attendance</Link></Button>
+                    <Button asChild size="sm" variant="outline" className="flex-1"><Link href="/dashboard/exams/grading"><Edit className="h-4 w-4"/> Grading</Link></Button>
                 </CardContent>
             </Card>
           </>
@@ -234,13 +248,15 @@ export function TeacherDashboard() {
                     </CardHeader>
                     <CardContent>
                        <ChartContainer config={attendanceChartConfig} className="h-[200px] w-full">
-                            <RechartsBarChart data={attendanceData} accessibilityLayer>
+                            <RechartsBarChart data={attendanceData} accessibilityLayer stackOffset="expand">
                                 <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8}/>
-                                <YAxis/>
+                                <YAxis tickFormatter={(value) => `${value * 100}%`} />
                                 <Tooltip content={<ChartTooltipContent indicator="dot"/>}/>
                                 <Legend />
-                                <Bar dataKey="present" fill="var(--color-present)" radius={[4, 4, 0, 0]} stackId="a" />
-                                <Bar dataKey="absent" fill="var(--color-absent)" radius={[4, 4, 0, 0]} stackId="a" />
+                                <Bar dataKey="Present" fill="var(--color-Present)" radius={[4, 4, 0, 0]} stackId="a" />
+                                <Bar dataKey="Late" fill="var(--color-Late)" radius={[0, 0, 0, 0]} stackId="a" />
+                                <Bar dataKey="Excused" fill="var(--color-Excused)" radius={[0, 0, 0, 0]} stackId="a" />
+                                <Bar dataKey="Absent" fill="var(--color-Absent)" radius={[4, 4, 0, 0]} stackId="a" />
                             </RechartsBarChart>
                         </ChartContainer>
                     </CardContent>
@@ -249,7 +265,7 @@ export function TeacherDashboard() {
                     <CardHeader className="flex-row items-center justify-between">
                          <div className="space-y-1">
                             <CardTitle>Top Student Performers</CardTitle>
-                            <CardDescription>Highest scores in recent assessments.</CardDescription>
+                            <CardDescription>Average scores from the selected assessment.</CardDescription>
                         </div>
                         <Select value={performanceExamFilter} onValueChange={setPerformanceExamFilter}>
                             <SelectTrigger className="w-[180px]"><SelectValue placeholder="Select Exam..." /></SelectTrigger>
@@ -258,15 +274,22 @@ export function TeacherDashboard() {
                             </SelectContent>
                         </Select>
                     </CardHeader>
-                    <CardContent>
-                        <ChartContainer config={performanceChartConfig} className="h-[200px] w-full">
-                            <RechartsBarChart data={topPerformers} accessibilityLayer layout="vertical">
-                                <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={80}/>
-                                <XAxis dataKey="score" type="number" />
-                                <Tooltip content={<ChartTooltipContent indicator="dot" />} />
-                                <Bar dataKey="score" fill="var(--color-score)" radius={4} />
-                            </RechartsBarChart>
-                        </ChartContainer>
+                    <CardContent className="space-y-4">
+                       {loading ? <Skeleton className="h-24 w-full" /> :
+                        topPerformers.length > 0 ? topPerformers.map(performer => (
+                            <div key={performer.name} className="flex items-center gap-4">
+                                <Avatar className="h-10 w-10">
+                                    <AvatarImage src={performer.avatarUrl} />
+                                    <AvatarFallback>{getInitials(performer.name)}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1">
+                                    <p className="font-medium text-sm">{performer.name}</p>
+                                     <Progress value={performer.score} className="h-2 mt-1" />
+                                </div>
+                                <span className="font-bold text-base">{performer.score}%</span>
+                            </div>
+                        )) : <p className="text-center text-sm text-muted-foreground py-4">No published results for this exam yet.</p>
+                       }
                     </CardContent>
                 </Card>
             </div>
@@ -278,9 +301,11 @@ export function TeacherDashboard() {
                     </CardHeader>
                     <CardContent className="flex-grow space-y-4">
                         {loading ? [...Array(4)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />) :
-                        filteredPermissions.length > 0 ? filteredPermissions.map(p => {
-                            const student = studentsMap.get(p.studentId);
-                            const statusIcons = { Pending: <Clock className="h-4 w-4 text-yellow-500" />, Approved: <ShieldCheck className="h-4 w-4 text-green-500"/>, Rejected: <XCircle className="h-4 w-4 text-red-500"/> };
+                        noticeBoardItems.length > 0 ? noticeBoardItems.map(p => {
+                            const slip = permissionSlips.find(s => s.id === p.id);
+                            if (!slip) return null;
+                            const student = studentsMap.get(slip.studentId);
+                            const statusIcons = { Pending: <Clock className="h-4 w-4 text-yellow-500" />, Approved: <MailCheck className="h-4 w-4 text-green-500"/>, Rejected: <XCircle className="h-4 w-4 text-red-500"/> };
                             return(
                                 <div key={p.id} className="flex items-center gap-3">
                                     <Avatar className="h-10 w-10">
@@ -288,16 +313,10 @@ export function TeacherDashboard() {
                                         <AvatarFallback>{getInitials(student?.name)}</AvatarFallback>
                                     </Avatar>
                                     <div className="flex-1">
-                                        <p className="text-sm font-medium">{p.studentName}</p>
-                                        <p className="text-xs text-muted-foreground">{format(parseISO(p.startDate), 'MMM dd')} - {format(parseISO(p.endDate), 'MMM dd')}</p>
+                                        <p className="text-sm font-medium">{p.text}</p>
+                                        <p className="text-xs text-muted-foreground">{format(new Date(p.date), 'MMM dd, yyyy')}</p>
                                     </div>
-                                    <div className="flex items-center gap-1">
-                                        {statusIcons[p.status]}
-                                        <Badge variant={p.status === 'Pending' ? 'default' : 'outline'} className={cn(
-                                            p.status === 'Approved' && "bg-green-100 text-green-800",
-                                            p.status === 'Rejected' && "bg-red-100 text-red-800"
-                                        )}>{p.status}</Badge>
-                                    </div>
+                                    {statusIcons[slip.status]}
                                 </div>
                             )
                         }) : <p className="text-sm text-center text-muted-foreground py-8">No recent leave requests.</p>
@@ -374,8 +393,8 @@ export function TeacherDashboard() {
                      )) : <p className="text-sm text-center text-muted-foreground py-4">No recent activities.</p>}
                 </CardContent>
                  <CardFooter>
-                     <Button variant="outline" className="w-full" disabled>
-                        View All Activities <ArrowRight className="ml-2 h-4 w-4"/>
+                     <Button asChild variant="outline" className="w-full">
+                        <Link href="/dashboard/permissions">View All Activities <ArrowRight className="ml-2 h-4 w-4"/></Link>
                     </Button>
                 </CardFooter>
             </Card>
