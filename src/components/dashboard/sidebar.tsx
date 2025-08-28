@@ -19,6 +19,7 @@ import {
   NotebookPen,
   School,
   Sparkles,
+  User,
   UserCheck,
   Users,
 } from "lucide-react";
@@ -45,6 +46,7 @@ export function DashboardSidebar({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { user } = useAuth();
 
   const isActive = (path: string, exact: boolean = true) => {
     if (!path) return false;
@@ -67,10 +69,16 @@ export function DashboardSidebar({
       exact: true,
     },
     {
+      path: `/dashboard/students/${user?.uid}`,
+      icon: User,
+      label: "My Profile",
+      roles: ["student"],
+    },
+    {
       path: "/dashboard/students",
       icon: Users,
       label: "Students",
-      roles: ["admin"],
+      roles: ["admin", "teacher"],
     },
     {
       path: "/dashboard/teachers",

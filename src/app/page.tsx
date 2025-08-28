@@ -155,12 +155,14 @@ function LoginForm({ role }: { role: string }) {
             Sign In
           </Button>
         </form>
-        <div className="mt-4 text-center text-sm">
-          Don&apos;t have an account?{' '}
-          <Link href="/register" className="underline">
-            Register
-          </Link>
-        </div>
+        {role === 'admin' && (
+          <div className="mt-4 text-center text-sm">
+            Don&apos;t have an account?{' '}
+            <Link href="/register" className="underline">
+              Register
+            </Link>
+          </div>
+        )}
         <div className="mt-2 text-center text-sm">
           <a href="#" className="underline">
             Forgot your password?

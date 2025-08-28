@@ -46,9 +46,10 @@ import { updateProfile } from "firebase/auth"
 import { ref, update } from "firebase/database"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2 } from "lucide-react"
+import Link from "next/link";
 
 export function UserNav() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   
@@ -102,6 +103,20 @@ export function UserNav() {
     return name.substring(0, 2).toUpperCase();
   }
 
+  const profileMenuItem = role === 'student' ? (
+    <Link href={`/dashboard/students/${user?.uid}`}>
+       <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+            Profile
+            <DropdownMenuShortcut>⇧⌘P</DropdownMenuShortcut>
+        </DropdownMenuItem>
+    </Link>
+  ) : (
+    <DropdownMenuItem onSelect={() => setIsProfileDialogOpen(true)}>
+      Profile
+      <DropdownMenuShortcut>⇧⌘P</DropdownMenuShortcut>
+    </DropdownMenuItem>
+  );
+
   return (
     <>
       <DropdownMenu>
@@ -124,10 +139,7 @@ export function UserNav() {
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-             <DropdownMenuItem onSelect={() => setIsProfileDialogOpen(true)}>
-              Profile
-              <DropdownMenuShortcut>⇧⌘P</DropdownMenuShortcut>
-            </DropdownMenuItem>
+             {profileMenuItem}
             <DropdownMenuItem disabled>
               Settings
               <DropdownMenuShortcut>⌘S</DropdownMenuShortcut>

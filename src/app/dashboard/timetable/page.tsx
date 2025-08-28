@@ -41,7 +41,7 @@ import {
 
 // Types
 type Class = { id: string; name: string; studentIds?: Record<string, boolean>, teacherId?: string };
-type Subject = { id:string; name: string; classId?: string };
+type Subject = { id:string; name: string; classIds?: Record<string, boolean>; };
 type Teacher = { id: string; name: string };
 type TimetableEntry = {
   subjectId: string;
@@ -49,6 +49,7 @@ type TimetableEntry = {
 };
 type DailyTimetable = { [timeSlot: string]: TimetableEntry | null };
 type ClassTimetable = { [day: string]: DailyTimetable };
+type TeacherTimetableEntry = { subjectName: string; className: string; };
 
 // Constants
 const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
@@ -98,8 +99,9 @@ export default function TimetablePage() {
   }, [user, role, classes]);
 
   const timetablesForRole = React.useMemo(() => {
+    if(role === 'admin') return timetables; // Admin sees all
     return timetables.filter(tt => relevantClassIds.includes(tt.id));
-  }, [timetables, relevantClassIds]);
+  }, [timetables, relevantClassIds, role]);
   
   const originalTimetableForClass = React.useMemo(() => {
     if (!selectedClassId || selectedClassId === 'all') return {};
@@ -108,9 +110,32 @@ export default function TimetablePage() {
     return rest as ClassTimetable;
   }, [timetables, selectedClassId]);
 
-  // Auto-select the first available class for teacher/student
+  const teacherPersonalTimetable = React.useMemo(() => {
+      if (role !== 'teacher' || !user) return {};
+      const personalSchedule: { [day: string]: { [time: string]: TeacherTimetableEntry } } = {};
+      timetables.forEach(classTimetable => {
+          const classId = classTimetable.id;
+          const { id, ...days } = classTimetable;
+          Object.entries(days).forEach(([day, slots]) => {
+              if (typeof slots !== 'object' || slots === null) return;
+              Object.entries(slots).forEach(([time, entry]) => {
+                  if(entry && entry.teacherId === user.uid) {
+                      if(!personalSchedule[day]) personalSchedule[day] = {};
+                      personalSchedule[day][time] = {
+                          className: classesMap.get(classId) || 'Unknown Class',
+                          subjectName: subjectsMap.get(entry.subjectId) || 'Unknown Subject'
+                      };
+                  }
+              })
+          })
+      });
+      return personalSchedule;
+  }, [timetables, role, user, classesMap, subjectsMap]);
+
+
+  // Auto-select the first available class for student
   React.useEffect(() => {
-      if(role === 'teacher' || role === 'student') {
+      if(role === 'student') {
         if(timetablesForRole.length > 0) {
             setSelectedClassId(timetablesForRole[0].id)
         } else {
@@ -200,11 +225,14 @@ export default function TimetablePage() {
 
   const subjectsForClass = React.useMemo(() => {
     if (!selectedClassId || selectedClassId === 'all') return subjects;
-    return subjects.filter(s => !s.classId || s.classId === selectedClassId);
+    
+    // Find all subjects that are explicitly assigned to this class
+    const assignedSubjects = subjects.filter(s => s.classIds && s.classIds[selectedClassId]);
+    return assignedSubjects;
   }, [subjects, selectedClassId]);
 
 
-  const renderTimetableGrid = (timetableData: ClassTimetable, isEditable: boolean) => (
+  const renderAdminTimetableGrid = (timetableData: ClassTimetable, isEditable: boolean) => (
       <div className="rounded-lg border overflow-x-auto">
         <Table className="min-w-full">
           <TableHeader>
@@ -271,6 +299,51 @@ export default function TimetablePage() {
         </Table>
       </div>
   )
+  
+  const renderReadonlyTimetableGrid = (timetableData: ClassTimetable | { [day: string]: { [time: string]: TeacherTimetableEntry } }, view: 'student' | 'teacher') => (
+      <div className="rounded-lg border overflow-x-auto">
+        <Table className="min-w-full">
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-1/8 font-bold text-center sticky left-0 bg-background z-10">Time</TableHead>
+              {daysOfWeek.map((day) => (
+                <TableHead key={day} className="w-1/6 text-center font-bold">{day}</TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {timeSlots.map((time) => {
+                if (time === BREAK_TIME) return <TableRow key={time}><TableCell colSpan={6} className="text-center font-bold text-green-600 bg-green-50 dark:bg-green-900/20">Break</TableCell></TableRow>
+                if (time === LUNCH_TIME) return <TableRow key={time}><TableCell colSpan={6} className="text-center font-bold text-orange-600 bg-orange-50 dark:bg-orange-900/20">Lunch</TableCell></TableRow>
+
+                return (
+                    <TableRow key={time}>
+                        <TableCell className="font-semibold text-center text-xs sticky left-0 bg-background z-10">{time.replace('-', ' - ')}</TableCell>
+                        {daysOfWeek.map((day) => {
+                            const entry = timetableData[day]?.[time];
+                            return (
+                                <TableCell key={day} className="h-24 p-1 border-l text-center align-middle">
+                                    {entry ? (
+                                        <div className="flex flex-col gap-1 text-center">
+                                            {view === 'teacher' && <Badge variant="outline" className="text-xs justify-center">{(entry as TeacherTimetableEntry).className}</Badge>}
+                                            <Badge className="text-xs justify-center">
+                                                {view === 'teacher' ? (entry as TeacherTimetableEntry).subjectName : subjectsMap.get((entry as TimetableEntry).subjectId)}
+                                            </Badge>
+                                            <span className="text-xs text-muted-foreground">
+                                                {view === 'student' ? teachersMap.get((entry as TimetableEntry).teacherId) : user?.displayName}
+                                            </span>
+                                        </div>
+                                    ) : null}
+                                </TableCell>
+                            )
+                         })}
+                    </TableRow>
+                )
+            })}
+          </TableBody>
+        </Table>
+      </div>
+  );
 
 
   return (
@@ -280,7 +353,7 @@ export default function TimetablePage() {
           <h1 className="text-3xl font-bold tracking-tight">Timetable</h1>
           <p className="text-muted-foreground">
             {role === 'admin' && "Create, manage, and view class schedules."}
-            {role === 'teacher' && "View the schedules for your assigned classes."}
+            {role === 'teacher' && "View your personalized weekly schedule."}
             {role === 'student' && "View your class schedule."}
           </p>
         </div>
@@ -353,7 +426,7 @@ export default function TimetablePage() {
                                   <CardTitle>{classesMap.get(id) || "Unknown Class"}</CardTitle>
                               </CardHeader>
                               <CardContent>
-                                  {renderTimetableGrid(timetableData as ClassTimetable, false)}
+                                  {renderAdminTimetableGrid(timetableData as ClassTimetable, false)}
                               </CardContent>
                           </Card>
                       )
@@ -364,13 +437,30 @@ export default function TimetablePage() {
                   )}
               </div>
           ) : selectedClassId ? (
-              renderTimetableGrid(editableTimetable, true)
+              renderAdminTimetableGrid(editableTimetable, true)
           ) : (
               <div className="flex h-96 items-center justify-center">
                   <p className="text-muted-foreground">Please select a class to view or edit the timetable.</p>
               </div>
           )
-        ) : (
+        ) : role === 'teacher' ? (
+             <div className="space-y-8">
+                {Object.keys(teacherPersonalTimetable).length > 0 ? (
+                    <Card>
+                         <CardHeader>
+                            <CardTitle>My Personal Schedule</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                             {renderReadonlyTimetableGrid(teacherPersonalTimetable, 'teacher')}
+                        </CardContent>
+                    </Card>
+                ) : (
+                     <div className="flex h-96 items-center justify-center">
+                        <p className="text-muted-foreground">You have not been assigned to any classes yet.</p>
+                    </div>
+                )}
+            </div>
+        ) : ( // Student view
            <div className="space-y-8">
                 {timetablesForRole.length > 0 ? timetablesForRole.map(tt => {
                     const { id, ...timetableData } = tt;
@@ -380,7 +470,7 @@ export default function TimetablePage() {
                                 <CardTitle>{classesMap.get(id) || "Unknown Class"}</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                {renderTimetableGrid(timetableData as ClassTimetable, false)}
+                                {renderReadonlyTimetableGrid(timetableData as ClassTimetable, 'student')}
                             </CardContent>
                         </Card>
                     )

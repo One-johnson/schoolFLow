@@ -26,7 +26,15 @@ import {
   FileDown,
   BookCopy,
   Book,
+  Users,
+  UserX,
+  UserCheck,
 } from "lucide-react"
+import Link from "next/link"
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { set, ref } from 'firebase/database';
+
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -94,6 +102,8 @@ import { format } from "date-fns"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ImageUpload } from "@/components/ui/image-upload"
+import { serverTimestamp } from "firebase/database"
+import { database } from "@/lib/firebase";
 
 type Teacher = {
   id: string
@@ -111,9 +121,12 @@ type Teacher = {
   nationality?: string
   address?: string
   religion?: string
+  createdAt: number;
+  updatedAt?: number;
+  teacherId?: string; // Custom readable ID
 }
 
-type Class = { id: string; name: string };
+type Class = { id: string; name: string, teacherId?: string };
 
 export default function TeachersPage() {
   const [sorting, setSorting] = React.useState<SortingState>([])
@@ -127,6 +140,8 @@ export default function TeachersPage() {
     nationality: false,
     address: false,
     religion: false,
+    createdAt: false,
+    updatedAt: false,
   })
   const [rowSelection, setRowSelection] = React.useState({})
   
@@ -148,12 +163,30 @@ export default function TeachersPage() {
   const { addData: addNotification } = useDatabase("notifications")
   const { toast } = useToast()
 
-  const [newTeacher, setNewTeacher] = React.useState<Partial<Omit<Teacher, 'id' | 'status'>>>({});
+  const [newTeacher, setNewTeacher] = React.useState<Partial<Omit<Teacher, 'id' | 'status' | 'createdAt'>>>({});
   const [editTeacher, setEditTeacher] = React.useState<Partial<Teacher>>({});
   const [assignClassId, setAssignClassId] = React.useState<string | undefined>();
 
   const [dob, setDob] = React.useState<Date | undefined>();
   const [doe, setDoe] = React.useState<Date | undefined>();
+
+  const teacherClassMap = React.useMemo(() => {
+    const map = new Map<string, string>();
+    classes.forEach(c => {
+        if(c.teacherId) {
+            map.set(c.teacherId, c.name);
+        }
+    });
+    return map;
+  }, [classes]);
+
+  const teacherStatusCounts = React.useMemo(() => {
+    return teachers.reduce((acc, teacher) => {
+      acc.total = (acc.total || 0) + 1;
+      acc[teacher.status] = (acc[teacher.status] || 0) + 1;
+      return acc;
+    }, { total: 0, Active: 0, "On Leave": 0, Retired: 0 });
+  }, [teachers]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, form: 'new' | 'edit') => {
       const { id, value } = e.target;
@@ -196,22 +229,34 @@ export default function TeachersPage() {
     }
     setIsLoading(true);
     try {
-      const teacherId = generateTeacherId(newTeacher.department || 'GENERAL')
+        const teacherId = generateTeacherId(newTeacher.department || 'GENERAL');
+
+        // Create Auth user with email and the custom teacher ID as password
+        const userCredential = await createUserWithEmailAndPassword(auth, newTeacher.email, teacherId);
+        const authUser = userCredential.user;
+        await updateProfile(authUser, { displayName: newTeacher.name });
+
+        // Add to 'users' table for role management
+        const userRef = ref(database, `users/${authUser.uid}`);
+        await set(userRef, { role: 'teacher', email: authUser.email, name: newTeacher.name });
+
       const teacherData = {
         ...newTeacher,
+        id: authUser.uid, // The secure, unique Firebase Auth ID
+        teacherId: teacherId, // The custom, human-readable ID
         status: 'Active',
         dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
         dateOfEmployment: doe ? format(doe, "yyyy-MM-dd") : undefined,
-      } as Omit<Teacher, 'id'>
+      } as Omit<Teacher, 'createdAt'>
 
-      await addDataWithId(teacherId, teacherData)
+      await addDataWithId(authUser.uid, teacherData)
 
       await addNotification({
         type: 'teacher_added',
         message: `New teacher "${newTeacher.name}" was added.`,
         read: false,
       })
-      toast({ title: "Success", description: "Teacher added. Account needs to be created separately." })
+      toast({ title: "Success", description: "Teacher added successfully." })
       resetFormStates();
       setIsCreateDialogOpen(false)
     } catch (error: any) {
@@ -237,6 +282,7 @@ export default function TeachersPage() {
         ...editTeacher,
         dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
         dateOfEmployment: doe ? format(doe, "yyyy-MM-dd") : undefined,
+        updatedAt: serverTimestamp(),
       })
       toast({ title: "Success", description: "Teacher updated." })
       setIsEditDialogOpen(false)
@@ -339,17 +385,24 @@ export default function TeachersPage() {
                     <AvatarImage src={teacher.avatarUrl} alt={teacher.name} />
                     <AvatarFallback>{initials}</AvatarFallback>
                 </Avatar>
-                <span className="capitalize">{teacher.name}</span>
+                <Link href={`/dashboard/teachers/${teacher.id}`} className="capitalize font-medium text-primary hover:underline">
+                    {teacher.name}
+                </Link>
             </div>
           )
       }
     },
     {
-      accessorKey: "id",
-      header: "ID",
+      accessorKey: "teacherId",
+      header: "Teacher ID",
       cell: ({ row }) => (
-        <div className="font-mono text-xs">{row.getValue("id")}</div>
+        <div className="font-mono text-xs">{row.getValue("teacherId")}</div>
       ),
+    },
+    {
+      accessorKey: "class",
+      header: "Class",
+      cell: ({ row }) => teacherClassMap.get(row.original.id) || <span className="text-muted-foreground">N/A</span>,
     },
      {
       accessorKey: "department",
@@ -402,6 +455,16 @@ export default function TeachersPage() {
           </Badge>
         )
       },
+    },
+    {
+      accessorKey: "createdAt",
+      header: "Created At",
+      cell: ({ row }) => <div>{row.getValue("createdAt") ? format(new Date(row.getValue("createdAt") as number), 'PPP') : 'N/A'}</div>,
+    },
+    {
+      accessorKey: "updatedAt",
+      header: "Updated At",
+      cell: ({ row }) => <div>{row.getValue("updatedAt") ? format(new Date(row.getValue("updatedAt") as number), 'PPP') : 'N/A'}</div>,
     },
      {
       accessorKey: "employmentType",
@@ -727,6 +790,20 @@ export default function TeachersPage() {
       </CardHeader>
       <CardContent>
         <div className="w-full">
+            <div className="mb-4 flex flex-wrap items-center gap-6 rounded-md bg-muted p-1 sm:w-fit">
+                <Button variant="ghost" className="h-8 justify-start gap-2 px-3 text-muted-foreground hover:bg-background hover:text-foreground data-[active=true]:bg-background data-[active=true]:text-foreground data-[active=true]:shadow-sm" data-active={true}>
+                    <Users className="h-4 w-4" /> All Teachers <Badge className="ml-2">{teacherStatusCounts.total}</Badge>
+                </Button>
+                <Button variant="ghost" className="h-8 justify-start gap-2 px-3 text-muted-foreground hover:bg-background hover:text-foreground data-[active=true]:bg-background data-[active=true]:text-foreground data-[active=true]:shadow-sm">
+                    <UserCheck className="h-4 w-4" /> Active <Badge variant="secondary" className="ml-2 bg-green-200 text-green-900">{teacherStatusCounts.Active}</Badge>
+                </Button>
+                 <Button variant="ghost" className="h-8 justify-start gap-2 px-3 text-muted-foreground hover:bg-background hover:text-foreground data-[active=true]:bg-background data-[active=true]:text-foreground data-[active=true]:shadow-sm">
+                    <UserX className="h-4 w-4" /> On Leave <Badge variant="secondary" className="ml-2 bg-yellow-200 text-yellow-900">{teacherStatusCounts["On Leave"]}</Badge>
+                </Button>
+                 <Button variant="ghost" className="h-8 justify-start gap-2 px-3 text-muted-foreground hover:bg-background hover:text-foreground data-[active=true]:bg-background data-[active=true]:text-foreground data-[active=true]:shadow-sm">
+                    <UserX className="h-4 w-4" /> Retired <Badge variant="secondary" className="ml-2 bg-gray-200 text-gray-900">{teacherStatusCounts.Retired}</Badge>
+                </Button>
+            </div>
           <div className="flex flex-wrap items-center py-4 gap-2">
             <Input
               placeholder="Filter by teacher name..."

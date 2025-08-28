@@ -24,8 +24,16 @@ import {
   Loader2,
   FileDown,
   Book,
+  Users,
+  UserCheck,
+  UserX,
+  GraduationCap,
 } from "lucide-react"
 import Link from "next/link"
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { set, ref } from 'firebase/database';
+
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -76,6 +84,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import { useDatabase } from "@/hooks/use-database"
+import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -89,18 +98,22 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
-import { cn, generateStudentId } from "@/lib/utils"
+import { cn, generateStudentId, generateAdmissionNo } from "@/lib/utils"
 import { format } from "date-fns"
 import { Calendar as CalendarIcon } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ImageUpload } from "@/components/ui/image-upload"
+import { serverTimestamp } from "firebase/database"
+import { database } from "@/lib/firebase";
 
 type Student = {
   id: string
   name: string
   email: string
   status: "Active" | "Inactive" | "Graduated" | "Continuing"
+  admissionNo: string;
+  rollNo: string;
   dateOfBirth?: string
   placeOfBirth?: string
   nationality?: string
@@ -111,9 +124,18 @@ type Student = {
   parentPhone?: string
   parentEmail?: string
   avatarUrl?: string;
+  house?: "Ambassadors" | "Royals" | "Dependable" | "Jubilee";
   createdAt: number;
+  updatedAt?: number;
 }
-type Class = { id: string; name: string; studentIds?: Record<string, boolean> };
+type Class = { id: string; name: string; studentIds?: Record<string, boolean>, teacherId?: string };
+
+const houseColors: Record<NonNullable<Student["house"]>, string> = {
+  Ambassadors: "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300",
+  Royals: "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300",
+  Dependable: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300",
+  Jubilee: "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300",
+};
 
 const calculateAge = (dob: Date | undefined): number | undefined => {
     if (!dob) return undefined;
@@ -134,6 +156,7 @@ const getInitials = (name: string | null | undefined) => {
 
 
 export default function StudentsPage() {
+  const { user, role } = useAuth();
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({
@@ -144,7 +167,9 @@ export default function StudentsPage() {
     hometown: false,
     address: false,
     parentEmail: false,
-    nationality: false
+    nationality: false,
+    createdAt: false,
+    updatedAt: false,
   })
   const [rowSelection, setRowSelection] = React.useState({})
   
@@ -155,7 +180,7 @@ export default function StudentsPage() {
   const [isLoading, setIsLoading] = React.useState(false);
 
   const {
-    data: students,
+    data: allStudents,
     loading: dataLoading,
     addDataWithId,
     updateData,
@@ -166,10 +191,26 @@ export default function StudentsPage() {
   const { addData: addNotification } = useDatabase("notifications")
   const { toast } = useToast()
 
-  const [newStudent, setNewStudent] = React.useState<Partial<Omit<Student, 'id' | 'status'>>>({});
+  const [newStudent, setNewStudent] = React.useState<Partial<Omit<Student, 'id' | 'status' | 'createdAt'>>>({});
   const [editStudent, setEditStudent] = React.useState<Partial<Student>>({});
   const [assignClassId, setAssignClassId] = React.useState<string | undefined>();
   const [dob, setDob] = React.useState<Date | undefined>();
+
+  const students = React.useMemo(() => {
+    if (role === 'admin') return allStudents;
+    if (role === 'teacher') {
+        const teacherClassIds = new Set(classes.filter(c => c.teacherId === user?.uid).map(c => c.id));
+        const studentIdsInTeacherClasses = new Set<string>();
+        classes.forEach(c => {
+            if (teacherClassIds.has(c.id) && c.studentIds) {
+                Object.keys(c.studentIds).forEach(id => studentIdsInTeacherClasses.add(id));
+            }
+        });
+        return allStudents.filter(s => studentIdsInTeacherClasses.has(s.id));
+    }
+    return [];
+  }, [role, allStudents, classes, user]);
+
 
   const studentClassMap = React.useMemo(() => {
     const map = new Map<string, string>();
@@ -182,6 +223,14 @@ export default function StudentsPage() {
     });
     return map;
   }, [classes]);
+
+  const studentStatusCounts = React.useMemo(() => {
+    return allStudents.reduce((acc, student) => {
+      acc.total = (acc.total || 0) + 1;
+      acc[student.status] = (acc[student.status] || 0) + 1;
+      return acc;
+    }, { total: 0, Active: 0, Inactive: 0, Graduated: 0, Continuing: 0 });
+  }, [allStudents]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, form: 'new' | 'edit') => {
       const { id, value } = e.target;
@@ -218,14 +267,29 @@ export default function StudentsPage() {
     }
     setIsLoading(true);
     try {
-      const studentId = generateStudentId()
-      const studentData = {
-        ...newStudent,
-        status: 'Active',
-        dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
-      } as Omit<Student, 'id'>;
+        const studentId = generateStudentId();
+        const admissionNo = generateAdmissionNo();
+        const rollNo = (allStudents.length + 1).toString().padStart(4, '0');
 
-      await addDataWithId(studentId, studentData);
+        // Create Auth user
+        const userCredential = await createUserWithEmailAndPassword(auth, newStudent.email, studentId);
+        const authUser = userCredential.user;
+        await updateProfile(authUser, { displayName: newStudent.name });
+        
+        // Add to 'users' table
+        const userRef = ref(database, `users/${authUser.uid}`);
+        await set(userRef, { role: 'student', email: authUser.email, name: newStudent.name });
+
+        const studentData = {
+            ...newStudent,
+            id: authUser.uid,
+            status: 'Active',
+            admissionNo,
+            rollNo,
+            dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
+        } as Omit<Student, 'createdAt' | 'id'>;
+
+        await addDataWithId(authUser.uid, studentData as any);
 
       await addNotification({
         type: 'student_enrolled',
@@ -265,6 +329,7 @@ export default function StudentsPage() {
       await updateData(selectedStudent.id, {
         ...editStudent,
         dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
+        updatedAt: serverTimestamp(),
       })
       toast({ title: "Success", description: "Student updated." })
       setIsEditDialogOpen(false)
@@ -355,6 +420,16 @@ export default function StudentsPage() {
         <div className="font-mono text-xs">{row.getValue("id")}</div>
       ),
     },
+     {
+      accessorKey: "admissionNo",
+      header: "Admission No.",
+      cell: ({ row }) => <div>{row.getValue("admissionNo")}</div>,
+    },
+     {
+      accessorKey: "rollNo",
+      header: "Roll No.",
+      cell: ({ row }) => <div>{row.getValue("rollNo")}</div>,
+    },
     {
       accessorKey: "name",
       header: ({ column }) => {
@@ -386,6 +461,16 @@ export default function StudentsPage() {
       accessorKey: "class",
       header: "Class",
       cell: ({ row }) => studentClassMap.get(row.original.id) || <span className="text-muted-foreground">N/A</span>,
+    },
+    {
+      accessorKey: "house",
+      header: "House",
+      cell: ({ row }) => {
+        const house = row.getValue("house") as Student["house"];
+        if (!house) return <span className="text-muted-foreground">N/A</span>;
+        const colorClass = houseColors[house];
+        return <Badge className={cn("border-transparent", colorClass)}>{house}</Badge>
+      }
     },
     {
       accessorKey: "email",
@@ -445,6 +530,16 @@ export default function StudentsPage() {
           </Badge>
         )
       },
+    },
+    {
+      accessorKey: "createdAt",
+      header: "Created At",
+      cell: ({ row }) => <div>{row.getValue("createdAt") ? format(new Date(row.getValue("createdAt") as number), 'PPP') : 'N/A'}</div>,
+    },
+    {
+      accessorKey: "updatedAt",
+      header: "Updated At",
+      cell: ({ row }) => <div>{row.getValue("updatedAt") ? format(new Date(row.getValue("updatedAt") as number), 'PPP') : 'N/A'}</div>,
     },
      // Hidden by default columns
     { accessorKey: "dateOfBirth", header: "Date of Birth", cell: ({ row }) => <div>{row.getValue("dateOfBirth") ? format(new Date(row.getValue("dateOfBirth") as string), 'PPP') : 'N/A'}</div> },
@@ -531,20 +626,23 @@ export default function StudentsPage() {
         return;
     }
 
-    const headers = ["ID", "Name", "Email", "Status", "Class", "Gender", "Parent's Name", "Parent's Phone"];
+    const headers = ["ID", "Admission No.", "Roll No.", "Name", "Email", "Status", "Class", "Gender", "Parent's Name", "Parent's Phone", "House"];
     const csvContent = [
         headers.join(','),
         ...rowsToExport.map(row => {
             const student = row.original;
             return [
                 student.id,
+                student.admissionNo,
+                student.rollNo,
                 `"${student.name}"`,
                 student.email,
                 student.status,
                 `"${studentClassMap.get(student.id) || 'N/A'}"`,
                 student.gender || 'N/A',
                 `"${student.parentName || 'N/A'}"`,
-                `"${student.parentPhone || 'N/A'}"`
+                `"${student.parentPhone || 'N/A'}"`,
+                student.house || 'N/A'
             ].join(',');
         })
     ].join('\n');
@@ -570,8 +668,11 @@ export default function StudentsPage() {
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Student Directory</CardTitle>
-          <CardDescription>Manage student profiles and information.</CardDescription>
+          <CardDescription>
+            {role === 'admin' ? "Manage student profiles and information." : "View student profiles."}
+          </CardDescription>
         </div>
+        {role === 'admin' && (
         <div className="flex items-center gap-2">
              <Button variant="outline" onClick={handleExportCSV}>
                 <FileDown className="mr-2 h-4 w-4"/>
@@ -689,6 +790,20 @@ export default function StudentsPage() {
                                         </SelectContent>
                                     </Select>
                                 </div>
+                                 <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="house" className="text-right">House</Label>
+                                    <Select onValueChange={(value: Student["house"]) => setNewStudent(prev => ({ ...prev, house: value as any}))} value={newStudent.house} disabled={isLoading}>
+                                        <SelectTrigger className="col-span-3">
+                                            <SelectValue placeholder="Select house" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Ambassadors">Ambassadors</SelectItem>
+                                            <SelectItem value="Royals">Royals</SelectItem>
+                                            <SelectItem value="Dependable">Dependable</SelectItem>
+                                            <SelectItem value="Jubilee">Jubilee</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                                 <div className="grid grid-cols-4 items-center gap-4">
                                     <Label htmlFor="nationality" className="text-right">Nationality</Label>
                                     <Input id="nationality" placeholder="e.g., American" className="col-span-3" value={newStudent.nationality || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
@@ -730,9 +845,29 @@ export default function StudentsPage() {
             </DialogContent>
             </Dialog>
         </div>
+        )}
       </CardHeader>
       <CardContent>
         <div className="w-full">
+           {role === 'admin' && (
+             <div className="mb-4 flex flex-wrap items-center gap-6 rounded-md bg-muted p-1 sm:w-fit">
+                <Button variant="ghost" className="h-8 justify-start gap-2 px-3 text-muted-foreground hover:bg-background hover:text-foreground data-[active=true]:bg-background data-[active=true]:text-foreground data-[active=true]:shadow-sm" data-active={true}>
+                    <Users className="h-4 w-4" /> All Students <Badge className="ml-2">{studentStatusCounts.total}</Badge>
+                </Button>
+                <Button variant="ghost" className="h-8 justify-start gap-2 px-3 text-muted-foreground hover:bg-background hover:text-foreground data-[active=true]:bg-background data-[active=true]:text-foreground data-[active=true]:shadow-sm">
+                    <UserCheck className="h-4 w-4" /> Active <Badge variant="secondary" className="ml-2 bg-green-200 text-green-900">{studentStatusCounts.Active}</Badge>
+                </Button>
+                 <Button variant="ghost" className="h-8 justify-start gap-2 px-3 text-muted-foreground hover:bg-background hover:text-foreground data-[active=true]:bg-background data-[active=true]:text-foreground data-[active=true]:shadow-sm">
+                    <UserX className="h-4 w-4" /> Inactive <Badge variant="secondary" className="ml-2 bg-red-200 text-red-900">{studentStatusCounts.Inactive}</Badge>
+                </Button>
+                 <Button variant="ghost" className="h-8 justify-start gap-2 px-3 text-muted-foreground hover:bg-background hover:text-foreground data-[active=true]:bg-background data-[active=true]:text-foreground data-[active=true]:shadow-sm">
+                    <GraduationCap className="h-4 w-4" /> Graduated <Badge variant="secondary" className="ml-2 bg-blue-200 text-blue-900">{studentStatusCounts.Graduated}</Badge>
+                </Button>
+                 <Button variant="ghost" className="h-8 justify-start gap-2 px-3 text-muted-foreground hover:bg-background hover:text-foreground data-[active=true]:bg-background data-[active=true]:text-foreground data-[active=true]:shadow-sm">
+                    <ArrowUpDown className="h-4 w-4" /> Continuing <Badge variant="secondary" className="ml-2 bg-orange-200 text-orange-900">{studentStatusCounts.Continuing}</Badge>
+                </Button>
+            </div>
+            )}
           <div className="flex flex-wrap items-center py-4 gap-2">
             <Input
               placeholder="Filter by student name..."
@@ -740,13 +875,13 @@ export default function StudentsPage() {
               onChange={(event) =>
                 table.getColumn("name")?.setFilterValue(event.target.value)
               }
-              className="max-w-sm"
+              className="max-w-xs"
             />
              <Select
               value={(table.getColumn("gender")?.getFilterValue() as string) ?? "all"}
               onValueChange={(value) => table.getColumn("gender")?.setFilterValue(value === "all" ? undefined : value)}
             >
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-[160px]">
                     <SelectValue placeholder="Filter by Gender" />
                 </SelectTrigger>
                 <SelectContent>
@@ -757,10 +892,25 @@ export default function StudentsPage() {
                 </SelectContent>
             </Select>
             <Select
+              value={(table.getColumn("house")?.getFilterValue() as string) ?? "all"}
+              onValueChange={(value) => table.getColumn("house")?.setFilterValue(value === "all" ? undefined : value)}
+            >
+                <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="Filter by House" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Houses</SelectItem>
+                    <SelectItem value="Ambassadors">Ambassadors</SelectItem>
+                    <SelectItem value="Royals">Royals</SelectItem>
+                    <SelectItem value="Dependable">Dependable</SelectItem>
+                    <SelectItem value="Jubilee">Jubilee</SelectItem>
+                </SelectContent>
+            </Select>
+            <Select
               value={(table.getColumn("status")?.getFilterValue() as string) ?? "all"}
               onValueChange={(value) => table.getColumn("status")?.setFilterValue(value === "all" ? undefined : value)}
             >
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-[160px]">
                     <SelectValue placeholder="Filter by Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -908,6 +1058,14 @@ export default function StudentsPage() {
                                     />
                                 </div>
                             </div>
+                             <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="admissionNo" className="text-right">Admission No.</Label>
+                                <Input id="admissionNo" className="col-span-3" value={editStudent.admissionNo || ""} disabled />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="rollNo" className="text-right">Roll No.</Label>
+                                <Input id="rollNo" className="col-span-3" value={editStudent.rollNo || ""} disabled />
+                            </div>
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <Label htmlFor="name" className="text-right">Full Name</Label>
                                 <Input id="name" placeholder="John Doe" className="col-span-3" value={editStudent.name || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
@@ -960,6 +1118,20 @@ export default function StudentsPage() {
                                         <SelectItem value="Male">Male</SelectItem>
                                         <SelectItem value="Female">Female</SelectItem>
                                         <SelectItem value="Other">Other</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                             <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="house" className="text-right">House</Label>
+                                <Select onValueChange={(value: Student["house"]) => setEditStudent(prev => ({...prev, house: value}))} value={editStudent.house} disabled={isLoading}>
+                                    <SelectTrigger className="col-span-3">
+                                        <SelectValue placeholder="Select house" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Ambassadors">Ambassadors</SelectItem>
+                                        <SelectItem value="Royals">Royals</SelectItem>
+                                        <SelectItem value="Dependable">Dependable</SelectItem>
+                                        <SelectItem value="Jubilee">Jubilee</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>

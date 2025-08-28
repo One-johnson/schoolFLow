@@ -30,16 +30,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  // Pass role to children
-  const childrenWithProps = React.Children.map(children, child => {
-    if (React.isValidElement(child)) {
-      // @ts-ignore
-      return React.cloneElement(child, { role });
-    }
-    return child;
-  });
-
-
   return (
     <ThemeProvider
       attribute="class"
@@ -53,7 +43,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         </Sidebar>
         <SidebarInset>
           <DashboardHeader />
-          <main className="p-4 lg:p-6">{childrenWithProps}</main>
+          <main className="p-4 lg:p-6">{children}</main>
         </SidebarInset>
       </SidebarProvider>
     </ThemeProvider>
