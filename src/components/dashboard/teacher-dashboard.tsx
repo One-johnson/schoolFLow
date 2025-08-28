@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { useDatabase } from "@/hooks/use-database";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import Link from "next/link";
-import { BookOpen, Users, BookCopy, ArrowRight, ClipboardCheck, Edit, MailCheck, Clock, XCircle, User as UserIcon, Calendar, Contact, Briefcase, CalendarClock } from "lucide-react";
+import { BookOpen, Users, BookCopy, ArrowRight, ClipboardCheck, Edit, MailCheck, Clock, XCircle, User as UserIcon, Calendar, Contact, Briefcase, CalendarClock, DollarSign } from "lucide-react";
 import { format, parseISO, isFuture, startOfWeek, subDays, eachDayOfInterval } from 'date-fns';
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -32,6 +32,8 @@ import { useToast } from "@/hooks/use-toast";
 import { ImageUpload } from "../ui/image-upload";
 import { Loader2 } from "lucide-react";
 import { ScrollArea, ScrollBar } from "../ui/scroll-area";
+import { motion } from "framer-motion";
+
 
 // Data Types
 type Teacher = { id: string; name: string; email: string; status: "Active" | "On Leave" | "Retired"; dateOfBirth?: string; academicQualification?: string; dateOfEmployment?: string; contact?: string; department?: string; employmentType?: "Full Time" | "Part Time" | "Contract"; gender?: "Male" | "Female" | "Other"; address?: string; avatarUrl?: string; teacherId?: string; };
@@ -48,6 +50,7 @@ type AttendanceRecord = Record<string, AttendanceStatus>;
 type DailyAttendance = { [classId: string]: AttendanceRecord };
 type TimetableEntry = { subjectId: string; teacherId: string; };
 type ClassTimetable = { id: string, [day: string]: { [timeSlot: string]: TimetableEntry | null } };
+type StudentFee = { id: string; studentId: string; feeId: string; amountDue: number; amountPaid: number; status: "Paid" | "Unpaid" | "Partial"; };
 
 
 export function TeacherDashboard() {
@@ -64,11 +67,12 @@ export function TeacherDashboard() {
   const { data: grades, loading: gradesLoading } = useDatabase<StudentGrade>("studentGrades");
   const { data: rawAttendance, loading: attendanceLoading } = useDatabase<DailyAttendance>("attendance");
   const { data: timetables, loading: timetablesLoading } = useDatabase<ClassTimetable>("timetables");
+  const { data: studentFees, loading: feesLoading } = useDatabase<StudentFee>("studentFees");
   
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const loading = classesLoading || subjectsLoading || studentsLoading || announcementsLoading || eventsLoading || permissionsLoading || examsLoading || gradesLoading || attendanceLoading || teachersLoading || timetablesLoading;
+  const loading = classesLoading || subjectsLoading || studentsLoading || announcementsLoading || eventsLoading || permissionsLoading || examsLoading || gradesLoading || attendanceLoading || teachersLoading || timetablesLoading || feesLoading;
 
   const [attendanceDateFilter, setAttendanceDateFilter] = useState('last7days');
   const [performanceExamFilter, setPerformanceExamFilter] = useState<string | undefined>();
@@ -292,6 +296,22 @@ export function TeacherDashboard() {
     };
   }, [exams, grades, teacherSubjects, studentIdsInTeacherClasses]);
 
+  const feeStats = useMemo(() => {
+    if (feesLoading || !studentIdsInTeacherClasses.size) return { totalDue: 0, totalPaid: 0, totalOwed: 0 };
+    const classFees = studentFees.filter(fee => studentIdsInTeacherClasses.has(fee.studentId));
+    const stats = classFees.reduce((acc, fee) => {
+        acc.totalDue += fee.amountDue;
+        acc.totalPaid += fee.amountPaid;
+        return acc;
+    }, { totalDue: 0, totalPaid: 0 });
+
+    return {
+      totalDue: stats.totalDue,
+      totalPaid: stats.totalPaid,
+      totalOwed: stats.totalDue - stats.totalPaid,
+    }
+  }, [studentFees, feesLoading, studentIdsInTeacherClasses]);
+
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return "?";
@@ -307,54 +327,81 @@ export function TeacherDashboard() {
   };
   const performanceChartConfig = { score: { label: "Avg. Score", color: "hsl(var(--chart-1))" }};
 
+  const cardVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: (i: number) => ({
+      opacity: 1,
+      y: 0,
+      transition: {
+        delay: i * 0.05,
+        type: "spring",
+        stiffness: 100,
+        damping: 10,
+      },
+    }),
+  };
+
+  const MotionCard = motion(Card);
+
   return (
     <>
     <div className="flex flex-col gap-6">
       <div className="flex-1 space-y-4">
-        <h1 className="text-3xl font-bold tracking-tight">Teacher Dashboard</h1>
-        <p className="text-muted-foreground">
-          Welcome back, {user?.displayName}! Here's your overview.
-        </p>
+        {loading ? <Skeleton className="h-8 w-1/2"/> : <h1 className="text-3xl font-bold tracking-tight">Teacher Dashboard</h1> }
+        {loading ? <Skeleton className="h-4 w-3/4"/> : <p className="text-muted-foreground">Welcome back, {user?.displayName}! Here's your overview.</p> }
       </div>
 
        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="lg:col-span-1">
+          <MotionCard custom={0} variants={cardVariants} initial="hidden" animate="visible" whileHover={{ y: -5 }} className="lg:col-span-1">
             <CardHeader className="flex flex-row items-center gap-4">
-                <Avatar className="h-20 w-20">
-                    <AvatarImage src={teacher?.avatarUrl} />
-                    <AvatarFallback className="text-2xl">{getInitials(teacher?.name)}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                    <CardTitle>{teacher?.name}</CardTitle>
-                    <CardDescription>{teacher?.teacherId}</CardDescription>
-                    <Badge variant="outline" className="mt-2">{teacher?.status}</Badge>
+                {loading ? <Skeleton className="h-20 w-20 rounded-full"/> : (
+                    <Avatar className="h-20 w-20">
+                        <AvatarImage src={teacher?.avatarUrl} />
+                        <AvatarFallback className="text-2xl">{getInitials(teacher?.name)}</AvatarFallback>
+                    </Avatar>
+                )}
+                <div className="flex-1 space-y-1">
+                    {loading ? <Skeleton className="h-6 w-3/4" /> : <CardTitle>{teacher?.name}</CardTitle>}
+                    {loading ? <Skeleton className="h-4 w-1/2" /> : <CardDescription>{teacher?.teacherId}</CardDescription>}
+                    {loading ? <Skeleton className="h-6 w-1/4 mt-1" /> : <Badge variant="outline" className="mt-2">{teacher?.status}</Badge>}
                 </div>
             </CardHeader>
             <CardContent className="text-sm space-y-2">
-                 <div className="flex items-center gap-2 text-muted-foreground">
-                    <Briefcase className="h-4 w-4"/>
-                    <span>{teacher?.academicQualification || "Qualification not set"}</span>
-                 </div>
-                 <div className="flex items-center gap-2 text-muted-foreground">
-                    <Contact className="h-4 w-4"/>
-                    <span>{teacher?.contact || "Contact not set"}</span>
-                 </div>
-                 <div className="flex items-center gap-2 text-muted-foreground">
-                    <BookOpen className="h-4 w-4"/>
-                    <span>Class Teacher for <b>{teacherClasses[0]?.name || 'N/A'}</b></span>
-                 </div>
-                 <div className="flex items-center gap-2 text-muted-foreground">
-                    <BookCopy className="h-4 w-4"/>
-                    <span>Teaches <b>{teacherSubjects.length}</b> subjects</span>
-                 </div>
+                {loading ? (
+                    <div className="space-y-3">
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-5/6" />
+                        <Skeleton className="h-4 w-4/6" />
+                    </div>
+                ) : (
+                    <>
+                         <div className="flex items-center gap-2 text-muted-foreground">
+                            <Briefcase className="h-4 w-4"/>
+                            <span>{teacher?.academicQualification || "Qualification not set"}</span>
+                         </div>
+                         <div className="flex items-center gap-2 text-muted-foreground">
+                            <Contact className="h-4 w-4"/>
+                            <span>{teacher?.contact || "Contact not set"}</span>
+                         </div>
+                         <div className="flex items-center gap-2 text-muted-foreground">
+                            <BookOpen className="h-4 w-4"/>
+                            <span>Class Teacher for <b>{teacherClasses[0]?.name || 'N/A'}</b></span>
+                         </div>
+                         <div className="flex items-center gap-2 text-muted-foreground">
+                            <BookCopy className="h-4 w-4"/>
+                            <span>Teaches <b>{teacherSubjects.length}</b> subjects</span>
+                         </div>
+                    </>
+                )}
             </CardContent>
             <CardFooter>
-                 <Button className="w-full" variant="outline" onClick={() => setIsProfileDialogOpen(true)}>
+                 <Button className="w-full" variant="outline" onClick={() => setIsProfileDialogOpen(true)} disabled={loading}>
                     <Edit className="mr-2 h-4 w-4"/> Edit Profile
                 </Button>
             </CardFooter>
-          </Card>
-          <Card className="lg:col-span-2">
+          </MotionCard>
+          <MotionCard custom={1} variants={cardVariants} initial="hidden" animate="visible" whileHover={{ y: -5 }} className="lg:col-span-2">
             <CardHeader>
                 <CardTitle>Quick Links</CardTitle>
                 <CardDescription>Your essential tools, just a click away.</CardDescription>
@@ -370,14 +417,13 @@ export function TeacherDashboard() {
                     <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/30 text-center hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors h-full flex flex-col justify-center">
                         <Edit className="h-8 w-8 text-green-600 mx-auto"/>
                         <p className="mt-2 text-sm font-medium text-green-800 dark:text-green-200">Enter Grades</p>
-                        {gradingProgress && (
+                        {loading ? <Skeleton className="h-6 w-3/4 mx-auto mt-2"/> : gradingProgress ? (
                             <div className="mt-2 text-xs text-muted-foreground">
                                 <p className="font-semibold">{gradingProgress.examName}</p>
                                 <p>{gradingProgress.completed} of {gradingProgress.total} subjects graded</p>
                                 <Progress value={(gradingProgress.completed / gradingProgress.total) * 100} className="h-1 mt-1" />
                             </div>
-                        )}
-                         {!gradingProgress && !examsLoading && <p className="text-xs text-muted-foreground mt-2">No active grading period.</p>}
+                        ) : <p className="text-xs text-muted-foreground mt-2">No active grading period.</p>}
                     </div>
                 </Link>
                 <Link href="/dashboard/permissions">
@@ -393,48 +439,31 @@ export function TeacherDashboard() {
                     </div>
                 </Link>
             </CardContent>
-          </Card>
+          </MotionCard>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {loading ? (
-            [...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 w-full" />)
-        ) : (
-          <>
-            <Card className="bg-blue-50 dark:bg-blue-900/30">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-blue-800 dark:text-blue-200">My Classes</CardTitle>
-                    <BookOpen className="h-4 w-4 text-blue-600"/>
-                </CardHeader>
-                <CardContent><div className="text-2xl font-bold">{teacherClasses.length}</div></CardContent>
-            </Card>
-            <Card className="bg-green-50 dark:bg-green-900/30">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-green-800 dark:text-green-200">Total Students</CardTitle>
-                    <Users className="h-4 w-4 text-green-600"/>
-                </CardHeader>
-                <CardContent><div className="text-2xl font-bold">{totalStudents}</div></CardContent>
-            </Card>
-            <Card className="bg-orange-50 dark:bg-orange-900/30">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-orange-800 dark:text-orange-200">Subjects Taught</CardTitle>
-                    <BookCopy className="h-4 w-4 text-orange-600"/>
-                </CardHeader>
-                <CardContent><div className="text-2xl font-bold">{teacherSubjects.length}</div></CardContent>
-            </Card>
-             <Card className="bg-purple-50 dark:bg-purple-900/30">
-                <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-purple-800 dark:text-purple-200">Pending Requests</CardTitle>
-                </CardHeader>
-                <CardContent><div className="text-2xl font-bold">{permissionSlips.filter(p => studentIdsInTeacherClasses.has(p.studentId) && p.status === 'Pending').length}</div></CardContent>
-            </Card>
-          </>
-        )}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { title: "My Classes", value: teacherClasses.length, icon: <BookOpen className="h-4 w-4 text-blue-600"/>, color: "blue" },
+          { title: "Total Students", value: totalStudents, icon: <Users className="h-4 w-4 text-green-600"/>, color: "green" },
+          { title: "Subjects Taught", value: teacherSubjects.length, icon: <BookCopy className="h-4 w-4 text-orange-600"/>, color: "orange" },
+          { title: "Pending Requests", value: permissionSlips.filter(p => studentIdsInTeacherClasses.has(p.studentId) && p.status === 'Pending').length, icon: <Clock className="h-4 w-4 text-purple-600"/>, color: "purple" }
+        ].map((item, index) => (
+          <MotionCard custom={index+2} variants={cardVariants} initial="hidden" animate="visible" whileHover={{ y: -5 }} key={item.title} className={cn("bg-opacity-70", `bg-${item.color}-50 dark:bg-${item.color}-900/30`)}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className={cn("text-sm font-medium", `text-${item.color}-800 dark:text-${item.color}-200`)}>{item.title}</CardTitle>
+                  {item.icon}
+              </CardHeader>
+              <CardContent>
+                {loading ? <Skeleton className="h-7 w-1/4"/> : <div className="text-2xl font-bold">{item.value}</div>}
+              </CardContent>
+          </MotionCard>
+        ))}
       </div>
 
        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
-                <Card>
+                <MotionCard custom={6} variants={cardVariants} initial="hidden" animate="visible" whileHover={{ y: -5 }}>
                     <CardHeader className="flex-row items-center justify-between">
                         <div className="space-y-1">
                             <CardTitle>Class Attendance</CardTitle>
@@ -449,21 +478,23 @@ export function TeacherDashboard() {
                         </Select>
                     </CardHeader>
                     <CardContent>
-                       <ChartContainer config={attendanceChartConfig} className="h-[200px] w-full">
-                            <RechartsBarChart data={attendanceData} accessibilityLayer stackOffset="expand">
-                                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8}/>
-                                <YAxis tickFormatter={(value) => `${value * 100}%`} />
-                                <Tooltip content={<ChartTooltipContent indicator="dot"/>}/>
-                                <Legend />
-                                <Bar dataKey="Present" fill="var(--color-Present)" radius={[4, 4, 0, 0]} stackId="a" />
-                                <Bar dataKey="Late" fill="var(--color-Late)" radius={[0, 0, 0, 0]} stackId="a" />
-                                <Bar dataKey="Excused" fill="var(--color-Excused)" radius={[0, 0, 0, 0]} stackId="a" />
-                                <Bar dataKey="Absent" fill="var(--color-Absent)" radius={[4, 4, 0, 0]} stackId="a" />
-                            </RechartsBarChart>
-                        </ChartContainer>
+                       {loading ? <Skeleton className="h-[200px] w-full"/> : (
+                            <ChartContainer config={attendanceChartConfig} className="h-[200px] w-full">
+                                <RechartsBarChart data={attendanceData} accessibilityLayer stackOffset="expand">
+                                    <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8}/>
+                                    <YAxis tickFormatter={(value) => `${value * 100}%`} />
+                                    <Tooltip content={<ChartTooltipContent indicator="dot"/>}/>
+                                    <Legend />
+                                    <Bar dataKey="Present" fill="var(--color-Present)" radius={[4, 4, 0, 0]} stackId="a" />
+                                    <Bar dataKey="Late" fill="var(--color-Late)" radius={[0, 0, 0, 0]} stackId="a" />
+                                    <Bar dataKey="Excused" fill="var(--color-Excused)" radius={[0, 0, 0, 0]} stackId="a" />
+                                    <Bar dataKey="Absent" fill="var(--color-Absent)" radius={[4, 4, 0, 0]} stackId="a" />
+                                </RechartsBarChart>
+                            </ChartContainer>
+                       )}
                     </CardContent>
-                </Card>
-                 <Card>
+                </MotionCard>
+                <MotionCard custom={7} variants={cardVariants} initial="hidden" animate="visible" whileHover={{ y: -5 }}>
                     <CardHeader className="flex-row items-center justify-between">
                          <div className="space-y-1">
                             <CardTitle>Top Student Performers</CardTitle>
@@ -477,8 +508,13 @@ export function TeacherDashboard() {
                         </Select>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                       {loading ? <Skeleton className="h-24 w-full" /> :
-                        topPerformers.length > 0 ? topPerformers.map(performer => (
+                       {loading ? (
+                           <div className="space-y-4">
+                               <Skeleton className="h-10 w-full"/>
+                               <Skeleton className="h-10 w-full"/>
+                               <Skeleton className="h-10 w-full"/>
+                           </div>
+                       ) : topPerformers.length > 0 ? topPerformers.map(performer => (
                             <div key={performer.name} className="flex items-center gap-4">
                                 <Avatar className="h-10 w-10">
                                     <AvatarImage src={performer.avatarUrl} />
@@ -493,15 +529,14 @@ export function TeacherDashboard() {
                         )) : <p className="text-center text-sm text-muted-foreground py-4">No published results for this exam yet.</p>
                        }
                     </CardContent>
-                </Card>
-                 <Card>
+                </MotionCard>
+                 <MotionCard custom={8} variants={cardVariants} initial="hidden" animate="visible" whileHover={{ y: -5 }}>
                     <CardHeader>
                         <CardTitle>My Students</CardTitle>
                         <CardDescription>A quick view of students in your primary class: <b>{primaryClass?.name || "N/A"}</b></CardDescription>
                     </CardHeader>
                     <CardContent>
-                       {loading ? <Skeleton className="h-20 w-full" /> :
-                        primaryClassStudents.length > 0 ? (
+                       {loading ? <Skeleton className="h-24 w-full" /> : primaryClassStudents.length > 0 ? (
                            <ScrollArea>
                             <div className="flex space-x-6 pb-4">
                                 {primaryClassStudents.map(student => (
@@ -526,17 +561,47 @@ export function TeacherDashboard() {
                             <Link href="/dashboard/students">View All Students <ArrowRight className="ml-2 h-4 w-4"/></Link>
                         </Button>
                     </CardFooter>
-                </Card>
+                </MotionCard>
+                <MotionCard custom={13} variants={cardVariants} initial="hidden" animate="visible" whileHover={{ y: -5 }}>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2"><DollarSign className="h-5 w-5 text-green-600"/> Student Fees Overview</CardTitle>
+                      <CardDescription>A summary of fee payments for students in your classes.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Total Fees</p>
+                        {loading ? <Skeleton className="h-6 w-3/4 mx-auto mt-1" /> : <p className="text-2xl font-bold">GH₵{feeStats.totalDue.toLocaleString()}</p>}
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Total Paid</p>
+                        {loading ? <Skeleton className="h-6 w-3/4 mx-auto mt-1" /> : <p className="text-2xl font-bold text-green-600">GH₵{feeStats.totalPaid.toLocaleString()}</p>}
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Total Owed</p>
+                        {loading ? <Skeleton className="h-6 w-3/4 mx-auto mt-1" /> : <p className="text-2xl font-bold text-red-600">GH₵{feeStats.totalOwed.toLocaleString()}</p>}
+                      </div>
+                    </CardContent>
+                     <CardFooter>
+                         <Button asChild variant="outline" className="w-full">
+                            <Link href="/dashboard/fees/class-fees">View Detailed Fee Status <ArrowRight className="ml-2 h-4 w-4"/></Link>
+                        </Button>
+                    </CardFooter>
+                </MotionCard>
             </div>
             <div className="lg:col-span-1 space-y-6">
-                <Card>
+                <MotionCard custom={9} variants={cardVariants} initial="hidden" animate="visible" whileHover={{ y: -5 }}>
                     <CardHeader>
                         <CardTitle>Today's Schedule</CardTitle>
                         <CardDescription>{format(new Date(), "eeee, MMMM d")}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                        {loading ? <Skeleton className="h-24 w-full" /> :
-                        todaysSchedule.length > 0 ? (
+                        {loading ? (
+                             <div className="space-y-3">
+                                <Skeleton className="h-12 w-full"/>
+                                <Skeleton className="h-12 w-full"/>
+                                <Skeleton className="h-12 w-full"/>
+                            </div>
+                        ) : todaysSchedule.length > 0 ? (
                             todaysSchedule.map((item, index) => (
                                 <div key={index} className="flex items-center gap-3">
                                     <div className="flex flex-col items-center justify-center p-2 h-12 w-14 bg-muted text-muted-foreground rounded-md">
@@ -556,15 +621,14 @@ export function TeacherDashboard() {
                             </div>
                         )}
                     </CardContent>
-                </Card>
-                 <Card>
+                </MotionCard>
+                 <MotionCard custom={10} variants={cardVariants} initial="hidden" animate="visible" whileHover={{ y: -5 }}>
                     <CardHeader>
                         <CardTitle>Announcements</CardTitle>
                         <CardDescription>Latest news and updates from the school.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                         {loading ? <Skeleton className="h-20 w-full" /> :
-                         recentAnnouncements.length > 0 ? recentAnnouncements.map(item => (
+                         {loading ? <div className="space-y-2"><Skeleton className="h-6 w-full"/><Skeleton className="h-6 w-full"/><Skeleton className="h-6 w-full"/></div> : recentAnnouncements.length > 0 ? recentAnnouncements.map(item => (
                              <div key={item.id}>
                                  <h4 className="font-semibold text-sm">{item.title}</h4>
                                  <p className="text-xs text-muted-foreground">{item.content.substring(0, 70)}...</p>
@@ -576,15 +640,14 @@ export function TeacherDashboard() {
                             <Link href="/dashboard/announcements">View All Announcements <ArrowRight className="ml-2 h-4 w-4"/></Link>
                         </Button>
                     </CardFooter>
-                </Card>
-                 <Card>
+                </MotionCard>
+                 <MotionCard custom={11} variants={cardVariants} initial="hidden" animate="visible" whileHover={{ y: -5 }}>
                     <CardHeader>
                         <CardTitle>Notice Board</CardTitle>
                         <CardDescription>Recent activities from your students.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                         {loading ? <Skeleton className="h-20 w-full" /> :
-                         noticeBoardItems.length > 0 ? noticeBoardItems.map(item => (
+                         {loading ? <div className="space-y-4"><Skeleton className="h-8 w-full"/><Skeleton className="h-8 w-full"/></div> : noticeBoardItems.length > 0 ? noticeBoardItems.map(item => (
                              <div key={item.id} className="flex items-center gap-3">
                                  <div className="p-2 bg-muted rounded-full text-muted-foreground">{item.icon}</div>
                                  <div>
@@ -599,16 +662,14 @@ export function TeacherDashboard() {
                             <Link href="/dashboard/permissions">View All Activities <ArrowRight className="ml-2 h-4 w-4"/></Link>
                         </Button>
                     </CardFooter>
-                </Card>
-                <Card>
+                </MotionCard>
+                <MotionCard custom={12} variants={cardVariants} initial="hidden" animate="visible" whileHover={{ y: -5 }}>
                     <CardHeader>
                         <CardTitle>Upcoming Events</CardTitle>
                         <CardDescription>What's next on the school calendar.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {loading ? (
-                            <Skeleton className="h-24 w-full" />
-                        ) : upcomingEvents.length > 0 ? (
+                        {loading ? <div className="space-y-4"><Skeleton className="h-12 w-full"/><Skeleton className="h-12 w-full"/></div> : upcomingEvents.length > 0 ? (
                             upcomingEvents.map((event) => (
                                 <div key={event.id} className="flex items-center gap-4">
                                     <div className="flex flex-col items-center justify-center p-2 h-12 w-12 bg-muted text-muted-foreground rounded-md">
@@ -629,7 +690,7 @@ export function TeacherDashboard() {
                             <Link href="/dashboard/events">View Full Calendar <ArrowRight className="ml-2 h-4 w-4" /></Link>
                         </Button>
                     </CardFooter>
-                </Card>
+                </MotionCard>
             </div>
        </div>
     </div>
