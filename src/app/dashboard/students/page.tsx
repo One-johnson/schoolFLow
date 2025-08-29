@@ -119,13 +119,13 @@ type Student = {
   placeOfBirth?: string
   nationality?: string
   hometown?: string
-  gender?: "Male" | "Female" | "Other"
+  gender: "Male" | "Female" | "Other"
   address?: string
-  parentName?: string
-  parentPhone?: string
+  parentName: string
+  parentPhone: string
   parentEmail?: string
   avatarUrl?: string;
-  house?: "Ambassadors" | "Royals" | "Dependable" | "Jubilee";
+  house: "Ambassadors" | "Royals" | "Dependable" | "Jubilee";
   createdAt: number;
   updatedAt?: number;
  
@@ -162,7 +162,7 @@ export default function StudentsPage() {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({
-    admissionNo: false,
+    admissionNo: true,
     rollNo: false,
     email: false,
     dateOfBirth: false,
@@ -190,7 +190,7 @@ export default function StudentsPage() {
     deleteData,
     uploadFile
   } = useDatabase<Student>("students")
-  const { data: classes, updateData: updateClass } = useDatabase<Class>("classes");
+  const { data: classes, updateData: updateClass, updatePath: updateClassPath } = useDatabase<Class>("classes");
   const { addData: addNotification } = useDatabase("notifications")
   const { toast } = useToast()
 
@@ -347,18 +347,30 @@ export default function StudentsPage() {
     }
   }
 
-  const handleDeleteStudent = async (id: string) => {
+  const handleDeleteStudent = async (studentId: string) => {
     setIsLoading(true);
     try {
-      await deleteData(id)
-      toast({ title: "Success", description: "Student deleted." })
+      // Find which class the student is in
+      const classToRemoveFrom = classes.find(c => c.studentIds && c.studentIds[studentId]);
+
+      // If found, remove the student from that class
+      if (classToRemoveFrom) {
+        const classRefPath = `classes/${classToRemoveFrom.id}/studentIds/${studentId}`;
+        await updateClassPath(classRefPath, null); // Using update with null is equivalent to remove for a specific key
+      }
+
+      // Finally, delete the student from the main students directory
+      await deleteData(studentId);
+
+      toast({ title: "Success", description: "Student deleted successfully." });
     } catch (error) {
-      toast({ title: "Error", description: "Failed to delete student.", variant: "destructive" })
+      console.error("Deletion error:", error);
+      toast({ title: "Error", description: "Failed to delete student.", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
-  }
-  
+  };
+
   const handleAssignToClass = async () => {
     if (!assignClassId) {
         toast({ title: "Error", description: "Please select a class.", variant: "destructive" });
