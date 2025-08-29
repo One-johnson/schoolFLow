@@ -2,7 +2,6 @@
 "use client"
 
 import * as React from "react"
-import { useDatabase } from "@/hooks/use-database"
 import { useAuth } from "@/hooks/use-auth"
 import {
   Card,
@@ -28,6 +27,9 @@ import { Calendar as CalendarIcon, FileDown, Printer, Loader2, BarChart2, Dollar
 import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns"
 import { DateRange } from "react-day-picker"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useDatabase } from "@/hooks/use-database"
+import FinancialReport from "@/components/dashboard/reports/financial-report"
+import AcademicsReport from "@/components/dashboard/reports/academics-report"
 
 type Student = { id: string; name: string };
 type Class = { id:string, name: string, studentIds?: Record<string, boolean>, teacherId?: string };
@@ -89,20 +91,21 @@ function AttendanceReport() {
         const date = dailyRecord.id; // date is the key, e.g., '2024-07-25'
         if (!dailyRecord || typeof dailyRecord !== 'object') return;
 
-        Object.entries(dailyRecord).forEach(([classId, attendanceRecords]) => {
+        Object.entries(dailyRecord).forEach(([classId, classData]) => {
             if (classId === 'id') return; // Skip the 'id' field from useDatabase
-            if (typeof attendanceRecords !== 'object' || attendanceRecords === null) return;
+            if (typeof classData !== 'object' || classData === null) return;
+            const attendanceRecords = classData as AttendanceRecord;
             
             // Teacher role check
             if (role === 'teacher' && !teacherClasses.some(c => c.id === classId)) return;
 
             Object.entries(attendanceRecords).forEach(([studentId, entry]) => {
-            if (entry && typeof (entry as any)?.status === 'string') {
+            if (entry && typeof entry.status === 'string') {
                 flatData.push({
                 date,
                 classId,
                 studentId,
-                status: (entry as AttendanceEntry).status,
+                status: entry.status,
                 studentName: studentsMap.get(studentId) || 'Unknown Student',
                 className: classesMap.get(classId) || 'Unknown Class'
                 });
@@ -291,23 +294,6 @@ function AttendanceReport() {
     )
 }
 
-function PlaceholderReport({ title }: { title: string }) {
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle>{title} Report</CardTitle>
-                <CardDescription>This report is not yet available.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="flex h-64 items-center justify-center rounded-md border-2 border-dashed">
-                    <p className="text-muted-foreground">Coming Soon</p>
-                </div>
-            </CardContent>
-        </Card>
-    )
-}
-
-
 export default function ReportsPage() {
   const { role } = useAuth();
   
@@ -330,28 +316,20 @@ export default function ReportsPage() {
          <div className="print-hidden">
             <TabsList>
                 <TabsTrigger value="attendance"><BarChart2 className="mr-2 h-4 w-4" /> Attendance</TabsTrigger>
-                {(role === 'admin' || role === 'teacher') && (
-                    <>
-                        <TabsTrigger value="financial" disabled><DollarSign className="mr-2 h-4 w-4" /> Financial</TabsTrigger>
-                        <TabsTrigger value="academics" disabled><Award className="mr-2 h-4 w-4" /> Academics</TabsTrigger>
-                    </>
-                )}
+                <TabsTrigger value="financial"><DollarSign className="mr-2 h-4 w-4" /> Financial</TabsTrigger>
+                <TabsTrigger value="academics"><Award className="mr-2 h-4 w-4" /> Academics</TabsTrigger>
             </TabsList>
          </div>
 
         <TabsContent value="attendance" className="mt-4">
           <AttendanceReport />
         </TabsContent>
-        {(role === 'admin' || role === 'teacher') && (
-            <>
-                <TabsContent value="financial" className="mt-4">
-                    <PlaceholderReport title="Financial" />
-                </TabsContent>
-                <TabsContent value="academics" className="mt-4">
-                    <PlaceholderReport title="Academics" />
-                </TabsContent>
-            </>
-        )}
+        <TabsContent value="financial" className="mt-4">
+            <FinancialReport />
+        </TabsContent>
+        <TabsContent value="academics" className="mt-4">
+            <AcademicsReport />
+        </TabsContent>
       </Tabs>
     </div>
   )
