@@ -2,8 +2,8 @@
 "use client"
 
 import * as React from "react"
-import { format, isBefore, startOfDay } from "date-fns"
-import { Calendar as CalendarIcon, CheckCircle, XCircle, Clock, Loader2, BarChart3, UserCheck, ShieldCheck, Save, AlertCircle, MessageSquare } from "lucide-react"
+import { format, isBefore, startOfDay, subDays } from "date-fns"
+import { Calendar as CalendarIcon, CheckCircle, XCircle, Clock, Loader2, BarChart3, UserCheck, ShieldCheck, Save, AlertCircle, User, History } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -16,6 +16,13 @@ import {
   CardTitle,
   CardFooter,
 } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import {
   Popover,
@@ -76,7 +83,10 @@ type AttendanceEntry = {
   comment?: string;
 }
 type AttendanceRecord = Record<string, AttendanceEntry>; // { [studentId]: { status, comment } }
-type FullAttendanceRecord = { id: string } & AttendanceRecord;
+
+// For full attendance history
+type DailyAttendance = { [classId: string]: AttendanceRecord };
+type FullAttendanceLog = { date: string, status: AttendanceStatus, comment?: string };
 
 export default function AttendancePage() {
   const { user, role } = useAuth();
@@ -87,12 +97,17 @@ export default function AttendancePage() {
   const [isLoading, setIsLoading] = React.useState(false)
   const [isFetching, setIsFetching] = React.useState(true)
 
+  // State for history dialog
+  const [isHistoryDialogOpen, setIsHistoryDialogOpen] = React.useState(false);
+  const [selectedStudentForHistory, setSelectedStudentForHistory] = React.useState<Student | null>(null);
+
   const { data: all_classes, loading: classesLoading } = useDatabase<Class>('classes')
   const { data: allStudents, loading: studentsLoading } = useDatabase<Student>('students')
+  const { data: allAttendanceRecords, loading: allAttendanceLoading } = useDatabase<DailyAttendance>('attendance');
   const { toast } = useToast()
 
   const formattedDate = format(date, 'yyyy-MM-dd');
-  const { data: savedAttendance, loading: attendanceLoading } = useDatabase<FullAttendanceRecord>(`attendance/${formattedDate}`);
+  const savedAttendanceForDate = React.useMemo(() => allAttendanceRecords.find(a => a.id === formattedDate) || {}, [allAttendanceRecords, formattedDate]);
   
   const hasUnsavedChanges = React.useMemo(() => !_.isEqual(attendance, originalAttendance), [attendance, originalAttendance]);
   
@@ -121,15 +136,12 @@ export default function AttendancePage() {
   React.useEffect(() => {
     if(classesLoading || studentsLoading) return;
 
-    // Auto-select first class for teacher
     if (role === 'teacher' && teacherClasses.length > 0 && !selectedClassId) {
         setSelectedClassId(teacherClasses[0].id)
     }
-    // Auto-select first class for admin if none is selected
     if (role === 'admin' && all_classes.length > 0 && !selectedClassId) {
         setSelectedClassId(all_classes[0].id)
     }
-    // Auto-select the student's class
     if (role === 'student' && studentClasses.length > 0 && !selectedClassId) {
         setSelectedClassId(studentClasses[0].id)
     }
@@ -137,12 +149,11 @@ export default function AttendancePage() {
 
   React.useEffect(() => {
     setIsFetching(true);
-    if (selectedClassId && !attendanceLoading) {
-      const classAttendance = savedAttendance.find(a => a.id === selectedClassId)
+    if (selectedClassId && !allAttendanceLoading) {
+      const classAttendance = (savedAttendanceForDate as DailyAttendance)[selectedClassId];
       if (classAttendance) {
-        const { id, ...rest } = classAttendance
-        setAttendance(rest as AttendanceRecord);
-        setOriginalAttendance(rest as AttendanceRecord);
+        setAttendance(classAttendance as AttendanceRecord);
+        setOriginalAttendance(classAttendance as AttendanceRecord);
       } else {
         setAttendance({});
         setOriginalAttendance({});
@@ -152,7 +163,7 @@ export default function AttendancePage() {
       setOriginalAttendance({});
     }
     setIsFetching(false)
-  }, [selectedClassId, savedAttendance, attendanceLoading, date])
+  }, [selectedClassId, savedAttendanceForDate, allAttendanceLoading, date])
 
   const studentsMap = React.useMemo(() => new Map(allStudents.map(s => [s.id, s])), [allStudents]);
   
@@ -171,7 +182,7 @@ export default function AttendancePage() {
     if(role !== 'teacher' || isPastDate) return;
     setAttendance(prev => ({
         ...prev,
-        [studentId]: { ...prev[studentId], status }
+        [studentId]: { ...(prev[studentId] || {status: "Present"}), status }
     }))
   }
   
@@ -179,7 +190,7 @@ export default function AttendancePage() {
      if(role !== 'teacher' || isPastDate) return;
      setAttendance(prev => ({
         ...prev,
-        [studentId]: { ...prev[studentId], comment }
+        [studentId]: { ...(prev[studentId] || {status: "Present"}), comment }
     }))
   }
   
@@ -254,10 +265,10 @@ export default function AttendancePage() {
     });
 
     const percentages = {
-        Present: (stats.Present / total) * 100,
-        Absent: (stats.Absent / total) * 100,
-        Late: (stats.Late / total) * 100,
-        Excused: (stats.Excused / total) * 100,
+        Present: total > 0 ? (stats.Present / total) * 100 : 0,
+        Absent: total > 0 ? (stats.Absent / total) * 100 : 0,
+        Late: total > 0 ? (stats.Late / total) * 100 : 0,
+        Excused: total > 0 ? (stats.Excused / total) * 100 : 0,
     };
     return { ...stats, total, percentages };
   }, [attendance, classStudents]);
@@ -286,6 +297,38 @@ export default function AttendancePage() {
           className: selectedClass.name
       };
   }, [role, user, selectedClass, attendance]);
+
+  const studentHistory = React.useMemo<FullAttendanceLog[]>(() => {
+    if (!selectedStudentForHistory) return [];
+
+    const history: FullAttendanceLog[] = [];
+    const thirtyDaysAgo = subDays(new Date(), 30);
+
+    allAttendanceRecords.forEach(dailyRecord => {
+        const recordDate = new Date(dailyRecord.id);
+        if (recordDate < thirtyDaysAgo) return;
+
+        Object.values(dailyRecord).forEach((classRecords: any) => {
+            if (typeof classRecords === 'object' && classRecords !== null) {
+                const studentEntry = classRecords[selectedStudentForHistory.id];
+                if (studentEntry) {
+                    history.push({
+                        date: dailyRecord.id,
+                        status: studentEntry.status,
+                        comment: studentEntry.comment,
+                    });
+                }
+            }
+        });
+    });
+
+    return history.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [selectedStudentForHistory, allAttendanceRecords]);
+  
+  const openHistoryDialog = (student: Student) => {
+    setSelectedStudentForHistory(student);
+    setIsHistoryDialogOpen(true);
+  }
 
   const atLeastOneMarked = Object.keys(attendance).length > 0;
   const isAllMarked = attendanceStats.Unmarked === 0;
@@ -407,7 +450,11 @@ export default function AttendancePage() {
                             <TableBody>
                             {classStudents.map((student) => (
                                 <TableRow key={student.id}>
-                                <TableCell className="font-medium">{student.name}</TableCell>
+                                <TableCell className="font-medium">
+                                    <Button variant="link" className="p-0 h-auto" onClick={() => openHistoryDialog(student)}>
+                                        <User className="mr-2 h-4 w-4"/> {student.name}
+                                    </Button>
+                                </TableCell>
                                 <TableCell>
                                     <RadioGroup
                                     value={attendance[student.id]?.status}
@@ -528,6 +575,57 @@ export default function AttendancePage() {
            </CardFooter>
         )}
       </Card>
+       {/* History Dialog */}
+       <Dialog open={isHistoryDialogOpen} onOpenChange={setIsHistoryDialogOpen}>
+        <DialogContent className="max-w-md">
+            <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                    <History className="h-5 w-5"/>
+                    Attendance History for {selectedStudentForHistory?.name}
+                </DialogTitle>
+                <DialogDescription>
+                    Showing records from the last 30 days.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="max-h-[60vh] overflow-y-auto pr-4">
+                 <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Comment</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {studentHistory.length > 0 ? (
+                            studentHistory.map(record => (
+                                <TableRow key={record.date}>
+                                    <TableCell>{format(new Date(record.date), "PPP")}</TableCell>
+                                    <TableCell>
+                                        <Badge className={cn({
+                                            "bg-green-100 text-green-800": record.status === 'Present',
+                                            "bg-red-100 text-red-800": record.status === 'Absent',
+                                            "bg-orange-100 text-orange-800": record.status === 'Late',
+                                            "bg-blue-100 text-blue-800": record.status === 'Excused',
+                                        })}>
+                                            {record.status}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-xs text-muted-foreground">{record.comment || 'N/A'}</TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={3} className="text-center h-24">No attendance records found for this student in the last 30 days.</TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                 </Table>
+            </div>
+        </DialogContent>
+       </Dialog>
     </div>
   )
 }
+
+    
