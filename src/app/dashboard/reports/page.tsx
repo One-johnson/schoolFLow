@@ -330,7 +330,7 @@ export default function ReportsPage() {
          <div className="print-hidden">
             <TabsList>
                 <TabsTrigger value="attendance"><BarChart2 className="mr-2 h-4 w-4" /> Attendance</TabsTrigger>
-                {role === 'admin' && (
+                {(role === 'admin' || role === 'teacher') && (
                     <>
                         <TabsTrigger value="financial" disabled><DollarSign className="mr-2 h-4 w-4" /> Financial</TabsTrigger>
                         <TabsTrigger value="academics" disabled><Award className="mr-2 h-4 w-4" /> Academics</TabsTrigger>
@@ -342,7 +342,7 @@ export default function ReportsPage() {
         <TabsContent value="attendance" className="mt-4">
           <AttendanceReport />
         </TabsContent>
-        {role === 'admin' && (
+        {(role === 'admin' || role === 'teacher') && (
             <>
                 <TabsContent value="financial" className="mt-4">
                     <PlaceholderReport title="Financial" />
