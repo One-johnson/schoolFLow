@@ -47,7 +47,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           <div className="print-hidden">
             <DashboardHeader />
           </div>
-          <main className="p-4 lg:p-6">{children}</main>
+          <main className="p-4 lg:p-6 pt-20 lg:pt-24">{children}</main>
         </SidebarInset>
       </SidebarProvider>
     </ThemeProvider>
