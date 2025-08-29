@@ -132,6 +132,23 @@ export default function AttendancePage() {
     return [];
   }, [all_classes, role, user]);
 
+  // Unsaved changes warning
+  React.useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = ''; // For modern browsers
+        return ''; // For older browsers
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [hasUnsavedChanges]);
+
 
   React.useEffect(() => {
     if(classesLoading || studentsLoading) return;
@@ -627,5 +644,3 @@ export default function AttendancePage() {
     </div>
   )
 }
-
-    
