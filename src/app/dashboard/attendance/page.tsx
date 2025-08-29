@@ -2,7 +2,7 @@
 "use client"
 
 import * as React from "react"
-import { format } from "date-fns"
+import { format, isBefore, startOfDay } from "date-fns"
 import { Calendar as CalendarIcon, CheckCircle, XCircle, Clock, Loader2, BarChart3, UserCheck, ShieldCheck, Save, AlertCircle } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
@@ -89,6 +89,10 @@ export default function AttendancePage() {
   const { data: savedAttendance, loading: attendanceLoading } = useDatabase<FullAttendanceRecord>(`attendance/${formattedDate}`);
   
   const hasUnsavedChanges = React.useMemo(() => !_.isEqual(attendance, originalAttendance), [attendance, originalAttendance]);
+  
+  const isPastDate = React.useMemo(() => {
+    return isBefore(startOfDay(date), startOfDay(new Date()));
+  }, [date]);
 
 
   // Teacher-specific classes
@@ -158,7 +162,7 @@ export default function AttendancePage() {
   }, [selectedClass, studentsMap])
   
   const handleStatusChange = (studentId: string, status: AttendanceStatus) => {
-    if(role !== 'teacher') return;
+    if(role !== 'teacher' || isPastDate) return;
     setAttendance(prev => ({ ...prev, [studentId]: status }))
   }
   
@@ -176,11 +180,11 @@ export default function AttendancePage() {
             completedAttendance[student.id] = "Present";
         }
     });
-    setAttendance(completedAttendance);
 
     try {
         const attendanceRef = ref(database, `attendance/${formattedDate}/${selectedClassId}`);
         await set(attendanceRef, completedAttendance);
+        setAttendance(completedAttendance);
         setOriginalAttendance(completedAttendance);
         toast({ title: "Success", description: "Attendance saved successfully." });
     } catch (error) {
@@ -288,6 +292,7 @@ export default function AttendancePage() {
           <CardDescription>
             {role !== 'student' && "Select a date and a class to view records."}
             {role === 'student' && "Select a date to see your attendance status."}
+            {role === 'teacher' && isPastDate && <span className="text-destructive font-semibold ml-2">You can only view attendance for past dates.</span>}
           </CardDescription>
           <div className="flex flex-col sm:flex-row gap-4 pt-4">
             <div className="grid gap-2">
@@ -377,7 +382,7 @@ export default function AttendancePage() {
                                     value={attendance[student.id]}
                                     onValueChange={(value) => handleStatusChange(student.id, value as AttendanceStatus)}
                                     className="flex flex-wrap gap-x-4 gap-y-2"
-                                    disabled={role !== 'teacher'}
+                                    disabled={role !== 'teacher' || isPastDate}
                                     >
                                     <div className="flex items-center space-x-2">
                                         <RadioGroupItem value="Present" id={`present-${student.id}`} />
@@ -448,7 +453,7 @@ export default function AttendancePage() {
             )
           }
         </CardContent>
-        {role === 'teacher' && selectedClassId && classStudents.length > 0 && (
+        {role === 'teacher' && selectedClassId && classStudents.length > 0 && !isPastDate && (
            <CardFooter className="border-t px-6 py-4 flex justify-between">
               <div className="flex gap-2">
                 <Button onClick={handleSaveAttendance} disabled={isLoading || !isAllMarked || !hasUnsavedChanges}>
