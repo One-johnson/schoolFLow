@@ -50,7 +50,7 @@ export default function GradingPage() {
   const { data: classes } = useDatabase<Class>("classes");
   const { data: subjects } = useDatabase<Subject>("subjects");
   const { data: students } = useDatabase<Student>("students");
-  const { data: schedules } = useDatabase<ExamSchedule>("examSchedules");
+  const { data: schedules } = useDatabase<any>("examSchedules");
   const { data: grades, addDataWithId, updateData } = useDatabase<StudentGrade>("studentGrades");
   
   const [isLoading, setIsLoading] = React.useState(false);
@@ -64,7 +64,7 @@ export default function GradingPage() {
   
   const subjectsForClass = React.useMemo(() => {
     if (!selectedClassId) return [];
-    return subjects.filter(s => (s.classId === selectedClassId && s.teacherId === user?.uid));
+    return subjects.filter(s => (s.classIds && s.classIds[selectedClassId] && s.teacherIds && s.teacherIds[user?.uid]));
   }, [subjects, selectedClassId, user]);
 
   const studentsForClass = React.useMemo(() => {
@@ -82,7 +82,7 @@ export default function GradingPage() {
 
   // Pre-fill scores from database
   React.useEffect(() => {
-    if (!currentSchedule) {
+    if (!selectedExamId || !selectedSubjectId || !selectedClassId) {
       setScores({});
       return;
     }
@@ -95,10 +95,12 @@ export default function GradingPage() {
             examScore: String(grade.examScore),
             teacherComment: grade.teacherComment || ''
         };
+      } else {
+        newScores[student.id] = { classScore: '', examScore: '', teacherComment: '' };
       }
     });
     setScores(newScores);
-  }, [currentSchedule, studentsForClass, grades, selectedExamId, selectedSubjectId]);
+  }, [studentsForClass, grades, selectedExamId, selectedSubjectId, selectedClassId]);
 
   const handleScoreChange = (studentId: string, type: 'classScore' | 'examScore' | 'teacherComment', value: string) => {
     setScores(prev => ({
@@ -111,7 +113,7 @@ export default function GradingPage() {
   };
 
   const handleSaveGrades = async () => {
-    if (!selectedExamId || !selectedSubjectId || !currentSchedule) {
+    if (!selectedExamId || !selectedSubjectId || !selectedClassId) {
       toast({ title: "Error", description: "Incomplete selection.", variant: "destructive" });
       return;
     }
@@ -199,7 +201,7 @@ export default function GradingPage() {
           </div>
         </div>
 
-        {currentSchedule ? (
+        {selectedExamId && selectedClassId && selectedSubjectId ? (
           <div className="rounded-md border">
             <Table>
               <TableHeader>
@@ -251,7 +253,7 @@ export default function GradingPage() {
           </div>
         )}
       </CardContent>
-      {currentSchedule && (
+      {selectedExamId && selectedClassId && selectedSubjectId && (
         <CardFooter className="justify-end">
             <Button onClick={handleSaveGrades} disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
@@ -263,5 +265,3 @@ export default function GradingPage() {
     </Card>
   );
 }
-
-    
