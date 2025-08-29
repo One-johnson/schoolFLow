@@ -3,7 +3,7 @@
 
 import * as React from "react"
 import { format, isBefore, startOfDay } from "date-fns"
-import { Calendar as CalendarIcon, CheckCircle, XCircle, Clock, Loader2, BarChart3, UserCheck, ShieldCheck, Save, AlertCircle } from "lucide-react"
+import { Calendar as CalendarIcon, CheckCircle, XCircle, Clock, Loader2, BarChart3, UserCheck, ShieldCheck, Save, AlertCircle, MessageSquare } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -38,6 +38,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Input } from "@/components/ui/input"
 import { useDatabase } from "@/hooks/use-database"
 import { useToast } from "@/hooks/use-toast"
 import {
@@ -69,7 +70,11 @@ type Class = {
 };
 
 type AttendanceStatus = "Present" | "Absent" | "Late" | "Excused";
-type AttendanceRecord = Record<string, AttendanceStatus>; // { [studentId]: status }
+type AttendanceEntry = {
+  status: AttendanceStatus;
+  comment?: string;
+}
+type AttendanceRecord = Record<string, AttendanceEntry>; // { [studentId]: { status, comment } }
 type FullAttendanceRecord = { id: string } & AttendanceRecord;
 
 export default function AttendancePage() {
@@ -163,7 +168,18 @@ export default function AttendancePage() {
   
   const handleStatusChange = (studentId: string, status: AttendanceStatus) => {
     if(role !== 'teacher' || isPastDate) return;
-    setAttendance(prev => ({ ...prev, [studentId]: status }))
+    setAttendance(prev => ({
+        ...prev,
+        [studentId]: { ...prev[studentId], status }
+    }))
+  }
+  
+  const handleCommentChange = (studentId: string, comment: string) => {
+     if(role !== 'teacher' || isPastDate) return;
+     setAttendance(prev => ({
+        ...prev,
+        [studentId]: { ...prev[studentId], comment }
+    }))
   }
   
   const handleSaveAndMarkAllPresent = async () => {
@@ -176,8 +192,9 @@ export default function AttendancePage() {
 
     const completedAttendance = { ...attendance };
     classStudents.forEach(student => {
-        if (!completedAttendance[student.id]) {
-            completedAttendance[student.id] = "Present";
+        if (!completedAttendance[student.id]?.status) {
+            if(!completedAttendance[student.id]) completedAttendance[student.id] = {} as AttendanceEntry;
+            completedAttendance[student.id].status = "Present";
         }
     });
 
@@ -202,7 +219,7 @@ export default function AttendancePage() {
         return
     }
     
-    if (classStudents.some(s => !attendance[s.id])) {
+    if (classStudents.some(s => !attendance[s.id]?.status)) {
         toast({ title: "Error", description: "Please mark attendance for all students.", variant: "destructive" })
         return
     }
@@ -225,7 +242,7 @@ export default function AttendancePage() {
     const stats = { Present: 0, Absent: 0, Late: 0, Excused: 0, Unmarked: 0 };
     const total = classStudents.length;
     classStudents.forEach(student => {
-      const status = attendance[student.id];
+      const status = attendance[student.id]?.status;
       if (status) {
         stats[status]++;
       } else {
@@ -253,7 +270,8 @@ export default function AttendancePage() {
   const studentAttendanceForDay = React.useMemo(() => {
       if(role !== 'student' || !user || !selectedClass) return null;
       return {
-          status: attendance[user.uid],
+          status: attendance[user.uid]?.status,
+          comment: attendance[user.uid]?.comment,
           className: selectedClass.name
       };
   }, [role, user, selectedClass, attendance]);
@@ -355,6 +373,7 @@ export default function AttendancePage() {
                                 {studentAttendanceForDay.status}
                              </div>
                               <p className="text-sm text-muted-foreground">in {studentAttendanceForDay.className}</p>
+                              {studentAttendanceForDay.comment && <p className="mt-2 text-sm italic">Note: "{studentAttendanceForDay.comment}"</p>}
                          </>
                      ) : (
                          <p className="text-center text-muted-foreground">No attendance record found for this day.</p>
@@ -371,6 +390,7 @@ export default function AttendancePage() {
                             <TableRow>
                                 <TableHead>Student Name</TableHead>
                                 <TableHead className="w-full sm:w-[400px]">Status</TableHead>
+                                <TableHead className="w-[200px]">Comment</TableHead>
                             </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -379,7 +399,7 @@ export default function AttendancePage() {
                                 <TableCell className="font-medium">{student.name}</TableCell>
                                 <TableCell>
                                     <RadioGroup
-                                    value={attendance[student.id]}
+                                    value={attendance[student.id]?.status}
                                     onValueChange={(value) => handleStatusChange(student.id, value as AttendanceStatus)}
                                     className="flex flex-wrap gap-x-4 gap-y-2"
                                     disabled={role !== 'teacher' || isPastDate}
@@ -401,6 +421,18 @@ export default function AttendancePage() {
                                         <Label htmlFor={`excused-${student.id}`} className="text-blue-500 flex items-center gap-1"><ShieldCheck className="h-4 w-4" /> Excused</Label>
                                     </div>
                                     </RadioGroup>
+                                </TableCell>
+                                <TableCell>
+                                    {attendance[student.id]?.status && attendance[student.id]?.status !== 'Present' && (
+                                        <Input 
+                                            type="text"
+                                            placeholder="Add a comment..."
+                                            className="h-8"
+                                            value={attendance[student.id]?.comment || ''}
+                                            onChange={(e) => handleCommentChange(student.id, e.target.value)}
+                                            disabled={role !== 'teacher' || isPastDate}
+                                        />
+                                    )}
                                 </TableCell>
                                 </TableRow>
                             ))}
