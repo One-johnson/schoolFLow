@@ -12,7 +12,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
@@ -241,6 +240,8 @@ export default function AttendancePage() {
   const attendanceStats = React.useMemo(() => {
     const stats = { Present: 0, Absent: 0, Late: 0, Excused: 0, Unmarked: 0 };
     const total = classStudents.length;
+    if (total === 0) return { ...stats, total, percentages: { Present: 0, Absent: 0, Late: 0, Excused: 0 }};
+
     classStudents.forEach(student => {
       const status = attendance[student.id]?.status;
       if (status) {
@@ -249,22 +250,30 @@ export default function AttendancePage() {
         stats.Unmarked++;
       }
     });
-    return { ...stats, total };
+
+    const percentages = {
+        Present: (stats.Present / total) * 100,
+        Absent: (stats.Absent / total) * 100,
+        Late: (stats.Late / total) * 100,
+        Excused: (stats.Excused / total) * 100,
+    };
+    return { ...stats, total, percentages };
   }, [attendance, classStudents]);
+
   
   const chartData = [
-    { name: 'Present', value: attendanceStats.Present, fill: 'var(--color-present)' },
-    { name: 'Absent', value: attendanceStats.Absent, fill: 'var(--color-absent)' },
-    { name: 'Late', value: attendanceStats.Late, fill: 'var(--color-late)' },
-    { name: 'Excused', value: attendanceStats.Excused, fill: 'var(--color-excused)' },
+    { name: 'Present', value: attendanceStats.Present, fill: "hsl(var(--chart-2))" },
+    { name: 'Absent', value: attendanceStats.Absent, fill: "hsl(var(--chart-5))" },
+    { name: 'Late', value: attendanceStats.Late, fill: "hsl(var(--chart-4))" },
+    { name: 'Excused', value: attendanceStats.Excused, fill: "hsl(var(--chart-3))" },
   ];
 
   const chartConfig = {
     value: { label: "Students" },
-    present: { label: "Present", color: "hsl(var(--chart-2))" },
-    absent: { label: "Absent", color: "hsl(var(--chart-5))" },
-    late: { label: "Late", color: "hsl(var(--chart-4))" },
-    excused: { label: "Excused", color: "hsl(var(--chart-3))" },
+    Present: { label: "Present", color: "hsl(var(--chart-2))" },
+    Absent: { label: "Absent", color: "hsl(var(--chart-5))" },
+    Late: { label: "Late", color: "hsl(var(--chart-4))" },
+    Excused: { label: "Excused", color: "hsl(var(--chart-3))" },
   } 
 
   const studentAttendanceForDay = React.useMemo(() => {
@@ -382,8 +391,8 @@ export default function AttendancePage() {
             ) :
             selectedClassId ? (
                 classStudents.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="md:col-span-2">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2">
                         <div className="rounded-md border">
                         <Table>
                             <TableHeader>
@@ -440,34 +449,50 @@ export default function AttendancePage() {
                         </Table>
                         </div>
                     </div>
-                    <div className="md:col-span-1">
+                    <div className="lg:col-span-1">
                         <Card>
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2"><BarChart3 className="h-5 w-5" /> Statistics</CardTitle>
                                 <CardDescription>For {selectedClass?.name} on {format(date, "PPP")}</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-sm text-muted-foreground mb-4">
-                                    <p>Present: <span className="font-bold text-green-600">{attendanceStats.Present}</span></p>
-                                    <p>Absent: <span className="font-bold text-red-600">{attendanceStats.Absent}</span></p>
-                                    <p>Late: <span className="font-bold text-orange-500">{attendanceStats.Late}</span></p>
-                                    <p>Excused: <span className="font-bold text-blue-500">{attendanceStats.Excused}</span></p>
-                                    <p>Unmarked: <span className="font-bold">{attendanceStats.Unmarked}</span></p>
-                                    <p className="mt-2 pt-2 border-t">Total Students: <span className="font-bold text-primary">{attendanceStats.total}</span></p>
+                                <div className="text-sm mb-4 grid grid-cols-2 gap-x-4 gap-y-2">
+                                    <div>
+                                        <p className="font-semibold">Present</p>
+                                        <p className="text-green-600 font-bold">{attendanceStats.Present} <span className="text-xs font-normal text-muted-foreground">({attendanceStats.percentages.Present.toFixed(1)}%)</span></p>
+                                    </div>
+                                     <div>
+                                        <p className="font-semibold">Absent</p>
+                                        <p className="text-red-600 font-bold">{attendanceStats.Absent} <span className="text-xs font-normal text-muted-foreground">({attendanceStats.percentages.Absent.toFixed(1)}%)</span></p>
+                                    </div>
+                                     <div>
+                                        <p className="font-semibold">Late</p>
+                                        <p className="text-orange-500 font-bold">{attendanceStats.Late} <span className="text-xs font-normal text-muted-foreground">({attendanceStats.percentages.Late.toFixed(1)}%)</span></p>
+                                    </div>
+                                     <div>
+                                        <p className="font-semibold">Excused</p>
+                                        <p className="text-blue-500 font-bold">{attendanceStats.Excused} <span className="text-xs font-normal text-muted-foreground">({attendanceStats.percentages.Excused.toFixed(1)}%)</span></p>
+                                    </div>
                                 </div>
-                                <ChartContainer config={chartConfig} className="h-[200px] w-full">
-                                    <BarChart accessibilityLayer data={chartData} layout="vertical" margin={{ left: 0, right: 20 }}>
+                                <div className="mt-4 pt-4 border-t">
+                                     <p className="font-semibold">Total Students: <span className="font-bold text-primary">{attendanceStats.total}</span></p>
+                                     <p className="font-semibold">Unmarked: <span className="font-bold">{attendanceStats.Unmarked}</span></p>
+                                </div>
+                                <ChartContainer config={chartConfig} className="h-[200px] w-full mt-4">
+                                    <BarChart accessibilityLayer data={chartData} layout="vertical" margin={{ right: 20 }}>
                                          <YAxis
                                             dataKey="name"
                                             type="category"
                                             tickLine={false}
                                             axisLine={false}
                                             tickMargin={10}
-                                            className="text-xs"
+                                            tick={({ x, y, payload }) => <text x={x} y={y} dy={4} textAnchor="end" fill="hsl(var(--foreground))" className="text-xs fill-muted-foreground">{payload.value}</text>}
                                         />
                                         <XAxis dataKey="value" type="number" hide />
                                         <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent indicator="dot" />} />
-                                        <Bar dataKey="value" radius={4} />
+                                        <Bar dataKey="value" radius={5}>
+                                            {chartData.map(entry => <Cell key={`cell-${entry.name}`} fill={entry.fill} />)}
+                                        </Bar>
                                     </BarChart>
                                 </ChartContainer>
                             </CardContent>
