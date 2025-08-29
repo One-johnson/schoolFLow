@@ -34,7 +34,8 @@ type Subject = { id: string; name: string; classId?: string; };
 type StudentFee = { id: string; studentId: string; feeId: string; amountDue: number; amountPaid: number; status: "Paid" | "Unpaid" | "Partial"; };
 type FeeStructure = { id: string; name: string; };
 type AttendanceStatus = "Present" | "Absent" | "Late" | "Excused";
-type AttendanceRecord = Record<string, AttendanceStatus>;
+type AttendanceEntry = { status: AttendanceStatus, comment?: string };
+type AttendanceRecord = Record<string, AttendanceEntry>;
 type DailyAttendance = { [classId: string]: AttendanceRecord };
 type FullAttendanceLog = { date: string; classId: string; studentId: string; studentName: string; status: AttendanceStatus; className: string };
 type EnrichedFeeRecord = StudentFee & { feeName: string };
@@ -127,9 +128,9 @@ export default function StudentInfoPage() {
             if (!dailyRecord || typeof dailyRecord !== 'object') return;
             Object.entries(dailyRecord).forEach(([classId, attendanceRecords]) => {
                 if (classId === 'id' || !attendanceRecords || typeof attendanceRecords !== 'object') return;
-                const status = (attendanceRecords as AttendanceRecord)[studentId];
-                if (status) {
-                    flatData.push({ date, classId, studentId, status, studentName: studentsMap.get(studentId) || 'Unknown', className: classesMap.get(classId) || 'Unknown' });
+                const attendanceEntry = (attendanceRecords as AttendanceRecord)[studentId];
+                if (attendanceEntry && attendanceEntry.status) {
+                    flatData.push({ date, classId, studentId, status: attendanceEntry.status, studentName: studentsMap.get(studentId) || 'Unknown', className: classesMap.get(classId) || 'Unknown' });
                 }
             });
         });
@@ -523,3 +524,4 @@ export default function StudentInfoPage() {
         </div>
     );
 }
+
