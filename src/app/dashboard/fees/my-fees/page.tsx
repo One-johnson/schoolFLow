@@ -3,6 +3,7 @@
 
 import * as React from "react";
 import { jsPDF } from "jspdf";
+import "jspdf-autotable";
 import { useDatabase } from "@/hooks/use-database";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -97,26 +98,23 @@ export default function MyFeesPage() {
         doc.text(new Date().toLocaleDateString(), 175, 57);
 
         // Table
-        const tableColumn = ["Description", "Amount Due", "Amount Paid", "Balance"];
-        const tableRows = [[
-            fee.feeName, 
-            `GH₵${fee.amountDue.toLocaleString()}`, 
-            `GH₵${fee.amountPaid.toLocaleString()}`, 
-            `GH₵${(fee.amountDue - fee.amountPaid).toLocaleString()}`
-        ]];
-
-        doc.autoTable({
+        (doc as any).autoTable({
             startY: 80,
-            head: [tableColumn],
-            body: tableRows,
+            head: [["Description", "Amount Due", "Amount Paid", "Balance"]],
+            body: [[
+                fee.feeName, 
+                `GH₵${fee.amountDue.toLocaleString()}`, 
+                `GH₵${fee.amountPaid.toLocaleString()}`, 
+                `GH₵${(fee.amountDue - fee.amountPaid).toLocaleString()}`
+            ]],
             theme: 'striped',
             headStyles: { fillColor: [41, 128, 185] }
         });
 
         // Footer
         doc.setFontSize(10);
-        doc.text("Thank you for your payment!", 105, doc.internal.pageSize.height - 20, { align: 'center' });
-        doc.text("Please contact support if you have any questions.", 105, doc.internal.pageSize.height - 15, { align: 'center' });
+        doc.text("Thank you for your payment!", 105, (doc as any).lastAutoTable.finalY + 20, { align: 'center' });
+        doc.text("Please contact support if you have any questions.", 105, (doc as any).lastAutoTable.finalY + 25, { align: 'center' });
 
 
         doc.save(`invoice-${fee.feeName.replace(/ /g, '_')}.pdf`);
