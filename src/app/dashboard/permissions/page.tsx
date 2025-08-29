@@ -307,20 +307,53 @@ export default function PermissionsPage() {
     </>
   )
 
-  const renderTeacherView = () => (
-    <div>
-        <p className="text-muted-foreground">Review and approve leave requests from your students.</p>
-         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-6">
-            {slipsLoading || usersLoading ? (
-                <p>Loading requests...</p>
-            ) : teacherSlips.length > 0 ? (
-                teacherSlips.map(slip => <PermissionSlipCard key={slip.id} slip={slip} />)
-            ) : (
-                <p className="text-muted-foreground col-span-full text-center py-8">There are no pending leave requests from your students.</p>
-            )}
+  const renderTeacherView = () => {
+    const pendingSlips = teacherSlips.filter(s => s.status === 'Pending');
+    const processedSlips = teacherSlips.filter(s => s.status !== 'Pending');
+
+    return (
+        <div>
+            <p className="text-muted-foreground">Review and approve leave requests from your students.</p>
+             <Tabs defaultValue="pending" className="mt-4">
+                <TabsList>
+                    <TabsTrigger value="pending">Pending <Badge className="ml-2">{pendingSlips.length}</Badge></TabsTrigger>
+                    <TabsTrigger value="processed">Processed</TabsTrigger>
+                </TabsList>
+                <TabsContent value="pending">
+                     <ScrollArea className="h-[60vh] mt-4">
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pr-4">
+                            {slipsLoading || usersLoading ? (
+                                <p>Loading requests...</p>
+                            ) : pendingSlips.length > 0 ? (
+                                pendingSlips.map(slip => <PermissionSlipCard key={slip.id} slip={slip} />)
+                            ) : (
+                                <div className="col-span-full text-center py-16">
+                                    <CheckCircle2 className="mx-auto h-12 w-12 text-green-500" />
+                                    <p className="mt-4 text-muted-foreground">No pending requests to show.</p>
+                                </div>
+                            )}
+                        </div>
+                    </ScrollArea>
+                </TabsContent>
+                <TabsContent value="processed">
+                    <ScrollArea className="h-[60vh] mt-4">
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pr-4">
+                             {slipsLoading || usersLoading ? (
+                                <p>Loading requests...</p>
+                            ) : processedSlips.length > 0 ? (
+                                processedSlips.map(slip => <PermissionSlipCard key={slip.id} slip={slip} />)
+                            ) : (
+                                <div className="col-span-full text-center py-16">
+                                    <p className="mt-4 text-muted-foreground">No processed requests yet.</p>
+                                </div>
+                            )}
+                        </div>
+                    </ScrollArea>
+                </TabsContent>
+             </Tabs>
         </div>
-    </div>
-  )
+    )
+  }
 
   const renderAdminView = () => {
     const pendingSlips = allSlipsSorted.filter(s => s.status === 'Pending');
