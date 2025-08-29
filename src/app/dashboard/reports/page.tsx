@@ -32,7 +32,8 @@ import { DateRange } from "react-day-picker"
 type Student = { id: string; name: string };
 type Class = { id: string; name: string };
 type AttendanceStatus = "Present" | "Absent" | "Late" | "Excused";
-type AttendanceRecord = Record<string, AttendanceStatus>;
+type AttendanceEntry = { status: AttendanceStatus, comment?: string };
+type AttendanceRecord = Record<string, AttendanceEntry>;
 type DailyAttendance = { [classId: string]: AttendanceRecord };
 type FullAttendanceLog = { date: string; classId: string; studentId: string; studentName: string; status: AttendanceStatus; className: string };
 
@@ -72,15 +73,17 @@ export default function ReportsPage() {
          if (classId === 'id') return; // Skip the 'id' field from useDatabase
          if (typeof attendanceRecords !== 'object' || attendanceRecords === null) return;
          
-        Object.entries(attendanceRecords).forEach(([studentId, status]) => {
-          flatData.push({
-            date,
-            classId,
-            studentId,
-            status: status as AttendanceStatus,
-            studentName: studentsMap.get(studentId) || 'Unknown Student',
-            className: classesMap.get(classId) || 'Unknown Class'
-          });
+        Object.entries(attendanceRecords).forEach(([studentId, entry]) => {
+          if (entry && typeof entry === 'object' && entry.status) {
+            flatData.push({
+              date,
+              classId,
+              studentId,
+              status: entry.status,
+              studentName: studentsMap.get(studentId) || 'Unknown Student',
+              className: classesMap.get(classId) || 'Unknown Class'
+            });
+          }
         });
       });
     });
