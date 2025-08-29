@@ -96,7 +96,7 @@ export function DashboardSidebar({
       path: "/dashboard/subjects",
       icon: BookCopy,
       label: "Subjects",
-      roles: ["admin", "teacher"],
+      roles: ["admin"],
     },
     {
       path: "/dashboard/terms",
@@ -126,7 +126,7 @@ export function DashboardSidebar({
       path: "/dashboard/reports",
       icon: BarChart3,
       label: "Reports",
-      roles: ["admin"],
+      roles: ["admin", "teacher"],
     },
     {
       path: "/dashboard/events",
@@ -194,14 +194,8 @@ export function DashboardSidebar({
   return (
     <Sidebar>
       <SidebarHeader>
-        <div className="flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <School className="h-6 w-6" />
-          </div>
-          <span className="text-lg font-semibold text-primary">SchoolFlow</span>
-        </div>
       </SidebarHeader>
-      <SidebarContent className="p-2">
+      <SidebarContent>
         <SidebarMenu>
           {menuItems.map((item) => {
             const hasVisibleSubItems = item.subItems?.some((sub) =>

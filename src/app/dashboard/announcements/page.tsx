@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -43,17 +44,30 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { PlusCircle, Megaphone, Trash2, Pencil, MoreHorizontal, Loader2 } from "lucide-react"
+import { PlusCircle, Megaphone, Trash2, Pencil, MoreHorizontal, Loader2, Users, School } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/hooks/use-auth"
+import { useDatabase } from "@/hooks/use-database"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 type Announcement = {
   id: string,
   title: string,
   content: string,
   author: string,
+  authorId: string,
   date: string,
   createdAt: number,
+  audience: 'school' | string; // 'school' or a classId
 }
+type Class = { id: string; name: string, teacherId?: string };
+
 
 export default function AnnouncementsPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -61,6 +75,7 @@ export default function AnnouncementsPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newContent, setNewContent] = useState("");
+  const [newAudience, setNewAudience] = useState<string>('school');
 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
@@ -69,6 +84,13 @@ export default function AnnouncementsPage() {
   
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { user, role } = useAuth();
+  const { data: classes } = useDatabase<Class>('classes');
+
+  const teacherClasses = classes.filter(c => c.teacherId === user?.uid);
+  const studentClass = classes.find(c => c.studentIds && user?.uid && c.studentIds[user.uid]);
+
+  const classesMap = new Map(classes.map(c => [c.id, c.name]));
 
   useEffect(() => {
     const announcementsRef = ref(database, 'announcements');
@@ -84,20 +106,32 @@ export default function AnnouncementsPage() {
           });
         }
       }
-      setAnnouncements(loadedAnnouncements.sort((a, b) => b.createdAt - a.createdAt));
+      
+      const sorted = loadedAnnouncements.sort((a, b) => b.createdAt - a.createdAt);
+
+      if(role === 'admin') {
+          setAnnouncements(sorted);
+      } else {
+          const filtered = sorted.filter(a => 
+              a.audience === 'school' || 
+              (role === 'teacher' && teacherClasses.some(c => c.id === a.audience)) ||
+              (role === 'student' && studentClass?.id === a.audience)
+          );
+          setAnnouncements(filtered);
+      }
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [role, classes, studentClass, teacherClasses]);
 
   const handleCreateAnnouncement = async () => {
     if (!newTitle.trim() || !newContent.trim()) {
-      toast({
-        title: "Error",
-        description: "Title and content cannot be empty.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Title and content cannot be empty.", variant: "destructive"});
       return;
+    }
+     if (role === 'teacher' && newAudience === 'school') {
+        toast({ title: "Error", description: "Please select a class for your announcement.", variant: "destructive" });
+        return;
     }
     
     setIsLoading(true);
@@ -106,23 +140,18 @@ export default function AnnouncementsPage() {
       await push(announcementsRef, {
         title: newTitle,
         content: newContent,
-        author: "Admin", // Or get current user
+        author: user?.displayName || "User",
+        authorId: user?.uid,
         createdAt: serverTimestamp(),
+        audience: newAudience,
       });
-      toast({
-        title: "Success",
-        description: "Announcement published.",
-      });
+      toast({ title: "Success", description: "Announcement published."});
       setNewTitle("");
       setNewContent("");
       setIsCreateDialogOpen(false);
     } catch (error) {
-       toast({
-        title: "Error",
-        description: "Failed to create announcement.",
-        variant: "destructive",
-      });
-      console.error("Firebase error:", error);
+       toast({ title: "Error", description: "Failed to create announcement.", variant: "destructive"});
+       console.error("Firebase error:", error);
     } finally {
       setIsLoading(false);
     }
@@ -138,11 +167,7 @@ export default function AnnouncementsPage() {
   const handleUpdateAnnouncement = async () => {
     if (!selectedAnnouncement) return;
      if (!editTitle.trim() || !editContent.trim()) {
-      toast({
-        title: "Error",
-        description: "Title and content cannot be empty.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Title and content cannot be empty.", variant: "destructive" });
       return;
     }
 
@@ -153,18 +178,11 @@ export default function AnnouncementsPage() {
         title: editTitle,
         content: editContent
       });
-      toast({
-        title: "Success",
-        description: "Announcement updated.",
-      });
+      toast({ title: "Success", description: "Announcement updated." });
       setIsEditDialogOpen(false);
       setSelectedAnnouncement(null);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update announcement.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to update announcement.", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -176,19 +194,18 @@ export default function AnnouncementsPage() {
     const announcementRef = ref(database, `announcements/${id}`);
     try {
       await remove(announcementRef);
-      toast({
-        title: "Success",
-        description: "Announcement deleted.",
-      });
+      toast({ title: "Success", description: "Announcement deleted."});
     } catch (error) {
-       toast({
-        title: "Error",
-        description: "Failed to delete announcement.",
-        variant: "destructive",
-      });
+       toast({ title: "Error", description: "Failed to delete announcement.", variant: "destructive"});
     } finally {
       setIsLoading(false);
     }
+  }
+  
+  const canModify = (announcement: Announcement) => {
+    if (role === 'admin') return true;
+    if (role === 'teacher' && announcement.authorId === user?.uid) return true;
+    return false;
   }
 
   return (
@@ -197,9 +214,10 @@ export default function AnnouncementsPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Announcements</h1>
           <p className="text-muted-foreground">
-            Manage and publish school-wide information.
+            {role === 'admin' ? "Manage and publish school-wide information." : "View important school and class announcements."}
           </p>
         </div>
+        {(role === 'admin' || role === 'teacher') && (
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -211,20 +229,29 @@ export default function AnnouncementsPage() {
             <DialogHeader>
               <DialogTitle>Create New Announcement</DialogTitle>
               <DialogDescription>
-                Write and publish a new announcement for the entire school.
+                Write and publish a new announcement.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="title" className="text-right">
-                  Title
-                </Label>
+                <Label htmlFor="audience" className="text-right">Audience</Label>
+                <Select value={newAudience} onValueChange={setNewAudience}>
+                    <SelectTrigger className="col-span-3">
+                        <SelectValue placeholder="Select audience..."/>
+                    </SelectTrigger>
+                    <SelectContent>
+                        {role === 'admin' && <SelectItem value="school">School-wide</SelectItem>}
+                        {role === 'admin' && classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                        {role === 'teacher' && teacherClasses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="title" className="text-right">Title</Label>
                 <Input id="title" placeholder="Announcement Title" className="col-span-3" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} disabled={isLoading} />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="content" className="text-right">
-                  Content
-                </Label>
+                <Label htmlFor="content" className="text-right">Content</Label>
                 <Textarea id="content" placeholder="Type your announcement content here." className="col-span-3" value={newContent} onChange={(e) => setNewContent(e.target.value)} disabled={isLoading} />
               </div>
             </div>
@@ -236,6 +263,7 @@ export default function AnnouncementsPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        )}
       </div>
       
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -245,13 +273,14 @@ export default function AnnouncementsPage() {
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-4">
                    <div className="bg-primary text-primary-foreground p-3 rounded-full">
-                    <Megaphone className="h-6 w-6" />
+                    {announcement.audience === 'school' ? <School className="h-6 w-6" /> : <Users className="h-6 w-6" />}
                    </div>
                   <div>
                     <CardTitle>{announcement.title}</CardTitle>
                     <CardDescription>By {announcement.author} on {announcement.date}</CardDescription>
                   </div>
                 </div>
+                {canModify(announcement) && (
                 <AlertDialog>
                    <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -289,13 +318,14 @@ export default function AnnouncementsPage() {
                       </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>
+                )}
               </div>
             </CardHeader>
             <CardContent className="flex-grow">
               <p className="text-sm text-muted-foreground">{announcement.content}</p>
             </CardContent>
             <CardFooter>
-              {/* Footer can be empty or used for other info */}
+                {announcement.audience !== 'school' && <Badge variant="secondary">For: {classesMap.get(announcement.audience) || 'Unknown Class'}</Badge>}
             </CardFooter>
           </Card>
         ))}

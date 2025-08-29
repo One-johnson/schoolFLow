@@ -38,12 +38,16 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       disableTransitionOnChange
     >
       <SidebarProvider>
-        <Sidebar>
-          <DashboardSidebar role={role} />
-        </Sidebar>
+        <div className="print-hidden">
+          <Sidebar>
+            <DashboardSidebar role={role} />
+          </Sidebar>
+        </div>
         <SidebarInset>
-          <DashboardHeader />
-          <main className="p-4 lg:p-6">{children}</main>
+          <div className="print-hidden">
+            <DashboardHeader />
+          </div>
+          <main className="p-4 lg:p-6 pt-20 lg:pt-24">{children}</main>
         </SidebarInset>
       </SidebarProvider>
     </ThemeProvider>

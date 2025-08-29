@@ -40,7 +40,7 @@ type Teacher = { id: string; name: string; email: string; status: "Active" | "On
 type Class = { id: string; name: string; teacherId?: string; studentIds?: Record<string, boolean>; };
 type Subject = { id: string; name: string; teacherIds?: Record<string, boolean>; };
 type Student = { id: string; name: string; avatarUrl?: string; };
-type Announcement = { id: string; title: string; content: string; createdAt: number; };
+type Announcement = { id: string; title: string; content: string; createdAt: number; audience: 'school' | string; };
 type Event = { id: string; title: string; startDate: string; };
 type PermissionSlip = { id: string; studentName: string; studentId: string; startDate: string; endDate: string; status: "Pending" | "Approved" | "Rejected"; createdAt: number; };
 type Exam = { id: string; name: string; status: "Published" | "Grading" | "Upcoming" | "Ongoing"; };
@@ -79,7 +79,7 @@ export function TeacherDashboard() {
   
   // Memoized data calculations
   const teacher = useMemo(() => user ? allTeachers.find(t => t.id === user.uid) : null, [allTeachers, user]);
-  const teacherClasses = useMemo(() => user ? classes.filter(c => c.teacherId === user.uid) : [], [classes, user]);
+  const teacherClasses = useMemo(() => user ? classes.filter(c => c.teacherId === user.uid || (c.studentIds && Object.keys(c.studentIds).some(sid => subjects.find(s => s.teacherIds?.[user.uid] && s.classIds?.[c.id] )))) : [], [classes, user, subjects]);
   const teacherSubjects = useMemo(() => user ? subjects.filter(s => s.teacherIds && s.teacherIds[user.uid]) : [], [subjects, user]);
   const studentIdsInTeacherClasses = useMemo(() => {
     const ids = new Set<string>();
@@ -89,7 +89,10 @@ export function TeacherDashboard() {
     return ids;
   }, [teacherClasses]);
   const totalStudents = studentIdsInTeacherClasses.size;
-  const recentAnnouncements = useMemo(() => [...announcements].sort((a, b) => b.createdAt - a.createdAt).slice(0, 3), [announcements]);
+  const recentAnnouncements = useMemo(() => {
+    return [...announcements].filter(a => a.audience === 'school' || teacherClasses.some(c => c.id === a.audience)).sort((a, b) => b.createdAt - a.createdAt).slice(0, 3)
+  }, [announcements, teacherClasses]);
+
   const studentsMap = useMemo(() => new Map(students.map(s => [s.id, s])), [students]);
   const subjectsMap = useMemo(() => new Map(subjects.map(s => [s.id, s.name])), [subjects]);
   const classesMap = useMemo(() => new Map(classes.map(c => [c.id, c.name])), [classes]);

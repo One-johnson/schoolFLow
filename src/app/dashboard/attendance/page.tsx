@@ -2,8 +2,8 @@
 "use client"
 
 import * as React from "react"
-import { format } from "date-fns"
-import { Calendar as CalendarIcon, CheckCircle, XCircle, Clock, Loader2, BarChart3, UserCheck, ShieldCheck } from "lucide-react"
+import { format, isBefore, startOfDay, subDays } from "date-fns"
+import { Calendar as CalendarIcon, CheckCircle, XCircle, Clock, Loader2, BarChart3, UserCheck, ShieldCheck, Save, AlertCircle, User, History } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -12,10 +12,17 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import {
   Popover,
@@ -38,6 +45,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Input } from "@/components/ui/input"
 import { useDatabase } from "@/hooks/use-database"
 import { useToast } from "@/hooks/use-toast"
 import {
@@ -48,8 +56,14 @@ import {
   YAxis,
   Tooltip,
   Legend,
+  Cell,
 } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
+import { Badge } from "@/components/ui/badge"
+import _ from 'lodash'
+import { database } from "@/lib/firebase"
+import { ref, set } from "firebase/database"
+
 
 type Student = {
   id: string;
@@ -64,23 +78,43 @@ type Class = {
 };
 
 type AttendanceStatus = "Present" | "Absent" | "Late" | "Excused";
-type AttendanceRecord = Record<string, AttendanceStatus>; // { [studentId]: status }
-type FullAttendanceRecord = { id: string } & AttendanceRecord;
+type AttendanceEntry = {
+  status: AttendanceStatus;
+  comment?: string;
+}
+type AttendanceRecord = Record<string, AttendanceEntry>; // { [studentId]: { status, comment } }
+
+// For full attendance history
+type DailyAttendance = { [classId: string]: AttendanceRecord };
+type FullAttendanceLog = { date: string, status: AttendanceStatus, comment?: string };
 
 export default function AttendancePage() {
   const { user, role } = useAuth();
   const [date, setDate] = React.useState<Date>(new Date())
   const [selectedClassId, setSelectedClassId] = React.useState<string | undefined>()
   const [attendance, setAttendance] = React.useState<AttendanceRecord>({})
+  const [originalAttendance, setOriginalAttendance] = React.useState<AttendanceRecord>({})
   const [isLoading, setIsLoading] = React.useState(false)
   const [isFetching, setIsFetching] = React.useState(true)
 
+  // State for history dialog
+  const [isHistoryDialogOpen, setIsHistoryDialogOpen] = React.useState(false);
+  const [selectedStudentForHistory, setSelectedStudentForHistory] = React.useState<Student | null>(null);
+
   const { data: all_classes, loading: classesLoading } = useDatabase<Class>('classes')
   const { data: allStudents, loading: studentsLoading } = useDatabase<Student>('students')
+  const { data: allAttendanceRecords, loading: allAttendanceLoading } = useDatabase<DailyAttendance>('attendance');
   const { toast } = useToast()
 
   const formattedDate = format(date, 'yyyy-MM-dd');
-  const { data: savedAttendance, updateData: updateAttendanceDb, loading: attendanceLoading } = useDatabase<FullAttendanceRecord>(`attendance/${formattedDate}`);
+  const savedAttendanceForDate = React.useMemo(() => allAttendanceRecords.find(a => a.id === formattedDate) || {}, [allAttendanceRecords, formattedDate]);
+  
+  const hasUnsavedChanges = React.useMemo(() => !_.isEqual(attendance, originalAttendance), [attendance, originalAttendance]);
+  
+  const isPastDate = React.useMemo(() => {
+    return isBefore(startOfDay(date), startOfDay(new Date()));
+  }, [date]);
+
 
   // Teacher-specific classes
   const teacherClasses = React.useMemo(() => {
@@ -98,19 +132,33 @@ export default function AttendancePage() {
     return [];
   }, [all_classes, role, user]);
 
+  // Unsaved changes warning
+  React.useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = ''; // For modern browsers
+        return ''; // For older browsers
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [hasUnsavedChanges]);
+
 
   React.useEffect(() => {
     if(classesLoading || studentsLoading) return;
 
-    // Auto-select first class for teacher
     if (role === 'teacher' && teacherClasses.length > 0 && !selectedClassId) {
         setSelectedClassId(teacherClasses[0].id)
     }
-    // Auto-select first class for admin if none is selected
     if (role === 'admin' && all_classes.length > 0 && !selectedClassId) {
         setSelectedClassId(all_classes[0].id)
     }
-    // Auto-select the student's class
     if (role === 'student' && studentClasses.length > 0 && !selectedClassId) {
         setSelectedClassId(studentClasses[0].id)
     }
@@ -118,19 +166,21 @@ export default function AttendancePage() {
 
   React.useEffect(() => {
     setIsFetching(true);
-    if (selectedClassId && !attendanceLoading) {
-      const classAttendance = savedAttendance.find(a => a.id === selectedClassId)
+    if (selectedClassId && !allAttendanceLoading) {
+      const classAttendance = (savedAttendanceForDate as DailyAttendance)[selectedClassId];
       if (classAttendance) {
-        const { id, ...rest } = classAttendance
-        setAttendance(rest as AttendanceRecord)
+        setAttendance(classAttendance as AttendanceRecord);
+        setOriginalAttendance(classAttendance as AttendanceRecord);
       } else {
-        setAttendance({})
+        setAttendance({});
+        setOriginalAttendance({});
       }
     } else {
       setAttendance({});
+      setOriginalAttendance({});
     }
     setIsFetching(false)
-  }, [selectedClassId, savedAttendance, attendanceLoading, date])
+  }, [selectedClassId, savedAttendanceForDate, allAttendanceLoading, date])
 
   const studentsMap = React.useMemo(() => new Map(allStudents.map(s => [s.id, s])), [allStudents]);
   
@@ -146,21 +196,51 @@ export default function AttendancePage() {
   }, [selectedClass, studentsMap])
   
   const handleStatusChange = (studentId: string, status: AttendanceStatus) => {
-    if(role !== 'teacher') return;
-    setAttendance(prev => ({ ...prev, [studentId]: status }))
+    if(role !== 'teacher' || isPastDate) return;
+    setAttendance(prev => ({
+        ...prev,
+        [studentId]: { ...(prev[studentId] || {status: "Present"}), status }
+    }))
   }
   
-  const handleMarkAllPresent = () => {
-    if(role !== 'teacher') return;
-    const newAttendance = { ...attendance };
-    classStudents.forEach(student => {
-      if (!newAttendance[student.id]) {
-        newAttendance[student.id] = "Present";
-      }
-    });
-    setAttendance(newAttendance);
-    toast({ title: "Success", description: "All remaining students marked as Present." });
+  const handleCommentChange = (studentId: string, comment: string) => {
+     if(role !== 'teacher' || isPastDate) return;
+     setAttendance(prev => ({
+        ...prev,
+        [studentId]: { ...(prev[studentId] || {status: "Present"}), comment }
+    }))
   }
+  
+  const handleSaveAndMarkAllPresent = async () => {
+    if (!selectedClassId) {
+      toast({ title: "Error", description: "Please select a class.", variant: "destructive" });
+      return;
+    }
+    
+    setIsLoading(true);
+
+    const completedAttendance = { ...attendance };
+    classStudents.forEach(student => {
+        if (!completedAttendance[student.id]?.status) {
+            if(!completedAttendance[student.id]) completedAttendance[student.id] = {} as AttendanceEntry;
+            completedAttendance[student.id].status = "Present";
+        }
+    });
+
+    try {
+        const attendanceRef = ref(database, `attendance/${formattedDate}/${selectedClassId}`);
+        await set(attendanceRef, completedAttendance);
+        setAttendance(completedAttendance);
+        setOriginalAttendance(completedAttendance);
+        toast({ title: "Success", description: "Attendance saved successfully." });
+    } catch (error) {
+        toast({ title: "Error", description: "Failed to save attendance.", variant: "destructive" });
+        console.error(error);
+    } finally {
+        setIsLoading(false);
+    }
+  }
+
 
   const handleSaveAttendance = async () => {
     if (!selectedClassId) {
@@ -168,15 +248,16 @@ export default function AttendancePage() {
         return
     }
     
-    if (classStudents.some(s => !attendance[s.id])) {
+    if (classStudents.some(s => !attendance[s.id]?.status)) {
         toast({ title: "Error", description: "Please mark attendance for all students.", variant: "destructive" })
         return
     }
 
     setIsLoading(true);
     try {
-      // Using updateData which performs a SET operation at the specified path
-      await updateAttendanceDb(`attendance/${formattedDate}/${selectedClassId}`, attendance);
+      const attendanceRef = ref(database, `attendance/${formattedDate}/${selectedClassId}`);
+      await set(attendanceRef, attendance);
+      setOriginalAttendance(attendance);
       toast({ title: "Success", description: "Attendance saved successfully." })
     } catch (error) {
       toast({ title: "Error", description: "Failed to save attendance.", variant: "destructive" })
@@ -189,41 +270,85 @@ export default function AttendancePage() {
   const attendanceStats = React.useMemo(() => {
     const stats = { Present: 0, Absent: 0, Late: 0, Excused: 0, Unmarked: 0 };
     const total = classStudents.length;
+    if (total === 0) return { ...stats, total, percentages: { Present: 0, Absent: 0, Late: 0, Excused: 0 }};
+
     classStudents.forEach(student => {
-      const status = attendance[student.id];
+      const status = attendance[student.id]?.status;
       if (status) {
         stats[status]++;
       } else {
         stats.Unmarked++;
       }
     });
-    return { ...stats, total };
+
+    const percentages = {
+        Present: total > 0 ? (stats.Present / total) * 100 : 0,
+        Absent: total > 0 ? (stats.Absent / total) * 100 : 0,
+        Late: total > 0 ? (stats.Late / total) * 100 : 0,
+        Excused: total > 0 ? (stats.Excused / total) * 100 : 0,
+    };
+    return { ...stats, total, percentages };
   }, [attendance, classStudents]);
+
   
   const chartData = [
-    { name: 'Present', value: attendanceStats.Present, fill: 'var(--color-present)' },
-    { name: 'Absent', value: attendanceStats.Absent, fill: 'var(--color-absent)' },
-    { name: 'Late', value: attendanceStats.Late, fill: 'var(--color-late)' },
-    { name: 'Excused', value: attendanceStats.Excused, fill: 'var(--color-excused)' },
+    { name: 'Present', value: attendanceStats.Present, fill: "hsl(var(--chart-2))" },
+    { name: 'Absent', value: attendanceStats.Absent, fill: "hsl(var(--chart-5))" },
+    { name: 'Late', value: attendanceStats.Late, fill: "hsl(var(--chart-4))" },
+    { name: 'Excused', value: attendanceStats.Excused, fill: "hsl(var(--chart-3))" },
   ];
 
   const chartConfig = {
     value: { label: "Students" },
-    present: { label: "Present", color: "hsl(var(--chart-2))" },
-    absent: { label: "Absent", color: "hsl(var(--chart-5))" },
-    late: { label: "Late", color: "hsl(var(--chart-4))" },
-    excused: { label: "Excused", color: "hsl(var(--chart-3))" },
+    Present: { label: "Present", color: "hsl(var(--chart-2))" },
+    Absent: { label: "Absent", color: "hsl(var(--chart-5))" },
+    Late: { label: "Late", color: "hsl(var(--chart-4))" },
+    Excused: { label: "Excused", color: "hsl(var(--chart-3))" },
   } 
 
   const studentAttendanceForDay = React.useMemo(() => {
       if(role !== 'student' || !user || !selectedClass) return null;
       return {
-          status: attendance[user.uid],
+          status: attendance[user.uid]?.status,
+          comment: attendance[user.uid]?.comment,
           className: selectedClass.name
       };
   }, [role, user, selectedClass, attendance]);
 
+  const studentHistory = React.useMemo<FullAttendanceLog[]>(() => {
+    if (!selectedStudentForHistory) return [];
+
+    const history: FullAttendanceLog[] = [];
+    const thirtyDaysAgo = subDays(new Date(), 30);
+
+    allAttendanceRecords.forEach(dailyRecord => {
+        const recordDate = new Date(dailyRecord.id);
+        if (recordDate < thirtyDaysAgo) return;
+
+        Object.values(dailyRecord).forEach((classRecords: any) => {
+            if (typeof classRecords === 'object' && classRecords !== null) {
+                const studentEntry = classRecords[selectedStudentForHistory.id];
+                if (studentEntry) {
+                    history.push({
+                        date: dailyRecord.id,
+                        status: studentEntry.status,
+                        comment: studentEntry.comment,
+                    });
+                }
+            }
+        });
+    });
+
+    return history.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [selectedStudentForHistory, allAttendanceRecords]);
+  
+  const openHistoryDialog = (student: Student) => {
+    setSelectedStudentForHistory(student);
+    setIsHistoryDialogOpen(true);
+  }
+
   const atLeastOneMarked = Object.keys(attendance).length > 0;
+  const isAllMarked = attendanceStats.Unmarked === 0;
 
 
   if (classesLoading || studentsLoading) {
@@ -256,6 +381,7 @@ export default function AttendancePage() {
           <CardDescription>
             {role !== 'student' && "Select a date and a class to view records."}
             {role === 'student' && "Select a date to see your attendance status."}
+            {role === 'teacher' && isPastDate && <span className="text-destructive font-semibold ml-2">You can only view attendance for past dates.</span>}
           </CardDescription>
           <div className="flex flex-col sm:flex-row gap-4 pt-4">
             <div className="grid gap-2">
@@ -283,8 +409,11 @@ export default function AttendancePage() {
             </div>
             {role !== 'student' && (
             <div className="grid gap-2">
-                <Label>Class</Label>
-                 <Select onValueChange={setSelectedClassId} value={selectedClassId}>
+                <div className="flex items-center gap-2">
+                    <Label>Class</Label>
+                    {hasUnsavedChanges && <Badge variant="destructive" className="animate-pulse"><AlertCircle className="mr-1 h-3 w-3"/>Unsaved changes</Badge>}
+                </div>
+                 <Select onValueChange={setSelectedClassId} value={selectedClassId} disabled={hasUnsavedChanges}>
                   <SelectTrigger className="w-[280px]">
                     <SelectValue placeholder="Select a class" />
                   </SelectTrigger>
@@ -315,6 +444,7 @@ export default function AttendancePage() {
                                 {studentAttendanceForDay.status}
                              </div>
                               <p className="text-sm text-muted-foreground">in {studentAttendanceForDay.className}</p>
+                              {studentAttendanceForDay.comment && <p className="mt-2 text-sm italic">Note: "{studentAttendanceForDay.comment}"</p>}
                          </>
                      ) : (
                          <p className="text-center text-muted-foreground">No attendance record found for this day.</p>
@@ -323,26 +453,31 @@ export default function AttendancePage() {
             ) :
             selectedClassId ? (
                 classStudents.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="md:col-span-2">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2">
                         <div className="rounded-md border">
                         <Table>
                             <TableHeader>
                             <TableRow>
                                 <TableHead>Student Name</TableHead>
                                 <TableHead className="w-full sm:w-[400px]">Status</TableHead>
+                                <TableHead className="w-[200px]">Comment</TableHead>
                             </TableRow>
                             </TableHeader>
                             <TableBody>
                             {classStudents.map((student) => (
                                 <TableRow key={student.id}>
-                                <TableCell className="font-medium">{student.name}</TableCell>
+                                <TableCell className="font-medium">
+                                    <Button variant="link" className="p-0 h-auto" onClick={() => openHistoryDialog(student)}>
+                                        <User className="mr-2 h-4 w-4"/> {student.name}
+                                    </Button>
+                                </TableCell>
                                 <TableCell>
                                     <RadioGroup
-                                    value={attendance[student.id]}
+                                    value={attendance[student.id]?.status}
                                     onValueChange={(value) => handleStatusChange(student.id, value as AttendanceStatus)}
                                     className="flex flex-wrap gap-x-4 gap-y-2"
-                                    disabled={role !== 'teacher'}
+                                    disabled={role !== 'teacher' || isPastDate}
                                     >
                                     <div className="flex items-center space-x-2">
                                         <RadioGroupItem value="Present" id={`present-${student.id}`} />
@@ -362,40 +497,68 @@ export default function AttendancePage() {
                                     </div>
                                     </RadioGroup>
                                 </TableCell>
+                                <TableCell>
+                                    {attendance[student.id]?.status && attendance[student.id]?.status !== 'Present' && (
+                                        <Input 
+                                            type="text"
+                                            placeholder="Add a comment..."
+                                            className="h-8"
+                                            value={attendance[student.id]?.comment || ''}
+                                            onChange={(e) => handleCommentChange(student.id, e.target.value)}
+                                            disabled={role !== 'teacher' || isPastDate}
+                                        />
+                                    )}
+                                </TableCell>
                                 </TableRow>
                             ))}
                             </TableBody>
                         </Table>
                         </div>
                     </div>
-                    <div className="md:col-span-1">
+                    <div className="lg:col-span-1">
                         <Card>
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2"><BarChart3 className="h-5 w-5" /> Statistics</CardTitle>
                                 <CardDescription>For {selectedClass?.name} on {format(date, "PPP")}</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-sm text-muted-foreground mb-4">
-                                    <p>Present: <span className="font-bold text-green-600">{attendanceStats.Present}</span></p>
-                                    <p>Absent: <span className="font-bold text-red-600">{attendanceStats.Absent}</span></p>
-                                    <p>Late: <span className="font-bold text-orange-500">{attendanceStats.Late}</span></p>
-                                    <p>Excused: <span className="font-bold text-blue-500">{attendanceStats.Excused}</span></p>
-                                    <p>Unmarked: <span className="font-bold">{attendanceStats.Unmarked}</span></p>
-                                    <p className="mt-2 pt-2 border-t">Total Students: <span className="font-bold text-primary">{attendanceStats.total}</span></p>
+                                <div className="text-sm mb-4 grid grid-cols-2 gap-x-4 gap-y-2">
+                                    <div>
+                                        <p className="font-semibold">Present</p>
+                                        <p className="text-green-600 font-bold">{attendanceStats.Present} <span className="text-xs font-normal text-muted-foreground">({attendanceStats.percentages.Present.toFixed(1)}%)</span></p>
+                                    </div>
+                                     <div>
+                                        <p className="font-semibold">Absent</p>
+                                        <p className="text-red-600 font-bold">{attendanceStats.Absent} <span className="text-xs font-normal text-muted-foreground">({attendanceStats.percentages.Absent.toFixed(1)}%)</span></p>
+                                    </div>
+                                     <div>
+                                        <p className="font-semibold">Late</p>
+                                        <p className="text-orange-500 font-bold">{attendanceStats.Late} <span className="text-xs font-normal text-muted-foreground">({attendanceStats.percentages.Late.toFixed(1)}%)</span></p>
+                                    </div>
+                                     <div>
+                                        <p className="font-semibold">Excused</p>
+                                        <p className="text-blue-500 font-bold">{attendanceStats.Excused} <span className="text-xs font-normal text-muted-foreground">({attendanceStats.percentages.Excused.toFixed(1)}%)</span></p>
+                                    </div>
                                 </div>
-                                <ChartContainer config={chartConfig} className="h-[200px] w-full">
-                                    <BarChart accessibilityLayer data={chartData} layout="vertical" margin={{ left: 0, right: 20 }}>
+                                <div className="mt-4 pt-4 border-t">
+                                     <p className="font-semibold">Total Students: <span className="font-bold text-primary">{attendanceStats.total}</span></p>
+                                     <p className="font-semibold">Unmarked: <span className="font-bold">{attendanceStats.Unmarked}</span></p>
+                                </div>
+                                <ChartContainer config={chartConfig} className="h-[200px] w-full mt-4">
+                                    <BarChart accessibilityLayer data={chartData} layout="vertical" margin={{ right: 20 }}>
                                          <YAxis
                                             dataKey="name"
                                             type="category"
                                             tickLine={false}
                                             axisLine={false}
                                             tickMargin={10}
-                                            className="text-xs"
+                                            tick={({ x, y, payload }) => <text x={x} y={y} dy={4} textAnchor="end" fill="hsl(var(--foreground))" className="text-xs fill-muted-foreground">{payload.value}</text>}
                                         />
                                         <XAxis dataKey="value" type="number" hide />
                                         <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent indicator="dot" />} />
-                                        <Bar dataKey="value" radius={4} />
+                                        <Bar dataKey="value" radius={5}>
+                                            {chartData.map(entry => <Cell key={`cell-${entry.name}`} fill={entry.fill} />)}
+                                        </Bar>
                                     </BarChart>
                                 </ChartContainer>
                             </CardContent>
@@ -413,21 +576,71 @@ export default function AttendancePage() {
             )
           }
         </CardContent>
-        {role === 'teacher' && selectedClassId && classStudents.length > 0 && (
+        {role === 'teacher' && selectedClassId && classStudents.length > 0 && !isPastDate && (
            <CardFooter className="border-t px-6 py-4 flex justify-between">
               <div className="flex gap-2">
-                <Button onClick={handleSaveAttendance} disabled={isLoading}>
+                <Button onClick={handleSaveAttendance} disabled={isLoading || !isAllMarked || !hasUnsavedChanges}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    <Save className="mr-2 h-4 w-4" />
                     Save Attendance
                 </Button>
-                 <Button onClick={handleMarkAllPresent} variant="secondary" disabled={!atLeastOneMarked || attendanceStats.Unmarked === 0}>
+                 <Button onClick={handleSaveAndMarkAllPresent} variant="secondary" disabled={isLoading || isAllMarked}>
                     <UserCheck className="mr-2 h-4 w-4" />
-                    Mark all as Present
+                    Save and Mark all as Present
                 </Button>
               </div>
            </CardFooter>
         )}
       </Card>
+       {/* History Dialog */}
+       <Dialog open={isHistoryDialogOpen} onOpenChange={setIsHistoryDialogOpen}>
+        <DialogContent className="max-w-md">
+            <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                    <History className="h-5 w-5"/>
+                    Attendance History for {selectedStudentForHistory?.name}
+                </DialogTitle>
+                <DialogDescription>
+                    Showing records from the last 30 days.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="max-h-[60vh] overflow-y-auto pr-4">
+                 <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Comment</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {studentHistory.length > 0 ? (
+                            studentHistory.map(record => (
+                                <TableRow key={record.date}>
+                                    <TableCell>{format(new Date(record.date), "PPP")}</TableCell>
+                                    <TableCell>
+                                        <Badge className={cn({
+                                            "bg-green-100 text-green-800": record.status === 'Present',
+                                            "bg-red-100 text-red-800": record.status === 'Absent',
+                                            "bg-orange-100 text-orange-800": record.status === 'Late',
+                                            "bg-blue-100 text-blue-800": record.status === 'Excused',
+                                        })}>
+                                            {record.status}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-xs text-muted-foreground">{record.comment || 'N/A'}</TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={3} className="text-center h-24">No attendance records found for this student in the last 30 days.</TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                 </Table>
+            </div>
+        </DialogContent>
+       </Dialog>
     </div>
   )
 }
