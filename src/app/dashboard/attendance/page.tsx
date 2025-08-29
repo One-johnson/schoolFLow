@@ -3,7 +3,7 @@
 
 import * as React from "react"
 import { format } from "date-fns"
-import { Calendar as CalendarIcon, CheckCircle, XCircle, Clock, Loader2, BarChart3, UserCheck, ShieldCheck, Save } from "lucide-react"
+import { Calendar as CalendarIcon, CheckCircle, XCircle, Clock, Loader2, BarChart3, UserCheck, ShieldCheck, Save, AlertCircle } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -50,6 +50,9 @@ import {
   Legend,
 } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
+import { Badge } from "@/components/ui/badge"
+import _ from 'lodash'
+
 
 type Student = {
   id: string;
@@ -72,6 +75,7 @@ export default function AttendancePage() {
   const [date, setDate] = React.useState<Date>(new Date())
   const [selectedClassId, setSelectedClassId] = React.useState<string | undefined>()
   const [attendance, setAttendance] = React.useState<AttendanceRecord>({})
+  const [originalAttendance, setOriginalAttendance] = React.useState<AttendanceRecord>({})
   const [isLoading, setIsLoading] = React.useState(false)
   const [isFetching, setIsFetching] = React.useState(true)
 
@@ -81,6 +85,9 @@ export default function AttendancePage() {
 
   const formattedDate = format(date, 'yyyy-MM-dd');
   const { data: savedAttendance, updateData: updateAttendanceDb, loading: attendanceLoading } = useDatabase<FullAttendanceRecord>(`attendance/${formattedDate}`);
+  
+  const hasUnsavedChanges = React.useMemo(() => !_.isEqual(attendance, originalAttendance), [attendance, originalAttendance]);
+
 
   // Teacher-specific classes
   const teacherClasses = React.useMemo(() => {
@@ -122,12 +129,15 @@ export default function AttendancePage() {
       const classAttendance = savedAttendance.find(a => a.id === selectedClassId)
       if (classAttendance) {
         const { id, ...rest } = classAttendance
-        setAttendance(rest as AttendanceRecord)
+        setAttendance(rest as AttendanceRecord);
+        setOriginalAttendance(rest as AttendanceRecord);
       } else {
-        setAttendance({})
+        setAttendance({});
+        setOriginalAttendance({});
       }
     } else {
       setAttendance({});
+      setOriginalAttendance({});
     }
     setIsFetching(false)
   }, [selectedClassId, savedAttendance, attendanceLoading, date])
@@ -168,6 +178,7 @@ export default function AttendancePage() {
 
     try {
         await updateAttendanceDb(`attendance/${formattedDate}/${selectedClassId}`, completedAttendance);
+        setOriginalAttendance(completedAttendance);
         toast({ title: "Success", description: "Attendance saved successfully." });
     } catch (error) {
         toast({ title: "Error", description: "Failed to save attendance.", variant: "destructive" });
@@ -191,8 +202,8 @@ export default function AttendancePage() {
 
     setIsLoading(true);
     try {
-      // Using updateData which performs a SET operation at the specified path
       await updateAttendanceDb(`attendance/${formattedDate}/${selectedClassId}`, attendance);
+      setOriginalAttendance(attendance);
       toast({ title: "Success", description: "Attendance saved successfully." })
     } catch (error) {
       toast({ title: "Error", description: "Failed to save attendance.", variant: "destructive" })
@@ -300,8 +311,11 @@ export default function AttendancePage() {
             </div>
             {role !== 'student' && (
             <div className="grid gap-2">
-                <Label>Class</Label>
-                 <Select onValueChange={setSelectedClassId} value={selectedClassId}>
+                <div className="flex items-center gap-2">
+                    <Label>Class</Label>
+                    {hasUnsavedChanges && <Badge variant="destructive" className="animate-pulse"><AlertCircle className="mr-1 h-3 w-3"/>Unsaved changes</Badge>}
+                </div>
+                 <Select onValueChange={setSelectedClassId} value={selectedClassId} disabled={hasUnsavedChanges}>
                   <SelectTrigger className="w-[280px]">
                     <SelectValue placeholder="Select a class" />
                   </SelectTrigger>
@@ -433,7 +447,7 @@ export default function AttendancePage() {
         {role === 'teacher' && selectedClassId && classStudents.length > 0 && (
            <CardFooter className="border-t px-6 py-4 flex justify-between">
               <div className="flex gap-2">
-                <Button onClick={handleSaveAttendance} disabled={isLoading || !isAllMarked}>
+                <Button onClick={handleSaveAttendance} disabled={isLoading || !isAllMarked || !hasUnsavedChanges}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     <Save className="mr-2 h-4 w-4" />
                     Save Attendance
