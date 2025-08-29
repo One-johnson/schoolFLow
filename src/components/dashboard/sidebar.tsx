@@ -194,7 +194,7 @@ export function DashboardSidebar({
   return (
     <Sidebar>
       <SidebarHeader>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 md:hidden">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <School className="h-6 w-6" />
           </div>
