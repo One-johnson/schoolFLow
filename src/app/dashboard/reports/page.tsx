@@ -74,12 +74,12 @@ export default function ReportsPage() {
          if (typeof attendanceRecords !== 'object' || attendanceRecords === null) return;
          
         Object.entries(attendanceRecords).forEach(([studentId, entry]) => {
-          if (entry && typeof entry === 'object' && entry.status) {
+          if (entry && typeof entry === 'object' && 'status' in entry) {
             flatData.push({
               date,
               classId,
               studentId,
-              status: entry.status,
+              status: (entry as AttendanceEntry).status,
               studentName: studentsMap.get(studentId) || 'Unknown Student',
               className: classesMap.get(classId) || 'Unknown Class'
             });
@@ -151,77 +151,79 @@ export default function ReportsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
+      <div className="print-hidden">
         <h1 className="text-3xl font-bold tracking-tight">Attendance Reports</h1>
         <p className="text-muted-foreground">Generate and export attendance reports.</p>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Report Filters</CardTitle>
-          <CardDescription>Use the filters below to generate a report.</CardDescription>
-          <div className="flex flex-wrap gap-4 pt-4">
-              <div className="flex gap-1">
-                 <Button variant="outline" size="sm" onClick={() => setDatePreset('today')}>Today</Button>
-                 <Button variant="outline" size="sm" onClick={() => setDatePreset('this_week')}>This Week</Button>
-                 <Button variant="outline" size="sm" onClick={() => setDatePreset('this_month')}>This Month</Button>
-              </div>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    id="date"
-                    variant="outline"
-                    className="w-[300px] justify-start text-left font-normal"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateRange?.from ? (
-                      dateRange.to ? (
-                        <>
-                          {format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}
-                        </>
-                      ) : (
-                        format(dateRange.from, "LLL dd, y")
-                      )
-                    ) : (
-                      <span>Pick a date range</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    initialFocus
-                    mode="range"
-                    defaultMonth={dateRange?.from}
-                    selected={dateRange}
-                    onSelect={setDateRange}
-                    numberOfMonths={2}
-                  />
-                </PopoverContent>
-              </Popover>
+        <div className="print-hidden">
+            <CardHeader>
+            <CardTitle>Report Filters</CardTitle>
+            <CardDescription>Use the filters below to generate a report.</CardDescription>
+            <div className="flex flex-wrap gap-4 pt-4">
+                <div className="flex gap-1">
+                    <Button variant="outline" size="sm" onClick={() => setDatePreset('today')}>Today</Button>
+                    <Button variant="outline" size="sm" onClick={() => setDatePreset('this_week')}>This Week</Button>
+                    <Button variant="outline" size="sm" onClick={() => setDatePreset('this_month')}>This Month</Button>
+                </div>
+                <Popover>
+                    <PopoverTrigger asChild>
+                    <Button
+                        id="date"
+                        variant="outline"
+                        className="w-[300px] justify-start text-left font-normal"
+                    >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateRange?.from ? (
+                        dateRange.to ? (
+                            <>
+                            {format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}
+                            </>
+                        ) : (
+                            format(dateRange.from, "LLL dd, y")
+                        )
+                        ) : (
+                        <span>Pick a date range</span>
+                        )}
+                    </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                        initialFocus
+                        mode="range"
+                        defaultMonth={dateRange?.from}
+                        selected={dateRange}
+                        onSelect={setDateRange}
+                        numberOfMonths={2}
+                    />
+                    </PopoverContent>
+                </Popover>
 
-              {role === 'admin' && (
-                <Select onValueChange={setSelectedClassId} value={selectedClassId}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Select Class" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Classes</SelectItem>
-                    {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              )}
+                {role === 'admin' && (
+                    <Select onValueChange={setSelectedClassId} value={selectedClassId}>
+                    <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Select Class" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Classes</SelectItem>
+                        {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                    </Select>
+                )}
 
-               <Select onValueChange={setSelectedStudentId} value={selectedStudentId}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Select Student" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Students</SelectItem>
-                    {students.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                  </SelectContent>
+                <Select onValueChange={setSelectedStudentId} value={selectedStudentId}>
+                    <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Select Student" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Students</SelectItem>
+                        {students.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                    </SelectContent>
                 </Select>
-          </div>
-        </CardHeader>
+            </div>
+            </CardHeader>
+        </div>
         <CardContent>
           {loading ? (
              <div className="flex h-64 items-center justify-center">
@@ -264,7 +266,7 @@ export default function ReportsPage() {
             </div>
           )}
         </CardContent>
-        <CardFooter className="flex justify-end gap-2">
+        <CardFooter className="flex justify-end gap-2 print-hidden">
             <Button variant="outline" onClick={handlePrint} disabled={filteredData.length === 0}>
                 <Printer className="mr-2 h-4 w-4"/> Print
             </Button>
