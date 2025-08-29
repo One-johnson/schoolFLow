@@ -48,6 +48,7 @@ import {
   YAxis,
   Tooltip,
   Legend,
+  Cell,
 } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Badge } from "@/components/ui/badge"
