@@ -109,6 +109,7 @@ import { database } from "@/lib/firebase";
 
 type Student = {
   id: string
+  studentId: string
   name: string
   email: string
   status: "Active" | "Inactive" | "Graduated" | "Continuing"
@@ -127,6 +128,7 @@ type Student = {
   house?: "Ambassadors" | "Royals" | "Dependable" | "Jubilee";
   createdAt: number;
   updatedAt?: number;
+ 
 }
 type Class = { id: string; name: string; studentIds?: Record<string, boolean>, teacherId?: string };
 
@@ -160,7 +162,8 @@ export default function StudentsPage() {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({
-    id: false,
+    admissionNo: false,
+    rollNo: false,
     email: false,
     dateOfBirth: false,
     placeOfBirth: false,
@@ -267,12 +270,12 @@ export default function StudentsPage() {
     }
     setIsLoading(true);
     try {
-        const studentId = generateStudentId();
+        const customStudentId = generateStudentId();
         const admissionNo = generateAdmissionNo();
         const rollNo = (allStudents.length + 1).toString().padStart(4, '0');
 
         // Create Auth user
-        const userCredential = await createUserWithEmailAndPassword(auth, newStudent.email, studentId);
+        const userCredential = await createUserWithEmailAndPassword(auth, newStudent.email, customStudentId);
         const authUser = userCredential.user;
         await updateProfile(authUser, { displayName: newStudent.name });
         
@@ -283,11 +286,12 @@ export default function StudentsPage() {
         const studentData = {
             ...newStudent,
             id: authUser.uid,
+            studentId: customStudentId,
             status: 'Active',
             admissionNo,
             rollNo,
             dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
-        } as Omit<Student, 'createdAt' | 'id'>;
+        } as Omit<Student, 'createdAt'>;
 
         await addDataWithId(authUser.uid, studentData as any);
 
@@ -414,10 +418,10 @@ export default function StudentsPage() {
       enableHiding: false,
     },
     {
-      accessorKey: "id",
+      accessorKey: "studentId",
       header: "ID",
       cell: ({ row }) => (
-        <div className="font-mono text-xs">{row.getValue("id")}</div>
+        <div className="font-mono text-xs">{row.getValue("studentId")}</div>
       ),
     },
      {
@@ -632,7 +636,7 @@ export default function StudentsPage() {
         ...rowsToExport.map(row => {
             const student = row.original;
             return [
-                student.id,
+                student.studentId,
                 student.admissionNo,
                 student.rollNo,
                 `"${student.name}"`,

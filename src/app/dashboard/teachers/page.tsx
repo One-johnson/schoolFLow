@@ -394,7 +394,7 @@ export default function TeachersPage() {
     },
     {
       accessorKey: "teacherId",
-      header: "Teacher ID",
+      header: "ID",
       cell: ({ row }) => (
         <div className="font-mono text-xs">{row.getValue("teacherId")}</div>
       ),
