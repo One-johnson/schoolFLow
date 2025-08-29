@@ -1092,5 +1092,3 @@ export default function TeachersPage() {
     </Card>
   )
 }
-
-    

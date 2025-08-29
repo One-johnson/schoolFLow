@@ -28,7 +28,7 @@ import {
 
 
 // Data types
-type Student = { id: string; name: string; email: string; status: "Active" | "Inactive" | "Graduated" | "Continuing"; dateOfBirth?: string; placeOfBirth?: string; nationality?: string; hometown?: string; gender?: "Male" | "Female" | "Other"; address?: string; parentName?: string; parentPhone?: string; parentEmail?: string; avatarUrl?: string; };
+type Student = { id: string; name: string; email: string; status: "Active" | "Inactive" | "Graduated" | "Continuing"; dateOfBirth?: string; placeOfBirth?: string; nationality?: string; hometown?: string; gender?: "Male" | "Female" | "Other"; address?: string; parentName?: string; parentPhone?: string; parentEmail?: string; avatarUrl?: string; admissionNo: string; };
 type Class = { id: string; name: string; studentIds?: Record<string, boolean>, teacherId?: string };
 type Subject = { id: string; name: string; classId?: string; };
 type StudentFee = { id: string; studentId: string; feeId: string; amountDue: number; amountPaid: number; status: "Paid" | "Unpaid" | "Partial"; };
@@ -288,7 +288,7 @@ export default function StudentInfoPage() {
                     <div className="flex-1">
                         <CardTitle className="text-3xl">{student.name}</CardTitle>
                         <CardDescription className="flex items-center gap-4 mt-1">
-                            <span>ID: {student.id}</span>
+                            <span>ID: {student.admissionNo}</span>
                             <span>|</span>
                             <span>{student.email}</span>
                         </CardDescription>
@@ -524,4 +524,3 @@ export default function StudentInfoPage() {
         </div>
     );
 }
-
