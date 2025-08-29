@@ -52,6 +52,8 @@ import {
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Badge } from "@/components/ui/badge"
 import _ from 'lodash'
+import { database } from "@/lib/firebase"
+import { ref, set } from "firebase/database"
 
 
 type Student = {
@@ -84,7 +86,7 @@ export default function AttendancePage() {
   const { toast } = useToast()
 
   const formattedDate = format(date, 'yyyy-MM-dd');
-  const { data: savedAttendance, updateData: updateAttendanceDb, loading: attendanceLoading } = useDatabase<FullAttendanceRecord>(`attendance/${formattedDate}`);
+  const { data: savedAttendance, loading: attendanceLoading } = useDatabase<FullAttendanceRecord>(`attendance/${formattedDate}`);
   
   const hasUnsavedChanges = React.useMemo(() => !_.isEqual(attendance, originalAttendance), [attendance, originalAttendance]);
 
@@ -177,7 +179,8 @@ export default function AttendancePage() {
     setAttendance(completedAttendance);
 
     try {
-        await updateAttendanceDb(`attendance/${formattedDate}/${selectedClassId}`, completedAttendance);
+        const attendanceRef = ref(database, `attendance/${formattedDate}/${selectedClassId}`);
+        await set(attendanceRef, completedAttendance);
         setOriginalAttendance(completedAttendance);
         toast({ title: "Success", description: "Attendance saved successfully." });
     } catch (error) {
@@ -202,7 +205,8 @@ export default function AttendancePage() {
 
     setIsLoading(true);
     try {
-      await updateAttendanceDb(`attendance/${formattedDate}/${selectedClassId}`, attendance);
+      const attendanceRef = ref(database, `attendance/${formattedDate}/${selectedClassId}`);
+      await set(attendanceRef, attendance);
       setOriginalAttendance(attendance);
       toast({ title: "Success", description: "Attendance saved successfully." })
     } catch (error) {
