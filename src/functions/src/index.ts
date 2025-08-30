@@ -99,49 +99,40 @@ export const createUserAccount = onCall(async (request) => {
 
 
 /**
- * Triggered when a student record is deleted from Realtime Database.
- * Deletes the corresponding Firebase Authentication user.
+ * Triggered when a student record is deleted from the Realtime Database.
+ * This function deletes the corresponding user from Firebase Authentication.
  */
 export const onStudentDeleted = onValueDeleted(
   "/students/{studentId}",
   async (event) => {
     const studentId = event.params.studentId;
-    console.log(`Student record deleted for ${studentId}. Deleting auth user and user record.`);
+    console.log(`Deleting auth user for student: ${studentId}`);
     try {
-      // Deleting the auth user will trigger onUserDeleted to clean up the /users entry.
-      await auth.deleteUser(studentId);
-      console.log(`✅ Auth user deleted: ${studentId}`);
+      await admin.auth().deleteUser(studentId);
+      console.log(`Successfully deleted auth user: ${studentId}`);
     } catch (error) {
-      console.error(`❌ Error deleting auth user ${studentId}:`, error);
+      console.error(`Error deleting auth user ${studentId}:`, error);
     }
   },
 );
 
 /**
- * Triggered when a teacher record is deleted from Realtime Database.
- * Deletes the corresponding Firebase Authentication user.
+ * Triggered when a teacher record is deleted from the Realtime Database.
+ * This function deletes the corresponding user from Firebase Authentication.
  */
 export const onTeacherDeleted = onValueDeleted(
   "/teachers/{teacherId}",
   async (event) => {
     const teacherId = event.params.teacherId;
-    console.log(`Teacher record deleted for ${teacherId}. Deleting auth user and user record.`);
+    console.log(`Deleting auth user for teacher: ${teacherId}`);
     try {
-      // Deleting the auth user will trigger onUserDeleted to clean up the /users entry.
-      await auth.deleteUser(teacherId);
-      console.log(`✅ Auth user deleted: ${teacherId}`);
+      await admin.auth().deleteUser(teacherId);
+      console.log(`Successfully deleted auth user: ${teacherId}`);
     } catch (error) {
-      console.error(`❌ Error deleting auth user ${teacherId}:`, error);
+      console.error(`Error deleting auth user ${teacherId}:`, error);
     }
   },
 );
-
-/**
- * Triggered when a user is deleted from Firebase Authentication.
- * Deletes the corresponding user record from the /users path in the database.
- * NOTE: This uses v1 function syntax for compatibility with the installed package version.
- */
-
 
 
 // -------------------------------

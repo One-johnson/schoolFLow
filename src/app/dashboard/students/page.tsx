@@ -32,7 +32,7 @@ import {
 import Link from "next/link"
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { auth, database } from '@/lib/firebase';
-import { set, ref } from 'firebase/database';
+import { set, ref, getDatabase, update } from 'firebase/database';
 
 
 import { Button } from "@/components/ui/button"
