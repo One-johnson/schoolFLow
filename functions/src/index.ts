@@ -141,17 +141,7 @@ export const onTeacherDeleted = onValueDeleted(
  * Deletes the corresponding user record from the /users path in the database.
  * NOTE: This uses v1 function syntax for compatibility with the installed package version.
  */
-exports.onUserDeleted = admin.auth().user().onDelete(async (user) => {
-    const uid = user.uid;
-    console.log(`Auth user ${uid} was deleted. Removing from /users table.`);
-    const userRef = db.ref(`/users/${uid}`);
-    try {
-        await userRef.remove();
-        console.log(`✅ Successfully removed user ${uid} from /users table.`);
-    } catch (error) {
-        console.error(`❌ Error removing user ${uid} from /users table:`, error);
-    }
-});
+
 
 
 // -------------------------------
