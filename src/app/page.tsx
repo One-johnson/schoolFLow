@@ -50,6 +50,9 @@ export default function LoginPage() {
             <LoginForm role="student" />
           </TabsContent>
         </Tabs>
+        <p className="px-8 text-center text-sm text-muted-foreground mt-4">
+          Don't have an account? Please contact your school administrator to get access.
+        </p>
       </div>
     </div>
   );
@@ -155,14 +158,6 @@ function LoginForm({ role }: { role: string }) {
             Sign In
           </Button>
         </form>
-        {role === 'admin' && (
-          <div className="mt-4 text-center text-sm">
-            Don&apos;t have an account?{' '}
-            <Link href="/register" className="underline">
-              Register
-            </Link>
-          </div>
-        )}
         <div className="mt-2 text-center text-sm">
           <a href="#" className="underline">
             Forgot your password?
