@@ -1,7 +1,8 @@
 
-import { setGlobalOptions } from "firebase-functions/v2";
-import { onValueDeleted } from "firebase-functions/v2/database";
-import { HttpsError, onCall } from "firebase-functions/v2/https";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import {setGlobalOptions} from "firebase-functions/v2";
+import {onValueDeleted} from "firebase-functions/v2/database";
+import {HttpsError, onCall} from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 
 // Initialize the Admin SDK
@@ -10,132 +11,113 @@ const auth = admin.auth();
 const db = admin.database();
 
 /**
- * Creates a new user account (student or teacher) and corresponding database records.
+ * Creates a new student account and corresponding database records.
  * This function can only be called by an authenticated user with the 'admin' role.
  */
-export const createUserAccount = onCall(async (request) => {
-  // 1. Check for authentication and admin role.
-  if (!request.auth || request.auth.token.role !== "admin") {
-    throw new HttpsError(
-      "permission-denied",
-      "You must be an admin to create new users.",
-    );
+export const createStudent = onCall(async (request) => {
+  if (request.auth?.token.role !== "admin") {
+    throw new HttpsError("permission-denied", "You must be an admin to create students.");
+  }
+  // Destructure the core fields and collect the rest into 'studentData'
+  const {email, password, name, ...studentData} = request.data;
+  if (!email || !password || !name) {
+    throw new HttpsError("invalid-argument", "Missing required fields: email, password, name.");
   }
 
-  // 2. Validate incoming data.
-  const {
-    email,
-    password,
-    role,
-    name,
-    studentData, // For students
-    teacherData, // For teachers
-  } = request.data;
-
-  if (!email || !password || !role || !name) {
-    throw new HttpsError(
-      "invalid-argument",
-      "Missing required fields: email, password, role, name.",
-    );
-  }
-  if (role !== "student" && role !== "teacher") {
-    throw new HttpsError(
-      "invalid-argument",
-      "Role must be 'student' or 'teacher'.",
-    );
-  }
-
-  // 3. Create the user in Firebase Authentication.
-  let userRecord;
   try {
-    userRecord = await auth.createUser({
-      email,
-      password,
-      displayName: name,
-    });
-    // Set a custom claim for the user's role. This is a more secure way to handle roles.
-    await auth.setCustomUserClaims(userRecord.uid, { role: role });
+    const userRecord = await auth.createUser({ email, password, displayName: name });
+    await auth.setCustomUserClaims(userRecord.uid, { role: "student" });
+
+    const studentRef = db.ref(`/students/${userRecord.uid}`);
+    // Save the core info plus the rest of the student data
+    await studentRef.set({ id: userRecord.uid, email, name, ...studentData });
+    
+    const userDbRef = db.ref(`/users/${userRecord.uid}`);
+    await userDbRef.set({ role: "student", email, name: name });
+    
+    console.log(`✅ Successfully created student: ${name} (${userRecord.uid})`);
+    return { success: true, uid: userRecord.uid };
+
   } catch (error: any) {
-    console.error("Error creating Firebase Auth user:", error);
-    // Forward a sanitized error to the client.
+    console.error("Error creating student:", error);
     throw new HttpsError("internal", error.message);
   }
+});
 
-  const { uid } = userRecord;
+/**
+ * Creates a new teacher account and corresponding database records.
+ * This function can only be called by an authenticated user with the 'admin' role.
+ */
+export const createTeacher = onCall(async (request) => {
+  if (request.auth?.token.role !== "admin") {
+    throw new HttpsError("permission-denied", "You must be an admin to create teachers.");
+  }
+  // Destructure the core fields and collect the rest into 'teacherData'
+  const {email, password, name, ...teacherData} = request.data;
+  if (!email || !password || !name) {
+    throw new HttpsError("invalid-argument", "Missing required fields: email, password, name.");
+  }
 
-  // 4. Create database records in parallel.
   try {
-    const promises = [];
+    const userRecord = await auth.createUser({ email, password, displayName: name });
+    await auth.setCustomUserClaims(userRecord.uid, { role: "teacher" });
 
-    // Create a record in the 'users' table for easy role lookup.
-    const userDbRef = db.ref(`/users/${uid}`);
-    promises.push(userDbRef.set({ role, email, name }));
+    const teacherRef = db.ref(`/teachers/${userRecord.uid}`);
+    // Save the core info plus the rest of the teacher data
+    await teacherRef.set({ id: userRecord.uid, email, name, ...teacherData });
+    
+    const userDbRef = db.ref(`/users/${userRecord.uid}`);
+    await userDbRef.set({ role: "teacher", email, name: name });
 
-    // Create a record in the specific role's table (students/teachers).
-    if (role === "student") {
-      const studentRef = db.ref(`/students/${uid}`);
-      promises.push(studentRef.set({ id: uid, name, email, ...studentData }));
-    } else if (role === "teacher") {
-      const teacherRef = db.ref(`/teachers/${uid}`);
-      promises.push(teacherRef.set({ id: uid, name, email, ...teacherData }));
-    }
+    console.log(`✅ Successfully created teacher: ${name} (${userRecord.uid})`);
+    return { success: true, uid: userRecord.uid };
 
-    await Promise.all(promises);
-
-    console.log(`✅ Successfully created ${role}: ${name} (${uid})`);
-    return {
-      success: true,
-      uid: uid,
-      message: `${role.charAt(0).toUpperCase() + role.slice(1)} created successfully.`,
-    };
   } catch (error: any) {
-    // If database writes fail, we should ideally delete the created auth user
-    // to prevent orphaned accounts. This is a "rollback" operation.
-    console.error(`Error creating DB records for ${uid}. Rolling back auth user.`, error);
-    await auth.deleteUser(uid);
-    throw new HttpsError("internal", `Failed to create database records for user ${uid}.`);
+    console.error("Error creating teacher:", error);
+    throw new HttpsError("internal", error.message);
   }
 });
 
 
 /**
- * Triggered when a student record is deleted from the Realtime Database.
- * This function deletes the corresponding user from Firebase Authentication.
+ * Triggered when a student record is deleted from Realtime Database.
+ * Deletes the corresponding Firebase Authentication user.
  */
 export const onStudentDeleted = onValueDeleted(
   "/students/{studentId}",
   async (event) => {
     const studentId = event.params.studentId;
-    console.log(`Deleting auth user for student: ${studentId}`);
+    console.log(
+      `Student record deleted for ${studentId}. ` +
+        "Deleting auth user and user record."
+    );
     try {
-      await admin.auth().deleteUser(studentId);
-      console.log(`Successfully deleted auth user: ${studentId}`);
+      await auth.deleteUser(studentId);
+      console.log(`✅ Auth user deleted: ${studentId}`);
     } catch (error) {
-      console.error(`Error deleting auth user ${studentId}:`, error);
+      console.error(`❌ Error deleting auth user ${studentId}:`, error);
     }
-  },
+  }
 );
 
 /**
- * Triggered when a teacher record is deleted from the Realtime Database.
- * This function deletes the corresponding user from Firebase Authentication.
+ * Triggered when a teacher record is deleted from Realtime Database.
+ * Deletes the corresponding Firebase Authentication user.
  */
 export const onTeacherDeleted = onValueDeleted(
   "/teachers/{teacherId}",
   async (event) => {
     const teacherId = event.params.teacherId;
-    console.log(`Deleting auth user for teacher: ${teacherId}`);
+    console.log(
+      `Teacher record deleted for ${teacherId}. ` +
+        "Deleting auth user and user record."
+    );
     try {
-      await admin.auth().deleteUser(teacherId);
-      console.log(`Successfully deleted auth user: ${teacherId}`);
+      await auth.deleteUser(teacherId);
+      console.log(`✅ Auth user deleted: ${teacherId}`);
     } catch (error) {
-      console.error(`Error deleting auth user ${teacherId}:`, error);
+      console.error(`❌ Error deleting auth user ${teacherId}:`, error);
     }
-  },
+  }
 );
-
-
-// -------------------------------
-// 🔹 Global function options
-// -------------------------------
-setGlobalOptions({ maxInstances: 10 });
+setGlobalOptions({maxInstances: 10});
