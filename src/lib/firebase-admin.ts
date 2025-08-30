@@ -1,9 +1,3 @@
-// This file is no longer needed and will be removed.
-var admin = require("firebase-admin");
 
-var serviceAccount = require("path/to/serviceAccountKey.json");
-
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  databaseURL: "https://schoolflow-731q1-default-rtdb.firebaseio.com"
-});
+// This file is not used in this project and is kept for reference.
+// The secure Admin SDK initialization happens inside the Cloud Functions environment.

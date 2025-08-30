@@ -31,9 +31,9 @@ import {
   UserCheck,
 } from "lucide-react"
 import Link from "next/link"
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
-import { set, ref } from 'firebase/database';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { auth, database } from '@/lib/firebase';
+import { set, ref, update } from 'firebase/database';
 
 
 import { Button } from "@/components/ui/button"
@@ -103,7 +103,6 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ImageUpload } from "@/components/ui/image-upload"
 import { serverTimestamp } from "firebase/database"
-import { database } from "@/lib/firebase";
 
 type Teacher = {
   id: string
@@ -154,8 +153,6 @@ export default function TeachersPage() {
   const {
     data: teachers,
     loading: dataLoading,
-    addDataWithId,
-    updateData,
     deleteData,
     uploadFile
   } = useDatabase<Teacher>("teachers")
@@ -229,27 +226,26 @@ export default function TeachersPage() {
     }
     setIsLoading(true);
     try {
-        const teacherId = generateTeacherId(newTeacher.department || 'GENERAL');
+      const functions = getFunctions();
+      const createUserAccount = httpsCallable(functions, 'createUserAccount');
+      
+      const teacherId = generateTeacherId(newTeacher.department || 'GENERAL');
 
-        // Create Auth user with email and the custom teacher ID as password
-        const userCredential = await createUserWithEmailAndPassword(auth, newTeacher.email, teacherId);
-        const authUser = userCredential.user;
-        await updateProfile(authUser, { displayName: newTeacher.name });
-
-        // Add to 'users' table for role management
-        const userRef = ref(database, `users/${authUser.uid}`);
-        await set(userRef, { role: 'teacher', email: authUser.email, name: newTeacher.name });
-
-      const teacherData = {
-        ...newTeacher,
-        id: authUser.uid, // The secure, unique Firebase Auth ID
-        teacherId: teacherId, // The custom, human-readable ID
-        status: 'Active',
-        dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
-        dateOfEmployment: doe ? format(doe, "yyyy-MM-dd") : undefined,
-      } as Omit<Teacher, 'createdAt'>
-
-      await addDataWithId(authUser.uid, teacherData)
+      const teacherPayload = {
+        email: newTeacher.email,
+        password: teacherId, // Using the generated ID as a default password
+        role: 'teacher',
+        name: newTeacher.name,
+        teacherData: {
+          ...newTeacher,
+          teacherId: teacherId,
+          status: 'Active',
+          dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
+          dateOfEmployment: doe ? format(doe, "yyyy-MM-dd") : undefined,
+        }
+      };
+      
+      await createUserAccount(teacherPayload);
 
       await addNotification({
         type: 'teacher_added',
@@ -260,6 +256,7 @@ export default function TeachersPage() {
       resetFormStates();
       setIsCreateDialogOpen(false)
     } catch (error: any) {
+      console.error("Teacher creation error:", error);
       toast({ title: "Error", description: `Failed to add teacher: ${error.message}`, variant: "destructive" })
     } finally {
       setIsLoading(false);
@@ -278,12 +275,20 @@ export default function TeachersPage() {
     if (!selectedTeacher || !editTeacher) return
     setIsLoading(true);
     try {
-      await updateData(selectedTeacher.id, {
+      const db = getDatabase();
+      const updates: any = {
         ...editTeacher,
         dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
         dateOfEmployment: doe ? format(doe, "yyyy-MM-dd") : undefined,
         updatedAt: serverTimestamp(),
-      })
+      };
+      
+      const teacherRef = ref(db, `teachers/${selectedTeacher.id}`);
+      await update(teacherRef, updates);
+
+      const userRef = ref(db, `users/${selectedTeacher.id}`);
+      await update(userRef, { name: editTeacher.name, email: editTeacher.email });
+
       toast({ title: "Success", description: "Teacher updated." })
       setIsEditDialogOpen(false)
       resetFormStates()

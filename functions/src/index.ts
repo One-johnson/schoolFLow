@@ -1,16 +1,100 @@
 
 import { setGlobalOptions } from "firebase-functions/v2";
 import { onValueDeleted } from "firebase-functions/v2/database";
-import { onCall } from "firebase-functions/v2/https";
+import { HttpsError, onCall } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 
 // Initialize the Admin SDK
 admin.initializeApp();
 const auth = admin.auth();
+const db = admin.database();
 
-// -------------------------------
-// 🔹 Auto-delete Auth users
-// -------------------------------
+/**
+ * Creates a new user account (student or teacher) and corresponding database records.
+ * This function can only be called by an authenticated user with the 'admin' role.
+ */
+export const createUserAccount = onCall(async (request) => {
+  // 1. Check for authentication and admin role.
+  if (!request.auth || request.auth.token.role !== "admin") {
+    throw new HttpsError(
+      "permission-denied",
+      "You must be an admin to create new users.",
+    );
+  }
+
+  // 2. Validate incoming data.
+  const {
+    email,
+    password,
+    role,
+    name,
+    studentData, // For students
+    teacherData, // For teachers
+  } = request.data;
+
+  if (!email || !password || !role || !name) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Missing required fields: email, password, role, name.",
+    );
+  }
+  if (role !== "student" && role !== "teacher") {
+    throw new HttpsError(
+      "invalid-argument",
+      "Role must be 'student' or 'teacher'.",
+    );
+  }
+
+  // 3. Create the user in Firebase Authentication.
+  let userRecord;
+  try {
+    userRecord = await auth.createUser({
+      email,
+      password,
+      displayName: name,
+    });
+  } catch (error: any) {
+    console.error("Error creating Firebase Auth user:", error);
+    // Forward a sanitized error to the client.
+    throw new HttpsError("internal", error.message);
+  }
+
+  const { uid } = userRecord;
+
+  // 4. Create database records in parallel.
+  try {
+    const promises = [];
+
+    // Create a record in the 'users' table for easy role lookup.
+    const userDbRef = db.ref(`/users/${uid}`);
+    promises.push(userDbRef.set({ role, email, name }));
+
+    // Create a record in the specific role's table (students/teachers).
+    if (role === "student") {
+      const studentRef = db.ref(`/students/${uid}`);
+      promises.push(studentRef.set({ id: uid, name, email, ...studentData }));
+    } else if (role === "teacher") {
+      const teacherRef = db.ref(`/teachers/${uid}`);
+      promises.push(teacherRef.set({ id: uid, name, email, ...teacherData }));
+    }
+
+    await Promise.all(promises);
+
+    console.log(`✅ Successfully created ${role}: ${name} (${uid})`);
+    return {
+      success: true,
+      uid: uid,
+      message: `${role.charAt(0).toUpperCase() + role.slice(1)} created successfully.`,
+    };
+  } catch (error: any) {
+    // If database writes fail, we should ideally delete the created auth user
+    // to prevent orphaned accounts. This is a "rollback" operation.
+    console.error(`Error creating DB records for ${uid}. Rolling back auth user.`, error);
+    await auth.deleteUser(uid);
+    throw new HttpsError("internal", `Failed to create database records for user ${uid}.`);
+  }
+});
+
 
 /**
  * Triggered when a student record is deleted from Realtime Database.
@@ -50,67 +134,6 @@ export const onTeacherDeleted = onValueDeleted(
   },
 );
 
-// -------------------------------
-// 🔹 Admin-only: Create User
-// -------------------------------
-/**
- * Callable function to create a new user (student/teacher/admin).
- * Only users with role = admin can call this function.
- */
-export const createUserAccount = onCall(async (request) => {
-  // 1. Check authentication
-  if (!request.auth) {
-    throw new Error("Authentication required.");
-  }
-
-  // 2. Check if caller is admin (or if it's the very first user being created)
-  const isFirstUser = (await auth.listUsers(1)).users.length === 0;
-  if (request.auth.token.role !== "admin" && !isFirstUser) {
-    throw new Error("Permission denied. Only admins can create users.");
-  }
-
-  const { email, password, role, name } = request.data;
-
-  if (!email || !password || !role) {
-    throw new Error("Missing required fields: email, password, role");
-  }
-  
-  if (!['admin', 'teacher', 'student'].includes(role)) {
-      throw new Error("Invalid role specified. Must be 'admin', 'teacher', or 'student'.");
-  }
-
-  try {
-    // 3. Create Firebase Auth user
-    const userRecord = await auth.createUser({
-      email,
-      password,
-      displayName: name,
-    });
-
-    // 4. Assign custom claim (role)
-    await auth.setCustomUserClaims(userRecord.uid, { role });
-
-    // 5. Create a record in the 'users' table for role lookup on login
-    const userDbRef = admin.database().ref(`users/${userRecord.uid}`);
-    await userDbRef.set({
-        role: role,
-        email: userRecord.email,
-        name: name,
-        createdAt: admin.database.ServerValue.TIMESTAMP
-    });
-
-    console.log(`✅ Created user: ${userRecord.uid} (${role})`);
-
-    return {
-      uid: userRecord.uid,
-      email: userRecord.email,
-      role,
-    };
-  } catch (error: any) {
-    console.error("❌ Error creating user:", error);
-    throw new Error(error.message);
-  }
-});
 
 // -------------------------------
 // 🔹 Global function options

@@ -30,8 +30,8 @@ import {
   GraduationCap,
 } from "lucide-react"
 import Link from "next/link"
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { auth, database } from '@/lib/firebase';
 import { set, ref } from 'firebase/database';
 
 
@@ -105,7 +105,6 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ImageUpload } from "@/components/ui/image-upload"
 import { serverTimestamp } from "firebase/database"
-import { database } from "@/lib/firebase";
 
 type Student = {
   id: string
@@ -185,8 +184,6 @@ export default function StudentsPage() {
   const {
     data: allStudents,
     loading: dataLoading,
-    addDataWithId,
-    updateData,
     deleteData,
     uploadFile
   } = useDatabase<Student>("students")
@@ -270,41 +267,43 @@ export default function StudentsPage() {
     }
     setIsLoading(true);
     try {
-        const customStudentId = generateStudentId();
-        const admissionNo = generateAdmissionNo();
-        const rollNo = (allStudents.length + 1).toString().padStart(4, '0');
+      const functions = getFunctions();
+      const createUserAccount = httpsCallable(functions, 'createUserAccount');
+      
+      const customStudentId = generateStudentId();
+      const admissionNo = generateAdmissionNo();
+      const rollNo = (allStudents.length + 1).toString().padStart(4, '0');
 
-        // Create Auth user
-        const userCredential = await createUserWithEmailAndPassword(auth, newStudent.email, customStudentId);
-        const authUser = userCredential.user;
-        await updateProfile(authUser, { displayName: newStudent.name });
-        
-        // Add to 'users' table
-        const userRef = ref(database, `users/${authUser.uid}`);
-        await set(userRef, { role: 'student', email: authUser.email, name: newStudent.name });
+      const studentPayload = {
+        email: newStudent.email,
+        password: customStudentId, // Using the generated ID as a default password
+        role: 'student',
+        name: newStudent.name,
+        studentData: {
+          ...newStudent,
+          studentId: customStudentId,
+          admissionNo,
+          rollNo,
+          status: 'Active',
+          dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
+        }
+      };
 
-        const studentData = {
-            ...newStudent,
-            id: authUser.uid,
-            studentId: customStudentId,
-            status: 'Active',
-            admissionNo,
-            rollNo,
-            dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
-        } as Omit<Student, 'createdAt'>;
-
-        await addDataWithId(authUser.uid, studentData as any);
-
+      await createUserAccount(studentPayload);
+      
       await addNotification({
         type: 'student_enrolled',
         message: `New student "${newStudent.name}" was enrolled.`,
         read: false,
       })
-      toast({ title: "Success", description: "Student added. Account needs to be created separately." })
+
+      toast({ title: "Success", description: "Student created successfully." })
       setNewStudent({})
       setDob(undefined)
       setIsCreateDialogOpen(false)
+
     } catch (error: any) {
+      console.error("Student creation error:", error);
       toast({ title: "Error", description: `Failed to add student: ${error.message}`, variant: "destructive" })
     } finally {
       setIsLoading(false);
@@ -323,6 +322,7 @@ export default function StudentsPage() {
   }
 
   const handleUpdateStudent = async () => {
+    // Note: This only updates the database record. It does not update Firebase Auth email/password.
     if (!selectedStudent || !editStudent) return
     if (!editStudent.name?.trim() || !editStudent.email?.trim()) {
       toast({ title: "Error", description: "Student name and email are required.", variant: "destructive" })
@@ -330,11 +330,19 @@ export default function StudentsPage() {
     }
     setIsLoading(true);
     try {
-      await updateData(selectedStudent.id, {
+      const db = getDatabase();
+      const updates: any = {
         ...editStudent,
         dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
         updatedAt: serverTimestamp(),
-      })
+      };
+      
+      const studentRef = ref(db, `students/${selectedStudent.id}`);
+      await update(studentRef, updates);
+      
+      const userRef = ref(db, `users/${selectedStudent.id}`);
+      await update(userRef, { name: editStudent.name, email: editStudent.email });
+
       toast({ title: "Success", description: "Student updated." })
       setIsEditDialogOpen(false)
       setSelectedStudent(null)
