@@ -30,8 +30,8 @@ import {
   GraduationCap,
 } from "lucide-react"
 import Link from "next/link"
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { auth, database } from '@/lib/firebase';
 import { set, ref } from 'firebase/database';
 
 
@@ -105,10 +105,10 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ImageUpload } from "@/components/ui/image-upload"
 import { serverTimestamp } from "firebase/database"
-import { database } from "@/lib/firebase";
 
 type Student = {
   id: string
+  studentId: string
   name: string
   email: string
   status: "Active" | "Inactive" | "Graduated" | "Continuing"
@@ -118,15 +118,16 @@ type Student = {
   placeOfBirth?: string
   nationality?: string
   hometown?: string
-  gender?: "Male" | "Female" | "Other"
+  gender: "Male" | "Female" | "Other"
   address?: string
-  parentName?: string
-  parentPhone?: string
+  parentName: string
+  parentPhone: string
   parentEmail?: string
   avatarUrl?: string;
-  house?: "Ambassadors" | "Royals" | "Dependable" | "Jubilee";
+  house: "Ambassadors" | "Royals" | "Dependable" | "Jubilee";
   createdAt: number;
   updatedAt?: number;
+ 
 }
 type Class = { id: string; name: string; studentIds?: Record<string, boolean>, teacherId?: string };
 
@@ -160,7 +161,8 @@ export default function StudentsPage() {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({
-    id: false,
+    admissionNo: true,
+    rollNo: false,
     email: false,
     dateOfBirth: false,
     placeOfBirth: false,
@@ -182,12 +184,10 @@ export default function StudentsPage() {
   const {
     data: allStudents,
     loading: dataLoading,
-    addDataWithId,
-    updateData,
     deleteData,
     uploadFile
   } = useDatabase<Student>("students")
-  const { data: classes, updateData: updateClass } = useDatabase<Class>("classes");
+  const { data: classes, updateData: updateClass, updatePath: updateClassPath } = useDatabase<Class>("classes");
   const { addData: addNotification } = useDatabase("notifications")
   const { toast } = useToast()
 
@@ -267,40 +267,43 @@ export default function StudentsPage() {
     }
     setIsLoading(true);
     try {
-        const studentId = generateStudentId();
-        const admissionNo = generateAdmissionNo();
-        const rollNo = (allStudents.length + 1).toString().padStart(4, '0');
+      const functions = getFunctions();
+      const createUserAccount = httpsCallable(functions, 'createUserAccount');
+      
+      const customStudentId = generateStudentId();
+      const admissionNo = generateAdmissionNo();
+      const rollNo = (allStudents.length + 1).toString().padStart(4, '0');
 
-        // Create Auth user
-        const userCredential = await createUserWithEmailAndPassword(auth, newStudent.email, studentId);
-        const authUser = userCredential.user;
-        await updateProfile(authUser, { displayName: newStudent.name });
-        
-        // Add to 'users' table
-        const userRef = ref(database, `users/${authUser.uid}`);
-        await set(userRef, { role: 'student', email: authUser.email, name: newStudent.name });
+      const studentPayload = {
+        email: newStudent.email,
+        password: customStudentId, // Using the generated ID as a default password
+        role: 'student',
+        name: newStudent.name,
+        studentData: {
+          ...newStudent,
+          studentId: customStudentId,
+          admissionNo,
+          rollNo,
+          status: 'Active',
+          dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
+        }
+      };
 
-        const studentData = {
-            ...newStudent,
-            id: authUser.uid,
-            status: 'Active',
-            admissionNo,
-            rollNo,
-            dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
-        } as Omit<Student, 'createdAt' | 'id'>;
-
-        await addDataWithId(authUser.uid, studentData as any);
-
+      await createUserAccount(studentPayload);
+      
       await addNotification({
         type: 'student_enrolled',
         message: `New student "${newStudent.name}" was enrolled.`,
         read: false,
       })
-      toast({ title: "Success", description: "Student added. Account needs to be created separately." })
+
+      toast({ title: "Success", description: "Student created successfully." })
       setNewStudent({})
       setDob(undefined)
       setIsCreateDialogOpen(false)
+
     } catch (error: any) {
+      console.error("Student creation error:", error);
       toast({ title: "Error", description: `Failed to add student: ${error.message}`, variant: "destructive" })
     } finally {
       setIsLoading(false);
@@ -319,6 +322,7 @@ export default function StudentsPage() {
   }
 
   const handleUpdateStudent = async () => {
+    // Note: This only updates the database record. It does not update Firebase Auth email/password.
     if (!selectedStudent || !editStudent) return
     if (!editStudent.name?.trim() || !editStudent.email?.trim()) {
       toast({ title: "Error", description: "Student name and email are required.", variant: "destructive" })
@@ -326,11 +330,19 @@ export default function StudentsPage() {
     }
     setIsLoading(true);
     try {
-      await updateData(selectedStudent.id, {
+      const db = getDatabase();
+      const updates: any = {
         ...editStudent,
         dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
         updatedAt: serverTimestamp(),
-      })
+      };
+      
+      const studentRef = ref(db, `students/${selectedStudent.id}`);
+      await update(studentRef, updates);
+      
+      const userRef = ref(db, `users/${selectedStudent.id}`);
+      await update(userRef, { name: editStudent.name, email: editStudent.email });
+
       toast({ title: "Success", description: "Student updated." })
       setIsEditDialogOpen(false)
       setSelectedStudent(null)
@@ -343,18 +355,30 @@ export default function StudentsPage() {
     }
   }
 
-  const handleDeleteStudent = async (id: string) => {
+  const handleDeleteStudent = async (studentId: string) => {
     setIsLoading(true);
     try {
-      await deleteData(id)
-      toast({ title: "Success", description: "Student deleted." })
+      // Find which class the student is in
+      const classToRemoveFrom = classes.find(c => c.studentIds && c.studentIds[studentId]);
+
+      // If found, remove the student from that class
+      if (classToRemoveFrom) {
+        const classRefPath = `classes/${classToRemoveFrom.id}/studentIds/${studentId}`;
+        await updateClassPath(classRefPath, null); // Using update with null is equivalent to remove for a specific key
+      }
+
+      // Finally, delete the student from the main students directory
+      await deleteData(studentId);
+
+      toast({ title: "Success", description: "Student deleted successfully." });
     } catch (error) {
-      toast({ title: "Error", description: "Failed to delete student.", variant: "destructive" })
+      console.error("Deletion error:", error);
+      toast({ title: "Error", description: "Failed to delete student.", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
-  }
-  
+  };
+
   const handleAssignToClass = async () => {
     if (!assignClassId) {
         toast({ title: "Error", description: "Please select a class.", variant: "destructive" });
@@ -414,10 +438,10 @@ export default function StudentsPage() {
       enableHiding: false,
     },
     {
-      accessorKey: "id",
+      accessorKey: "studentId",
       header: "ID",
       cell: ({ row }) => (
-        <div className="font-mono text-xs">{row.getValue("id")}</div>
+        <div className="font-mono text-xs">{row.getValue("studentId")}</div>
       ),
     },
      {
@@ -632,7 +656,7 @@ export default function StudentsPage() {
         ...rowsToExport.map(row => {
             const student = row.original;
             return [
-                student.id,
+                student.studentId,
                 student.admissionNo,
                 student.rollNo,
                 `"${student.name}"`,

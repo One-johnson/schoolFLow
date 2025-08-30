@@ -11,6 +11,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card";
 import {
   Table,
@@ -22,10 +23,24 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, FileText, Send } from "lucide-react";
+import { Loader2, FileText, Send, DollarSign, TrendingUp, TrendingDown, ArrowUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
+import {
+    ColumnDef,
+    ColumnFiltersState,
+    SortingState,
+    flexRender,
+    getCoreRowModel,
+    getFilteredRowModel,
+    getPaginationRowModel,
+    getSortedRowModel,
+    useReactTable,
+} from "@tanstack/react-table";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 
 // Data Types
 type Student = { id: string; name: string; email?: string };
@@ -82,6 +97,9 @@ export default function ClassFeesPage() {
   const { data: allStudentFees, loading: studentFeesLoading } = useDatabase<StudentFee>("studentFees");
   const { data: feeStructures, loading: feesLoading } = useDatabase<FeeStructure>("feeStructures");
 
+  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+
   const teacherClasses = React.useMemo(() => {
     if (!user) return [];
     return classes.filter(c => c.teacherId === user.uid);
@@ -116,12 +134,56 @@ export default function ClassFeesPage() {
       .sort((a,b) => a.studentName.localeCompare(b.studentName));
   }, [allStudentFees, classStudentIds, studentsMap, feesMap]);
 
+  const financialSummary = React.useMemo(() => {
+    return classFeeRecords.reduce((acc, item) => {
+        acc.totalDue += item.amountDue;
+        acc.totalPaid += item.amountPaid;
+        if(item.status !== 'Paid') {
+            acc.totalOutstanding += item.amountDue - item.amountPaid;
+        }
+        return acc;
+    }, { totalDue: 0, totalPaid: 0, totalOutstanding: 0 });
+  }, [classFeeRecords]);
+
   const handleSendReminder = (fee: EnrichedFeeRecord) => {
     toast({
       title: "Reminder Sent!",
       description: `A fee reminder has been sent to ${fee.studentName}.`,
     });
   };
+  
+  const columns: ColumnDef<EnrichedFeeRecord>[] = [
+    { accessorKey: "studentName", header: ({ column }) => <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>Student <ArrowUpDown className="ml-2 h-4 w-4" /></Button> },
+    { accessorKey: "feeName", header: "Fee Description" },
+    { accessorKey: "balance", header: ({ column }) => <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>Balance <ArrowUpDown className="ml-2 h-4 w-4" /></Button>, cell: ({ row }) => `GH₵${(row.original.amountDue - row.original.amountPaid).toLocaleString()}` },
+    { accessorKey: "status", header: "Status", cell: ({ row }) => <Badge className={cn("border-transparent", { "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300": row.original.status === 'Paid', "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300": row.original.status === 'Unpaid', "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300": row.original.status === 'Partial' })}>{row.original.status}</Badge>},
+    { id: "actions", cell: ({ row }) => {
+        const fee = row.original;
+        const student = studentsMap.get(fee.studentId);
+        return (
+             <div className="text-right space-x-2">
+                <Button variant="outline" size="sm" onClick={() => handleSendReminder(fee)}>
+                    <Send className="mr-2 h-4 w-4" /> Reminder
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => student && generateInvoice(fee, student, toast)}>
+                    <FileText className="mr-2 h-4 w-4" /> Invoice
+                </Button>
+            </div>
+        )
+    }}
+  ];
+  
+  const table = useReactTable({
+    data: classFeeRecords,
+    columns,
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    state: { sorting, columnFilters },
+  });
 
   const loading = classesLoading || studentsLoading || studentFeesLoading || feesLoading;
 
@@ -133,18 +195,70 @@ export default function ClassFeesPage() {
           Overview of fee payments for students in your classes.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-3">
+            <Card className="bg-blue-50 dark:bg-blue-900/30">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-blue-800 dark:text-blue-300">Total Fees Due</CardTitle>
+                    <DollarSign className="h-4 w-4 text-blue-600" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold text-blue-800 dark:text-blue-300">GH₵{financialSummary.totalDue.toLocaleString()}</div>
+                </CardContent>
+            </Card>
+            <Card className="bg-green-50 dark:bg-green-900/30">
+                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-green-800 dark:text-green-300">Total Paid</CardTitle>
+                    <TrendingUp className="h-4 w-4 text-green-600" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold text-green-800 dark:text-green-300">GH₵{financialSummary.totalPaid.toLocaleString()}</div>
+                </CardContent>
+            </Card>
+            <Card className="bg-red-50 dark:bg-red-900/30">
+                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-red-800 dark:text-red-300">Total Outstanding</CardTitle>
+                    <TrendingDown className="h-4 w-4 text-red-600" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold text-red-800 dark:text-red-300">GH₵{financialSummary.totalOutstanding.toLocaleString()}</div>
+                </CardContent>
+            </Card>
+        </div>
+        
+        <div className="flex items-center gap-4">
+            <Input
+              placeholder="Filter by student name..."
+              value={(table.getColumn("studentName")?.getFilterValue() as string) ?? ""}
+              onChange={(event) => table.getColumn("studentName")?.setFilterValue(event.target.value)}
+              className="max-w-sm"
+            />
+            <Select value={(table.getColumn("status")?.getFilterValue() as string) ?? "all"} onValueChange={(value) => table.getColumn("status")?.setFilterValue(value === "all" ? null : value)}>
+                <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Filter by status..." />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="Paid">Paid</SelectItem>
+                    <SelectItem value="Unpaid">Unpaid</SelectItem>
+                    <SelectItem value="Partial">Partial</SelectItem>
+                </SelectContent>
+            </Select>
+        </div>
+        
         <div className="rounded-md border">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Student Name</TableHead>
-                <TableHead>Fee Description</TableHead>
-                <TableHead className="text-right">Balance</TableHead>
-                <TableHead className="text-center">Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
+                      <TableHead key={header.id}>
+                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
@@ -152,32 +266,16 @@ export default function ClassFeesPage() {
                     <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
                   </TableCell>
                 </TableRow>
-              ) : classFeeRecords.length > 0 ? (
-                classFeeRecords.map((fee) => {
-                  const student = studentsMap.get(fee.studentId);
-                  return (
-                    <TableRow key={fee.id}>
-                      <TableCell className="font-medium">{fee.studentName}</TableCell>
-                      <TableCell>{fee.feeName}</TableCell>
-                      <TableCell className="text-right font-semibold">GH₵{(fee.amountDue - fee.amountPaid).toLocaleString()}</TableCell>
-                      <TableCell className="text-center">
-                        <Badge className={cn("border-transparent", {
-                          "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300": fee.status === 'Paid',
-                          "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300": fee.status === 'Unpaid',
-                          "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300": fee.status === 'Partial'
-                        })}>{fee.status}</Badge>
-                      </TableCell>
-                      <TableCell className="text-right space-x-2">
-                        <Button variant="outline" size="sm" onClick={() => handleSendReminder(fee)}>
-                          <Send className="mr-2 h-4 w-4" /> Reminder
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => student && generateInvoice(fee, student, toast)}>
-                          <FileText className="mr-2 h-4 w-4" /> Invoice
-                        </Button>
-                      </TableCell>
+              ) : table.getRowModel().rows.length > 0 ? (
+                table.getRowModel().rows.map((row) => (
+                    <TableRow key={row.id}>
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      ))}
                     </TableRow>
-                  )
-                })
+                  ))
               ) : (
                 <TableRow>
                   <TableCell colSpan={5} className="h-24 text-center">

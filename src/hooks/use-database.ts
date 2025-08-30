@@ -63,8 +63,11 @@ export function useDatabase<T extends { id?: string }>(path: string) {
     return update(databaseRef, updates);
   }, [path]);
   
-  const updatePath = useCallback(async (fullPath: string, updates: object) => {
+  const updatePath = useCallback(async (fullPath: string, updates: object | null) => {
       const databaseRef = dbRef(database, fullPath);
+      if (updates === null) {
+        return remove(databaseRef);
+      }
       return update(databaseRef, updates);
   }, []);
 

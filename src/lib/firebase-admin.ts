@@ -1,1 +1,3 @@
-// This file is no longer needed and will be removed.
+
+// This file is not used in this project and is kept for reference.
+// The secure Admin SDK initialization happens inside the Cloud Functions environment.

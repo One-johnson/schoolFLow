@@ -28,13 +28,14 @@ import {
 
 
 // Data types
-type Student = { id: string; name: string; email: string; status: "Active" | "Inactive" | "Graduated" | "Continuing"; dateOfBirth?: string; placeOfBirth?: string; nationality?: string; hometown?: string; gender?: "Male" | "Female" | "Other"; address?: string; parentName?: string; parentPhone?: string; parentEmail?: string; avatarUrl?: string; };
+type Student = { id: string; name: string; email: string; status: "Active" | "Inactive" | "Graduated" | "Continuing"; dateOfBirth?: string; placeOfBirth?: string; nationality?: string; hometown?: string; gender?: "Male" | "Female" | "Other"; address?: string; parentName?: string; parentPhone?: string; parentEmail?: string; avatarUrl?: string; admissionNo: string; studentId: string; };
 type Class = { id: string; name: string; studentIds?: Record<string, boolean>, teacherId?: string };
 type Subject = { id: string; name: string; classId?: string; };
 type StudentFee = { id: string; studentId: string; feeId: string; amountDue: number; amountPaid: number; status: "Paid" | "Unpaid" | "Partial"; };
 type FeeStructure = { id: string; name: string; };
 type AttendanceStatus = "Present" | "Absent" | "Late" | "Excused";
-type AttendanceRecord = Record<string, AttendanceStatus>;
+type AttendanceEntry = { status: AttendanceStatus, comment?: string };
+type AttendanceRecord = Record<string, AttendanceEntry>;
 type DailyAttendance = { [classId: string]: AttendanceRecord };
 type FullAttendanceLog = { date: string; classId: string; studentId: string; studentName: string; status: AttendanceStatus; className: string };
 type EnrichedFeeRecord = StudentFee & { feeName: string };
@@ -62,7 +63,7 @@ const statusColors = {
 export default function StudentInfoPage() {
     const params = useParams();
     const router = useRouter();
-    const studentId = params.id as string;
+    const studentIdParams = params.id as string;
     const { user, role } = useAuth();
     const { toast } = useToast();
 
@@ -84,26 +85,26 @@ export default function StudentInfoPage() {
     const loading = studentsLoading || classesLoading || subjectsLoading || feesLoading || feeStructuresLoading || attendanceLoading || termsLoading || examsLoading || gradesLoading;
 
     // Memoized Data
-    const student = React.useMemo(() => students.find(s => s.id === studentId), [students, studentId]);
-    const enrolledClasses = React.useMemo(() => classes.filter(c => c.studentIds && c.studentIds[studentId]), [classes, studentId]);
+    const student = React.useMemo(() => students.find(s => s.id === studentIdParams), [students, studentIdParams]);
+    const enrolledClasses = React.useMemo(() => classes.filter(c => c.studentIds && c.studentIds[studentIdParams]), [classes, studentIdParams]);
     
     // Check permissions
     React.useEffect(() => {
         if (loading || !user || !role || !student) return;
 
-        if (role === 'student' && user.uid !== studentId) {
+        if (role === 'student' && user.uid !== studentIdParams) {
             router.replace('/dashboard');
         }
 
         if (role === 'teacher') {
             const teacherClasses = classes.filter(c => c.teacherId === user.uid);
-            const isStudentInTeacherClass = teacherClasses.some(c => c.studentIds && c.studentIds[studentId]);
+            const isStudentInTeacherClass = teacherClasses.some(c => c.studentIds && c.studentIds[studentIdParams]);
             if (!isStudentInTeacherClass) {
                 router.replace('/dashboard/students');
             }
         }
 
-    }, [loading, user, role, student, classes, studentId, router]);
+    }, [loading, user, role, student, classes, studentIdParams, router]);
     
     
     const enrolledSubjects = React.useMemo(() => {
@@ -112,29 +113,29 @@ export default function StudentInfoPage() {
     }, [subjects, enrolledClasses]);
     const feesMap = React.useMemo(() => new Map(feeStructures.map(f => [f.id, f.name])), [feeStructures]);
     const feesRecords: EnrichedFeeRecord[] = React.useMemo(() => {
-        if (!studentId) return [];
-        return studentFees.filter(sf => sf.studentId === studentId).map(sf => ({ ...sf, feeName: feesMap.get(sf.feeId) || "Unknown Fee" }));
-    }, [studentFees, feesMap, studentId]);
+        if (!studentIdParams) return [];
+        return studentFees.filter(sf => sf.studentId === studentIdParams).map(sf => ({ ...sf, feeName: feesMap.get(sf.feeId) || "Unknown Fee" }));
+    }, [studentFees, feesMap, studentIdParams]);
     const studentsMap = React.useMemo(() => new Map(students.map(s => [s.id, s.name])), [students]);
     const classesMap = React.useMemo(() => new Map(classes.map(c => [c.id, c.name])), [classes]);
     const subjectsMap = React.useMemo(() => new Map(subjects.map(s => [s.id, s.name])), [subjects]);
 
     const attendanceHistory = React.useMemo<FullAttendanceLog[]>(() => {
-        if (attendanceLoading || !studentId) return [];
+        if (attendanceLoading || !studentIdParams) return [];
         const flatData: FullAttendanceLog[] = [];
         rawAttendance.forEach(dailyRecord => {
             const date = dailyRecord.id;
             if (!dailyRecord || typeof dailyRecord !== 'object') return;
             Object.entries(dailyRecord).forEach(([classId, attendanceRecords]) => {
                 if (classId === 'id' || !attendanceRecords || typeof attendanceRecords !== 'object') return;
-                const status = (attendanceRecords as AttendanceRecord)[studentId];
-                if (status) {
-                    flatData.push({ date, classId, studentId, status, studentName: studentsMap.get(studentId) || 'Unknown', className: classesMap.get(classId) || 'Unknown' });
+                const attendanceEntry = (attendanceRecords as AttendanceRecord)[studentIdParams];
+                if (attendanceEntry && attendanceEntry.status) {
+                    flatData.push({ date, classId, studentId: studentIdParams, status: attendanceEntry.status, studentName: studentsMap.get(studentIdParams) || 'Unknown', className: classesMap.get(classId) || 'Unknown' });
                 }
             });
         });
         return flatData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [rawAttendance, studentsMap, classesMap, attendanceLoading, studentId]);
+    }, [rawAttendance, studentsMap, classesMap, attendanceLoading, studentIdParams]);
 
     const examsForTerm = React.useMemo(() => {
         if (!selectedTermId) return [];
@@ -250,7 +251,7 @@ export default function StudentInfoPage() {
     const isAllowedToEdit = role === 'admin';
 
 
-    if (role === 'student' && user?.uid !== studentId) {
+    if (role === 'student' && user?.uid !== studentIdParams) {
         return (
             <div className="flex flex-col items-center justify-center h-[calc(100vh-200px)] gap-4">
                 <ShieldAlert className="h-16 w-16 text-destructive"/>
@@ -287,7 +288,7 @@ export default function StudentInfoPage() {
                     <div className="flex-1">
                         <CardTitle className="text-3xl">{student.name}</CardTitle>
                         <CardDescription className="flex items-center gap-4 mt-1">
-                            <span>ID: {student.id}</span>
+                            <span>ID: {student.studentId}</span>
                             <span>|</span>
                             <span>{student.email}</span>
                         </CardDescription>
