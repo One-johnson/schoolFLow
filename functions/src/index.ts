@@ -17,22 +17,22 @@ export const createStudent = onCall(async (request) => {
   if (request.auth?.token.role !== "admin") {
     throw new HttpsError("permission-denied", "You must be an admin to create students.");
   }
-  const {email, password, ...studentData} = request.data;
-  if (!email || !password || !studentData.name) {
+  const {email, password, name, ...studentData} = request.data;
+  if (!email || !password || !name) {
     throw new HttpsError("invalid-argument", "Missing required fields: email, password, name.");
   }
 
   try {
-    const userRecord = await auth.createUser({ email, password, displayName: studentData.name });
+    const userRecord = await auth.createUser({ email, password, displayName: name });
     await auth.setCustomUserClaims(userRecord.uid, { role: "student" });
 
     const studentRef = db.ref(`/students/${userRecord.uid}`);
-    await studentRef.set({ id: userRecord.uid, email, ...studentData });
+    await studentRef.set({ id: userRecord.uid, email, name, ...studentData });
     
     const userDbRef = db.ref(`/users/${userRecord.uid}`);
-    await userDbRef.set({ role: "student", email, name: studentData.name });
+    await userDbRef.set({ role: "student", email, name: name });
     
-    console.log(`✅ Successfully created student: ${studentData.name} (${userRecord.uid})`);
+    console.log(`✅ Successfully created student: ${name} (${userRecord.uid})`);
     return { success: true, uid: userRecord.uid };
 
   } catch (error: any) {
@@ -49,22 +49,22 @@ export const createTeacher = onCall(async (request) => {
   if (request.auth?.token.role !== "admin") {
     throw new HttpsError("permission-denied", "You must be an admin to create teachers.");
   }
-  const {email, password, ...teacherData} = request.data;
-  if (!email || !password || !teacherData.name) {
+  const {email, password, name, ...teacherData} = request.data;
+  if (!email || !password || !name) {
     throw new HttpsError("invalid-argument", "Missing required fields: email, password, name.");
   }
 
   try {
-    const userRecord = await auth.createUser({ email, password, displayName: teacherData.name });
+    const userRecord = await auth.createUser({ email, password, displayName: name });
     await auth.setCustomUserClaims(userRecord.uid, { role: "teacher" });
 
     const teacherRef = db.ref(`/teachers/${userRecord.uid}`);
-    await teacherRef.set({ id: userRecord.uid, email, ...teacherData });
+    await teacherRef.set({ id: userRecord.uid, email, name, ...teacherData });
     
     const userDbRef = db.ref(`/users/${userRecord.uid}`);
-    await userDbRef.set({ role: "teacher", email, name: teacherData.name });
+    await userDbRef.set({ role: "teacher", email, name: name });
 
-    console.log(`✅ Successfully created teacher: ${teacherData.name} (${userRecord.uid})`);
+    console.log(`✅ Successfully created teacher: ${name} (${userRecord.uid})`);
     return { success: true, uid: userRecord.uid };
 
   } catch (error: any) {
