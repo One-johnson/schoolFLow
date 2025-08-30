@@ -139,6 +139,7 @@ export const onTeacherDeleted = onValueDeleted(
 /**
  * Triggered when a user is deleted from Firebase Authentication.
  * Deletes the corresponding user record from the /users path in the database.
+ * NOTE: This uses v1 function syntax for compatibility with the installed package version.
  */
 exports.onUserDeleted = admin.auth().user().onDelete(async (user) => {
     const uid = user.uid;
