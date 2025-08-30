@@ -23,16 +23,24 @@ export function useAuth(): AuthState {
       if (user) {
         setUser(user);
         try {
-          const userDbRef = ref(database, `users/${user.uid}`);
-          const snapshot = await get(userDbRef);
-          if (snapshot.exists()) {
-             setRole(snapshot.val().role);
-          } else {
+          const idTokenResult = await user.getIdTokenResult();
+          const userRole = idTokenResult.claims.role as 'admin' | 'teacher' | 'student' || null;
+          setRole(userRole);
+        } catch (error) {
+          console.error("Error fetching user role from token:", error);
+          // Fallback to database if token check fails
+          try {
+            const userDbRef = ref(database, `users/${user.uid}`);
+            const snapshot = await get(userDbRef);
+            if (snapshot.exists()) {
+               setRole(snapshot.val().role);
+            } else {
+               setRole(null);
+            }
+          } catch(dbError) {
+             console.error("Error fetching user role from DB:", dbError);
              setRole(null);
           }
-        } catch (error) {
-          console.error("Error fetching user role:", error);
-          setRole(null);
         }
       } else {
         setUser(null);
