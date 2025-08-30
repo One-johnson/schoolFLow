@@ -227,25 +227,22 @@ export default function TeachersPage() {
     setIsLoading(true);
     try {
       const functions = getFunctions();
-      const createUserAccount = httpsCallable(functions, 'createUserAccount');
+      const createTeacherFn = httpsCallable(functions, 'createTeacher');
       
       const teacherId = generateTeacherId(newTeacher.department || 'GENERAL');
 
       const teacherPayload = {
         email: newTeacher.email,
-        password: teacherId, // Using the generated ID as a default password
-        role: 'teacher',
+        password: teacherId,
         name: newTeacher.name,
-        teacherData: {
-          ...newTeacher,
-          teacherId: teacherId,
-          status: 'Active',
-          dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
-          dateOfEmployment: doe ? format(doe, "yyyy-MM-dd") : undefined,
-        }
+        ...newTeacher,
+        teacherId: teacherId,
+        status: 'Active',
+        dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
+        dateOfEmployment: doe ? format(doe, "yyyy-MM-dd") : undefined,
       };
       
-      await createUserAccount(teacherPayload);
+      await createTeacherFn(teacherPayload);
 
       await addNotification({
         type: 'teacher_added',

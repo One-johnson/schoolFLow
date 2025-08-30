@@ -268,7 +268,7 @@ export default function StudentsPage() {
     setIsLoading(true);
     try {
       const functions = getFunctions();
-      const createUserAccount = httpsCallable(functions, 'createUserAccount');
+      const createStudentFn = httpsCallable(functions, 'createStudent');
       
       const customStudentId = generateStudentId();
       const admissionNo = generateAdmissionNo();
@@ -276,20 +276,17 @@ export default function StudentsPage() {
 
       const studentPayload = {
         email: newStudent.email,
-        password: customStudentId, // Using the generated ID as a default password
-        role: 'student',
+        password: customStudentId,
         name: newStudent.name,
-        studentData: {
-          ...newStudent,
-          studentId: customStudentId,
-          admissionNo,
-          rollNo,
-          status: 'Active',
-          dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
-        }
+        ...newStudent,
+        studentId: customStudentId,
+        admissionNo,
+        rollNo,
+        status: 'Active',
+        dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
       };
 
-      await createUserAccount(studentPayload);
+      await createStudentFn(studentPayload);
       
       await addNotification({
         type: 'student_enrolled',
