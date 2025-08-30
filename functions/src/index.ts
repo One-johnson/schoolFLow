@@ -2,7 +2,6 @@
 import { setGlobalOptions } from "firebase-functions/v2";
 import { onValueDeleted } from "firebase-functions/v2/database";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
-import { onUserDeleted } from "firebase-functions/v2/auth";
 import * as admin from "firebase-admin";
 
 // Initialize the Admin SDK
@@ -140,9 +139,10 @@ export const onTeacherDeleted = onValueDeleted(
 /**
  * Triggered when a user is deleted from Firebase Authentication.
  * Deletes the corresponding user record from the /users path in the database.
+ * NOTE: This uses v1 function syntax for compatibility with the installed package version.
  */
-export const onUserDelete = onUserDeleted(async (event) => {
-    const uid = event.data.uid;
+exports.onUserDeleted = admin.auth().user().onDelete(async (user) => {
+    const uid = user.uid;
     console.log(`Auth user ${uid} was deleted. Removing from /users table.`);
     const userRef = db.ref(`/users/${uid}`);
     try {
