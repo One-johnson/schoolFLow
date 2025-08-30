@@ -22,25 +22,20 @@ export function useAuth(): AuthState {
       setLoading(true);
       if (user) {
         setUser(user);
+        // Fetch user role from the database
         try {
-          const idTokenResult = await user.getIdTokenResult();
-          const userRole = idTokenResult.claims.role as 'admin' | 'teacher' | 'student' || null;
-          setRole(userRole);
-        } catch (error) {
-          console.error("Error fetching user role from token:", error);
-          // Fallback to database if token check fails
-          try {
-            const userDbRef = ref(database, `users/${user.uid}`);
-            const snapshot = await get(userDbRef);
-            if (snapshot.exists()) {
-               setRole(snapshot.val().role);
-            } else {
-               setRole(null);
-            }
-          } catch(dbError) {
-             console.error("Error fetching user role from DB:", dbError);
+          const userDbRef = ref(database, `users/${user.uid}`);
+          const snapshot = await get(userDbRef);
+          if (snapshot.exists()) {
+             setRole(snapshot.val().role);
+          } else {
+             // If no record found, they have no role
              setRole(null);
+             console.warn(`No role found in database for user ${user.uid}`);
           }
+        } catch(dbError) {
+           console.error("Error fetching user role from DB:", dbError);
+           setRole(null);
         }
       } else {
         setUser(null);
