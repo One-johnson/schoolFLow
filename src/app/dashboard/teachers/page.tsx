@@ -103,6 +103,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ImageUpload } from "@/components/ui/image-upload"
 import { serverTimestamp } from "firebase/database"
+import { createUserWithEmailAndPassword } from "firebase/auth"
 
 type Teacher = {
   id: string
@@ -154,7 +155,8 @@ export default function TeachersPage() {
     data: teachers,
     loading: dataLoading,
     deleteData,
-    uploadFile
+    uploadFile,
+    addDataWithId
   } = useDatabase<Teacher>("teachers")
   const { data: classes, updateData: updateClass } = useDatabase<Class>("classes");
   const { addData: addNotification } = useDatabase("notifications")
@@ -225,22 +227,28 @@ export default function TeachersPage() {
       return
     }
     setIsLoading(true);
+    let createdUser;
     try {
-      const functions = getFunctions();
-      const createTeacherFn = httpsCallable(functions, 'createTeacher');
+      createdUser = await createUserWithEmailAndPassword(auth, newTeacher.email, newTeacher.password || 'password123');
+      const teacherId = createdUser.user.uid;
       
-      const teacherPayload = {
-        email: newTeacher.email,
-        password: generateTeacherId(newTeacher.department || 'GENERAL'),
-        name: newTeacher.name,
+      const teacherData = {
         ...newTeacher,
+        id: teacherId,
+        teacherId: generateTeacherId(newTeacher.department),
         status: 'Active',
+        createdAt: serverTimestamp(),
         dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
         dateOfEmployment: doe ? format(doe, "yyyy-MM-dd") : undefined,
       };
       
-      await createTeacherFn(teacherPayload);
-
+      await addDataWithId(teacherId, teacherData as any);
+      await set(ref(database, `users/${teacherId}`), {
+          role: 'teacher',
+          email: newTeacher.email,
+          name: newTeacher.name
+      });
+      
       await addNotification({
         type: 'teacher_added',
         message: `New teacher "${newTeacher.name}" was added.`,
@@ -1091,3 +1099,5 @@ export default function TeachersPage() {
     </Card>
   )
 }
+
+    

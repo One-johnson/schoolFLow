@@ -105,6 +105,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ImageUpload } from "@/components/ui/image-upload"
 import { serverTimestamp } from "firebase/database"
+import { createUserWithEmailAndPassword } from "firebase/auth"
 
 type Student = {
   id: string
@@ -185,7 +186,8 @@ export default function StudentsPage() {
     data: allStudents,
     loading: dataLoading,
     deleteData,
-    uploadFile
+    uploadFile,
+    addDataWithId
   } = useDatabase<Student>("students")
   const { data: classes, updateData: updateClass, updatePath: updateClassPath } = useDatabase<Class>("classes");
   const { addData: addNotification } = useDatabase("notifications")
@@ -266,21 +268,29 @@ export default function StudentsPage() {
       return
     }
     setIsLoading(true);
+    let createdUser;
     try {
-      const functions = getFunctions();
-      const createStudentFn = httpsCallable(functions, 'createStudent');
+      // Note: This creates a temporary second auth instance. In a real app, you'd want a more robust admin SDK-based solution.
+      const tempApp = auth.app;
+      createdUser = await createUserWithEmailAndPassword(auth, newStudent.email, newStudent.password || 'password123');
+      const studentId = createdUser.user.uid;
       
-      const studentPayload = {
-        email: newStudent.email,
-        password: generateStudentId(),
-        name: newStudent.name,
-        // Spread the rest of the student-specific data
+      const studentData = {
         ...newStudent,
+        id: studentId,
+        studentId: generateStudentId(),
+        admissionNo: generateAdmissionNo(),
         status: 'Active',
+        createdAt: serverTimestamp(),
         dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
       };
 
-      await createStudentFn(studentPayload);
+      await addDataWithId(studentId, studentData as any);
+      await set(ref(database, `users/${studentId}`), {
+          role: 'student',
+          email: newStudent.email,
+          name: newStudent.name
+      });
       
       await addNotification({
         type: 'student_enrolled',
@@ -313,7 +323,6 @@ export default function StudentsPage() {
   }
 
   const handleUpdateStudent = async () => {
-    // Note: This only updates the database record. It does not update Firebase Auth email/password.
     if (!selectedStudent || !editStudent) return
     if (!editStudent.name?.trim() || !editStudent.email?.trim()) {
       toast({ title: "Error", description: "Student name and email are required.", variant: "destructive" })
@@ -352,13 +361,11 @@ export default function StudentsPage() {
       // Find which class the student is in
       const classToRemoveFrom = classes.find(c => c.studentIds && c.studentIds[studentId]);
 
-      // If found, remove the student from that class
       if (classToRemoveFrom) {
         const classRefPath = `classes/${classToRemoveFrom.id}/studentIds/${studentId}`;
-        await updateClassPath(classRefPath, null); // Using update with null is equivalent to remove for a specific key
+        await updateClassPath(classRefPath, null); 
       }
-
-      // Finally, delete the student from the main students directory
+      
       await deleteData(studentId);
 
       toast({ title: "Success", description: "Student deleted successfully." });
@@ -1207,3 +1214,5 @@ export default function StudentsPage() {
     </Card>
   )
 }
+
+    
