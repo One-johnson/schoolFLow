@@ -103,19 +103,32 @@ export function UserNav() {
     return name.substring(0, 2).toUpperCase();
   }
 
-  const profileMenuItem = role === 'student' ? (
-    <Link href={`/dashboard/students/${user?.uid}`}>
-       <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-            Profile
-            <DropdownMenuShortcut>⇧⌘P</DropdownMenuShortcut>
+  const getProfilePath = () => {
+    if (!user || !role) return "/dashboard";
+    switch (role) {
+      case 'student':
+        return `/dashboard/students/${user.uid}`;
+      case 'teacher':
+        return `/dashboard/teachers/${user.uid}`;
+      default:
+        return "#"; // Admins can edit from their own nav for now
+    }
+  }
+
+  const profileMenuItem =
+    role === "student" || role === "teacher" ? (
+      <Link href={getProfilePath()}>
+        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+          Profile
+          <DropdownMenuShortcut>⇧⌘P</DropdownMenuShortcut>
         </DropdownMenuItem>
-    </Link>
-  ) : (
-    <DropdownMenuItem onSelect={() => setIsProfileDialogOpen(true)}>
-      Profile
-      <DropdownMenuShortcut>⇧⌘P</DropdownMenuShortcut>
-    </DropdownMenuItem>
-  );
+      </Link>
+    ) : (
+      <DropdownMenuItem onSelect={() => setIsProfileDialogOpen(true)}>
+        Profile
+        <DropdownMenuShortcut>⇧⌘P</DropdownMenuShortcut>
+      </DropdownMenuItem>
+    );
 
   return (
     <>
