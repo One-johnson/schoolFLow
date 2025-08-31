@@ -230,7 +230,7 @@ export default function TeachersPage() {
     setIsLoading(true);
     let createdUser;
     try {
-      createdUser = await createUserWithEmailAndPassword(auth, newTeacher.email, newTeacher.password || 'password123');
+      createdUser = await createUserWithEmailAndPassword(auth, newTeacher.email, "password123");
       const teacherId = createdUser.user.uid;
       
       const teacherData: any = {
@@ -1105,5 +1105,3 @@ export default function TeachersPage() {
     </Card>
   )
 }
-
-    

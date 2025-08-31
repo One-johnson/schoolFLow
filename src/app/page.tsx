@@ -85,9 +85,9 @@ function LoginForm({ role }: { role: string }) {
           if (userRole === 'admin') {
             router.push('/dashboard');
           } else if (userRole === 'teacher') {
-            router.push('/dashboard/students');
+            router.push('/dashboard');
           } else if (userRole === 'student') {
-             router.push(`/dashboard/students/${user.uid}`);
+             router.push(`/dashboard`);
           } else {
             router.push('/dashboard'); // Fallback
           }
