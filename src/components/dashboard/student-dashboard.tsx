@@ -12,8 +12,10 @@ import { Skeleton } from "../ui/skeleton";
 import { format, isFuture, parseISO } from 'date-fns';
 import { Badge } from "../ui/badge";
 import { cn, calculateGrade } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
 // Data Types
+type Student = { id: string; name: string; studentId: string; avatarUrl?: string; createdAt: number; };
 type Class = { id: string; name: string; studentIds?: Record<string, boolean>; };
 type Event = { id: string; title: string; startDate: string; };
 type StudentFee = { id: string; studentId: string; amountDue: number; amountPaid: number; status: "Paid" | "Unpaid" | "Partial"; };
@@ -27,6 +29,7 @@ type ClassTimetable = { id: string, [day: string]: { [timeSlot: string]: Timetab
 
 export function StudentDashboard() {
   const { user } = useAuth();
+  const { data: students, loading: studentsLoading } = useDatabase<Student>('students');
   const { data: classes, loading: classesLoading } = useDatabase<Class>('classes');
   const { data: events, loading: eventsLoading } = useDatabase<Event>('events');
   const { data: studentFees, loading: feesLoading } = useDatabase<StudentFee>('studentFees');
@@ -36,9 +39,10 @@ export function StudentDashboard() {
   const { data: subjects, loading: subjectsLoading } = useDatabase<Subject>("subjects");
   const { data: timetables, loading: timetablesLoading } = useDatabase<ClassTimetable>("timetables");
 
-  const loading = classesLoading || eventsLoading || feesLoading || announcementsLoading || examsLoading || gradesLoading || subjectsLoading || timetablesLoading;
+  const loading = studentsLoading || classesLoading || eventsLoading || feesLoading || announcementsLoading || examsLoading || gradesLoading || subjectsLoading || timetablesLoading;
 
   // Memoized calculations
+  const student = React.useMemo(() => user ? students.find(s => s.id === user.uid) : null, [students, user]);
   const studentClass = React.useMemo(() => user ? classes.find(c => c.studentIds && c.studentIds[user.uid]) : null, [classes, user]);
   
   const upcomingEvents = React.useMemo(() => 
@@ -98,6 +102,12 @@ export function StudentDashboard() {
     return schedule.sort((a, b) => a.time.localeCompare(b.time));
 
   }, [timetables, studentClass, subjectsMap, timetablesLoading]);
+  
+  const getInitials = (name: string | null | undefined) => {
+    if (!name) return "S";
+    const names = name.split(' ');
+    return (names[0][0] + (names.length > 1 ? names[names.length - 1][0] : '')).toUpperCase();
+  }
 
 
   return (
@@ -108,16 +118,35 @@ export function StudentDashboard() {
       </div>
       
       {/* Quick Info Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">My Class</CardTitle>
-            <School className="h-4 w-4 text-muted-foreground" />
+      <div className="grid gap-4 md:grid-cols-1">
+         <Card>
+          <CardHeader className="flex flex-row items-center gap-4">
+              {loading ? <Skeleton className="h-16 w-16 rounded-full" /> : (
+                 <Avatar className="h-16 w-16">
+                    <AvatarImage src={student?.avatarUrl} alt={student?.name} />
+                    <AvatarFallback className="text-2xl">{getInitials(student?.name)}</AvatarFallback>
+                  </Avatar>
+              )}
+              <div className="grid gap-1">
+                {loading ? <Skeleton className="h-7 w-48" /> : <CardTitle className="text-2xl">{student?.name}</CardTitle> }
+                {loading ? <Skeleton className="h-5 w-32" /> : <CardDescription>ID: {student?.studentId || 'N/A'}</CardDescription>}
+              </div>
           </CardHeader>
           <CardContent>
-            {loading ? <Skeleton className="h-7 w-3/4" /> : <div className="text-2xl font-bold">{studentClass?.name || 'Not Assigned'}</div>}
+             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Class</p>
+                    {loading ? <Skeleton className="h-5 w-24 mt-1"/> : <p className="font-semibold">{studentClass?.name || 'Not Assigned'}</p> }
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Date Registered</p>
+                     {loading ? <Skeleton className="h-5 w-24 mt-1"/> : <p className="font-semibold">{student?.createdAt ? format(student.createdAt, 'MMM d, yyyy') : 'N/A'}</p> }
+                  </div>
+             </div>
           </CardContent>
         </Card>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Outstanding Fees</CardTitle>
