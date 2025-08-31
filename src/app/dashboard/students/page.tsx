@@ -104,9 +104,10 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ImageUpload } from "@/components/ui/image-upload"
 import { serverTimestamp } from "firebase/database"
-import { createUserWithEmailAndPassword, getAuth } from "firebase/auth"
+import { getAuth } from "firebase/auth"
 import { initializeApp } from "firebase/app";
 import { firebaseConfig } from "@/lib/firebase";
+import { createUserWithEmailAndPassword } from "firebase/auth";
 
 type Student = {
   id: string
@@ -269,20 +270,19 @@ export default function StudentsPage() {
       return
     }
     setIsLoading(true);
-    let createdUser;
     
-    // Create a temporary app to create users without signing them in
     const tempApp = initializeApp(firebaseConfig, `student-creation-${Date.now()}`);
     const tempAuth = getAuth(tempApp);
 
     try {
-      createdUser = await createUserWithEmailAndPassword(tempAuth, newStudent.email, newStudent.password || 'password123');
-      const studentId = createdUser.user.uid;
+      const studentId = generateStudentId();
+      const createdUser = await createUserWithEmailAndPassword(tempAuth, newStudent.email!, studentId);
+      const newUserId = createdUser.user.uid;
       
       const studentData: any = {
         ...newStudent,
-        id: studentId,
-        studentId: generateStudentId(),
+        id: newUserId,
+        studentId: studentId,
         admissionNo: generateAdmissionNo(),
         status: 'Active',
         createdAt: serverTimestamp(),
@@ -292,8 +292,8 @@ export default function StudentsPage() {
         studentData.dateOfBirth = format(dob, "yyyy-MM-dd");
       }
 
-      await addDataWithId(studentId, studentData);
-      await set(ref(database, `users/${studentId}`), {
+      await addDataWithId(newUserId, studentData);
+      await set(ref(database, `users/${newUserId}`), {
           role: 'student',
           email: newStudent.email,
           name: newStudent.name
@@ -315,8 +315,6 @@ export default function StudentsPage() {
       toast({ title: "Error", description: `Failed to add student: ${error.message}`, variant: "destructive" })
     } finally {
       setIsLoading(false);
-      // It's good practice to delete the temporary app instance, but Firebase does not provide an explicit API for it on the client-side.
-      // It will be garbage collected.
     }
   }
   

@@ -103,7 +103,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ImageUpload } from "@/components/ui/image-upload"
 import { serverTimestamp } from "firebase/database"
-import { createUserWithEmailAndPassword, getAuth } from "firebase/auth"
+import { getAuth, createUserWithEmailAndPassword } from "firebase/auth"
 import { initializeApp } from "firebase/app";
 import { firebaseConfig } from "@/lib/firebase";
 
@@ -229,19 +229,19 @@ export default function TeachersPage() {
       return
     }
     setIsLoading(true);
-    let createdUser;
 
     const tempApp = initializeApp(firebaseConfig, `teacher-creation-${Date.now()}`);
     const tempAuth = getAuth(tempApp);
 
     try {
-      createdUser = await createUserWithEmailAndPassword(tempAuth, newTeacher.email, "password123");
-      const teacherId = createdUser.user.uid;
+      const teacherId = generateTeacherId(newTeacher.department!);
+      const createdUser = await createUserWithEmailAndPassword(tempAuth, newTeacher.email!, teacherId);
+      const newUserId = createdUser.user.uid;
       
       const teacherData: Partial<Teacher> = {
         ...newTeacher,
-        id: teacherId,
-        teacherId: generateTeacherId(newTeacher.department!),
+        id: newUserId,
+        teacherId: teacherId,
         status: 'Active',
         createdAt: serverTimestamp() as any,
       };
@@ -253,8 +253,8 @@ export default function TeachersPage() {
         teacherData.dateOfEmployment = format(doe, "yyyy-MM-dd");
       }
       
-      await addDataWithId(teacherId, teacherData as Omit<Teacher, 'id'>);
-      await set(ref(database, `users/${teacherId}`), {
+      await addDataWithId(newUserId, teacherData as Omit<Teacher, 'id'>);
+      await set(ref(database, `users/${newUserId}`), {
           role: 'teacher',
           email: newTeacher.email,
           name: newTeacher.name
