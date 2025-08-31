@@ -31,7 +31,7 @@ import {
   UserCheck,
 } from "lucide-react"
 import Link from "next/link"
-import { auth, database } from '@/lib/firebase';
+import { database } from '@/lib/firebase';
 import { set, ref, update, getDatabase } from 'firebase/database';
 
 
@@ -103,7 +103,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ImageUpload } from "@/components/ui/image-upload"
 import { serverTimestamp } from "firebase/database"
-import { createUserWithEmailAndPassword } from "firebase/auth"
+import { createUserWithEmailAndPassword, getAuth, initializeApp } from "firebase/auth"
+import { firebaseConfig } from "@/lib/firebase";
 
 type Teacher = {
   id: string
@@ -228,8 +229,12 @@ export default function TeachersPage() {
     }
     setIsLoading(true);
     let createdUser;
+
+    const tempApp = initializeApp(firebaseConfig, `teacher-creation-${Date.now()}`);
+    const tempAuth = getAuth(tempApp);
+
     try {
-      createdUser = await createUserWithEmailAndPassword(auth, newTeacher.email, "password123");
+      createdUser = await createUserWithEmailAndPassword(tempAuth, newTeacher.email, "password123");
       const teacherId = createdUser.user.uid;
       
       const teacherData: Partial<Teacher> = {
