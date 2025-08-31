@@ -85,6 +85,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import { useDatabase } from "@/hooks/use-database"
+import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -232,17 +233,22 @@ export default function TeachersPage() {
       createdUser = await createUserWithEmailAndPassword(auth, newTeacher.email, newTeacher.password || 'password123');
       const teacherId = createdUser.user.uid;
       
-      const teacherData = {
+      const teacherData: any = {
         ...newTeacher,
         id: teacherId,
         teacherId: generateTeacherId(newTeacher.department),
         status: 'Active',
         createdAt: serverTimestamp(),
-        dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
-        dateOfEmployment: doe ? format(doe, "yyyy-MM-dd") : undefined,
       };
+
+      if (dob) {
+        teacherData.dateOfBirth = format(dob, "yyyy-MM-dd");
+      }
+      if (doe) {
+        teacherData.dateOfEmployment = format(doe, "yyyy-MM-dd");
+      }
       
-      await addDataWithId(teacherId, teacherData as any);
+      await addDataWithId(teacherId, teacherData);
       await set(ref(database, `users/${teacherId}`), {
           role: 'teacher',
           email: newTeacher.email,
