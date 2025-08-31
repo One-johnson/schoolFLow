@@ -118,7 +118,7 @@ export function StudentDashboard() {
       </div>
       
       {/* Quick Info Cards */}
-      <div className="grid gap-4 md:grid-cols-1">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
          <Card>
           <CardHeader className="flex flex-row items-center gap-4">
               {loading ? <Skeleton className="h-16 w-16 rounded-full" /> : (
@@ -133,7 +133,7 @@ export function StudentDashboard() {
               </div>
           </CardHeader>
           <CardContent>
-             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+             <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <p className="text-muted-foreground">Class</p>
                     {loading ? <Skeleton className="h-5 w-24 mt-1"/> : <p className="font-semibold">{studentClass?.name || 'Not Assigned'}</p> }
@@ -145,8 +145,6 @@ export function StudentDashboard() {
              </div>
           </CardContent>
         </Card>
-      </div>
-      <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Outstanding Fees</CardTitle>
