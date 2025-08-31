@@ -103,7 +103,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ImageUpload } from "@/components/ui/image-upload"
 import { serverTimestamp } from "firebase/database"
-import { createUserWithEmailAndPassword, getAuth, initializeApp } from "firebase/auth"
+import { createUserWithEmailAndPassword, getAuth } from "firebase/auth"
+import { initializeApp } from "firebase/app";
 import { firebaseConfig } from "@/lib/firebase";
 
 type Teacher = {
