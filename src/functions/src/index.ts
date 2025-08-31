@@ -1,4 +1,3 @@
-
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {setGlobalOptions} from "firebase-functions/v2";
 import {onValueDeleted} from "firebase-functions/v2/database";
@@ -50,5 +49,3 @@ export const onTeacherDeleted = onValueDeleted(
   }
 );
 setGlobalOptions({maxInstances: 10});
-
-    

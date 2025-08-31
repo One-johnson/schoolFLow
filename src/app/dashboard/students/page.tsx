@@ -30,7 +30,6 @@ import {
   GraduationCap,
 } from "lucide-react"
 import Link from "next/link"
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { auth, database } from '@/lib/firebase';
 import { set, ref, getDatabase, update } from 'firebase/database';
 
@@ -275,17 +274,20 @@ export default function StudentsPage() {
       createdUser = await createUserWithEmailAndPassword(auth, newStudent.email, newStudent.password || 'password123');
       const studentId = createdUser.user.uid;
       
-      const studentData = {
+      const studentData: any = {
         ...newStudent,
         id: studentId,
         studentId: generateStudentId(),
         admissionNo: generateAdmissionNo(),
         status: 'Active',
         createdAt: serverTimestamp(),
-        dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
       };
+      
+      if (dob) {
+        studentData.dateOfBirth = format(dob, "yyyy-MM-dd");
+      }
 
-      await addDataWithId(studentId, studentData as any);
+      await addDataWithId(studentId, studentData);
       await set(ref(database, `users/${studentId}`), {
           role: 'student',
           email: newStudent.email,
@@ -1214,5 +1216,3 @@ export default function StudentsPage() {
     </Card>
   )
 }
-
-    

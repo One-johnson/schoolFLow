@@ -31,7 +31,6 @@ import {
   UserCheck,
 } from "lucide-react"
 import Link from "next/link"
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { auth, database } from '@/lib/firebase';
 import { set, ref, update, getDatabase } from 'firebase/database';
 
@@ -233,12 +232,12 @@ export default function TeachersPage() {
       createdUser = await createUserWithEmailAndPassword(auth, newTeacher.email, "password123");
       const teacherId = createdUser.user.uid;
       
-      const teacherData: any = {
+      const teacherData: Partial<Teacher> = {
         ...newTeacher,
         id: teacherId,
-        teacherId: generateTeacherId(newTeacher.department),
+        teacherId: generateTeacherId(newTeacher.department!),
         status: 'Active',
-        createdAt: serverTimestamp(),
+        createdAt: serverTimestamp() as any,
       };
 
       if (dob) {
@@ -248,7 +247,7 @@ export default function TeachersPage() {
         teacherData.dateOfEmployment = format(doe, "yyyy-MM-dd");
       }
       
-      await addDataWithId(teacherId, teacherData);
+      await addDataWithId(teacherId, teacherData as Omit<Teacher, 'id'>);
       await set(ref(database, `users/${teacherId}`), {
           role: 'teacher',
           email: newTeacher.email,
@@ -259,7 +258,7 @@ export default function TeachersPage() {
         type: 'teacher_added',
         message: `New teacher "${newTeacher.name}" was added.`,
         read: false,
-      })
+      } as any)
       toast({ title: "Success", description: "Teacher added successfully." })
       resetFormStates();
       setIsCreateDialogOpen(false)
@@ -747,7 +746,7 @@ export default function TeachersPage() {
                             </PopoverContent>
                         </Popover>
                     </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
+                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="employmentType" className="text-right">Employment Type</Label>
                         <Select onValueChange={(value) => setNewTeacher(prev => ({ ...prev, employmentType: value as any}))} value={newTeacher.employmentType} disabled={isLoading}>
                             <SelectTrigger className="col-span-3">
@@ -759,7 +758,7 @@ export default function TeachersPage() {
                                 <SelectItem value="Contract">Contract</SelectItem>
                             </SelectContent>
                         </Select>
-                    </div>
+                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="academicQualification" className="text-right">Academic Qualification</Label>
                         <Input id="academicQualification" placeholder="e.g., M.Sc. Physics" className="col-span-3" value={newTeacher.academicQualification || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
