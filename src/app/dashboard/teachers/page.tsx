@@ -103,7 +103,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ImageUpload } from "@/components/ui/image-upload"
 import { serverTimestamp } from "firebase/database"
-import { getAuth, createUserWithEmailAndPassword } from "firebase/auth"
+import { getAuth, updateProfile, createUserWithEmailAndPassword } from "firebase/auth"
 import { initializeApp } from "firebase/app";
 import { firebaseConfig } from "@/lib/firebase";
 
@@ -238,6 +238,9 @@ export default function TeachersPage() {
       const createdUser = await createUserWithEmailAndPassword(tempAuth, newTeacher.email!, teacherId);
       const newUserId = createdUser.user.uid;
       
+      // Now update the profile of the new user to set their display name
+      await updateProfile(createdUser.user, { displayName: newTeacher.name });
+
       const teacherData: Partial<Teacher> = {
         ...newTeacher,
         id: newUserId,

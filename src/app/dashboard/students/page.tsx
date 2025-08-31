@@ -104,10 +104,10 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ImageUpload } from "@/components/ui/image-upload"
 import { serverTimestamp } from "firebase/database"
-import { getAuth } from "firebase/auth"
+import { getAuth, updateProfile } from "firebase/auth"
 import { initializeApp } from "firebase/app";
-import { firebaseConfig } from "@/lib/firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
+import { firebaseConfig } from "@/lib/firebase";
 
 type Student = {
   id: string
@@ -271,6 +271,7 @@ export default function StudentsPage() {
     }
     setIsLoading(true);
     
+    // Create a temporary, secondary Firebase app instance.
     const tempApp = initializeApp(firebaseConfig, `student-creation-${Date.now()}`);
     const tempAuth = getAuth(tempApp);
 
@@ -279,6 +280,9 @@ export default function StudentsPage() {
       const createdUser = await createUserWithEmailAndPassword(tempAuth, newStudent.email!, studentId);
       const newUserId = createdUser.user.uid;
       
+      // Now update the profile of the new user to set their display name
+      await updateProfile(createdUser.user, { displayName: newStudent.name });
+
       const studentData: any = {
         ...newStudent,
         id: newUserId,

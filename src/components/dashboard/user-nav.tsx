@@ -47,6 +47,7 @@ import { ref, update } from "firebase/database"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2 } from "lucide-react"
 import Link from "next/link";
+import { Badge } from "../ui/badge";
 
 export function UserNav() {
   const { user, role } = useAuth();
@@ -148,6 +149,9 @@ export function UserNav() {
               <p className="text-xs leading-none text-muted-foreground">
                 {user?.email || "admin@schoolflow.com"}
               </p>
+              {role && (
+                 <Badge variant="outline" className="mt-2 w-fit capitalize">{role}</Badge>
+              )}
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
