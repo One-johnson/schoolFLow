@@ -104,10 +104,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ImageUpload } from "@/components/ui/image-upload"
 import { serverTimestamp } from "firebase/database"
-import { getAuth, updateProfile } from "firebase/auth"
-import { initializeApp } from "firebase/app";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { firebaseConfig } from "@/lib/firebase";
+import { getFunctions, httpsCallable } from "firebase/functions";
 
 type Student = {
   id: string
@@ -189,7 +186,6 @@ export default function StudentsPage() {
     loading: dataLoading,
     deleteData,
     uploadFile,
-    addDataWithId
   } = useDatabase<Student>("students")
   const { data: classes, updateData: updateClass, updatePath: updateClassPath } = useDatabase<Class>("classes");
   const { addData: addNotification } = useDatabase("notifications")
@@ -264,63 +260,53 @@ export default function StudentsPage() {
   }
 
 
-  const handleAddStudent = async () => {
+ const handleAddStudent = async () => {
     if (!newStudent.name?.trim() || !newStudent.email?.trim()) {
-      toast({ title: "Error", description: "Student name and email are required.", variant: "destructive" })
-      return
+      toast({ title: "Error", description: "Student name and email are required.", variant: "destructive" });
+      return;
     }
     setIsLoading(true);
-    
-    // Create a temporary, secondary Firebase app instance.
-    const tempApp = initializeApp(firebaseConfig, `student-creation-${Date.now()}`);
-    const tempAuth = getAuth(tempApp);
+
+    const studentId = generateStudentId();
+    const functions = getFunctions();
+    const createUser = httpsCallable(functions, 'createUser');
 
     try {
-      const studentId = generateStudentId();
-      const createdUser = await createUserWithEmailAndPassword(tempAuth, newStudent.email!, studentId);
-      const newUserId = createdUser.user.uid;
-      
-      // Now update the profile of the new user to set their display name
-      await updateProfile(createdUser.user, { displayName: newStudent.name });
-
-      const studentData: any = {
-        ...newStudent,
-        id: newUserId,
-        studentId: studentId,
-        admissionNo: generateAdmissionNo(),
-        status: 'Active',
-        createdAt: serverTimestamp(),
-      };
-      
-      if (dob) {
+      const studentData = { ...newStudent };
+       if (dob) {
         studentData.dateOfBirth = format(dob, "yyyy-MM-dd");
       }
 
-      await addDataWithId(newUserId, studentData);
-      await set(ref(database, `users/${newUserId}`), {
-          role: 'student',
-          email: newStudent.email,
-          name: newStudent.name
+      await createUser({
+        role: 'student',
+        email: newStudent.email,
+        password: studentId,
+        displayName: newStudent.name,
+        profileData: {
+          ...studentData,
+          studentId: studentId,
+          admissionNo: generateAdmissionNo(),
+          status: 'Active',
+        },
       });
-      
+
       await addNotification({
         type: 'student_enrolled',
         message: `New student "${newStudent.name}" was enrolled.`,
         read: false,
-      })
+      });
 
-      toast({ title: "Success", description: "Student created successfully." })
-      setNewStudent({})
-      setDob(undefined)
-      setIsCreateDialogOpen(false)
-
+      toast({ title: "Success", description: "Student created successfully." });
+      setNewStudent({});
+      setDob(undefined);
+      setIsCreateDialogOpen(false);
     } catch (error: any) {
       console.error("Student creation error:", error);
-      toast({ title: "Error", description: `Failed to add student: ${error.message}`, variant: "destructive" })
+      toast({ title: "Error", description: `Failed to add student: ${error.message}`, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
-  }
+  };
   
   const openEditDialog = (student: Student) => {
     setSelectedStudent(student)

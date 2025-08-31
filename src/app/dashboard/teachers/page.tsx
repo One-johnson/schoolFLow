@@ -103,9 +103,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ImageUpload } from "@/components/ui/image-upload"
 import { serverTimestamp } from "firebase/database"
-import { getAuth, updateProfile, createUserWithEmailAndPassword } from "firebase/auth"
-import { initializeApp } from "firebase/app";
-import { firebaseConfig } from "@/lib/firebase";
+import { getFunctions, httpsCallable } from "firebase/functions";
 
 type Teacher = {
   id: string
@@ -158,7 +156,6 @@ export default function TeachersPage() {
     loading: dataLoading,
     deleteData,
     uploadFile,
-    addDataWithId
   } = useDatabase<Teacher>("teachers")
   const { data: classes, updateData: updateClass } = useDatabase<Class>("classes");
   const { addData: addNotification } = useDatabase("notifications")
@@ -225,30 +222,17 @@ export default function TeachersPage() {
 
   const handleAddTeacher = async () => {
     if (!newTeacher.name?.trim() || !newTeacher.email?.trim() || !newTeacher.department?.trim()) {
-      toast({ title: "Error", description: "Name, email, and department are required.", variant: "destructive" })
-      return
+      toast({ title: "Error", description: "Name, email, and department are required.", variant: "destructive" });
+      return;
     }
     setIsLoading(true);
 
-    const tempApp = initializeApp(firebaseConfig, `teacher-creation-${Date.now()}`);
-    const tempAuth = getAuth(tempApp);
-
+    const teacherId = generateTeacherId(newTeacher.department!);
+    const functions = getFunctions();
+    const createUser = httpsCallable(functions, 'createUser');
+    
     try {
-      const teacherId = generateTeacherId(newTeacher.department!);
-      const createdUser = await createUserWithEmailAndPassword(tempAuth, newTeacher.email!, teacherId);
-      const newUserId = createdUser.user.uid;
-      
-      // Now update the profile of the new user to set their display name
-      await updateProfile(createdUser.user, { displayName: newTeacher.name });
-
-      const teacherData: Partial<Teacher> = {
-        ...newTeacher,
-        id: newUserId,
-        teacherId: teacherId,
-        status: 'Active',
-        createdAt: serverTimestamp() as any,
-      };
-
+      const teacherData = { ...newTeacher };
       if (dob) {
         teacherData.dateOfBirth = format(dob, "yyyy-MM-dd");
       }
@@ -256,28 +240,34 @@ export default function TeachersPage() {
         teacherData.dateOfEmployment = format(doe, "yyyy-MM-dd");
       }
       
-      await addDataWithId(newUserId, teacherData as Omit<Teacher, 'id'>);
-      await set(ref(database, `users/${newUserId}`), {
-          role: 'teacher',
-          email: newTeacher.email,
-          name: newTeacher.name
+      await createUser({
+        role: 'teacher',
+        email: newTeacher.email,
+        password: teacherId,
+        displayName: newTeacher.name,
+        profileData: {
+          ...teacherData,
+          teacherId: teacherId,
+          status: 'Active',
+        },
       });
-      
+
       await addNotification({
         type: 'teacher_added',
         message: `New teacher "${newTeacher.name}" was added.`,
         read: false,
-      } as any)
-      toast({ title: "Success", description: "Teacher added successfully." })
+      } as any);
+
+      toast({ title: "Success", description: "Teacher added successfully." });
       resetFormStates();
-      setIsCreateDialogOpen(false)
+      setIsCreateDialogOpen(false);
     } catch (error: any) {
       console.error("Teacher creation error:", error);
-      toast({ title: "Error", description: `Failed to add teacher: ${error.message}`, variant: "destructive" })
+      toast({ title: "Error", description: `Failed to add teacher: ${error.message}`, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
-  }
+  };
   
   const openEditDialog = (teacher: Teacher) => {
     setSelectedTeacher(teacher)

@@ -1,3 +1,4 @@
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {setGlobalOptions} from "firebase-functions/v2";
 import {onValueDeleted} from "firebase-functions/v2/database";
@@ -9,28 +10,33 @@ admin.initializeApp();
 const auth = admin.auth();
 const db = admin.database();
 
-export const createStudent = onCall(async (request) => {
-  const uid = request.auth?.uid;
-  if (!uid) {
-    throw new HttpsError("unauthenticated", "You must be logged in.");
+export const createUser = onCall(async (request) => {
+  const adminUid = request.auth?.uid;
+  if (!adminUid) {
+    throw new HttpsError("unauthenticated", "You must be logged in as an admin.");
   }
 
-  // 🔍 Fetch role from Realtime Database
-  const roleSnap = await db.ref(`/users/${uid}/role`).get();
-  const role = roleSnap.val();
-
-  if (role !== "admin") {
+  // Verify the caller is an admin by checking the 'users' node
+  const adminUserSnap = await db.ref(`/users/${adminUid}`).get();
+  if (!adminUserSnap.exists() || adminUserSnap.val().role !== "admin") {
     throw new HttpsError(
       "permission-denied",
-      "You must be an admin to create students."
+      "You must be an admin to create new users."
     );
   }
 
-  const {email, password, name, ...studentData} = request.data;
-  if (!email || !password || !name) {
+  const {role, email, password, displayName, profileData} = request.data;
+  if (!role || !email || !password || !displayName || !profileData) {
     throw new HttpsError(
       "invalid-argument",
-      "Missing required fields: email, password, name."
+      "Missing required fields: role, email, password, displayName, profileData."
+    );
+  }
+
+  if (role !== "student" && role !== "teacher") {
+    throw new HttpsError(
+      "invalid-argument",
+      "Role must be either 'student' or 'teacher'."
     );
   }
 
@@ -38,83 +44,38 @@ export const createStudent = onCall(async (request) => {
     const userRecord = await auth.createUser({
       email,
       password,
-      displayName: name,
+      displayName,
     });
 
-    // Save student in DB
-    await db.ref(`/students/${userRecord.uid}`).set({
-      id: userRecord.uid,
-      email,
-      name,
-      ...studentData,
+    const {uid} = userRecord;
+
+    // Determine the database path based on role
+    const profilePath = role === "student" ? `/students/${uid}` : `/teachers/${uid}`;
+
+    // Create profile in the corresponding DB path (students/ or teachers/)
+    await db.ref(profilePath).set({
+      ...profileData,
+      id: uid, // Ensure the profile has its own ID
+      email: email,
+      name: displayName,
+      createdAt: admin.database.ServerValue.TIMESTAMP,
     });
 
-    // Save user reference in /users
-    await db.ref(`/users/${userRecord.uid}`).set({
-      role: "student",
-      email,
-      name,
+    // Create a reference in the main /users path
+    await db.ref(`/users/${uid}`).set({
+      role: role,
+      email: email,
+      name: displayName,
     });
 
-    console.log(`✅ Successfully created student: ${name} (${userRecord.uid})`);
-    return {success: true, uid: userRecord.uid};
+    console.log(`✅ Successfully created ${role}: ${displayName} (${uid})`);
+    return {success: true, uid: uid};
   } catch (error: any) {
-    console.error("❌ Error creating student:", error);
-    throw new HttpsError("internal", error.message);
-  }
-});
-
-
-export const createTeacher = onCall(async (request) => {
-  const uid = request.auth?.uid;
-  if (!uid) {
-    throw new HttpsError("unauthenticated", "You must be logged in.");
-  }
-
-  // 🔍 Fetch role from Realtime Database
-  const roleSnap = await db.ref(`/users/${uid}/role`).get();
-  const role = roleSnap.val();
-
-  if (role !== "admin") {
-    throw new HttpsError(
-      "permission-denied",
-      "You must be an admin to create teachers."
-    );
-  }
-
-  const {email, password, name, ...teacherData} = request.data;
-  if (!email || !password || !name) {
-    throw new HttpsError(
-      "invalid-argument",
-      "Missing required fields: email, password, name."
-    );
-  }
-
-  try {
-    const userRecord = await auth.createUser({
-      email,
-      password,
-      displayName: name,
-    });
-
-    // No need to set custom claims unless you want claims-based auth later
-    await db.ref(`/teachers/${userRecord.uid}`).set({
-      id: userRecord.uid,
-      email,
-      name,
-      ...teacherData,
-    });
-
-    await db.ref(`/users/${userRecord.uid}`).set({
-      role: "teacher",
-      email,
-      name,
-    });
-
-    console.log(`✅ Successfully created teacher: ${name} (${userRecord.uid})`);
-    return {success: true, uid: userRecord.uid};
-  } catch (error: any) {
-    console.error("Error creating teacher:", error);
+    console.error(`❌ Error creating ${role}:`, error);
+    // It's good practice to delete the auth user if DB operations fail
+    if (error.uid) {
+      await auth.deleteUser(error.uid).catch((e) => console.error("Cleanup failed", e));
+    }
     throw new HttpsError("internal", error.message);
   }
 });
@@ -162,3 +123,5 @@ export const onTeacherDeleted = onValueDeleted(
   }
 );
 setGlobalOptions({maxInstances: 10});
+
+    
