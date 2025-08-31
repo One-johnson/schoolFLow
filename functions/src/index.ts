@@ -9,64 +9,110 @@ admin.initializeApp();
 const auth = admin.auth();
 const db = admin.database();
 
-/**
- * Creates a new student account and corresponding database records.
- * This function can only be called by an authenticated user with the 'admin' role.
- */
 export const createStudent = onCall(async (request) => {
-  if (request.auth?.token.role !== "admin") {
-    throw new HttpsError("permission-denied", "You must be an admin to create students.");
+  const uid = request.auth?.uid;
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "You must be logged in.");
   }
+
+  // 🔍 Fetch role from Realtime Database
+  const roleSnap = await db.ref(`/users/${uid}/role`).get();
+  const role = roleSnap.val();
+
+  if (role !== "admin") {
+    throw new HttpsError(
+      "permission-denied",
+      "You must be an admin to create students."
+    );
+  }
+
   const {email, password, name, ...studentData} = request.data;
   if (!email || !password || !name) {
-    throw new HttpsError("invalid-argument", "Missing required fields: email, password, name.");
+    throw new HttpsError(
+      "invalid-argument",
+      "Missing required fields: email, password, name."
+    );
   }
 
   try {
-    const userRecord = await auth.createUser({ email, password, displayName: name });
-    await auth.setCustomUserClaims(userRecord.uid, { role: "student" });
+    const userRecord = await auth.createUser({
+      email,
+      password,
+      displayName: name,
+    });
 
-    const studentRef = db.ref(`/students/${userRecord.uid}`);
-    await studentRef.set({ id: userRecord.uid, email, name, ...studentData });
-    
-    const userDbRef = db.ref(`/users/${userRecord.uid}`);
-    await userDbRef.set({ role: "student", email, name: name });
-    
+    // Save student in DB
+    await db.ref(`/students/${userRecord.uid}`).set({
+      id: userRecord.uid,
+      email,
+      name,
+      ...studentData,
+    });
+
+    // Save user reference in /users
+    await db.ref(`/users/${userRecord.uid}`).set({
+      role: "student",
+      email,
+      name,
+    });
+
     console.log(`✅ Successfully created student: ${name} (${userRecord.uid})`);
-    return { success: true, uid: userRecord.uid };
-
+    return {success: true, uid: userRecord.uid};
   } catch (error: any) {
-    console.error("Error creating student:", error);
+    console.error("❌ Error creating student:", error);
     throw new HttpsError("internal", error.message);
   }
 });
 
-/**
- * Creates a new teacher account and corresponding database records.
- * This function can only be called by an authenticated user with the 'admin' role.
- */
+
 export const createTeacher = onCall(async (request) => {
-  if (request.auth?.token.role !== "admin") {
-    throw new HttpsError("permission-denied", "You must be an admin to create teachers.");
+  const uid = request.auth?.uid;
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "You must be logged in.");
   }
+
+  // 🔍 Fetch role from Realtime Database
+  const roleSnap = await db.ref(`/users/${uid}/role`).get();
+  const role = roleSnap.val();
+
+  if (role !== "admin") {
+    throw new HttpsError(
+      "permission-denied",
+      "You must be an admin to create teachers."
+    );
+  }
+
   const {email, password, name, ...teacherData} = request.data;
   if (!email || !password || !name) {
-    throw new HttpsError("invalid-argument", "Missing required fields: email, password, name.");
+    throw new HttpsError(
+      "invalid-argument",
+      "Missing required fields: email, password, name."
+    );
   }
 
   try {
-    const userRecord = await auth.createUser({ email, password, displayName: name });
-    await auth.setCustomUserClaims(userRecord.uid, { role: "teacher" });
+    const userRecord = await auth.createUser({
+      email,
+      password,
+      displayName: name,
+    });
 
-    const teacherRef = db.ref(`/teachers/${userRecord.uid}`);
-    await teacherRef.set({ id: userRecord.uid, email, name, ...teacherData });
-    
-    const userDbRef = db.ref(`/users/${userRecord.uid}`);
-    await userDbRef.set({ role: "teacher", email, name: name });
+    // No need to set custom claims unless you want claims-based auth later
+    await db.ref(`/teachers/${userRecord.uid}`).set({
+      id: userRecord.uid,
+      email,
+      name,
+      ...teacherData,
+    });
+
+    await db.ref(`/users/${userRecord.uid}`).set({
+      role: "teacher",
+      email,
+      name,
+    });
 
     console.log(`✅ Successfully created teacher: ${name} (${userRecord.uid})`);
-    return { success: true, uid: userRecord.uid };
-
+    return {success: true, uid: userRecord.uid};
   } catch (error: any) {
     console.error("Error creating teacher:", error);
     throw new HttpsError("internal", error.message);

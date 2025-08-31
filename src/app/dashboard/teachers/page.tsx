@@ -33,7 +33,7 @@ import {
 import Link from "next/link"
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { auth, database } from '@/lib/firebase';
-import { set, ref, update } from 'firebase/database';
+import { set, ref, update, getDatabase } from 'firebase/database';
 
 
 import { Button } from "@/components/ui/button"
@@ -229,14 +229,11 @@ export default function TeachersPage() {
       const functions = getFunctions();
       const createTeacherFn = httpsCallable(functions, 'createTeacher');
       
-      const teacherId = generateTeacherId(newTeacher.department || 'GENERAL');
-
       const teacherPayload = {
         email: newTeacher.email,
-        password: teacherId,
+        password: generateTeacherId(newTeacher.department || 'GENERAL'),
         name: newTeacher.name,
         ...newTeacher,
-        teacherId: teacherId,
         status: 'Active',
         dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
         dateOfEmployment: doe ? format(doe, "yyyy-MM-dd") : undefined,

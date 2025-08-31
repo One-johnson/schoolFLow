@@ -270,18 +270,12 @@ export default function StudentsPage() {
       const functions = getFunctions();
       const createStudentFn = httpsCallable(functions, 'createStudent');
       
-      const customStudentId = generateStudentId();
-      const admissionNo = generateAdmissionNo();
-      const rollNo = (allStudents.length + 1).toString().padStart(4, '0');
-
       const studentPayload = {
         email: newStudent.email,
-        password: customStudentId,
+        password: generateStudentId(),
         name: newStudent.name,
+        // Spread the rest of the student-specific data
         ...newStudent,
-        studentId: customStudentId,
-        admissionNo,
-        rollNo,
         status: 'Active',
         dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
       };
