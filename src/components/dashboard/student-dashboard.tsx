@@ -13,6 +13,20 @@ import { format, isFuture, parseISO } from 'date-fns';
 import { Badge } from "../ui/badge";
 import { cn, calculateGrade } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from 'recharts';
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart"
 
 // Data Types
 type Student = { id: string; name: string; studentId: string; avatarUrl?: string; createdAt: number; };
@@ -109,6 +123,12 @@ export function StudentDashboard() {
     return (names[0][0] + (names.length > 1 ? names[names.length - 1][0] : '')).toUpperCase();
   }
 
+  const chartConfig = {
+    totalScore: {
+      label: "Total Score",
+      color: "hsl(var(--primary))",
+    },
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -180,21 +200,46 @@ export function StudentDashboard() {
                 <CardDescription>{loading ? <Skeleton className="h-5 w-1/3"/> : `Results from the latest exam: ${latestResults?.examName || 'N/A'}`}</CardDescription>
               </CardHeader>
               <CardContent>
-                 {loading ? <Skeleton className="h-24 w-full" /> : !latestResults || latestResults.results.length === 0 ? (
+                 {loading ? <Skeleton className="h-[250px] w-full" /> : !latestResults || latestResults.results.length === 0 ? (
                     <p className="text-sm text-center text-muted-foreground py-8">No results have been published for the latest exam yet.</p>
                  ) : (
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                        {latestResults.results.map(res => {
-                            const { grade, remarks } = calculateGrade(res.totalScore);
-                            return (
-                                <div key={res.id} className="p-3 rounded-lg border text-center">
-                                    <p className="font-semibold text-sm">{res.subjectName}</p>
-                                    <p className="text-2xl font-bold">{res.totalScore}%</p>
-                                    <Badge variant="secondary">{grade}</Badge>
-                                </div>
-                            )
-                        })}
-                    </div>
+                    <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                      <LineChart
+                        data={latestResults.results}
+                        margin={{
+                          top: 5,
+                          right: 20,
+                          left: -10,
+                          bottom: 5,
+                        }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="subjectName" tick={{fontSize: 12}} interval={0} angle={-30} textAnchor="end" height={60} />
+                        <YAxis domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
+                        <Tooltip
+                          content={<ChartTooltipContent 
+                            formatter={(value, name) => `${value}%`}
+                            indicator="dot"
+                          />}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="totalScore"
+                          stroke="hsl(var(--primary))"
+                          strokeWidth={2}
+                          dot={{
+                            fill: "hsl(var(--background))",
+                            stroke: "hsl(var(--primary))",
+                            strokeWidth: 2,
+                            r: 4,
+                          }}
+                          activeDot={{
+                            r: 6,
+                            style: { stroke: "hsl(var(--primary))" },
+                          }}
+                        />
+                      </LineChart>
+                    </ChartContainer>
                  )}
               </CardContent>
               <CardFooter>
