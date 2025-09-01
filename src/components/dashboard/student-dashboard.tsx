@@ -9,7 +9,7 @@ import { Button } from "../ui/button";
 import Link from "next/link";
 import { ArrowRight, BookOpen, Calendar, ClipboardCheck, DollarSign, GraduationCap, Megaphone, User, School, Clock } from "lucide-react";
 import { Skeleton } from "../ui/skeleton";
-import { format, isFuture, parseISO } from 'date-fns';
+import { format, isFuture, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { Badge } from "../ui/badge";
 import { cn, calculateGrade } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
@@ -21,12 +21,18 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
 } from 'recharts';
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
+import { DateRange } from "react-day-picker";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 
 // Data Types
 type Student = { id: string; name: string; studentId: string; avatarUrl?: string; createdAt: number; };
@@ -39,6 +45,10 @@ type StudentGrade = { id: string; examId: string; studentId: string; subjectId: 
 type Subject = { id: string; name: string; };
 type TimetableEntry = { subjectId: string; teacherId: string; };
 type ClassTimetable = { id: string, [day: string]: { [timeSlot: string]: TimetableEntry | null } };
+type AttendanceStatus = "Present" | "Absent" | "Late" | "Excused";
+type AttendanceEntry = { status: AttendanceStatus, comment?: string };
+type AttendanceRecord = Record<string, AttendanceEntry>;
+type DailyAttendance = { [classId: string]: AttendanceRecord };
 
 
 export function StudentDashboard() {
@@ -52,8 +62,14 @@ export function StudentDashboard() {
   const { data: grades, loading: gradesLoading } = useDatabase<StudentGrade>("studentGrades");
   const { data: subjects, loading: subjectsLoading } = useDatabase<Subject>("subjects");
   const { data: timetables, loading: timetablesLoading } = useDatabase<ClassTimetable>("timetables");
+  const { data: rawAttendance, loading: attendanceLoading } = useDatabase<DailyAttendance>("attendance");
 
-  const loading = studentsLoading || classesLoading || eventsLoading || feesLoading || announcementsLoading || examsLoading || gradesLoading || subjectsLoading || timetablesLoading;
+  const [attendanceDateRange, setAttendanceDateRange] = React.useState<DateRange | undefined>({
+    from: startOfMonth(new Date()),
+    to: new Date(),
+  });
+
+  const loading = studentsLoading || classesLoading || eventsLoading || feesLoading || announcementsLoading || examsLoading || gradesLoading || subjectsLoading || timetablesLoading || attendanceLoading;
 
   // Memoized calculations
   const student = React.useMemo(() => user ? students.find(s => s.id === user.uid) : null, [students, user]);
@@ -77,7 +93,6 @@ export function StudentDashboard() {
   [announcements, studentClass]);
 
   const subjectsMap = React.useMemo(() => new Map(subjects.map(s => [s.id, s.name])), [subjects]);
-  const teachersMap = React.useMemo(() => new Map(subjects.map(s => [s.id, s.teacherId])), [subjects]);
 
   const latestResults = React.useMemo(() => {
     const publishedExams = exams.filter(e => e.status === "Published").sort((a,b) => b.name.localeCompare(a.name));
@@ -116,6 +131,38 @@ export function StudentDashboard() {
     return schedule.sort((a, b) => a.time.localeCompare(b.time));
 
   }, [timetables, studentClass, subjectsMap, timetablesLoading]);
+
+  const attendanceStats = React.useMemo(() => {
+    if (!user || attendanceLoading) return [];
+    
+    const stats: Record<AttendanceStatus, number> = { Present: 0, Absent: 0, Late: 0, Excused: 0 };
+    let totalDays = 0;
+
+    rawAttendance.forEach(dailyRecord => {
+        const recordDate = parseISO(dailyRecord.id);
+
+        if (attendanceDateRange?.from && attendanceDateRange?.to && isWithinInterval(recordDate, { start: attendanceDateRange.from, end: attendanceDateRange.to })) {
+            if (!studentClass) return;
+            const classRecord = dailyRecord[studentClass.id] as AttendanceRecord | undefined;
+            const studentStatus = classRecord?.[user.uid]?.status;
+
+            if (studentStatus) {
+                stats[studentStatus]++;
+                totalDays++;
+            }
+        }
+    });
+
+    if (totalDays === 0) return [];
+
+    return Object.entries(stats).map(([name, value]) => ({
+      name,
+      value,
+      fill: `hsl(var(--chart-${Object.keys(stats).indexOf(name) + 1}))`,
+      percentage: ((value / totalDays) * 100).toFixed(1)
+    })).filter(item => item.value > 0);
+
+  }, [rawAttendance, user, studentClass, attendanceDateRange, attendanceLoading]);
   
   const getInitials = (name: string | null | undefined) => {
     if (!name) return "S";
@@ -123,12 +170,20 @@ export function StudentDashboard() {
     return (names[0][0] + (names.length > 1 ? names[names.length - 1][0] : '')).toUpperCase();
   }
 
-  const chartConfig = {
+  const gradesChartConfig = {
     totalScore: {
       label: "Total Score",
       color: "hsl(var(--primary))",
     },
   };
+  
+  const attendanceChartConfig = {
+    value: { label: "Days" },
+    Present: { label: "Present", color: "hsl(var(--chart-2))" },
+    Absent: { label: "Absent", color: "hsl(var(--chart-5))" },
+    Late: { label: "Late", color: "hsl(var(--chart-4))" },
+    Excused: { label: "Excused", color: "hsl(var(--chart-1))" },
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -193,7 +248,7 @@ export function StudentDashboard() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
-            {/* Recent Grades */}
+            {/* Grades Chart */}
             <Card>
               <CardHeader>
                 <CardTitle>My Grades Overview</CardTitle>
@@ -203,41 +258,13 @@ export function StudentDashboard() {
                  {loading ? <Skeleton className="h-[250px] w-full" /> : !latestResults || latestResults.results.length === 0 ? (
                     <p className="text-sm text-center text-muted-foreground py-8">No results have been published for the latest exam yet.</p>
                  ) : (
-                    <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                      <LineChart
-                        data={latestResults.results}
-                        margin={{
-                          top: 5,
-                          right: 20,
-                          left: -10,
-                          bottom: 5,
-                        }}
-                      >
+                    <ChartContainer config={gradesChartConfig} className="h-[250px] w-full">
+                      <LineChart data={latestResults.results} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="subjectName" tick={{fontSize: 12}} interval={0} angle={-30} textAnchor="end" height={60} />
                         <YAxis domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-                        <Tooltip
-                          content={<ChartTooltipContent 
-                            formatter={(value) => `${(value as number).toFixed(1)}%`}
-                            indicator="dot"
-                          />}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="totalScore"
-                          stroke="hsl(var(--primary))"
-                          strokeWidth={2}
-                          dot={{
-                            fill: "hsl(var(--background))",
-                            stroke: "hsl(var(--primary))",
-                            strokeWidth: 2,
-                            r: 4,
-                          }}
-                          activeDot={{
-                            r: 6,
-                            style: { stroke: "hsl(var(--primary))" },
-                          }}
-                        />
+                        <Tooltip content={<ChartTooltipContent formatter={(value) => `${(value as number).toFixed(1)}%`} indicator="dot"/>}/>
+                        <Line type="monotone" dataKey="totalScore" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ fill: "hsl(var(--background))", stroke: "hsl(var(--primary))", strokeWidth: 2, r: 4 }} activeDot={{ r: 6, style: { stroke: "hsl(var(--primary))" }}}/>
                       </LineChart>
                     </ChartContainer>
                  )}
@@ -247,6 +274,57 @@ export function StudentDashboard() {
                     <Link href="/dashboard/exams/my-results">View All My Results <ArrowRight className="ml-2 h-4 w-4"/></Link>
                 </Button>
               </CardFooter>
+            </Card>
+
+            {/* Attendance Chart */}
+            <Card>
+                <CardHeader>
+                    <CardTitle>Attendance Summary</CardTitle>
+                    <CardDescription>Your attendance record for the selected period.</CardDescription>
+                    <div className="flex flex-wrap gap-2 pt-2">
+                        <Button size="sm" variant={cn(attendanceDateRange?.from === startOfWeek(new Date()) ? 'default' : 'outline')} onClick={() => setAttendanceDateRange({ from: startOfWeek(new Date()), to: endOfWeek(new Date())})}>This Week</Button>
+                        <Button size="sm" variant={cn(attendanceDateRange?.from === startOfMonth(new Date()) ? 'default' : 'outline')} onClick={() => setAttendanceDateRange({ from: startOfMonth(new Date()), to: new Date() })}>This Month</Button>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button size="sm" variant="outline"><Calendar className="mr-2 h-4 w-4" /> Custom Range</Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
+                                <componenentsUiCalendar
+                                    initialFocus
+                                    mode="range"
+                                    defaultMonth={attendanceDateRange?.from}
+                                    selected={attendanceDateRange}
+                                    onSelect={setAttendanceDateRange}
+                                    numberOfMonths={2}
+                                />
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    {loading ? <Skeleton className="h-[200px] w-full"/> : attendanceStats.length > 0 ? (
+                        <ChartContainer config={attendanceChartConfig} className="h-[200px] w-full">
+                             <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                <Tooltip
+                                    content={<ChartTooltipContent 
+                                        nameKey="name" 
+                                        formatter={(value, name) => `${value} days (${(attendanceStats.find(s=>s.name === name))?.percentage}%)`}
+                                    />}
+                                />
+                                <Pie data={attendanceStats} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} labelLine={false} label={({ name, percentage }) => `${name} ${percentage}%`} >
+                                    {attendanceStats.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                                    ))}
+                                </Pie>
+                                <Legend />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </ChartContainer>
+                    ) : (
+                         <p className="text-sm text-center text-muted-foreground py-8">No attendance records found for this period.</p>
+                    )}
+                </CardContent>
             </Card>
 
             {/* Recent Announcements */}
@@ -325,3 +403,5 @@ export function StudentDashboard() {
     </div>
   );
 }
+
+    
