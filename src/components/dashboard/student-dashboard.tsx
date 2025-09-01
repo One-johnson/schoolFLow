@@ -7,7 +7,7 @@ import { useDatabase } from "@/hooks/use-database"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "../ui/button";
 import Link from "next/link";
-import { ArrowRight, BookOpen, Calendar, ClipboardCheck, DollarSign, GraduationCap, Megaphone, User, School, Clock } from "lucide-react";
+import { ArrowRight, BookOpen, Calendar as CalendarIcon, ClipboardCheck, DollarSign, GraduationCap, Megaphone, User, School, Clock } from "lucide-react";
 import { Skeleton } from "../ui/skeleton";
 import { format, isFuture, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { Badge } from "../ui/badge";
@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/chart"
 import { DateRange } from "react-day-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { Calendar } from "@/components/ui/calendar"
 
 // Data Types
 type Student = { id: string; name: string; studentId: string; avatarUrl?: string; createdAt: number; };
@@ -135,8 +136,9 @@ export function StudentDashboard() {
   const attendanceStats = React.useMemo(() => {
     if (!user || attendanceLoading) return [];
     
-    const stats: Record<AttendanceStatus, number> = { Present: 0, Absent: 0, Late: 0, Excused: 0 };
     let totalDays = 0;
+    const stats: Record<AttendanceStatus, number> = { Present: 0, Absent: 0, Late: 0, Excused: 0 };
+    
 
     rawAttendance.forEach(dailyRecord => {
         const recordDate = parseISO(dailyRecord.id);
@@ -144,11 +146,12 @@ export function StudentDashboard() {
         if (attendanceDateRange?.from && attendanceDateRange?.to && isWithinInterval(recordDate, { start: attendanceDateRange.from, end: attendanceDateRange.to })) {
             if (!studentClass) return;
             const classRecord = dailyRecord[studentClass.id] as AttendanceRecord | undefined;
-            const studentStatus = classRecord?.[user.uid]?.status;
-
-            if (studentStatus) {
-                stats[studentStatus]++;
-                totalDays++;
+            if (classRecord && classRecord[user.uid]) {
+              const studentStatus = classRecord[user.uid].status;
+              if (studentStatus) {
+                  stats[studentStatus]++;
+                  totalDays++;
+              }
             }
         }
     });
@@ -232,7 +235,7 @@ export function StudentDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Upcoming Events</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             {loading ? <Skeleton className="h-7 w-full" /> : (
@@ -286,10 +289,10 @@ export function StudentDashboard() {
                         <Button size="sm" variant={cn(attendanceDateRange?.from === startOfMonth(new Date()) ? 'default' : 'outline')} onClick={() => setAttendanceDateRange({ from: startOfMonth(new Date()), to: new Date() })}>This Month</Button>
                         <Popover>
                             <PopoverTrigger asChild>
-                                <Button size="sm" variant="outline"><Calendar className="mr-2 h-4 w-4" /> Custom Range</Button>
+                                <Button size="sm" variant="outline"><CalendarIcon className="mr-2 h-4 w-4" /> Custom Range</Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0">
-                                <componenentsUiCalendar
+                                <Calendar
                                     initialFocus
                                     mode="range"
                                     defaultMonth={attendanceDateRange?.from}
@@ -403,5 +406,3 @@ export function StudentDashboard() {
     </div>
   );
 }
-
-    
