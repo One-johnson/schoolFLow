@@ -218,7 +218,7 @@ export function StudentDashboard() {
                         <YAxis domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
                         <Tooltip
                           content={<ChartTooltipContent 
-                            formatter={(value, name) => `${value}%`}
+                            formatter={(value) => `${(value as number).toFixed(1)}%`}
                             indicator="dot"
                           />}
                         />
