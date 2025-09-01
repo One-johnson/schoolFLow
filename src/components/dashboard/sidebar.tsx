@@ -22,6 +22,7 @@ import {
   User,
   UserCheck,
   Users,
+  MessageSquare,
 } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
@@ -35,7 +36,6 @@ import {
   SidebarMenuItem,
   SidebarMenuSub,
   SidebarMenuSubButton,
-  SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { auth } from "@/lib/firebase";
 
@@ -97,6 +97,12 @@ export function DashboardSidebar({
       icon: BookCopy,
       label: "Subjects",
       roles: ["admin"],
+    },
+     {
+      path: "/dashboard/messages",
+      icon: MessageSquare,
+      label: "Messages",
+      roles: ["admin", "teacher", "student"],
     },
     {
       path: "/dashboard/terms",
