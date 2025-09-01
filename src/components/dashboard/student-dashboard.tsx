@@ -84,7 +84,16 @@ export function StudentDashboard() {
   [events]);
 
   const myFees = React.useMemo(() => user ? studentFees.filter(f => f.studentId === user.uid) : [], [studentFees, user]);
-  const outstandingFees = React.useMemo(() => myFees.reduce((acc, fee) => acc + (fee.amountDue - fee.amountPaid), 0), [myFees]);
+  
+  const feeStats = React.useMemo(() => {
+    return myFees.reduce((acc, fee) => {
+        acc.totalDue += fee.amountDue;
+        acc.totalPaid += fee.amountPaid;
+        return acc;
+    }, { totalDue: 0, totalPaid: 0 });
+  }, [myFees]);
+  
+  const outstandingFees = feeStats.totalDue - feeStats.totalPaid;
   
   const recentAnnouncements = React.useMemo(() => 
     [...announcements]
@@ -224,12 +233,35 @@ export function StudentDashboard() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Outstanding Fees</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center justify-between">
+              <span>Financial Overview</span>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            {loading ? <Skeleton className="h-7 w-1/2" /> : <div className="text-2xl font-bold">GH₵{outstandingFees.toFixed(2)}</div>}
+          <CardContent className="space-y-2">
+            {loading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-6 w-3/4" />
+                <Skeleton className="h-6 w-2/4" />
+                <Skeleton className="h-6 w-1/2" />
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-between items-baseline">
+                  <span className="text-xs text-blue-600 font-medium">Total Fees</span>
+                  <span className="text-lg font-bold text-blue-600">GH₵{feeStats.totalDue.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-baseline">
+                  <span className="text-xs text-green-600 font-medium">Fees Paid</span>
+                  <span className="text-lg font-bold text-green-600">GH₵{feeStats.totalPaid.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-baseline">
+                  <span className="text-xs text-red-600 font-medium">Outstanding</span>
+                  <span className="text-lg font-bold text-red-600">GH₵{outstandingFees.toLocaleString()}</span>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
         <Card>
