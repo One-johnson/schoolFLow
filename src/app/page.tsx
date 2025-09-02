@@ -13,7 +13,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
@@ -73,7 +72,6 @@ function LoginForm({ role }: { role: string }) {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
-      // Fetch user role from the database
       const userRef = ref(database, `users/${user.uid}`);
       const snapshot = await get(userRef);
 
@@ -81,10 +79,18 @@ function LoginForm({ role }: { role: string }) {
         const userData = snapshot.val();
         const userRole = userData.role;
 
-        // Check if the role from the DB matches the login form tab
         if (userRole === role) {
           toast({ title: 'Success', description: 'Signed in successfully. Redirecting...' });
-          router.push('/dashboard');
+          // Redirect to role-specific default page
+          if (userRole === 'admin') {
+            router.push('/dashboard');
+          } else if (userRole === 'teacher') {
+            router.push('/dashboard');
+          } else if (userRole === 'student') {
+             router.push(`/dashboard`);
+          } else {
+            router.push('/dashboard'); // Fallback
+          }
         } else {
            throw new Error(`You are not authorized to log in as a(n) ${role}.`);
         }

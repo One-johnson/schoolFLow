@@ -31,9 +31,8 @@ import {
   UserCheck,
 } from "lucide-react"
 import Link from "next/link"
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { auth, database } from '@/lib/firebase';
-import { set, ref, update } from 'firebase/database';
+import { database } from '@/lib/firebase';
+import { set, ref, update, getDatabase } from 'firebase/database';
 
 
 import { Button } from "@/components/ui/button"
@@ -85,6 +84,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import { useDatabase } from "@/hooks/use-database"
+import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -103,6 +103,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ImageUpload } from "@/components/ui/image-upload"
 import { serverTimestamp } from "firebase/database"
+import { getFunctions, httpsCallable } from "firebase/functions";
 
 type Teacher = {
   id: string
@@ -154,7 +155,7 @@ export default function TeachersPage() {
     data: teachers,
     loading: dataLoading,
     deleteData,
-    uploadFile
+    uploadFile,
   } = useDatabase<Teacher>("teachers")
   const { data: classes, updateData: updateClass } = useDatabase<Class>("classes");
   const { addData: addNotification } = useDatabase("notifications")
@@ -221,47 +222,52 @@ export default function TeachersPage() {
 
   const handleAddTeacher = async () => {
     if (!newTeacher.name?.trim() || !newTeacher.email?.trim() || !newTeacher.department?.trim()) {
-      toast({ title: "Error", description: "Name, email, and department are required.", variant: "destructive" })
-      return
+      toast({ title: "Error", description: "Name, email, and department are required.", variant: "destructive" });
+      return;
     }
     setIsLoading(true);
-    try {
-      const functions = getFunctions();
-      const createUserAccount = httpsCallable(functions, 'createUserAccount');
-      
-      const teacherId = generateTeacherId(newTeacher.department || 'GENERAL');
 
-      const teacherPayload = {
-        email: newTeacher.email,
-        password: teacherId, // Using the generated ID as a default password
+    const teacherId = generateTeacherId(newTeacher.department!);
+    const functions = getFunctions();
+    const createUser = httpsCallable(functions, 'createUser');
+    
+    try {
+      const teacherData = { ...newTeacher };
+      if (dob) {
+        teacherData.dateOfBirth = format(dob, "yyyy-MM-dd");
+      }
+      if (doe) {
+        teacherData.dateOfEmployment = format(doe, "yyyy-MM-dd");
+      }
+      
+      await createUser({
         role: 'teacher',
-        name: newTeacher.name,
-        teacherData: {
-          ...newTeacher,
+        email: newTeacher.email,
+        password: teacherId,
+        displayName: newTeacher.name,
+        profileData: {
+          ...teacherData,
           teacherId: teacherId,
           status: 'Active',
-          dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
-          dateOfEmployment: doe ? format(doe, "yyyy-MM-dd") : undefined,
-        }
-      };
-      
-      await createUserAccount(teacherPayload);
+        },
+      });
 
       await addNotification({
         type: 'teacher_added',
         message: `New teacher "${newTeacher.name}" was added.`,
         read: false,
-      })
-      toast({ title: "Success", description: "Teacher added successfully." })
+      } as any);
+
+      toast({ title: "Success", description: "Teacher added successfully." });
       resetFormStates();
-      setIsCreateDialogOpen(false)
+      setIsCreateDialogOpen(false);
     } catch (error: any) {
       console.error("Teacher creation error:", error);
-      toast({ title: "Error", description: `Failed to add teacher: ${error.message}`, variant: "destructive" })
+      toast({ title: "Error", description: `Failed to add teacher: ${error.message}`, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
-  }
+  };
   
   const openEditDialog = (teacher: Teacher) => {
     setSelectedTeacher(teacher)
@@ -717,7 +723,15 @@ export default function TeachersPage() {
                             </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0">
-                            <Calendar mode="single" selected={dob} onSelect={setDob} initialFocus />
+                            <Calendar
+                                mode="single"
+                                selected={dob}
+                                onSelect={setDob}
+                                initialFocus
+                                captionLayout="dropdown-buttons"
+                                fromYear={1950}
+                                toYear={new Date().getFullYear() - 18}
+                            />
                             </PopoverContent>
                         </Popover>
                     </div>
@@ -735,11 +749,19 @@ export default function TeachersPage() {
                             </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0">
-                            <Calendar mode="single" selected={doe} onSelect={setDoe} initialFocus />
+                            <Calendar
+                                mode="single"
+                                selected={doe}
+                                onSelect={setDoe}
+                                initialFocus
+                                captionLayout="dropdown-buttons"
+                                fromYear={1970}
+                                toYear={new Date().getFullYear()}
+                             />
                             </PopoverContent>
                         </Popover>
                     </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
+                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="employmentType" className="text-right">Employment Type</Label>
                         <Select onValueChange={(value) => setNewTeacher(prev => ({ ...prev, employmentType: value as any}))} value={newTeacher.employmentType} disabled={isLoading}>
                             <SelectTrigger className="col-span-3">
@@ -751,7 +773,7 @@ export default function TeachersPage() {
                                 <SelectItem value="Contract">Contract</SelectItem>
                             </SelectContent>
                         </Select>
-                    </div>
+                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="academicQualification" className="text-right">Academic Qualification</Label>
                         <Input id="academicQualification" placeholder="e.g., M.Sc. Physics" className="col-span-3" value={newTeacher.academicQualification || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
@@ -1007,7 +1029,15 @@ export default function TeachersPage() {
                             </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0">
-                            <Calendar mode="single" selected={dob} onSelect={setDob} initialFocus />
+                            <Calendar
+                                mode="single"
+                                selected={dob}
+                                onSelect={setDob}
+                                initialFocus
+                                captionLayout="dropdown-buttons"
+                                fromYear={1950}
+                                toYear={new Date().getFullYear() - 18}
+                            />
                             </PopoverContent>
                         </Popover>
                     </div>
@@ -1025,7 +1055,15 @@ export default function TeachersPage() {
                             </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0">
-                            <Calendar mode="single" selected={doe} onSelect={setDoe} initialFocus />
+                            <Calendar
+                                mode="single"
+                                selected={doe}
+                                onSelect={setDoe}
+                                initialFocus
+                                captionLayout="dropdown-buttons"
+                                fromYear={1970}
+                                toYear={new Date().getFullYear()}
+                             />
                             </PopoverContent>
                         </Popover>
                     </div>

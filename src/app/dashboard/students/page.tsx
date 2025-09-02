@@ -30,9 +30,8 @@ import {
   GraduationCap,
 } from "lucide-react"
 import Link from "next/link"
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { auth, database } from '@/lib/firebase';
-import { set, ref } from 'firebase/database';
+import { database } from '@/lib/firebase';
+import { set, ref, getDatabase, update } from 'firebase/database';
 
 
 import { Button } from "@/components/ui/button"
@@ -105,6 +104,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ImageUpload } from "@/components/ui/image-upload"
 import { serverTimestamp } from "firebase/database"
+import { getFunctions, httpsCallable } from "firebase/functions";
 
 type Student = {
   id: string
@@ -185,7 +185,7 @@ export default function StudentsPage() {
     data: allStudents,
     loading: dataLoading,
     deleteData,
-    uploadFile
+    uploadFile,
   } = useDatabase<Student>("students")
   const { data: classes, updateData: updateClass, updatePath: updateClassPath } = useDatabase<Class>("classes");
   const { addData: addNotification } = useDatabase("notifications")
@@ -260,55 +260,53 @@ export default function StudentsPage() {
   }
 
 
-  const handleAddStudent = async () => {
+ const handleAddStudent = async () => {
     if (!newStudent.name?.trim() || !newStudent.email?.trim()) {
-      toast({ title: "Error", description: "Student name and email are required.", variant: "destructive" })
-      return
+      toast({ title: "Error", description: "Student name and email are required.", variant: "destructive" });
+      return;
     }
     setIsLoading(true);
+
+    const studentId = generateStudentId();
+    const functions = getFunctions();
+    const createUser = httpsCallable(functions, 'createUser');
+
     try {
-      const functions = getFunctions();
-      const createUserAccount = httpsCallable(functions, 'createUserAccount');
-      
-      const customStudentId = generateStudentId();
-      const admissionNo = generateAdmissionNo();
-      const rollNo = (allStudents.length + 1).toString().padStart(4, '0');
+      const studentData = { ...newStudent };
+       if (dob) {
+        studentData.dateOfBirth = format(dob, "yyyy-MM-dd");
+      }
 
-      const studentPayload = {
-        email: newStudent.email,
-        password: customStudentId, // Using the generated ID as a default password
+      await createUser({
         role: 'student',
-        name: newStudent.name,
-        studentData: {
-          ...newStudent,
-          studentId: customStudentId,
-          admissionNo,
-          rollNo,
+        email: newStudent.email,
+        password: studentId,
+        displayName: newStudent.name,
+        profileData: {
+          ...studentData,
+          studentId: studentId,
+          admissionNo: generateAdmissionNo(),
           status: 'Active',
-          dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
-        }
-      };
+        },
+      });
 
-      await createUserAccount(studentPayload);
-      
       await addNotification({
         type: 'student_enrolled',
         message: `New student "${newStudent.name}" was enrolled.`,
         read: false,
-      })
+      });
 
-      toast({ title: "Success", description: "Student created successfully." })
-      setNewStudent({})
-      setDob(undefined)
-      setIsCreateDialogOpen(false)
-
+      toast({ title: "Success", description: "Student created successfully." });
+      setNewStudent({});
+      setDob(undefined);
+      setIsCreateDialogOpen(false);
     } catch (error: any) {
       console.error("Student creation error:", error);
-      toast({ title: "Error", description: `Failed to add student: ${error.message}`, variant: "destructive" })
+      toast({ title: "Error", description: `Failed to add student: ${error.message}`, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
-  }
+  };
   
   const openEditDialog = (student: Student) => {
     setSelectedStudent(student)
@@ -322,7 +320,6 @@ export default function StudentsPage() {
   }
 
   const handleUpdateStudent = async () => {
-    // Note: This only updates the database record. It does not update Firebase Auth email/password.
     if (!selectedStudent || !editStudent) return
     if (!editStudent.name?.trim() || !editStudent.email?.trim()) {
       toast({ title: "Error", description: "Student name and email are required.", variant: "destructive" })
@@ -361,13 +358,11 @@ export default function StudentsPage() {
       // Find which class the student is in
       const classToRemoveFrom = classes.find(c => c.studentIds && c.studentIds[studentId]);
 
-      // If found, remove the student from that class
       if (classToRemoveFrom) {
         const classRefPath = `classes/${classToRemoveFrom.id}/studentIds/${studentId}`;
-        await updateClassPath(classRefPath, null); // Using update with null is equivalent to remove for a specific key
+        await updateClassPath(classRefPath, null); 
       }
-
-      // Finally, delete the student from the main students directory
+      
       await deleteData(studentId);
 
       toast({ title: "Success", description: "Student deleted successfully." });
@@ -789,6 +784,9 @@ export default function StudentsPage() {
                                             selected={dob}
                                             onSelect={setDob}
                                             initialFocus
+                                            captionLayout="dropdown-buttons"
+                                            fromYear={1950}
+                                            toYear={new Date().getFullYear()}
                                         />
                                         </PopoverContent>
                                     </Popover>
@@ -1120,6 +1118,9 @@ export default function StudentsPage() {
                                         selected={dob}
                                         onSelect={setDob}
                                         initialFocus
+                                        captionLayout="dropdown-buttons"
+                                        fromYear={1950}
+                                        toYear={new Date().getFullYear()}
                                     />
                                     </PopoverContent>
                                 </Popover>

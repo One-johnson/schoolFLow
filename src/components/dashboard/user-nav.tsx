@@ -47,6 +47,7 @@ import { ref, update } from "firebase/database"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2 } from "lucide-react"
 import Link from "next/link";
+import { Badge } from "../ui/badge";
 
 export function UserNav() {
   const { user, role } = useAuth();
@@ -103,19 +104,32 @@ export function UserNav() {
     return name.substring(0, 2).toUpperCase();
   }
 
-  const profileMenuItem = role === 'student' ? (
-    <Link href={`/dashboard/students/${user?.uid}`}>
-       <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-            Profile
-            <DropdownMenuShortcut>⇧⌘P</DropdownMenuShortcut>
+  const getProfilePath = () => {
+    if (!user || !role) return "/dashboard";
+    switch (role) {
+      case 'student':
+        return `/dashboard/students/${user.uid}`;
+      case 'teacher':
+        return `/dashboard/teachers/${user.uid}`;
+      default:
+        return "#"; // Admins can edit from their own nav for now
+    }
+  }
+
+  const profileMenuItem =
+    role === "student" || role === "teacher" ? (
+      <Link href={getProfilePath()}>
+        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+          Profile
+          <DropdownMenuShortcut>⇧⌘P</DropdownMenuShortcut>
         </DropdownMenuItem>
-    </Link>
-  ) : (
-    <DropdownMenuItem onSelect={() => setIsProfileDialogOpen(true)}>
-      Profile
-      <DropdownMenuShortcut>⇧⌘P</DropdownMenuShortcut>
-    </DropdownMenuItem>
-  );
+      </Link>
+    ) : (
+      <DropdownMenuItem onSelect={() => setIsProfileDialogOpen(true)}>
+        Profile
+        <DropdownMenuShortcut>⇧⌘P</DropdownMenuShortcut>
+      </DropdownMenuItem>
+    );
 
   return (
     <>
@@ -135,6 +149,9 @@ export function UserNav() {
               <p className="text-xs leading-none text-muted-foreground">
                 {user?.email || "admin@schoolflow.com"}
               </p>
+              {role && (
+                 <Badge variant="outline" className="mt-2 w-fit capitalize">{role}</Badge>
+              )}
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />

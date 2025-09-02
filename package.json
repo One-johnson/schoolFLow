@@ -48,6 +48,7 @@
     "embla-carousel-react": "^8.6.0",
     "firebase": "^10.12.2",
     "firebase-admin": "^12.1.1",
+    "firebase-functions": "^6.4.0",
     "framer-motion": "^11.2.10",
     "genkit": "^1.14.1",
     "jspdf": "^2.5.1",
@@ -66,7 +67,7 @@
     "tailwindcss-animate": "^1.0.7",
     "zod": "^3.24.2"
   },
-  "devDependencies": { 
+  "devDependencies": {
     "@types/jspdf": "^2.0.0",
     "@types/node": "^20",
     "@types/react": "^18",
@@ -78,5 +79,3 @@
     "typescript": "^5"
   }
 }
-
-    

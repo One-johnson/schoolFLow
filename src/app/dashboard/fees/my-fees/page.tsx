@@ -25,7 +25,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Loader2, FileText } from "lucide-react";
+import { Loader2, FileText, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 
@@ -48,8 +48,6 @@ export default function MyFeesPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   
-  // We fetch all student fees and then filter, which is not ideal for performance
-  // but works for this demo. In a real app, you'd query Firebase directly for the user's fees.
   const { data: allStudentFees, loading: studentFeesLoading } = useDatabase<StudentFee>("studentFees");
   const { data: feeStructures, loading: feesLoading } = useDatabase<FeeStructure>("feeStructures");
 
@@ -64,6 +62,15 @@ export default function MyFeesPage() {
         feeName: feesMap.get(sf.feeId) || "Unknown Fee",
       }));
   }, [allStudentFees, feesMap, user]);
+
+  const financialSummary = React.useMemo(() => {
+    return myFees.reduce((acc, item) => {
+        acc.totalDue += item.amountDue;
+        acc.totalPaid += item.amountPaid;
+        acc.totalOutstanding += item.amountDue - item.amountPaid;
+        return acc;
+    }, { totalDue: 0, totalPaid: 0, totalOutstanding: 0 });
+  }, [myFees]);
   
   const handleGenerateInvoice = (fee: EnrichedStudentFee) => {
     if (!user) return;
@@ -142,7 +149,37 @@ export default function MyFeesPage() {
           Here is a summary of your fees and payment status.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-6">
+         <div className="grid gap-4 md:grid-cols-3">
+            <Card className="bg-blue-50 dark:bg-blue-900/30">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-blue-800 dark:text-blue-300">Total Fees Due</CardTitle>
+                    <DollarSign className="h-4 w-4 text-blue-600" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold text-blue-800 dark:text-blue-300">GH₵{financialSummary.totalDue.toLocaleString()}</div>
+                </CardContent>
+            </Card>
+            <Card className="bg-green-50 dark:bg-green-900/30">
+                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-green-800 dark:text-green-300">Total Paid</CardTitle>
+                    <TrendingUp className="h-4 w-4 text-green-600" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold text-green-800 dark:text-green-300">GH₵{financialSummary.totalPaid.toLocaleString()}</div>
+                </CardContent>
+            </Card>
+            <Card className="bg-red-50 dark:bg-red-900/30">
+                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-red-800 dark:text-red-300">Total Outstanding</CardTitle>
+                    <TrendingDown className="h-4 w-4 text-red-600" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold text-red-800 dark:text-red-300">GH₵{financialSummary.totalOutstanding.toLocaleString()}</div>
+                </CardContent>
+            </Card>
+        </div>
+
         <div className="rounded-md border">
             <Table>
               <TableHeader>
