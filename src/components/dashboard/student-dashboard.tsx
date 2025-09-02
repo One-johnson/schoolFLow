@@ -7,9 +7,9 @@ import { useDatabase } from "@/hooks/use-database"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "../ui/button";
 import Link from "next/link";
-import { ArrowRight, BookOpen, Calendar as CalendarIcon, ClipboardCheck, DollarSign, GraduationCap, Megaphone, User, School, Clock } from "lucide-react";
+import { ArrowRight, BookOpen, Calendar as CalendarIcon, ClipboardCheck, DollarSign, GraduationCap, Megaphone, User, School, Clock, MessageSquare } from "lucide-react";
 import { Skeleton } from "../ui/skeleton";
-import { format, isFuture, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import { format, isFuture, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, formatDistanceToNow } from 'date-fns';
 import { Badge } from "../ui/badge";
 import { cn, calculateGrade } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
@@ -50,6 +50,8 @@ type AttendanceStatus = "Present" | "Absent" | "Late" | "Excused";
 type AttendanceEntry = { status: AttendanceStatus, comment?: string };
 type AttendanceRecord = Record<string, AttendanceEntry>;
 type DailyAttendance = { [classId: string]: AttendanceRecord };
+type Message = { id: string; senderId: string; content: string; timestamp: number; read: boolean; };
+type UserProfile = { id: string; name: string; avatarUrl?: string; role: 'student' | 'teacher' | 'admin' };
 
 
 export function StudentDashboard() {
@@ -64,13 +66,15 @@ export function StudentDashboard() {
   const { data: subjects, loading: subjectsLoading } = useDatabase<Subject>("subjects");
   const { data: timetables, loading: timetablesLoading } = useDatabase<ClassTimetable>("timetables");
   const { data: rawAttendance, loading: attendanceLoading } = useDatabase<DailyAttendance>("attendance");
+  const { data: messages, loading: messagesLoading } = useDatabase<Message>("messages");
+  const { data: users, loading: usersLoading } = useDatabase<UserProfile>("users");
 
   const [attendanceDateRange, setAttendanceDateRange] = React.useState<DateRange | undefined>({
     from: startOfMonth(new Date()),
     to: new Date(),
   });
 
-  const loading = studentsLoading || classesLoading || eventsLoading || feesLoading || announcementsLoading || examsLoading || gradesLoading || subjectsLoading || timetablesLoading || attendanceLoading;
+  const loading = studentsLoading || classesLoading || eventsLoading || feesLoading || announcementsLoading || examsLoading || gradesLoading || subjectsLoading || timetablesLoading || attendanceLoading || messagesLoading || usersLoading;
 
   // Memoized calculations
   const student = React.useMemo(() => user ? students.find(s => s.id === user.uid) : null, [students, user]);
@@ -176,6 +180,15 @@ export function StudentDashboard() {
 
   }, [rawAttendance, user, studentClass, attendanceDateRange, attendanceLoading]);
   
+   const usersMap = React.useMemo(() => new Map(users.map(u => [u.id, u])), [users]);
+   const recentMessages = React.useMemo(() => {
+    if (!user) return [];
+    return messages
+        .filter(m => m.read === false)
+        .sort((a,b) => b.timestamp - a.timestamp)
+        .slice(0, 3);
+  }, [messages, user]);
+
   const getInitials = (name: string | null | undefined) => {
     if (!name) return "S";
     const names = name.split(' ');
@@ -361,32 +374,6 @@ export function StudentDashboard() {
                     )}
                 </CardContent>
             </Card>
-
-            {/* Recent Announcements */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Announcements</CardTitle>
-                <CardDescription>Latest news and updates for you.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {loading ? <Skeleton className="h-20 w-full" /> : recentAnnouncements.length > 0 ? (
-                  recentAnnouncements.map(ann => (
-                    <div key={ann.id} className="flex items-start gap-4">
-                        <div className="p-2 bg-muted rounded-full text-muted-foreground mt-1"><Megaphone className="h-4 w-4" /></div>
-                        <div>
-                            <p className="font-semibold text-sm">{ann.title}</p>
-                            <p className="text-xs text-muted-foreground">{ann.content}</p>
-                        </div>
-                    </div>
-                  ))
-                ) : <p className="text-sm text-center text-muted-foreground py-4">No new announcements.</p>}
-              </CardContent>
-               <CardFooter>
-                 <Button asChild variant="outline" className="w-full">
-                    <Link href="/dashboard/announcements">View All Announcements <ArrowRight className="ml-2 h-4 w-4"/></Link>
-                </Button>
-              </CardFooter>
-            </Card>
         </div>
 
         <div className="lg:col-span-1 space-y-6">
@@ -433,6 +420,66 @@ export function StudentDashboard() {
                      <Button asChild variant="outline"><Link href={`/dashboard/students/${user?.uid}`}><User/>Profile</Link></Button>
                 </CardContent>
             </Card>
+
+            {/* New Messages Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle>New Messages</CardTitle>
+                <CardDescription>Recent unread conversations.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {loading ? <Skeleton className="h-20 w-full" /> : recentMessages.length > 0 ? (
+                  recentMessages.map(msg => {
+                    const sender = usersMap.get(msg.senderId);
+                    return (
+                        <div key={msg.id} className="flex items-start gap-4">
+                            <Avatar className="h-10 w-10">
+                                <AvatarImage src={sender?.avatarUrl} />
+                                <AvatarFallback>{getInitials(sender?.name)}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                                <p className="font-semibold text-sm">{sender?.name}</p>
+                                <p className="text-xs text-muted-foreground truncate">{msg.content}</p>
+                                <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(msg.timestamp), { addSuffix: true })}</p>
+                            </div>
+                        </div>
+                    )
+                  })
+                ) : <p className="text-sm text-center text-muted-foreground py-4">No new messages.</p>}
+              </CardContent>
+               <CardFooter>
+                 <Button asChild variant="outline" className="w-full">
+                    <Link href="/dashboard/messages">View All Messages <ArrowRight className="ml-2 h-4 w-4"/></Link>
+                </Button>
+              </CardFooter>
+            </Card>
+
+            {/* Recent Announcements */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Announcements</CardTitle>
+                <CardDescription>Latest news and updates for you.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {loading ? <Skeleton className="h-20 w-full" /> : recentAnnouncements.length > 0 ? (
+                  recentAnnouncements.map(ann => (
+                    <div key={ann.id} className="flex items-start gap-4">
+                        <div className="p-2 bg-muted rounded-full text-muted-foreground mt-1"><Megaphone className="h-4 w-4" /></div>
+                        <div>
+                            <p className="font-semibold text-sm">{ann.title}</p>
+                            <p className="text-xs text-muted-foreground">{ann.content}</p>
+                        </div>
+                    </div>
+                  ))
+                ) : <p className="text-sm text-center text-muted-foreground py-4">No new announcements.</p>}
+              </CardContent>
+               <CardFooter>
+                 <Button asChild variant="outline" className="w-full">
+                    <Link href="/dashboard/announcements">View All Announcements <ArrowRight className="ml-2 h-4 w-4"/></Link>
+                </Button>
+              </CardFooter>
+            </Card>
+
         </div>
       </div>
     </div>
