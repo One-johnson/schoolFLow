@@ -784,6 +784,9 @@ export default function StudentsPage() {
                                             selected={dob}
                                             onSelect={setDob}
                                             initialFocus
+                                            captionLayout="dropdown-buttons"
+                                            fromYear={1950}
+                                            toYear={new Date().getFullYear()}
                                         />
                                         </PopoverContent>
                                     </Popover>
@@ -1115,6 +1118,9 @@ export default function StudentsPage() {
                                         selected={dob}
                                         onSelect={setDob}
                                         initialFocus
+                                        captionLayout="dropdown-buttons"
+                                        fromYear={1950}
+                                        toYear={new Date().getFullYear()}
                                     />
                                     </PopoverContent>
                                 </Popover>
@@ -1211,5 +1217,3 @@ export default function StudentsPage() {
     </Card>
   )
 }
-
-    

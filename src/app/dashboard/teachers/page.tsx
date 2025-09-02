@@ -723,7 +723,15 @@ export default function TeachersPage() {
                             </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0">
-                            <Calendar mode="single" selected={dob} onSelect={setDob} initialFocus />
+                            <Calendar
+                                mode="single"
+                                selected={dob}
+                                onSelect={setDob}
+                                initialFocus
+                                captionLayout="dropdown-buttons"
+                                fromYear={1950}
+                                toYear={new Date().getFullYear() - 18}
+                            />
                             </PopoverContent>
                         </Popover>
                     </div>
@@ -741,7 +749,15 @@ export default function TeachersPage() {
                             </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0">
-                            <Calendar mode="single" selected={doe} onSelect={setDoe} initialFocus />
+                            <Calendar
+                                mode="single"
+                                selected={doe}
+                                onSelect={setDoe}
+                                initialFocus
+                                captionLayout="dropdown-buttons"
+                                fromYear={1970}
+                                toYear={new Date().getFullYear()}
+                             />
                             </PopoverContent>
                         </Popover>
                     </div>
@@ -1013,7 +1029,15 @@ export default function TeachersPage() {
                             </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0">
-                            <Calendar mode="single" selected={dob} onSelect={setDob} initialFocus />
+                            <Calendar
+                                mode="single"
+                                selected={dob}
+                                onSelect={setDob}
+                                initialFocus
+                                captionLayout="dropdown-buttons"
+                                fromYear={1950}
+                                toYear={new Date().getFullYear() - 18}
+                            />
                             </PopoverContent>
                         </Popover>
                     </div>
@@ -1031,7 +1055,15 @@ export default function TeachersPage() {
                             </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0">
-                            <Calendar mode="single" selected={doe} onSelect={setDoe} initialFocus />
+                            <Calendar
+                                mode="single"
+                                selected={doe}
+                                onSelect={setDoe}
+                                initialFocus
+                                captionLayout="dropdown-buttons"
+                                fromYear={1970}
+                                toYear={new Date().getFullYear()}
+                             />
                             </PopoverContent>
                         </Popover>
                     </div>
@@ -1103,5 +1135,3 @@ export default function TeachersPage() {
     </Card>
   )
 }
-
-    
