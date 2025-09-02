@@ -15,14 +15,21 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Send, MessageSquare } from "lucide-react";
+import { Loader2, Send, MessageSquare, Search, BookOpen, UserCheck } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 
-type User = { id: string; name: string; avatarUrl?: string; role: 'student' | 'teacher' | 'admin' };
-type Class = { id: string; studentIds?: Record<string, boolean>; teacherId?: string };
+
+type User = { id: string; name: string; avatarUrl?: string; role: 'student' | 'teacher' | 'admin', studentId?: string };
+type Class = { id: string; name: string; studentIds?: Record<string, boolean>; teacherId?: string };
 type Message = {
   id: string;
   senderId: string;
@@ -44,6 +51,7 @@ export default function MessagesPage() {
   const [selectedConversation, setSelectedConversation] = React.useState<User | null>(null);
   const [messageContent, setMessageContent] = React.useState("");
   const [isSending, setIsSending] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState("");
 
   const usersMap = React.useMemo(() => new Map(users.map(u => [u.id, u])), [users]);
   
@@ -58,15 +66,6 @@ export default function MessagesPage() {
     return Array.from(studentIds).map(id => usersMap.get(id)).filter(Boolean) as User[];
   }, [role, user, classes, usersMap]);
   
-  const contactListForStudent = React.useMemo(() => {
-      if (role !== 'student' || !user) return [];
-      const studentClass = classes.find(c => c.studentIds && c.studentIds[user.uid]);
-      if (!studentClass) return [];
-      const teacher = usersMap.get(studentClass.teacherId || '');
-      return teacher ? [teacher] : [];
-  }, [role, user, classes, usersMap]);
-
-
   const conversationThreads = React.useMemo(() => {
     if (!user) return new Map();
     const threads = new Map<string, { user: User, lastMessage: Message, unreadCount: number }>();
@@ -94,7 +93,6 @@ export default function MessagesPage() {
   }, [messages, user, usersMap]);
   
   const getContactList = () => {
-    if (role === 'admin') return users.filter(u => u.id !== user?.uid);
     if (role === 'teacher') return studentListForTeacher;
     if (role === 'student') return Array.from(conversationThreads.values()).map(t => t.user);
     return [];
@@ -141,6 +139,96 @@ export default function MessagesPage() {
       setIsSending(false);
     }
   }
+
+  const studentsInClass = (classId: string) => {
+    const cls = classes.find(c => c.id === classId);
+    if (!cls || !cls.studentIds) return [];
+    return Object.keys(cls.studentIds)
+        .map(id => usersMap.get(id))
+        .filter((u): u is User => !!u);
+  }
+  
+  const filteredUsers = (userList: User[]) => {
+    if (!searchQuery) return userList;
+    return userList.filter(u => 
+        u.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        (u.studentId && u.studentId.includes(searchQuery))
+    );
+  }
+  
+  const renderContactItem = (contact: User) => (
+      <Button
+          key={contact.id}
+          variant={selectedConversation?.id === contact.id ? 'secondary' : 'ghost'}
+          className="w-full justify-start h-auto p-2 text-left"
+          onClick={() => setSelectedConversation(contact)}
+        >
+          <Avatar className="h-10 w-10 mr-3">
+              <AvatarImage src={contact.avatarUrl}/>
+              <AvatarFallback>{getInitials(contact.name)}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1 truncate">
+              <p className="font-semibold">{contact.name}</p>
+              <p className="text-xs text-muted-foreground capitalize">{contact.role}</p>
+          </div>
+          {conversationThreads.get(contact.id)?.unreadCount > 0 && (
+            <Badge>{conversationThreads.get(contact.id)?.unreadCount}</Badge>
+          )}
+        </Button>
+  )
+  
+  const renderAdminContacts = () => {
+      const allTeachers = users.filter(u => u.role === 'teacher');
+      const filteredTeachers = filteredUsers(allTeachers);
+      const filteredClasses = classes.filter(c => 
+        studentsInClass(c.id).some(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      );
+
+      if (searchQuery) {
+        return (
+             <div className="space-y-2 pr-4">
+              {filteredTeachers.map(renderContactItem)}
+              {classes.map(c => 
+                  filteredUsers(studentsInClass(c.id)).map(s => renderContactItem(s))
+              )}
+             </div>
+        );
+      }
+
+      return (
+        <Accordion type="multiple" className="w-full pr-4">
+          <AccordionItem value="teachers">
+            <AccordionTrigger className="hover:no-underline">
+                <div className="flex items-center gap-2">
+                    <UserCheck className="h-5 w-5"/> Teachers ({allTeachers.length})
+                </div>
+            </AccordionTrigger>
+            <AccordionContent className="space-y-1 pl-2">
+              {allTeachers.map(renderContactItem)}
+            </AccordionContent>
+          </AccordionItem>
+          <AccordionItem value="classes">
+            <AccordionTrigger className="hover:no-underline">
+                 <div className="flex items-center gap-2">
+                    <BookOpen className="h-5 w-5"/> Classes
+                </div>
+            </AccordionTrigger>
+            <AccordionContent className="pl-2">
+               <Accordion type="multiple" className="w-full">
+                {classes.map(c => (
+                    <AccordionItem value={c.id} key={c.id}>
+                        <AccordionTrigger>{c.name} ({studentsInClass(c.id).length})</AccordionTrigger>
+                        <AccordionContent className="space-y-1 pl-4">
+                           {studentsInClass(c.id).map(renderContactItem)}
+                        </AccordionContent>
+                    </AccordionItem>
+                ))}
+               </Accordion>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      )
+  };
   
   const loading = usersLoading || classesLoading || messagesLoading;
 
@@ -161,32 +249,25 @@ export default function MessagesPage() {
         <div className="md:col-span-1 border-r">
           <CardHeader>
             <CardTitle>Contacts</CardTitle>
-            <CardDescription>Select a user to start a conversation.</CardDescription>
+            {role === 'admin' ? (
+                <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                        placeholder="Search by name or ID..." 
+                        className="pl-8"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                </div>
+            ) : <CardDescription>Select a user to start a conversation.</CardDescription>}
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-[calc(75vh-120px)]">
-              <div className="space-y-2 pr-4">
-                {contactList.map(contact => (
-                  <Button
-                    key={contact.id}
-                    variant={selectedConversation?.id === contact.id ? 'secondary' : 'ghost'}
-                    className="w-full justify-start h-auto p-2 text-left"
-                    onClick={() => setSelectedConversation(contact)}
-                  >
-                    <Avatar className="h-10 w-10 mr-3">
-                        <AvatarImage src={contact.avatarUrl}/>
-                        <AvatarFallback>{getInitials(contact.name)}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 truncate">
-                        <p className="font-semibold">{contact.name}</p>
-                        <p className="text-xs text-muted-foreground capitalize">{contact.role}</p>
+            <ScrollArea className="h-[calc(75vh-150px)]">
+                {role === 'admin' ? renderAdminContacts() :
+                    <div className="space-y-2 pr-4">
+                        {contactList.map(renderContactItem)}
                     </div>
-                     {conversationThreads.get(contact.id)?.unreadCount > 0 && (
-                        <Badge>{conversationThreads.get(contact.id)?.unreadCount}</Badge>
-                     )}
-                  </Button>
-                ))}
-              </div>
+                }
             </ScrollArea>
           </CardContent>
         </div>
@@ -215,7 +296,7 @@ export default function MessagesPage() {
                            <div className={cn("max-w-xs md:max-w-md lg:max-w-lg rounded-lg p-3 text-sm", msg.senderId === user?.uid ? "bg-primary text-primary-foreground" : "bg-muted")}>
                                 <p>{msg.content}</p>
                                 <p className={cn("text-xs mt-1", msg.senderId === user?.uid ? "text-primary-foreground/70" : "text-muted-foreground")}>
-                                    {typeof msg.timestamp === 'number' ? formatDistanceToNow(new Date(msg.timestamp), { addSuffix: true }) : 'sending...'}
+                                     {typeof msg.timestamp === 'number' ? formatDistanceToNow(new Date(msg.timestamp), { addSuffix: true }) : 'sending...'}
                                 </p>
                            </div>
                         </div>
