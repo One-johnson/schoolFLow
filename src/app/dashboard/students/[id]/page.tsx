@@ -631,6 +631,14 @@ export default function StudentInfoPage() {
                                     </Select>
                                 </div>
                                 <div className="space-y-1">
+                                    <Label>Place of Birth</Label>
+                                    <Input value={editStudentState.placeOfBirth || ''} onChange={(e) => setEditStudentState(p => ({...p, placeOfBirth: e.target.value}))} disabled={isUpdating} />
+                                </div>
+                                <div className="space-y-1">
+                                    <Label>Hometown</Label>
+                                    <Input value={editStudentState.hometown || ''} onChange={(e) => setEditStudentState(p => ({...p, hometown: e.target.value}))} disabled={isUpdating} />
+                                </div>
+                                <div className="space-y-1">
                                     <Label>Address</Label>
                                     <Input value={editStudentState.address || ''} onChange={(e) => setEditStudentState(p => ({...p, address: e.target.value}))} disabled={isUpdating} />
                                 </div>
@@ -667,3 +675,4 @@ export default function StudentInfoPage() {
         </div>
     );
 }
+
