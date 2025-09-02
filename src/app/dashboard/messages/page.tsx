@@ -15,7 +15,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Send, MessageSquare, Search, BookOpen, UserCheck, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Loader2, Send, MessageSquare, Search, BookOpen, UserCheck, MoreHorizontal, Pencil, Trash2, CheckCheck } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -391,9 +391,14 @@ export default function MessagesPage() {
                                 ) : (
                                     <>
                                         <p className="whitespace-pre-wrap">{msg.content}</p>
-                                        <p className={cn("text-xs mt-1", msg.senderId === user?.uid ? "text-primary-foreground/70" : "text-muted-foreground")}>
-                                            {typeof msg.timestamp === 'number' ? formatDistanceToNow(new Date(msg.timestamp), { addSuffix: true }) : 'sending...'}
-                                        </p>
+                                        <div className={cn("flex items-center justify-end gap-1 text-xs mt-1", msg.senderId === user?.uid ? "text-primary-foreground/70" : "text-muted-foreground")}>
+                                            <span>
+                                                {typeof msg.timestamp === 'number' ? formatDistanceToNow(new Date(msg.timestamp), { addSuffix: true }) : 'sending...'}
+                                            </span>
+                                            {msg.senderId === user?.uid && typeof msg.timestamp === 'number' && (
+                                                <CheckCheck className={cn("h-4 w-4", msg.read ? "text-blue-400" : "text-primary-foreground/50")} />
+                                            )}
+                                        </div>
                                     </>
                                 )}
                            </div>
