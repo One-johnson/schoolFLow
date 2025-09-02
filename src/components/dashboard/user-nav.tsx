@@ -50,19 +50,19 @@ import Link from "next/link";
 import { Badge } from "../ui/badge";
 
 export function UserNav() {
-  const { user, role } = useAuth();
+  const { user, role, name: authName } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [name, setName] = useState(user?.displayName || "");
+  const [name, setName] = useState(authName || "");
 
   useEffect(() => {
-    if(user?.displayName) {
-        setName(user.displayName);
+    if(authName) {
+        setName(authName);
     }
-  }, [user?.displayName]);
+  }, [authName]);
 
 
   const handleLogout = async () => {
@@ -96,7 +96,7 @@ export function UserNav() {
   }
 
   const getInitials = (name: string | null | undefined) => {
-    if (!name) return "AD";
+    if (!name) return "U";
     const names = name.split(' ');
     if (names.length > 1) {
       return (names[0][0] + names[names.length - 1][0]).toUpperCase();
@@ -138,16 +138,16 @@ export function UserNav() {
           <Button variant="ghost" className="relative h-8 w-8 rounded-full">
             <Avatar className="h-9 w-9">
               <AvatarImage src={user?.photoURL || ""} alt="User avatar" />
-              <AvatarFallback>{getInitials(user?.displayName)}</AvatarFallback>
+              <AvatarFallback>{getInitials(authName)}</AvatarFallback>
             </Avatar>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-56" align="end" forceMount>
           <DropdownMenuLabel className="font-normal">
             <div className="flex flex-col space-y-1">
-              <p className="text-sm font-medium leading-none">{user?.displayName || "Admin"}</p>
+              <p className="text-sm font-medium leading-none">{authName || "User"}</p>
               <p className="text-xs leading-none text-muted-foreground">
-                {user?.email || "admin@schoolflow.com"}
+                {user?.email || "user@schoolflow.com"}
               </p>
               {role && (
                  <Badge variant="outline" className="mt-2 w-fit capitalize">{role}</Badge>
