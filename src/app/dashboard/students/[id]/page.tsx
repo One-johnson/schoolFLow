@@ -5,10 +5,10 @@ import * as React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useDatabase } from '@/hooks/use-database';
 import { useAuth } from '@/hooks/use-auth';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, User, BookOpen, ClipboardCheck, DollarSign, Download, Award, ChevronDown, ShieldAlert } from 'lucide-react';
+import { Loader2, User, BookOpen, ClipboardCheck, DollarSign, Download, Award, ChevronDown, ShieldAlert, Edit, BarChart, PieChart } from 'lucide-react';
 import { format, parseISO, isWithinInterval } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -25,6 +25,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Pie } from 'recharts';
 
 
 // Data types
@@ -60,6 +69,8 @@ const statusColors = {
   Excused: "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300",
 };
 
+const PIE_CHART_COLORS = ["#22c55e", "#ef4444", "#f97316", "#3b82f6"]; // Green, Red, Orange, Blue
+
 export default function StudentInfoPage() {
     const params = useParams();
     const router = useRouter();
@@ -76,7 +87,12 @@ export default function StudentInfoPage() {
     const { data: rawAttendance, loading: attendanceLoading } = useDatabase<DailyAttendance>("attendance");
     const { data: terms, loading: termsLoading } = useDatabase<Term>("terms");
     const { data: exams, loading: examsLoading } = useDatabase<Exam>("exams");
-    const { data: grades, loading: gradesLoading } = useDatabase<StudentGrade>("grades");
+    const { data: grades, loading: gradesLoading } = useDatabase<StudentGrade>("studentGrades");
+
+    // State
+    const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
+    const [editStudentState, setEditStudentState] = React.useState<Partial<Student>>({});
+    const [isUpdating, setIsUpdating] = React.useState(false);
 
     // Report Card State
     const [selectedTermId, setSelectedTermId] = React.useState<string>();
@@ -105,6 +121,12 @@ export default function StudentInfoPage() {
         }
 
     }, [loading, user, role, student, classes, studentIdParams, router]);
+
+    React.useEffect(() => {
+        if (student) {
+            setEditStudentState(student);
+        }
+    }, [student]);
     
     
     const enrolledSubjects = React.useMemo(() => {
@@ -136,6 +158,21 @@ export default function StudentInfoPage() {
         });
         return flatData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [rawAttendance, studentsMap, classesMap, attendanceLoading, studentIdParams]);
+    
+    const attendanceSummary = React.useMemo(() => {
+        return attendanceHistory.reduce((acc, log) => {
+            acc[log.status] = (acc[log.status] || 0) + 1;
+            return acc;
+        }, {} as Record<AttendanceStatus, number>)
+    }, [attendanceHistory]);
+
+    const attendanceChartData = React.useMemo(() => {
+        return Object.entries(attendanceSummary).map(([name, value], index) => ({
+            name,
+            value,
+            fill: PIE_CHART_COLORS[index % PIE_CHART_COLORS.length]
+        }));
+    }, [attendanceSummary]);
 
     const examsForTerm = React.useMemo(() => {
         if (!selectedTermId) return [];
@@ -242,6 +279,20 @@ export default function StudentInfoPage() {
             toast({ title: "Error", description: "Failed to update status.", variant: "destructive" });
         }
     }
+    
+    const handleProfileUpdate = async () => {
+        if (!student) return;
+        setIsUpdating(true);
+        try {
+            await updateStudent(student.id, editStudentState);
+            toast({ title: "Success", description: "Profile updated."});
+            setIsEditDialogOpen(false);
+        } catch (error) {
+            toast({ title: "Error", description: "Failed to update profile.", variant: "destructive" });
+        } finally {
+            setIsUpdating(false);
+        }
+    };
 
 
     if (loading || !role || !student) {
@@ -294,21 +345,24 @@ export default function StudentInfoPage() {
                         </CardDescription>
                     </div>
                     {isAllowedToEdit && (
-                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" className="w-[160px] justify-between">
-                                    {student.status}
-                                    <ChevronDown className="h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="w-[160px]">
-                                {statusOptions.map(status => (
-                                    <DropdownMenuItem key={status} onSelect={() => handleStatusChange(status)}>
-                                        {status}
-                                    </DropdownMenuItem>
-                                ))}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                        <div className="flex items-center gap-2">
+                             <Button variant="outline" onClick={() => setIsEditDialogOpen(true)}><Edit className="mr-2 h-4 w-4"/> Edit Profile</Button>
+                             <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="outline" className="w-[160px] justify-between">
+                                        {student.status}
+                                        <ChevronDown className="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent className="w-[160px]">
+                                    {statusOptions.map(status => (
+                                        <DropdownMenuItem key={status} onSelect={() => handleStatusChange(status)}>
+                                            {status}
+                                        </DropdownMenuItem>
+                                    ))}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
                     )}
                 </CardHeader>
             </Card>
@@ -377,29 +431,42 @@ export default function StudentInfoPage() {
                  <TabsContent value="attendance" className="mt-4">
                     <Card>
                         <CardHeader><CardTitle>Attendance History</CardTitle></CardHeader>
-                        <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Date</TableHead>
-                                        <TableHead>Class</TableHead>
-                                        <TableHead>Status</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {attendanceHistory.length > 0 ? (
-                                        attendanceHistory.map((log, index) => (
-                                            <TableRow key={index}>
-                                                <TableCell>{format(parseISO(log.date), 'PPP')}</TableCell>
-                                                <TableCell>{log.className}</TableCell>
-                                                <TableCell><Badge className={cn("border-transparent", statusColors[log.status])}>{log.status}</Badge></TableCell>
-                                            </TableRow>
-                                        ))
-                                    ) : (
-                                        <TableRow><TableCell colSpan={3} className="text-center">No attendance records found.</TableCell></TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
+                        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="md:col-span-2">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Date</TableHead>
+                                            <TableHead>Class</TableHead>
+                                            <TableHead>Status</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {attendanceHistory.length > 0 ? (
+                                            attendanceHistory.slice(0, 10).map((log, index) => ( // Show last 10 records
+                                                <TableRow key={index}>
+                                                    <TableCell>{format(parseISO(log.date), 'PPP')}</TableCell>
+                                                    <TableCell>{log.className}</TableCell>
+                                                    <TableCell><Badge className={cn("border-transparent", statusColors[log.status])}>{log.status}</Badge></TableCell>
+                                                </TableRow>
+                                            ))
+                                        ) : (
+                                            <TableRow><TableCell colSpan={3} className="text-center">No attendance records found.</TableCell></TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                             <div className="md:col-span-1">
+                                 <h3 className="font-semibold mb-2 text-center">Overall Attendance</h3>
+                                 <ChartContainer config={{}} className="h-[200px] w-full">
+                                    <ResponsiveContainer>
+                                        <PieChart>
+                                            <Tooltip content={<ChartTooltipContent nameKey="name" />} />
+                                            <Pie data={attendanceChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} label={(entry) => `${entry.name} (${entry.value})`} />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </ChartContainer>
+                            </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -450,9 +517,15 @@ export default function StudentInfoPage() {
                 
                 <TabsContent value="academics" className="mt-4">
                     <Card>
-                        <CardHeader>
-                            <CardTitle>Academic Reports</CardTitle>
-                            <CardDescription>Select a term and exam to view results and generate a report card.</CardDescription>
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <div>
+                                <CardTitle>Academic Reports</CardTitle>
+                                <CardDescription>Select a term and exam to view results and generate a report card.</CardDescription>
+                            </div>
+                            <Button onClick={handleGenerateReportCard} disabled={!selectedExamId || reportCardResults.length === 0}>
+                                <Download className="mr-2 h-4 w-4" />
+                                Generate Report Card
+                            </Button>
                         </CardHeader>
                         <CardContent className="space-y-4">
                              <div className="flex flex-wrap gap-4 items-end">
@@ -474,46 +547,52 @@ export default function StudentInfoPage() {
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                <Button onClick={handleGenerateReportCard} disabled={!selectedExamId || reportCardResults.length === 0}>
-                                    <Download className="mr-2 h-4 w-4" />
-                                    Generate Report Card
-                                </Button>
                              </div>
 
                              {selectedExamId && (
-                                <div className="pt-4">
-                                     <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Subject</TableHead>
-                                                <TableHead>Class Score</TableHead>
-                                                <TableHead>Exam Score</TableHead>
-                                                <TableHead>Total</TableHead>
-                                                <TableHead>Grade</TableHead>
-                                                <TableHead>Remarks</TableHead>
-                                                <TableHead>Comment</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {reportCardResults.length > 0 ? (
-                                                reportCardResults.map((result, index) => (
-                                                    <TableRow key={index}>
-                                                        <TableCell className="font-medium">{result.subjectName}</TableCell>
-                                                        <TableCell>{result.classScore}%</TableCell>
-                                                        <TableCell>{result.examScore}%</TableCell>
-                                                        <TableCell className="font-bold">{result.totalScore}%</TableCell>
-                                                        <TableCell><Badge variant="secondary">{result.grade}</Badge></TableCell>
-                                                        <TableCell>{result.remarks}</TableCell>
-                                                        <TableCell className="text-sm text-muted-foreground">{result.teacherComment || "N/A"}</TableCell>
-                                                    </TableRow>
-                                                ))
-                                            ) : (
+                                <div className="pt-4 grid grid-cols-1 md:grid-cols-3 gap-6">
+                                     <div className="md:col-span-2">
+                                         <Table>
+                                            <TableHeader>
                                                 <TableRow>
-                                                    <TableCell colSpan={7} className="h-24 text-center">No results found for this exam.</TableCell>
+                                                    <TableHead>Subject</TableHead>
+                                                    <TableHead>Total Score</TableHead>
+                                                    <TableHead>Grade</TableHead>
+                                                    <TableHead>Remarks</TableHead>
                                                 </TableRow>
-                                            )}
-                                        </TableBody>
-                                     </Table>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {reportCardResults.length > 0 ? (
+                                                    reportCardResults.map((result, index) => (
+                                                        <TableRow key={index}>
+                                                            <TableCell className="font-medium">{result.subjectName}</TableCell>
+                                                            <TableCell className="font-bold">{result.totalScore}%</TableCell>
+                                                            <TableCell><Badge variant="secondary">{result.grade}</Badge></TableCell>
+                                                            <TableCell>{result.remarks}</TableCell>
+                                                        </TableRow>
+                                                    ))
+                                                ) : (
+                                                    <TableRow>
+                                                        <TableCell colSpan={4} className="h-24 text-center">No results found for this exam.</TableCell>
+                                                    </TableRow>
+                                                )}
+                                            </TableBody>
+                                         </Table>
+                                     </div>
+                                     <div className="md:col-span-1">
+                                        <h3 className="font-semibold text-center mb-2">Performance Breakdown</h3>
+                                         <ChartContainer config={{}} className="h-[250px] w-full">
+                                            <ResponsiveContainer>
+                                                <BarChart data={reportCardResults} layout="vertical" margin={{ left: 20 }}>
+                                                    <CartesianGrid strokeDasharray="3 3" />
+                                                    <XAxis type="number" domain={[0, 100]} />
+                                                    <YAxis dataKey="subjectName" type="category" width={80} tick={{ fontSize: 12 }} />
+                                                    <Tooltip content={<ChartTooltipContent />} />
+                                                    <Bar dataKey="totalScore" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </ChartContainer>
+                                     </div>
                                 </div>
                              )}
                         </CardContent>
@@ -521,6 +600,73 @@ export default function StudentInfoPage() {
                 </TabsContent>
 
             </Tabs>
+            
+            {/* Edit Dialog */}
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                <DialogContent className="sm:max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle>Edit Student Profile</DialogTitle>
+                        <DialogDescription>Make changes to the student's information here.</DialogDescription>
+                    </DialogHeader>
+                    <ScrollArea className="h-[60vh]">
+                        <div className="space-y-4 p-4">
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <Label>Full Name</Label>
+                                    <Input value={editStudentState.name || ''} onChange={(e) => setEditStudentState(p => ({...p, name: e.target.value}))} />
+                                </div>
+                                <div className="space-y-1">
+                                    <Label>Email</Label>
+                                    <Input type="email" value={editStudentState.email || ''} onChange={(e) => setEditStudentState(p => ({...p, email: e.target.value}))} />
+                                </div>
+                                 <div className="space-y-1">
+                                    <Label>Gender</Label>
+                                    <Select value={editStudentState.gender} onValueChange={(v: "Male" | "Female" | "Other") => setEditStudentState(p => ({...p, gender: v}))}>
+                                        <SelectTrigger><SelectValue/></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Male">Male</SelectItem>
+                                            <SelectItem value="Female">Female</SelectItem>
+                                            <SelectItem value="Other">Other</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-1">
+                                    <Label>Address</Label>
+                                    <Input value={editStudentState.address || ''} onChange={(e) => setEditStudentState(p => ({...p, address: e.target.value}))} />
+                                </div>
+                             </div>
+                             <div className="pt-4">
+                                 <h4 className="font-semibold mb-2">Parent/Guardian Info</h4>
+                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                     <div className="space-y-1">
+                                        <Label>Parent Name</Label>
+                                        <Input value={editStudentState.parentName || ''} onChange={(e) => setEditStudentState(p => ({...p, parentName: e.target.value}))} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label>Parent Phone</Label>
+                                        <Input value={editStudentState.parentPhone || ''} onChange={(e) => setEditStudentState(p => ({...p, parentPhone: e.target.value}))} />
+                                    </div>
+                                     <div className="space-y-1 md:col-span-2">
+                                        <Label>Parent Email</Label>
+                                        <Input type="email" value={editStudentState.parentEmail || ''} onChange={(e) => setEditStudentState(p => ({...p, parentEmail: e.target.value}))} />
+                                    </div>
+                                 </div>
+                             </div>
+                        </div>
+                    </ScrollArea>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={handleProfileUpdate} disabled={isUpdating}>
+                            {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                            Save Changes
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
         </div>
     );
 }
+
+
+    
