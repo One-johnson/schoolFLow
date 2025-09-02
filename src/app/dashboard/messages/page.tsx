@@ -44,7 +44,8 @@ import {
 } from "@/components/ui/alert-dialog"
 
 
-type User = { id: string; name: string; avatarUrl?: string; role: 'student' | 'teacher' | 'admin', studentId?: string };
+type User = { id: string; name: string; avatarUrl?: string; role: 'student' | 'teacher' | 'admin' };
+type Student = { id: string; name: string; avatarUrl?: string; role: 'student'; studentId?: string };
 type Class = { id: string; name: string; studentIds?: Record<string, boolean>; teacherId?: string };
 type Message = {
   id: string;
@@ -60,6 +61,7 @@ const getInitials = (name?: string) => name ? name.split(' ').map(n => n[0]).joi
 export default function MessagesPage() {
   const { user, role } = useAuth();
   const { data: users, loading: usersLoading } = useDatabase<User>("users");
+  const { data: students, loading: studentsLoading } = useDatabase<Student>('students');
   const { data: classes, loading: classesLoading } = useDatabase<Class>("classes");
   const { data: messages, addData, updateData, deleteData, loading: messagesLoading } = useDatabase<Message>("messages");
   const { toast } = useToast();
@@ -75,6 +77,7 @@ export default function MessagesPage() {
   const [isUpdating, setIsUpdating] = React.useState(false);
 
   const usersMap = React.useMemo(() => new Map(users.map(u => [u.id, u])), [users]);
+  const studentsMap = React.useMemo(() => new Map(students.map(s => [s.id, s])), [students]);
   
   const studentListForTeacher = React.useMemo(() => {
     if (role !== 'teacher' || !user) return [];
@@ -212,11 +215,13 @@ export default function MessagesPage() {
     if (!searchQuery) return userList;
     return userList.filter(u => 
         u.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        (u.studentId && u.studentId.includes(searchQuery))
+        (studentsMap.get(u.id)?.studentId?.includes(searchQuery))
     );
   }
   
-  const renderContactItem = (contact: User) => (
+  const renderContactItem = (contact: User) => {
+    const studentDetail = studentsMap.get(contact.id);
+    return (
       <Button
           key={contact.id}
           variant={selectedConversation?.id === contact.id ? 'secondary' : 'ghost'}
@@ -230,14 +235,15 @@ export default function MessagesPage() {
           <div className="flex-1 truncate">
               <p className="font-semibold">{contact.name}</p>
               <p className="text-xs text-muted-foreground capitalize">
-                {contact.role === 'student' ? contact.studentId : contact.role}
+                {contact.role === 'student' ? studentDetail?.studentId : contact.role}
               </p>
           </div>
           {conversationThreads.get(contact.id)?.unreadCount > 0 && (
             <Badge>{conversationThreads.get(contact.id)?.unreadCount}</Badge>
           )}
         </Button>
-  )
+    )
+  }
   
   const renderAdminContacts = () => {
       const allTeachers = users.filter(u => u.role === 'teacher');
@@ -247,11 +253,21 @@ export default function MessagesPage() {
       );
 
       if (searchQuery) {
+        const studentResults = users.filter(u => u.role === 'student' && (u.name.toLowerCase().includes(searchQuery.toLowerCase()) || studentsMap.get(u.id)?.studentId?.toLowerCase().includes(searchQuery.toLowerCase())));
+
         return (
              <div className="space-y-2 pr-4">
-              {filteredTeachers.map(renderContactItem)}
-              {classes.map(c => 
-                  filteredUsers(studentsInClass(c.id)).map(s => renderContactItem(s))
+              {filteredTeachers.length > 0 && (
+                <>
+                  <h4 className="text-sm font-semibold text-muted-foreground px-2 pt-2">Teachers</h4>
+                  {filteredTeachers.map(renderContactItem)}
+                </>
+              )}
+               {studentResults.length > 0 && (
+                <>
+                  <h4 className="text-sm font-semibold text-muted-foreground px-2 pt-2">Students</h4>
+                  {studentResults.map(renderContactItem)}
+                </>
               )}
              </div>
         );
@@ -292,7 +308,7 @@ export default function MessagesPage() {
       )
   };
   
-  const loading = usersLoading || classesLoading || messagesLoading;
+  const loading = usersLoading || classesLoading || messagesLoading || studentsLoading;
 
   if (loading) {
       return <div className="flex h-full items-center justify-center"><Loader2 className="h-12 w-12 animate-spin"/></div>
@@ -451,5 +467,4 @@ export default function MessagesPage() {
 
     </div>
   );
-
-    
+}
