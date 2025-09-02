@@ -33,7 +33,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Pie } from 'recharts';
+import { Bar, Pie, ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip } from 'recharts';
 
 
 // Data types
@@ -104,6 +104,8 @@ export default function StudentInfoPage() {
     const student = React.useMemo(() => students.find(s => s.id === studentIdParams), [students, studentIdParams]);
     const enrolledClasses = React.useMemo(() => classes.filter(c => c.studentIds && c.studentIds[studentIdParams]), [classes, studentIdParams]);
     
+    const canEditProfile = (role === 'admin') || (role === 'student' && user?.uid === studentIdParams);
+
     // Check permissions
     React.useEffect(() => {
         if (loading || !user || !role || !student) return;
@@ -298,9 +300,6 @@ export default function StudentInfoPage() {
     if (loading || !role || !student) {
         return <div className="flex h-screen items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
     }
-    
-    const isAllowedToEdit = role === 'admin';
-
 
     if (role === 'student' && user?.uid !== studentIdParams) {
         return (
@@ -344,26 +343,28 @@ export default function StudentInfoPage() {
                             <span>{student.email}</span>
                         </CardDescription>
                     </div>
-                    {isAllowedToEdit && (
-                        <div className="flex items-center gap-2">
-                             <Button variant="outline" onClick={() => setIsEditDialogOpen(true)}><Edit className="mr-2 h-4 w-4"/> Edit Profile</Button>
-                             <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="outline" className="w-[160px] justify-between">
-                                        {student.status}
-                                        <ChevronDown className="h-4 w-4" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent className="w-[160px]">
-                                    {statusOptions.map(status => (
-                                        <DropdownMenuItem key={status} onSelect={() => handleStatusChange(status)}>
-                                            {status}
-                                        </DropdownMenuItem>
-                                    ))}
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        </div>
-                    )}
+                    <div className="flex items-center gap-2">
+                        {canEditProfile && (
+                            <Button variant="outline" onClick={() => setIsEditDialogOpen(true)}><Edit className="mr-2 h-4 w-4"/> Edit Profile</Button>
+                        )}
+                        {role === 'admin' && (
+                            <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" className="w-[160px] justify-between">
+                                    {student.status}
+                                    <ChevronDown className="h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="w-[160px]">
+                                {statusOptions.map(status => (
+                                    <DropdownMenuItem key={status} onSelect={() => handleStatusChange(status)}>
+                                        {status}
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        )}
+                    </div>
                 </CardHeader>
             </Card>
 
@@ -461,7 +462,7 @@ export default function StudentInfoPage() {
                                  <ChartContainer config={{}} className="h-[200px] w-full">
                                     <ResponsiveContainer>
                                         <PieChart>
-                                            <Tooltip content={<ChartTooltipContent nameKey="name" />} />
+                                            <RechartsTooltip content={<ChartTooltipContent nameKey="name" />} />
                                             <Pie data={attendanceChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} label={(entry) => `${entry.name} (${entry.value})`} />
                                         </PieChart>
                                     </ResponsiveContainer>
@@ -587,7 +588,7 @@ export default function StudentInfoPage() {
                                                     <CartesianGrid strokeDasharray="3 3" />
                                                     <XAxis type="number" domain={[0, 100]} />
                                                     <YAxis dataKey="subjectName" type="category" width={80} tick={{ fontSize: 12 }} />
-                                                    <Tooltip content={<ChartTooltipContent />} />
+                                                    <RechartsTooltip content={<ChartTooltipContent />} />
                                                     <Bar dataKey="totalScore" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
                                                 </BarChart>
                                             </ResponsiveContainer>
@@ -601,7 +602,6 @@ export default function StudentInfoPage() {
 
             </Tabs>
             
-            {/* Edit Dialog */}
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
                 <DialogContent className="sm:max-w-xl">
                     <DialogHeader>
@@ -613,15 +613,15 @@ export default function StudentInfoPage() {
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-1">
                                     <Label>Full Name</Label>
-                                    <Input value={editStudentState.name || ''} onChange={(e) => setEditStudentState(p => ({...p, name: e.target.value}))} />
+                                    <Input value={editStudentState.name || ''} onChange={(e) => setEditStudentState(p => ({...p, name: e.target.value}))} disabled={role === 'student'} />
                                 </div>
                                 <div className="space-y-1">
                                     <Label>Email</Label>
-                                    <Input type="email" value={editStudentState.email || ''} onChange={(e) => setEditStudentState(p => ({...p, email: e.target.value}))} />
+                                    <Input type="email" value={editStudentState.email || ''} onChange={(e) => setEditStudentState(p => ({...p, email: e.target.value}))} disabled={role === 'student'} />
                                 </div>
                                  <div className="space-y-1">
                                     <Label>Gender</Label>
-                                    <Select value={editStudentState.gender} onValueChange={(v: "Male" | "Female" | "Other") => setEditStudentState(p => ({...p, gender: v}))}>
+                                    <Select value={editStudentState.gender} onValueChange={(v: "Male" | "Female" | "Other") => setEditStudentState(p => ({...p, gender: v}))} disabled={role === 'student'}>
                                         <SelectTrigger><SelectValue/></SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="Male">Male</SelectItem>
@@ -632,7 +632,7 @@ export default function StudentInfoPage() {
                                 </div>
                                 <div className="space-y-1">
                                     <Label>Address</Label>
-                                    <Input value={editStudentState.address || ''} onChange={(e) => setEditStudentState(p => ({...p, address: e.target.value}))} />
+                                    <Input value={editStudentState.address || ''} onChange={(e) => setEditStudentState(p => ({...p, address: e.target.value}))} disabled={isUpdating} />
                                 </div>
                              </div>
                              <div className="pt-4">
@@ -640,15 +640,15 @@ export default function StudentInfoPage() {
                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                      <div className="space-y-1">
                                         <Label>Parent Name</Label>
-                                        <Input value={editStudentState.parentName || ''} onChange={(e) => setEditStudentState(p => ({...p, parentName: e.target.value}))} />
+                                        <Input value={editStudentState.parentName || ''} onChange={(e) => setEditStudentState(p => ({...p, parentName: e.target.value}))} disabled={isUpdating} />
                                     </div>
                                     <div className="space-y-1">
                                         <Label>Parent Phone</Label>
-                                        <Input value={editStudentState.parentPhone || ''} onChange={(e) => setEditStudentState(p => ({...p, parentPhone: e.target.value}))} />
+                                        <Input value={editStudentState.parentPhone || ''} onChange={(e) => setEditStudentState(p => ({...p, parentPhone: e.target.value}))} disabled={isUpdating} />
                                     </div>
                                      <div className="space-y-1 md:col-span-2">
                                         <Label>Parent Email</Label>
-                                        <Input type="email" value={editStudentState.parentEmail || ''} onChange={(e) => setEditStudentState(p => ({...p, parentEmail: e.target.value}))} />
+                                        <Input type="email" value={editStudentState.parentEmail || ''} onChange={(e) => setEditStudentState(p => ({...p, parentEmail: e.target.value}))} disabled={isUpdating} />
                                     </div>
                                  </div>
                              </div>
@@ -667,6 +667,3 @@ export default function StudentInfoPage() {
         </div>
     );
 }
-
-
-    
