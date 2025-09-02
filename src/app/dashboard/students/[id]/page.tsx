@@ -300,7 +300,7 @@ export default function StudentInfoPage() {
     
     const handleActivitySubmit = async () => {
         if (!activityFormState.name || !activityFormState.type || !activityFormState.startDate) {
-            toast({ title: "Error", description: "Name, type, and start date are required.", variant: "destructive" });
+            toast({ title: "Error", description: "Name, category, and start date are required.", variant: "destructive" });
             return;
         }
         setIsUpdating(true);
@@ -666,7 +666,7 @@ export default function StudentInfoPage() {
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead>Activity</TableHead>
-                                            <TableHead>Type</TableHead>
+                                            <TableHead>Category</TableHead>
                                             <TableHead>Role/Position</TableHead>
                                             <TableHead>Date Range</TableHead>
                                             {role === 'admin' && <TableHead className="text-right">Actions</TableHead>}
@@ -763,11 +763,11 @@ export default function StudentInfoPage() {
                                 </div>
                                 <div className="space-y-1">
                                     <Label>Place of Birth</Label>
-                                    <Input value={editStudentState.placeOfBirth || ''} onChange={(e) => setEditStudentState(p => ({...p, placeOfBirth: e.target.value}))} disabled={isUpdating} />
+                                    <Input value={editStudentState.placeOfBirth || ''} onChange={(e) => setEditStudentState(p => ({...p, placeOfBirth: e.target.value}))} disabled={isUpdating || role !== 'admin'} />
                                 </div>
                                 <div className="space-y-1">
                                     <Label>Hometown</Label>
-                                    <Input value={editStudentState.hometown || ''} onChange={(e) => setEditStudentState(p => ({...p, hometown: e.target.value}))} disabled={isUpdating} />
+                                    <Input value={editStudentState.hometown || ''} onChange={(e) => setEditStudentState(p => ({...p, hometown: e.target.value}))} disabled={isUpdating || role !== 'admin'} />
                                 </div>
                                 <div className="space-y-1">
                                     <Label>Address</Label>
@@ -813,17 +813,18 @@ export default function StudentInfoPage() {
                     <div className="grid gap-4 py-4">
                         <div className="space-y-1">
                             <Label>Activity Name</Label>
-                            <Input value={activityFormState.name || ''} onChange={e => setActivityFormState(p => ({...p, name: e.target.value}))} />
+                            <Input value={activityFormState.name || ''} onChange={e => setActivityFormState(p => ({...p, name: e.target.value}))} placeholder="e.g., Varsity Football Team" />
                         </div>
                         <div className="space-y-1">
-                            <Label>Activity Type</Label>
+                            <Label>Category</Label>
                             <Select value={activityFormState.type} onValueChange={(v: string) => setActivityFormState(p => ({...p, type: v}))}>
-                                <SelectTrigger><SelectValue placeholder="Select type..."/></SelectTrigger>
+                                <SelectTrigger><SelectValue placeholder="Select category..."/></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="Sport">Sport</SelectItem>
-                                    <SelectItem value="Club">Club</SelectItem>
-                                    <SelectItem value="Volunteer">Volunteer</SelectItem>
-                                    <SelectItem value="Competition">Competition</SelectItem>
+                                    <SelectItem value="Football">Football</SelectItem>
+                                    <SelectItem value="Volleyball">Volleyball</SelectItem>
+                                    <SelectItem value="Cultural">Cultural</SelectItem>
+                                    <SelectItem value="Cadet">Cadet</SelectItem>
+                                    <SelectItem value="Arts & Design">Arts & Design</SelectItem>
                                     <SelectItem value="Other">Other</SelectItem>
                                 </SelectContent>
                             </Select>
@@ -855,5 +856,7 @@ export default function StudentInfoPage() {
         </>
     );
 }
+
+    
 
     
