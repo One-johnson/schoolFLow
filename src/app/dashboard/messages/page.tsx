@@ -15,7 +15,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Send, MessageSquare, Search, BookOpen, UserCheck } from "lucide-react";
+import { Loader2, Send, MessageSquare, Search, BookOpen, UserCheck, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -25,7 +25,23 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion"
+} from "@/components/ui/accordion";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 
 type User = { id: string; name: string; avatarUrl?: string; role: 'student' | 'teacher' | 'admin', studentId?: string };
@@ -45,13 +61,18 @@ export default function MessagesPage() {
   const { user, role } = useAuth();
   const { data: users, loading: usersLoading } = useDatabase<User>("users");
   const { data: classes, loading: classesLoading } = useDatabase<Class>("classes");
-  const { data: messages, addData, updateData, loading: messagesLoading } = useDatabase<Message>("messages");
+  const { data: messages, addData, updateData, deleteData, loading: messagesLoading } = useDatabase<Message>("messages");
   const { toast } = useToast();
 
   const [selectedConversation, setSelectedConversation] = React.useState<User | null>(null);
   const [messageContent, setMessageContent] = React.useState("");
   const [isSending, setIsSending] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
+
+  const [editingMessageId, setEditingMessageId] = React.useState<string | null>(null);
+  const [editingContent, setEditingContent] = React.useState("");
+  const [messageToDelete, setMessageToDelete] = React.useState<Message | null>(null);
+  const [isUpdating, setIsUpdating] = React.useState(false);
 
   const usersMap = React.useMemo(() => new Map(users.map(u => [u.id, u])), [users]);
   
@@ -139,6 +160,45 @@ export default function MessagesPage() {
       setIsSending(false);
     }
   }
+
+  const handleEditMessage = (message: Message) => {
+    setEditingMessageId(message.id);
+    setEditingContent(message.content);
+  }
+
+  const handleCancelEdit = () => {
+    setEditingMessageId(null);
+    setEditingContent("");
+  }
+
+  const handleUpdateMessage = async () => {
+    if(!editingMessageId || !editingContent.trim()) return;
+    setIsUpdating(true);
+    try {
+        await updateData(editingMessageId, { content: editingContent });
+        toast({ title: "Message updated" });
+        handleCancelEdit();
+    } catch (e) {
+        toast({ title: "Error updating message", variant: "destructive" });
+    } finally {
+        setIsUpdating(false);
+    }
+  }
+
+  const handleDeleteMessage = async () => {
+    if(!messageToDelete) return;
+    setIsUpdating(true);
+    try {
+        await deleteData(messageToDelete.id);
+        toast({ title: "Message deleted" });
+        setMessageToDelete(null);
+    } catch (e) {
+         toast({ title: "Error deleting message", variant: "destructive" });
+    } finally {
+        setIsUpdating(false);
+    }
+  }
+
 
   const studentsInClass = (classId: string) => {
     const cls = classes.find(c => c.id === classId);
@@ -286,18 +346,56 @@ export default function MessagesPage() {
                 </CardHeader>
                 <ScrollArea className="flex-1 p-4 space-y-4">
                     {currentMessages.map(msg => (
-                        <div key={msg.id} className={cn("flex items-end gap-2", msg.senderId === user?.uid ? "justify-end" : "justify-start")}>
-                           {msg.senderId !== user?.uid && (
-                               <Avatar className="h-8 w-8">
+                        <div key={msg.id} className={cn("group flex items-end gap-2", msg.senderId === user?.uid ? "justify-end" : "justify-start")}>
+                            {msg.senderId !== user?.uid && (
+                                <Avatar className="h-8 w-8">
                                     <AvatarImage src={usersMap.get(msg.senderId)?.avatarUrl} />
                                     <AvatarFallback>{getInitials(usersMap.get(msg.senderId)?.name)}</AvatarFallback>
                                </Avatar>
                            )}
+                           
+                           {msg.senderId === user?.uid && (
+                               <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <MoreHorizontal className="h-4 w-4"/>
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent>
+                                        <DropdownMenuItem onSelect={() => handleEditMessage(msg)}>
+                                            <Pencil className="mr-2 h-4 w-4"/> Edit
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem className="text-destructive" onSelect={() => setMessageToDelete(msg)}>
+                                            <Trash2 className="mr-2 h-4 w-4"/> Delete
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                               </DropdownMenu>
+                           )}
+
                            <div className={cn("max-w-xs md:max-w-md lg:max-w-lg rounded-lg p-3 text-sm", msg.senderId === user?.uid ? "bg-primary text-primary-foreground" : "bg-muted")}>
-                                <p>{msg.content}</p>
-                                <p className={cn("text-xs mt-1", msg.senderId === user?.uid ? "text-primary-foreground/70" : "text-muted-foreground")}>
-                                     {typeof msg.timestamp === 'number' ? formatDistanceToNow(new Date(msg.timestamp), { addSuffix: true }) : 'sending...'}
-                                </p>
+                                {editingMessageId === msg.id ? (
+                                    <div className="space-y-2">
+                                        <Input 
+                                            value={editingContent}
+                                            onChange={(e) => setEditingContent(e.target.value)}
+                                            className="bg-background text-foreground"
+                                            disabled={isUpdating}
+                                        />
+                                        <div className="flex gap-2 justify-end">
+                                            <Button size="sm" variant="ghost" onClick={handleCancelEdit} disabled={isUpdating}>Cancel</Button>
+                                            <Button size="sm" onClick={handleUpdateMessage} disabled={isUpdating}>
+                                                {isUpdating && <Loader2 className="h-4 w-4 animate-spin"/>} Save
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <p className="whitespace-pre-wrap">{msg.content}</p>
+                                        <p className={cn("text-xs mt-1", msg.senderId === user?.uid ? "text-primary-foreground/70" : "text-muted-foreground")}>
+                                            {typeof msg.timestamp === 'number' ? formatDistanceToNow(new Date(msg.timestamp), { addSuffix: true }) : 'sending...'}
+                                        </p>
+                                    </>
+                                )}
                            </div>
                         </div>
                     ))}
@@ -325,6 +423,26 @@ export default function MessagesPage() {
             )}
         </div>
       </Card>
+      
+      {/* Delete Confirmation Dialog */}
+       <AlertDialog open={!!messageToDelete} onOpenChange={(open) => !open && setMessageToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure you want to delete this message?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. The message will be permanently deleted for you.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setMessageToDelete(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteMessage} className="bg-destructive hover:bg-destructive/90" disabled={isUpdating}>
+                 {isUpdating ? <Loader2 className="h-4 w-4 animate-spin"/> : "Delete"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
     </div>
   );
-}
+
+    
