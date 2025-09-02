@@ -56,6 +56,8 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
+  LayoutGrid,
+  List,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
@@ -127,6 +129,8 @@ export default function PermissionsPage() {
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>();
   const [isLoading, setIsLoading] = React.useState(false);
   const { toast } = useToast();
+  
+  const [viewType, setViewType] = React.useState<"card" | "list">("card");
 
   const usersMap = React.useMemo(() => new Map(users.map(u => [u.id, u])), [users]);
   const studentsMap = React.useMemo(() => new Map(students.map(s => [s.id, s])), [students]);
@@ -200,7 +204,6 @@ export default function PermissionsPage() {
         reason,
         startDate: format(dateRange.from, "yyyy-MM-dd"),
         endDate: format(dateRange.to || dateRange.from, "yyyy-MM-dd"),
-        status: "Pending",
     };
 
     setIsLoading(true);
@@ -211,6 +214,7 @@ export default function PermissionsPage() {
         } else {
             await addData({
                 ...requestData,
+                status: "Pending",
                 studentId: user!.uid,
                 studentName: studentProfile!.name || "Unknown",
                 classId: studentClass!.id,
@@ -262,13 +266,53 @@ export default function PermissionsPage() {
     return name.substring(0, 2).toUpperCase();
   }
   
+  const renderActions = (slip: PermissionSlip) => {
+    const canStudentModify = role === 'student' && slip.studentId === user?.uid && slip.status === 'Pending';
+    if (canStudentModify) {
+        return (
+            <AlertDialog>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost" className="h-6 w-6"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openRequestDialog(slip)}><Pencil className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <AlertDialogTrigger asChild>
+                            <DropdownMenuItem className="text-destructive focus:text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
+                        </AlertDialogTrigger>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+                <AlertDialogContent>
+                    <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete your request.</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDeleteRequest(slip.id)} disabled={isLoading} className="bg-destructive hover:bg-destructive/90">{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Delete"}</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        );
+    }
+
+    if ((role === 'teacher' || role === 'admin') && slip.status === 'Pending') {
+        return (
+            <div className="flex gap-2">
+                <Button size="sm" onClick={() => handleUpdateRequestStatus(slip.id, 'Approved')} disabled={isLoading}>
+                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />} Approve
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => handleUpdateRequestStatus(slip.id, 'Rejected')} disabled={isLoading}>
+                   {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <X className="mr-2 h-4 w-4" />} Reject
+                </Button>
+            </div>
+        );
+    }
+    return null;
+  }
+  
   const PermissionSlipCard = ({ slip }: { slip: PermissionSlip }) => {
     const StatusIcon = statusConfig[slip.status].icon;
     const studentUser = studentsMap.get(slip.studentId);
     const requestDate = parseISO(slip.startDate);
     const endDate = parseISO(slip.endDate);
-    const canStudentModify = role === 'student' && slip.studentId === user?.uid && slip.status === 'Pending';
-
+    
     return (
          <Card>
             <CardHeader>
@@ -288,27 +332,7 @@ export default function PermissionsPage() {
                             <StatusIcon className="mr-1 h-3 w-3" />
                             {slip.status}
                         </Badge>
-                        {canStudentModify && (
-                             <AlertDialog>
-                                <DropdownMenu>
-                                <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost" className="h-6 w-6"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => openRequestDialog(slip)}><Pencil className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <AlertDialogTrigger asChild>
-                                        <DropdownMenuItem className="text-destructive focus:text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
-                                    </AlertDialogTrigger>
-                                </DropdownMenuContent>
-                                </DropdownMenu>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete your request.</AlertDialogDescription></AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => handleDeleteRequest(slip.id)} disabled={isLoading} className="bg-destructive hover:bg-destructive/90">{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Delete"}</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        )}
+                        {renderActions(slip)}
                     </div>
                 </div>
             </CardHeader>
@@ -317,23 +341,37 @@ export default function PermissionsPage() {
                 <p className="text-sm text-muted-foreground mt-2">{slip.reason}</p>
             </CardContent>
             <CardFooter className="flex flex-col items-start gap-2">
-                 {(role === 'teacher' || role === 'admin') && slip.status === 'Pending' && (
-                    <div className="flex w-full gap-2">
-                        <Button className="w-full" size="sm" onClick={() => handleUpdateRequestStatus(slip.id, 'Approved')} disabled={isLoading}>
-                            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
-                            Approve
-                        </Button>
-                        <Button className="w-full" size="sm" variant="destructive" onClick={() => handleUpdateRequestStatus(slip.id, 'Rejected')} disabled={isLoading}>
-                           {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <X className="mr-2 h-4 w-4" />}
-                            Reject
-                        </Button>
-                    </div>
-                )}
                 <p className="text-xs text-muted-foreground">Submitted on {format(new Date(slip.createdAt), "MMM d, yyyy")}</p>
             </CardFooter>
         </Card>
     )
   }
+  
+   const PermissionSlipListItem = ({ slip }: { slip: PermissionSlip }) => {
+    const StatusIcon = statusConfig[slip.status].icon;
+    return (
+        <div className="flex items-center justify-between p-4 border-b">
+            <div className="flex items-center gap-4">
+                <Avatar>
+                    <AvatarImage src={studentsMap.get(slip.studentId)?.avatarUrl} />
+                    <AvatarFallback>{getInitials(slip.studentName)}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                    <p className="font-semibold">{slip.studentName} <span className="font-normal text-muted-foreground">({slip.className})</span></p>
+                    <p className="text-sm text-muted-foreground">{slip.reason}</p>
+                    <p className="text-xs text-muted-foreground">{format(parseISO(slip.startDate), "PPP")} to {format(parseISO(slip.endDate), "PPP")}</p>
+                </div>
+            </div>
+            <div className="flex items-center gap-4">
+                 <Badge className={cn("border-transparent", statusConfig[slip.status].color)}>
+                    <StatusIcon className="mr-1 h-3 w-3" />
+                    {slip.status}
+                </Badge>
+                {renderActions(slip)}
+            </div>
+        </div>
+    )
+   }
 
 
   const renderStudentView = () => (
@@ -372,13 +410,23 @@ export default function PermissionsPage() {
     </>
   )
 
-  const renderTeacherView = () => {
-    const pendingSlips = teacherSlips.filter(s => s.status === 'Pending');
-    const processedSlips = teacherSlips.filter(s => s.status !== 'Pending');
+  const renderRoleView = (slips: PermissionSlip[]) => {
+    const pendingSlips = slips.filter(s => s.status === 'Pending');
+    const processedSlips = slips.filter(s => s.status !== 'Pending');
 
     return (
         <div>
-            <p className="text-muted-foreground">Review and approve leave requests from your students.</p>
+            <div className="flex items-center justify-between">
+                <p className="text-muted-foreground">Review and approve leave requests from your students.</p>
+                <div className="flex items-center gap-1 rounded-md bg-muted p-1">
+                    <Button variant={viewType === 'card' ? 'secondary' : 'ghost'} size="sm" onClick={() => setViewType('card')}>
+                        <LayoutGrid className="h-4 w-4"/>
+                    </Button>
+                     <Button variant={viewType === 'list' ? 'secondary' : 'ghost'} size="sm" onClick={() => setViewType('list')}>
+                        <List className="h-4 w-4"/>
+                    </Button>
+                </div>
+            </div>
              <Tabs defaultValue="pending" className="mt-4">
                 <TabsList>
                     <TabsTrigger value="pending">Pending <Badge className="ml-2">{pendingSlips.length}</Badge></TabsTrigger>
@@ -386,81 +434,45 @@ export default function PermissionsPage() {
                 </TabsList>
                 <TabsContent value="pending">
                      <ScrollArea className="h-[60vh] mt-4">
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pr-4">
-                            {slipsLoading || usersLoading ? (
-                                <p>Loading requests...</p>
-                            ) : pendingSlips.length > 0 ? (
-                                pendingSlips.map(slip => <PermissionSlipCard key={slip.id} slip={slip} />)
-                            ) : (
-                                <div className="col-span-full text-center py-16">
-                                    <CheckCircle2 className="mx-auto h-12 w-12 text-green-500" />
-                                    <p className="mt-4 text-muted-foreground">No pending requests to show.</p>
-                                </div>
-                            )}
-                        </div>
+                         {viewType === 'card' ? (
+                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pr-4">
+                                {slipsLoading || usersLoading ? (
+                                    <p>Loading requests...</p>
+                                ) : pendingSlips.length > 0 ? (
+                                    pendingSlips.map(slip => <PermissionSlipCard key={slip.id} slip={slip} />)
+                                ) : (
+                                    <div className="col-span-full text-center py-16">
+                                        <CheckCircle2 className="mx-auto h-12 w-12 text-green-500" />
+                                        <p className="mt-4 text-muted-foreground">No pending requests to show.</p>
+                                    </div>
+                                )}
+                            </div>
+                         ) : (
+                             <Card className="mr-4">
+                                 {pendingSlips.map(slip => <PermissionSlipListItem key={slip.id} slip={slip} />)}
+                             </Card>
+                         )}
                     </ScrollArea>
                 </TabsContent>
                 <TabsContent value="processed">
                     <ScrollArea className="h-[60vh] mt-4">
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pr-4">
-                             {slipsLoading || usersLoading ? (
-                                <p>Loading requests...</p>
-                            ) : processedSlips.length > 0 ? (
-                                processedSlips.map(slip => <PermissionSlipCard key={slip.id} slip={slip} />)
-                            ) : (
-                                <div className="col-span-full text-center py-16">
-                                    <p className="mt-4 text-muted-foreground">No processed requests yet.</p>
-                                </div>
-                            )}
-                        </div>
-                    </ScrollArea>
-                </TabsContent>
-             </Tabs>
-        </div>
-    )
-  }
-
-  const renderAdminView = () => {
-    const pendingSlips = allSlipsSorted.filter(s => s.status === 'Pending');
-    const processedSlips = allSlipsSorted.filter(s => s.status !== 'Pending');
-
-    return (
-        <div>
-            <p className="text-muted-foreground">View all leave requests submitted across the school.</p>
-             <Tabs defaultValue="pending" className="mt-4">
-                <TabsList>
-                    <TabsTrigger value="pending">Pending <Badge className="ml-2">{pendingSlips.length}</Badge></TabsTrigger>
-                    <TabsTrigger value="processed">Processed</TabsTrigger>
-                </TabsList>
-                <TabsContent value="pending">
-                     <ScrollArea className="h-[60vh] mt-4">
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pr-4">
-                            {slipsLoading || usersLoading ? (
-                                <p>Loading requests...</p>
-                            ) : pendingSlips.length > 0 ? (
-                                pendingSlips.map(slip => <PermissionSlipCard key={slip.id} slip={slip} />)
-                            ) : (
-                                <div className="col-span-full text-center py-16">
-                                    <CheckCircle2 className="mx-auto h-12 w-12 text-green-500" />
-                                    <p className="mt-4 text-muted-foreground">No pending requests to show.</p>
-                                </div>
-                            )}
-                        </div>
-                    </ScrollArea>
-                </TabsContent>
-                <TabsContent value="processed">
-                    <ScrollArea className="h-[60vh] mt-4">
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pr-4">
-                             {slipsLoading || usersLoading ? (
-                                <p>Loading requests...</p>
-                            ) : processedSlips.length > 0 ? (
-                                processedSlips.map(slip => <PermissionSlipCard key={slip.id} slip={slip} />)
-                            ) : (
-                                <div className="col-span-full text-center py-16">
-                                    <p className="mt-4 text-muted-foreground">No processed requests yet.</p>
-                                </div>
-                            )}
-                        </div>
+                        {viewType === 'card' ? (
+                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pr-4">
+                                {slipsLoading || usersLoading ? (
+                                    <p>Loading requests...</p>
+                                ) : processedSlips.length > 0 ? (
+                                    processedSlips.map(slip => <PermissionSlipCard key={slip.id} slip={slip} />)
+                                ) : (
+                                    <div className="col-span-full text-center py-16">
+                                        <p className="mt-4 text-muted-foreground">No processed requests yet.</p>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <Card className="mr-4">
+                                {processedSlips.map(slip => <PermissionSlipListItem key={slip.id} slip={slip} />)}
+                            </Card>
+                        )}
                     </ScrollArea>
                 </TabsContent>
              </Tabs>
@@ -492,8 +504,8 @@ export default function PermissionsPage() {
       ) : (
         <>
             {role === 'student' && renderStudentView()}
-            {role === 'teacher' && renderTeacherView()}
-            {role === 'admin' && renderAdminView()}
+            {role === 'teacher' && renderRoleView(teacherSlips)}
+            {role === 'admin' && renderRoleView(allSlipsSorted)}
         </>
       )}
       
@@ -563,3 +575,5 @@ export default function PermissionsPage() {
     </>
   )
 }
+
+    
