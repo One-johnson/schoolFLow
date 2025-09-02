@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/chart"
 import { DateRange } from "react-day-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { Calendar } from "@/components/ui/calendar"
+import { Calendar } from "@/components/ui/calendar";
 
 // Data Types
 type Student = { id: string; name: string; studentId: string; avatarUrl?: string; createdAt: number; };
@@ -160,7 +160,7 @@ export function StudentDashboard() {
             if (!studentClass) return;
             const classRecord = dailyRecord[studentClass.id] as AttendanceRecord | undefined;
             if (classRecord && classRecord[user.uid]) {
-              const studentStatus = classRecord[user.uid].status;
+              const studentStatus = classRecord[user.uid]?.status;
               if (studentStatus) {
                   stats[studentStatus]++;
                   totalDays++;
@@ -420,8 +420,37 @@ export function StudentDashboard() {
                      <Button asChild variant="outline"><Link href={`/dashboard/students/${user?.uid}`}><User/>Profile</Link></Button>
                 </CardContent>
             </Card>
+        </div>
+      </div>
+      
+       <div className="grid gap-6 lg:grid-cols-2">
+            {/* Recent Announcements Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Announcements</CardTitle>
+                <CardDescription>Latest news and updates for you.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {loading ? <Skeleton className="h-20 w-full" /> : recentAnnouncements.length > 0 ? (
+                  recentAnnouncements.map(ann => (
+                    <div key={ann.id} className="flex items-start gap-4">
+                        <div className="p-2 bg-muted rounded-full text-muted-foreground mt-1"><Megaphone className="h-4 w-4" /></div>
+                        <div>
+                            <p className="font-semibold text-sm">{ann.title}</p>
+                            <p className="text-xs text-muted-foreground">{ann.content}</p>
+                        </div>
+                    </div>
+                  ))
+                ) : <p className="text-sm text-center text-muted-foreground py-4">No new announcements.</p>}
+              </CardContent>
+               <CardFooter>
+                 <Button asChild variant="outline" className="w-full">
+                    <Link href="/dashboard/announcements">View All Announcements <ArrowRight className="ml-2 h-4 w-4"/></Link>
+                </Button>
+              </CardFooter>
+            </Card>
 
-            {/* New Messages Card */}
+             {/* New Messages Card */}
             <Card>
               <CardHeader>
                 <CardTitle>New Messages</CardTitle>
@@ -453,34 +482,6 @@ export function StudentDashboard() {
                 </Button>
               </CardFooter>
             </Card>
-
-            {/* Recent Announcements */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Announcements</CardTitle>
-                <CardDescription>Latest news and updates for you.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {loading ? <Skeleton className="h-20 w-full" /> : recentAnnouncements.length > 0 ? (
-                  recentAnnouncements.map(ann => (
-                    <div key={ann.id} className="flex items-start gap-4">
-                        <div className="p-2 bg-muted rounded-full text-muted-foreground mt-1"><Megaphone className="h-4 w-4" /></div>
-                        <div>
-                            <p className="font-semibold text-sm">{ann.title}</p>
-                            <p className="text-xs text-muted-foreground">{ann.content}</p>
-                        </div>
-                    </div>
-                  ))
-                ) : <p className="text-sm text-center text-muted-foreground py-4">No new announcements.</p>}
-              </CardContent>
-               <CardFooter>
-                 <Button asChild variant="outline" className="w-full">
-                    <Link href="/dashboard/announcements">View All Announcements <ArrowRight className="ml-2 h-4 w-4"/></Link>
-                </Button>
-              </CardFooter>
-            </Card>
-
-        </div>
       </div>
     </div>
   );
