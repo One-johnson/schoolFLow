@@ -359,7 +359,12 @@ export default function MessagesPage() {
                     </Avatar>
                      <div>
                         <CardTitle className="text-lg">{selectedConversation.name}</CardTitle>
-                        <CardDescription className="capitalize">{selectedConversation.role}</CardDescription>
+                        <CardDescription className="capitalize">
+                            {selectedConversation.role === 'student'
+                                ? studentsMap.get(selectedConversation.id)?.studentId
+                                : selectedConversation.role
+                            }
+                        </CardDescription>
                     </div>
                 </CardHeader>
                 <ScrollArea className="flex-1 p-4 space-y-4">
