@@ -31,8 +31,7 @@ import {
   UserCheck,
 } from "lucide-react"
 import Link from "next/link"
-import { database } from '@/lib/firebase';
-import { set, ref, update, getDatabase } from 'firebase/database';
+import { getDatabase, ref, update } from 'firebase/database';
 
 
 import { Button } from "@/components/ui/button"
@@ -95,7 +94,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { cn, generateTeacherId } from "@/lib/utils"
+import { cn } from "@/lib/utils"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { format } from "date-fns"
@@ -227,7 +226,6 @@ export default function TeachersPage() {
     }
     setIsLoading(true);
 
-    const teacherId = generateTeacherId(newTeacher.department!);
     const functions = getFunctions();
     const createUser = httpsCallable(functions, 'createUser');
     
@@ -243,11 +241,10 @@ export default function TeachersPage() {
       await createUser({
         role: 'teacher',
         email: newTeacher.email,
-        password: teacherId,
+        password: "password", // default password
         displayName: newTeacher.name,
         profileData: {
           ...teacherData,
-          teacherId: teacherId,
           status: 'Active',
         },
       });

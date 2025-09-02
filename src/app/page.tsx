@@ -13,14 +13,25 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
 import { auth, database } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { ref, get } from 'firebase/database';
 
 export default function LoginPage() {
+  const router = useRouter();
+  
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if(user) {
+        router.replace('/dashboard');
+      }
+    });
+    return () => unsubscribe();
+  }, [router]);
+  
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
@@ -81,16 +92,7 @@ function LoginForm({ role }: { role: string }) {
 
         if (userRole === role) {
           toast({ title: 'Success', description: 'Signed in successfully. Redirecting...' });
-          // Redirect to role-specific default page
-          if (userRole === 'admin') {
-            router.push('/dashboard');
-          } else if (userRole === 'teacher') {
-            router.push('/dashboard');
-          } else if (userRole === 'student') {
-             router.push(`/dashboard`);
-          } else {
-            router.push('/dashboard'); // Fallback
-          }
+          router.replace('/dashboard');
         } else {
            throw new Error(`You are not authorized to log in as a(n) ${role}.`);
         }

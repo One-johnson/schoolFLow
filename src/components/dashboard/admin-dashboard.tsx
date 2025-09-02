@@ -46,7 +46,7 @@ type StudentFee = { id: string; amountDue: number; amountPaid: number; status: "
 type AttendanceRecord = Record<string, "Present" | "Absent" | "Late" | "Excused">;
 type DailyAttendance = { [classId: string]: AttendanceRecord };
 type Notification = { id: string, message: string, createdAt: number, type: string };
-type Subject = { id: string; name: string; teacherId?: string; };
+type Subject = { id: string; name: string; teacherIds?: Record<string, boolean>; };
 
 const iconMap: { [key: string]: React.ReactNode } = {
   student_enrolled: <Users className="h-4 w-4" />,
@@ -86,8 +86,8 @@ export function AdminDashboard() {
   const unassignedTeachers = useMemo(() => {
       const assignedTeacherIds = new Set<string>();
       subjects.forEach(s => {
-        if(s.teacherId) {
-            assignedTeacherIds.add(s.teacherId);
+        if(s.teacherIds) {
+            Object.keys(s.teacherIds).forEach(id => assignedTeacherIds.add(id));
         }
       });
       return teachers.filter(t => !assignedTeacherIds.has(t.id)).length;
