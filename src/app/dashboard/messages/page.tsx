@@ -16,7 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Send, MessageSquare, Search, BookOpen, UserCheck, MoreHorizontal, Pencil, Trash2, CheckCheck } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -229,7 +229,9 @@ export default function MessagesPage() {
           </Avatar>
           <div className="flex-1 truncate">
               <p className="font-semibold">{contact.name}</p>
-              <p className="text-xs text-muted-foreground capitalize">{contact.role}</p>
+              <p className="text-xs text-muted-foreground capitalize">
+                {contact.role === 'student' ? contact.studentId : contact.role}
+              </p>
           </div>
           {conversationThreads.get(contact.id)?.unreadCount > 0 && (
             <Badge>{conversationThreads.get(contact.id)?.unreadCount}</Badge>
