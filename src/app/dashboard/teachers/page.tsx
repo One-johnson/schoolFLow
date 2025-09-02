@@ -31,7 +31,9 @@ import {
   UserCheck,
 } from "lucide-react"
 import Link from "next/link"
-import { getDatabase, ref, update } from 'firebase/database';
+import { database, auth } from '@/lib/firebase';
+import { set, ref, update, serverTimestamp } from 'firebase/database';
+import { createUserWithEmailAndPassword } from "firebase/auth"
 
 
 import { Button } from "@/components/ui/button"
@@ -94,15 +96,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { cn } from "@/lib/utils"
+import { cn, generateTeacherId } from "@/lib/utils"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { format } from "date-fns"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ImageUpload } from "@/components/ui/image-upload"
-import { serverTimestamp } from "firebase/database"
-import { getFunctions, httpsCallable } from "firebase/functions";
 
 type Teacher = {
   id: string
@@ -154,6 +154,7 @@ export default function TeachersPage() {
     data: teachers,
     loading: dataLoading,
     deleteData,
+    updateData: updateTeacherData,
     uploadFile,
   } = useDatabase<Teacher>("teachers")
   const { data: classes, updateData: updateClass } = useDatabase<Class>("classes");
@@ -226,28 +227,29 @@ export default function TeachersPage() {
     }
     setIsLoading(true);
 
-    const functions = getFunctions();
-    const createUser = httpsCallable(functions, 'createUser');
-    
+    const teacherId = generateTeacherId(newTeacher.department);
+    const password = teacherId; // Use generated ID as password
+
     try {
-      const teacherData = { ...newTeacher };
-      if (dob) {
-        teacherData.dateOfBirth = format(dob, "yyyy-MM-dd");
-      }
-      if (doe) {
-        teacherData.dateOfEmployment = format(doe, "yyyy-MM-dd");
-      }
-      
-      await createUser({
-        role: 'teacher',
-        email: newTeacher.email,
-        password: "password", // default password
-        displayName: newTeacher.name,
-        profileData: {
-          ...teacherData,
-          status: 'Active',
-        },
-      });
+        const userCredential = await createUserWithEmailAndPassword(auth, newTeacher.email!, password);
+        const { uid } = userCredential.user;
+
+        const teacherProfile = {
+            ...newTeacher,
+            id: uid,
+            teacherId,
+            status: 'Active',
+            createdAt: serverTimestamp(),
+            dateOfBirth: dob ? format(dob, 'yyyy-MM-dd') : undefined,
+            dateOfEmployment: doe ? format(doe, 'yyyy-MM-dd') : undefined,
+        };
+
+        await set(ref(database, `teachers/${uid}`), teacherProfile);
+        await set(ref(database, `users/${uid}`), {
+            role: 'teacher',
+            email: newTeacher.email,
+            name: newTeacher.name,
+        });
 
       await addNotification({
         type: 'teacher_added',
@@ -260,7 +262,11 @@ export default function TeachersPage() {
       setIsCreateDialogOpen(false);
     } catch (error: any) {
       console.error("Teacher creation error:", error);
-      toast({ title: "Error", description: `Failed to add teacher: ${error.message}`, variant: "destructive" });
+      if (error.code === 'auth/email-already-in-use') {
+        toast({ title: "Error", description: "This email is already in use.", variant: "destructive" });
+      } else {
+        toast({ title: "Error", description: `Failed to add teacher: ${error.message}`, variant: "destructive" });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -278,7 +284,6 @@ export default function TeachersPage() {
     if (!selectedTeacher || !editTeacher) return
     setIsLoading(true);
     try {
-      const db = getDatabase();
       const updates: any = {
         ...editTeacher,
         dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
@@ -286,11 +291,8 @@ export default function TeachersPage() {
         updatedAt: serverTimestamp(),
       };
       
-      const teacherRef = ref(db, `teachers/${selectedTeacher.id}`);
-      await update(teacherRef, updates);
-
-      const userRef = ref(db, `users/${selectedTeacher.id}`);
-      await update(userRef, { name: editTeacher.name, email: editTeacher.email });
+      await updateTeacherData(selectedTeacher.id, updates);
+      await update(ref(database, `users/${selectedTeacher.id}`), { name: editTeacher.name, email: editTeacher.email });
 
       toast({ title: "Success", description: "Teacher updated." })
       setIsEditDialogOpen(false)
@@ -549,7 +551,7 @@ export default function TeachersPage() {
                   <AlertDialogHeader>
                       <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                       <AlertDialogDescription>
-                          This action cannot be undone. This will permanently delete the teacher account and remove their data from our servers.
+                          This action cannot be undone. This will permanently delete the teacher database record. The auth user will need to be deleted manually from the Firebase console.
                       </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
