@@ -50,12 +50,16 @@ export function useDatabase<T extends { id?: string }>(path: string) {
   const addData = useCallback(async (newData: Omit<T, 'id'>) => {
     const databaseRef = dbRef(database, path);
     const newRef = push(databaseRef);
-    return set(newRef, { ...newData, createdAt: serverTimestamp() });
+    // If createdAt is not provided, add it. This is for general purpose.
+    // Specific components like messages will provide their own timestamp.
+    const dataToSet = 'createdAt' in newData ? newData : { ...newData, createdAt: serverTimestamp() };
+    return set(newRef, dataToSet);
   }, [path]);
   
   const addDataWithId = useCallback(async (id: string, newData: Omit<T, 'id'>) => {
     const databaseRef = dbRef(database, `${path}/${id}`);
-    return set(databaseRef, { ...newData, createdAt: serverTimestamp() });
+    const dataToSet = 'createdAt' in newData ? newData : { ...newData, createdAt: serverTimestamp() };
+    return set(databaseRef, dataToSet);
   }, [path]);
 
   const updateData = useCallback(async (id: string, updates: Partial<T> | any) => {

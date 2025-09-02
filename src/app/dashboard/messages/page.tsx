@@ -131,7 +131,8 @@ export default function MessagesPage() {
         recipientId: selectedConversation.id,
         content: messageContent,
         read: false,
-      } as Omit<Message, 'id' | 'timestamp'>);
+        timestamp: Date.now(), // Use client-side timestamp
+      } as Omit<Message, 'id'>);
       setMessageContent("");
     } catch(e) {
       toast({ title: "Error sending message", variant: "destructive"});
