@@ -86,6 +86,7 @@ export default function PermissionsPage() {
   const { data: permissionSlips, addData, updateData, loading: slipsLoading } = useDatabase<PermissionSlip>("permissionSlips");
   const { data: classes, loading: classesLoading } = useDatabase<Class>('classes');
   const { data: users, loading: usersLoading } = useDatabase<UserProfile>("users");
+  const { data: students, loading: studentsLoading } = useDatabase<UserProfile>("students");
   
   const [isRequestDialogOpen, setIsRequestDialogOpen] = React.useState(false);
   const [reason, setReason] = React.useState("");
@@ -97,6 +98,7 @@ export default function PermissionsPage() {
   const { toast } = useToast();
 
   const usersMap = React.useMemo(() => new Map(users.map(u => [u.id, u])), [users]);
+  const studentsMap = React.useMemo(() => new Map(students.map(s => [s.id, s])), [students]);
 
   const studentClass = React.useMemo(() => {
     if (role !== 'student' || !user) return null;
@@ -131,11 +133,17 @@ export default function PermissionsPage() {
         return;
     }
 
+    const studentProfile = studentsMap.get(user!.uid);
+    if (!studentProfile) {
+        toast({ title: "Error", description: "Could not find your student profile.", variant: "destructive" });
+        return;
+    }
+
     setIsLoading(true);
     try {
         await addData({
             studentId: user!.uid,
-            studentName: user!.displayName || "Unknown",
+            studentName: studentProfile.name || "Unknown",
             classId: studentClass.id,
             className: studentClass.name,
             teacherId: studentClass.teacherId,
@@ -419,7 +427,7 @@ export default function PermissionsPage() {
          </div>
       </div>
       
-      {slipsLoading || classesLoading || usersLoading ? (
+      {slipsLoading || classesLoading || usersLoading || studentsLoading ? (
          <div className="flex h-64 items-center justify-center">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
         </div>
@@ -434,3 +442,5 @@ export default function PermissionsPage() {
     </div>
   )
 }
+
+    
