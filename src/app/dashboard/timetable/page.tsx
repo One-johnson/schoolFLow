@@ -88,19 +88,19 @@ export default function TimetablePage() {
 
   // Determine which classes/timetables to show based on role
   const relevantClassIds = React.useMemo(() => {
-    if (!user || !role) return [];
-    if (role === 'admin') return classes.map(c => c.id);
-    if (role === 'teacher') return classes.filter(c => c.teacherId === user.uid).map(c => c.id);
+    if (!user || !role) return new Set<string>();
+    if (role === 'admin') return new Set(classes.map(c => c.id));
+    if (role === 'teacher') return new Set(classes.filter(c => c.teacherId === user.uid).map(c => c.id));
     if (role === 'student') {
         const studentClass = classes.find(c => c.studentIds && c.studentIds[user.uid]);
-        return studentClass ? [studentClass.id] : [];
+        return studentClass ? new Set([studentClass.id]) : new Set();
     }
-    return [];
+    return new Set();
   }, [user, role, classes]);
 
   const timetablesForRole = React.useMemo(() => {
-    if(role === 'admin') return timetables; // Admin sees all
-    return timetables.filter(tt => relevantClassIds.includes(tt.id));
+    if(role === 'admin') return timetables;
+    return timetables.filter(tt => relevantClassIds.has(tt.id));
   }, [timetables, relevantClassIds, role]);
   
   const originalTimetableForClass = React.useMemo(() => {
@@ -135,14 +135,10 @@ export default function TimetablePage() {
 
   // Auto-select the first available class for student
   React.useEffect(() => {
-      if(role === 'student') {
-        if(timetablesForRole.length > 0) {
-            setSelectedClassId(timetablesForRole[0].id)
-        } else {
-            setSelectedClassId(undefined);
-        }
+      if(role === 'student' && timetablesForRole.length > 0 && !selectedClassId) {
+            setSelectedClassId(timetablesForRole[0].id);
       }
-  }, [role, timetablesForRole])
+  }, [role, timetablesForRole, selectedClassId])
 
   React.useEffect(() => {
     setEditableTimetable(_.cloneDeep(originalTimetableForClass));
@@ -357,7 +353,7 @@ export default function TimetablePage() {
             {role === 'student' && "View your class schedule."}
           </p>
         </div>
-        {role === 'admin' && hasChanges && selectedClassId !== 'all' && (
+        {role === 'admin' && hasChanges && selectedClassId && selectedClassId !== 'all' && (
             <div className="flex gap-2">
                 <Button onClick={handleSaveChanges} disabled={isLoading}>
                    {isLoading ? <Loader2 className="mr-2 animate-spin"/> : <Save className="mr-2" />} Save Changes
@@ -416,7 +412,7 @@ export default function TimetablePage() {
                 <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
             </div>
         ) : role === 'admin' ? (
-          selectedClassId === 'all' ? (
+          selectedClassId === 'all' || !selectedClassId ? (
               <div className="space-y-8">
                   {timetables.length > 0 ? timetables.map(tt => {
                       const { id, ...timetableData } = tt;
@@ -436,12 +432,8 @@ export default function TimetablePage() {
                       </div>
                   )}
               </div>
-          ) : selectedClassId ? (
-              renderAdminTimetableGrid(editableTimetable, true)
           ) : (
-              <div className="flex h-96 items-center justify-center">
-                  <p className="text-muted-foreground">Please select a class to view or edit the timetable.</p>
-              </div>
+              renderAdminTimetableGrid(editableTimetable, true)
           )
         ) : role === 'teacher' ? (
              <div className="space-y-8">
