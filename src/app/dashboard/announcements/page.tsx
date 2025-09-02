@@ -44,6 +44,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
 import { PlusCircle, Megaphone, Trash2, Pencil, MoreHorizontal, Loader2, Users, School } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
@@ -66,7 +67,7 @@ type Announcement = {
   createdAt: number,
   audience: 'school' | string; // 'school' or a classId
 }
-type Class = { id: string; name: string, teacherId?: string };
+type Class = { id: string; name: string, teacherId?: string, studentIds?: Record<string, boolean> };
 
 
 export default function AnnouncementsPage() {
@@ -365,3 +366,5 @@ export default function AnnouncementsPage() {
     </div>
   )
 }
+
+    
