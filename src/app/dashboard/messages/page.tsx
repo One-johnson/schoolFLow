@@ -19,6 +19,7 @@ import { Loader2, Send, MessageSquare } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 
 type User = { id: string; name: string; avatarUrl?: string; role: 'student' | 'teacher' | 'admin' };
 type Class = { id: string; studentIds?: Record<string, boolean>; teacherId?: string };
