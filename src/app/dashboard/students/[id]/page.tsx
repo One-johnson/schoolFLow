@@ -8,7 +8,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, User, BookOpen, ClipboardCheck, DollarSign, Download, Award, ChevronDown, ShieldAlert, Edit, BarChart, PieChart, Activity as ActivityIcon, PlusCircle, Trash2 } from 'lucide-react';
+import { Loader2, User, BookOpen, ClipboardCheck, DollarSign, Download, Award, ChevronDown, ShieldAlert, Edit, PlusCircle, Trash2, MoreHorizontal, Activity as ActivityIcon } from 'lucide-react';
 import { format, parseISO, isWithinInterval } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -34,7 +34,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { Bar, Pie, ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip, MoreHorizontal } from 'recharts';
+import { Bar, Pie, ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip } from 'recharts';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 
@@ -682,34 +682,36 @@ export default function StudentInfoPage() {
                                                     <TableCell>{format(parseISO(activity.startDate), 'PPP')} - {activity.endDate ? format(parseISO(activity.endDate), 'PPP') : 'Present'}</TableCell>
                                                     {role === 'admin' && (
                                                         <TableCell className="text-right">
-                                                            <DropdownMenu>
-                                                                <DropdownMenuTrigger asChild>
-                                                                    <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4"/></Button>
-                                                                </DropdownMenuTrigger>
-                                                                <DropdownMenuContent>
-                                                                    <DropdownMenuItem onSelect={() => openActivityDialog(activity)}>
-                                                                        <Edit className="mr-2 h-4 w-4"/> Edit
-                                                                    </DropdownMenuItem>
-                                                                    <DropdownMenuSeparator/>
-                                                                    <AlertDialogTrigger asChild>
-                                                                        <DropdownMenuItem className="text-destructive focus:text-destructive">
-                                                                            <Trash2 className="mr-2 h-4 w-4"/> Delete
+                                                            <AlertDialog>
+                                                                <DropdownMenu>
+                                                                    <DropdownMenuTrigger asChild>
+                                                                        <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4"/></Button>
+                                                                    </DropdownMenuTrigger>
+                                                                    <DropdownMenuContent>
+                                                                        <DropdownMenuItem onSelect={() => openActivityDialog(activity)}>
+                                                                            <Edit className="mr-2 h-4 w-4"/> Edit
                                                                         </DropdownMenuItem>
-                                                                    </AlertDialogTrigger>
-                                                                </DropdownMenuContent>
-                                                            </DropdownMenu>
-                                                            <AlertDialogContent>
-                                                                <AlertDialogHeader>
-                                                                    <AlertDialogTitle>Delete Activity?</AlertDialogTitle>
-                                                                    <AlertDialogDescription>This action cannot be undone. Are you sure you want to delete this activity?</AlertDialogDescription>
-                                                                </AlertDialogHeader>
-                                                                <AlertDialogFooter>
-                                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                                    <AlertDialogAction onClick={() => handleActivityDelete(activity.id)} className="bg-destructive hover:bg-destructive/90" disabled={isUpdating}>
-                                                                        {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : "Delete"}
-                                                                    </AlertDialogAction>
-                                                                </AlertDialogFooter>
-                                                            </AlertDialogContent>
+                                                                        <DropdownMenuSeparator/>
+                                                                        <AlertDialogTrigger asChild>
+                                                                            <DropdownMenuItem className="text-destructive focus:text-destructive">
+                                                                                <Trash2 className="mr-2 h-4 w-4"/> Delete
+                                                                            </DropdownMenuItem>
+                                                                        </AlertDialogTrigger>
+                                                                    </DropdownMenuContent>
+                                                                </DropdownMenu>
+                                                                <AlertDialogContent>
+                                                                    <AlertDialogHeader>
+                                                                        <AlertDialogTitle>Delete Activity?</AlertDialogTitle>
+                                                                        <AlertDialogDescription>This action cannot be undone. Are you sure you want to delete this activity?</AlertDialogDescription>
+                                                                    </AlertDialogHeader>
+                                                                    <AlertDialogFooter>
+                                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                        <AlertDialogAction onClick={() => handleActivityDelete(activity.id)} className="bg-destructive hover:bg-destructive/90" disabled={isUpdating}>
+                                                                            {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : "Delete"}
+                                                                        </AlertDialogAction>
+                                                                    </AlertDialogFooter>
+                                                                </AlertDialogContent>
+                                                            </AlertDialog>
                                                         </TableCell>
                                                     )}
                                                 </TableRow>
@@ -853,3 +855,5 @@ export default function StudentInfoPage() {
         </>
     );
 }
+
+    
