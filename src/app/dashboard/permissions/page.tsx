@@ -47,7 +47,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
-type User = {
+type UserProfile = {
     id: string;
     name: string;
     avatarUrl?: string;
@@ -85,7 +85,7 @@ export default function PermissionsPage() {
   const { user, role } = useAuth();
   const { data: permissionSlips, addData, updateData, loading: slipsLoading } = useDatabase<PermissionSlip>("permissionSlips");
   const { data: classes, loading: classesLoading } = useDatabase<Class>('classes');
-  const { data: users, loading: usersLoading } = useDatabase<User>("users");
+  const { data: users, loading: usersLoading } = useDatabase<UserProfile>("users");
   
   const [isRequestDialogOpen, setIsRequestDialogOpen] = React.useState(false);
   const [reason, setReason] = React.useState("");
