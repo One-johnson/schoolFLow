@@ -131,7 +131,7 @@ export default function MessagesPage() {
         recipientId: selectedConversation.id,
         content: messageContent,
         read: false,
-        timestamp: Date.now(), // Use client-side timestamp
+        timestamp: Date.now(),
       } as Omit<Message, 'id'>);
       setMessageContent("");
     } catch(e) {
@@ -214,7 +214,7 @@ export default function MessagesPage() {
                            <div className={cn("max-w-xs md:max-w-md lg:max-w-lg rounded-lg p-3 text-sm", msg.senderId === user?.uid ? "bg-primary text-primary-foreground" : "bg-muted")}>
                                 <p>{msg.content}</p>
                                 <p className={cn("text-xs mt-1", msg.senderId === user?.uid ? "text-primary-foreground/70" : "text-muted-foreground")}>
-                                    {formatDistanceToNow(new Date(msg.timestamp), { addSuffix: true })}
+                                    {typeof msg.timestamp === 'number' ? formatDistanceToNow(new Date(msg.timestamp), { addSuffix: true }) : 'sending...'}
                                 </p>
                            </div>
                         </div>
