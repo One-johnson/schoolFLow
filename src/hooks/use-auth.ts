@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, database } from '@/lib/firebase';
-import { ref, get, onValue } from 'firebase/database';
+import { ref, onValue } from 'firebase/database';
 
 interface AuthState {
   user: User | null;
@@ -20,33 +20,29 @@ export function useAuth(): AuthState {
   const [name, setName] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setLoading(true);
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
         setUser(user);
-        
-        // Use onValue for realtime updates to role and name
         const userDbRef = ref(database, `users/${user.uid}`);
+        
         const unsubscribeDb = onValue(userDbRef, (snapshot) => {
           if (snapshot.exists()) {
             const userData = snapshot.val();
             setRole(userData.role);
-            setName(userData.name);
+            setName(userData.name || user.displayName);
           } else {
-            // If no record found, they have no role
             setRole(null);
-            setName(user.displayName); // Fallback to auth display name
-            console.warn(`No user record found in database for user ${user.uid}`);
+            setName(user.displayName);
           }
-          if(loading) setLoading(false);
-        }, (dbError) => {
-           console.error("Error fetching user role from DB:", dbError);
-           setRole(null);
-           setName(null);
-           if(loading) setLoading(false);
+          setLoading(false);
+        }, (error) => {
+          console.error("Database error in auth hook:", error);
+          setRole(null);
+          setName(null);
+          setLoading(false);
         });
 
-        // This is a cleanup function for the database listener
+        // Return the database listener cleanup function
         return () => unsubscribeDb();
 
       } else {
@@ -57,8 +53,9 @@ export function useAuth(): AuthState {
       }
     });
 
-    return () => unsubscribe();
-  }, [loading]);
-  
+    // Return the auth listener cleanup function
+    return () => unsubscribeAuth();
+  }, []); // The dependency array should be empty to run only once on mount
+
   return { user, name, loading, role };
 }
