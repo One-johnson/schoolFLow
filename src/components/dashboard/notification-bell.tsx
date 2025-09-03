@@ -30,7 +30,7 @@ import type { FirebaseOptions } from "firebase/app";
 
 type Notification = {
   id: string;
-  type: "student_enrolled" | "teacher_added" | "class_created" | "announcement" | "exam_published" | "fee_assigned" | "payment_received";
+  type: "student_enrolled" | "teacher_added" | "class_created" | "announcement" | "exam_published" | "fee_assigned" | "payment_received" | "fee_reminder";
   message: string;
   read: boolean;
   createdAt: number;
@@ -45,6 +45,7 @@ const iconMap = {
   exam_published: <FileText className="h-4 w-4 text-purple-500" />,
   fee_assigned: <DollarSign className="h-4 w-4 text-red-500" />,
   payment_received: <DollarSign className="h-4 w-4 text-green-500" />,
+  fee_reminder: <DollarSign className="h-4 w-4 text-orange-500" />,
 };
 
 export function NotificationBell() {

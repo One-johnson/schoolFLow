@@ -96,6 +96,8 @@ export default function ClassFeesPage() {
   const { data: students, loading: studentsLoading } = useDatabase<Student>("students");
   const { data: allStudentFees, loading: studentFeesLoading } = useDatabase<StudentFee>("studentFees");
   const { data: feeStructures, loading: feesLoading } = useDatabase<FeeStructure>("feeStructures");
+  const { addData: addNotification } = useDatabase("notifications");
+
 
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
@@ -145,11 +147,29 @@ export default function ClassFeesPage() {
     }, { totalDue: 0, totalPaid: 0, totalOutstanding: 0 });
   }, [classFeeRecords]);
 
-  const handleSendReminder = (fee: EnrichedFeeRecord) => {
-    toast({
-      title: "Reminder Sent!",
-      description: `A fee reminder has been sent to ${fee.studentName}.`,
-    });
+  const handleSendReminder = async (fee: EnrichedFeeRecord) => {
+    const balance = fee.amountDue - fee.amountPaid;
+    if (balance <= 0) {
+      toast({ title: "No outstanding balance", variant: "default" });
+      return;
+    }
+    
+    try {
+        await addNotification({
+            type: 'fee_reminder',
+            message: `Reminder: You have an outstanding balance of GH₵${balance.toFixed(2)} for ${fee.feeName}.`,
+            read: false,
+            recipientId: fee.studentId
+        } as any);
+
+        toast({
+        title: "Reminder Sent!",
+        description: `A fee reminder has been sent to ${fee.studentName}.`,
+        });
+    } catch (error) {
+        console.error("Failed to send reminder:", error);
+        toast({ title: "Error", description: "Could not send reminder.", variant: "destructive" });
+    }
   };
   
   const columns: ColumnDef<EnrichedFeeRecord>[] = [
