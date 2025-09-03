@@ -15,7 +15,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Send, MessageSquare, Search, BookOpen, UserCheck, MoreHorizontal, Pencil, Trash2, CheckCheck, Users, Paperclip, File as FileIcon } from "lucide-react";
+import { Loader2, Send, MessageSquare, Search, BookOpen, UserCheck, MoreHorizontal, Pencil, Trash2, CheckCheck, Users, Paperclip, File as FileIcon, XCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
