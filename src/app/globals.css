@@ -88,14 +88,24 @@ body {
 }
 
 @media print {
+  body {
+    background-color: white;
+  }
   .print-hidden {
     display: none;
   }
-  main {
+  .print-container {
     padding: 0;
     margin: 0;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
   }
-  body {
-    -webkit-print-color-adjust: exact;
+  .report-card {
+    box-shadow: none;
+    border: none;
+    page-break-after: always;
   }
 }

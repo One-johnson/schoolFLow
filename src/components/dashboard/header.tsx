@@ -4,14 +4,14 @@
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { UserNav } from "@/components/dashboard/user-nav"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Search, Moon, Sun, Calendar, Clock, School } from "lucide-react"
+import { Moon, Sun, Calendar, Clock, School } from "lucide-react"
 import { NotificationBell } from "@/components/dashboard/notification-bell"
 import { useTheme } from "next-themes"
 import { useState, useEffect } from "react"
 import { format } from "date-fns"
 import Link from "next/link"
+import { GlobalSearch } from "./global-search"
 
 function LiveDateTime() {
   const [dateTime, setDateTime] = useState(new Date());
@@ -62,14 +62,7 @@ export function DashboardHeader() {
       
        {/* Middle Section */}
        <div className="flex-1 flex justify-center">
-         <div className="relative w-full max-w-lg">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search..."
-              className="w-full rounded-lg bg-background pl-8"
-            />
-          </div>
+         <GlobalSearch />
        </div>
 
        {/* Right Section */}

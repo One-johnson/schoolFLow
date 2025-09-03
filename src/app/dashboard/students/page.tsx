@@ -30,8 +30,9 @@ import {
   GraduationCap,
 } from "lucide-react"
 import Link from "next/link"
-import { database } from '@/lib/firebase';
-import { set, ref, getDatabase, update } from 'firebase/database';
+import { database, auth } from '@/lib/firebase';
+import { set, ref, update, serverTimestamp } from 'firebase/database';
+import { createUserWithEmailAndPassword, deleteUser } from 'firebase/auth';
 
 
 import { Button } from "@/components/ui/button"
@@ -103,8 +104,6 @@ import { Calendar as CalendarIcon } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ImageUpload } from "@/components/ui/image-upload"
-import { serverTimestamp } from "firebase/database"
-import { getFunctions, httpsCallable } from "firebase/functions";
 
 type Student = {
   id: string
@@ -185,6 +184,7 @@ export default function StudentsPage() {
     data: allStudents,
     loading: dataLoading,
     deleteData,
+    updateData: updateStudent,
     uploadFile,
   } = useDatabase<Student>("students")
   const { data: classes, updateData: updateClass, updatePath: updateClassPath } = useDatabase<Class>("classes");
@@ -268,45 +268,51 @@ export default function StudentsPage() {
     setIsLoading(true);
 
     const studentId = generateStudentId();
-    const functions = getFunctions();
-    const createUser = httpsCallable(functions, 'createUser');
+    const password = studentId;
 
     try {
-      const studentData = { ...newStudent };
-       if (dob) {
-        studentData.dateOfBirth = format(dob, "yyyy-MM-dd");
-      }
+        const userCredential = await createUserWithEmailAndPassword(auth, newStudent.email!, password);
+        const { uid } = userCredential.user;
 
-      await createUser({
-        role: 'student',
-        email: newStudent.email,
-        password: studentId,
-        displayName: newStudent.name,
-        profileData: {
-          ...studentData,
-          studentId: studentId,
-          admissionNo: generateAdmissionNo(),
-          status: 'Active',
-        },
-      });
+        const studentProfile = {
+            ...newStudent,
+            id: uid,
+            studentId,
+            admissionNo: generateAdmissionNo(),
+            status: 'Active',
+            createdAt: serverTimestamp(),
+            dateOfBirth: dob ? format(dob, 'yyyy-MM-dd') : undefined,
+        };
 
-      await addNotification({
-        type: 'student_enrolled',
-        message: `New student "${newStudent.name}" was enrolled.`,
-        read: false,
-      });
+        await set(ref(database, `students/${uid}`), studentProfile);
+        await set(ref(database, `users/${uid}`), {
+            role: 'student',
+            email: newStudent.email,
+            name: newStudent.name,
+        });
 
-      toast({ title: "Success", description: "Student created successfully." });
-      setNewStudent({});
-      setDob(undefined);
-      setIsCreateDialogOpen(false);
+        await addNotification({
+            type: 'student_enrolled',
+            message: `New student "${newStudent.name}" was enrolled.`,
+            read: false,
+        });
+
+        toast({ title: "Success", description: "Student created successfully." });
+        setNewStudent({});
+        setDob(undefined);
+        setIsCreateDialogOpen(false);
     } catch (error: any) {
-      console.error("Student creation error:", error);
-      toast({ title: "Error", description: `Failed to add student: ${error.message}`, variant: "destructive" });
+        console.error("Student creation error:", error);
+        if (error.code === 'auth/email-already-in-use') {
+            toast({ title: "Error", description: "This email is already in use.", variant: "destructive" });
+        } else {
+            toast({ title: "Error", description: `Failed to add student: ${error.message}`, variant: "destructive" });
+        }
     } finally {
-      setIsLoading(false);
+        setIsLoading(false);
     }
-  };
+};
+
   
   const openEditDialog = (student: Student) => {
     setSelectedStudent(student)
@@ -327,17 +333,15 @@ export default function StudentsPage() {
     }
     setIsLoading(true);
     try {
-      const db = getDatabase();
       const updates: any = {
         ...editStudent,
         dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
         updatedAt: serverTimestamp(),
       };
       
-      const studentRef = ref(db, `students/${selectedStudent.id}`);
-      await update(studentRef, updates);
+      await updateStudent(selectedStudent.id, updates);
       
-      const userRef = ref(db, `users/${selectedStudent.id}`);
+      const userRef = ref(database, `users/${selectedStudent.id}`);
       await update(userRef, { name: editStudent.name, email: editStudent.email });
 
       toast({ title: "Success", description: "Student updated." })
@@ -363,9 +367,11 @@ export default function StudentsPage() {
         await updateClassPath(classRefPath, null); 
       }
       
+      // Note: This only deletes from the database. The auth user remains.
+      // A cloud function is needed to delete the auth user when the DB record is deleted.
       await deleteData(studentId);
 
-      toast({ title: "Success", description: "Student deleted successfully." });
+      toast({ title: "Success", description: "Student database record deleted." });
     } catch (error) {
       console.error("Deletion error:", error);
       toast({ title: "Error", description: "Failed to delete student.", variant: "destructive" });
@@ -601,7 +607,7 @@ export default function StudentsPage() {
                   <AlertDialogHeader>
                       <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                       <AlertDialogDescription>
-                          This action cannot be undone. This will permanently delete the student account and remove their data from our servers.
+                          This action cannot be undone. This will permanently delete the student database record. The auth user will need to be deleted manually from the Firebase console.
                       </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -784,9 +790,6 @@ export default function StudentsPage() {
                                             selected={dob}
                                             onSelect={setDob}
                                             initialFocus
-                                            captionLayout="dropdown-buttons"
-                                            fromYear={1950}
-                                            toYear={new Date().getFullYear()}
                                         />
                                         </PopoverContent>
                                     </Popover>
@@ -1118,9 +1121,6 @@ export default function StudentsPage() {
                                         selected={dob}
                                         onSelect={setDob}
                                         initialFocus
-                                        captionLayout="dropdown-buttons"
-                                        fromYear={1950}
-                                        toYear={new Date().getFullYear()}
                                     />
                                     </PopoverContent>
                                 </Popover>
