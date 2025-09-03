@@ -1,47 +1,53 @@
 'use server';
 
 /**
- * @fileOverview A flow for summarizing lengthy educational documents.
+ * @fileOverview A flow for answering questions based on a given document.
  *
- * - summarizeDocument - A function that accepts an educational document and returns a concise summary.
- * - SummarizeDocumentInput - The input type for the summarizeDocument function.
- * - SummarizeDocumentOutput - The return type for the summarizeDocument function.
+ * - answerQuestionFromDocument - A function that accepts a document and a question, and returns an answer.
+ * - DocumentQaInput - The input type for the answerQuestionFromDocument function.
+ * - DocumentQaOutput - The return type for the answerQuestionFromDocument function.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-const SummarizeDocumentInputSchema = z.object({
-  documentText: z.string().describe('The lengthy educational document to summarize.'),
+const DocumentQaInputSchema = z.object({
+  documentText: z.string().describe('The document to search for answers within.'),
+  question: z.string().describe('The question to answer based on the document.'),
 });
-export type SummarizeDocumentInput = z.infer<typeof SummarizeDocumentInputSchema>;
+export type DocumentQaInput = z.infer<typeof DocumentQaInputSchema>;
 
-const SummarizeDocumentOutputSchema = z.object({
-  summary: z.string().describe('A concise summary of the key points in the document.'),
+const DocumentQaOutputSchema = z.object({
+  answer: z.string().describe('The answer to the question, based *only* on the provided document. If the answer is not in the document, say so.'),
 });
-export type SummarizeDocumentOutput = z.infer<typeof SummarizeDocumentOutputSchema>;
+export type DocumentQaOutput = z.infer<typeof DocumentQaOutputSchema>;
 
-export async function summarizeDocument(input: SummarizeDocumentInput): Promise<SummarizeDocumentOutput> {
-  return summarizeDocumentFlow(input);
+export async function answerQuestionFromDocument(input: DocumentQaInput): Promise<DocumentQaOutput> {
+  return documentQaFlow(input);
 }
 
 const prompt = ai.definePrompt({
-  name: 'summarizeDocumentPrompt',
-  input: {schema: SummarizeDocumentInputSchema},
-  output: {schema: SummarizeDocumentOutputSchema},
-  prompt: `You are an expert summarizer of educational documents.
+  name: 'documentQaPrompt',
+  input: {schema: DocumentQaInputSchema},
+  output: {schema: DocumentQaOutputSchema},
+  prompt: `You are an expert at answering questions based on a provided document.
 
-  Please provide a concise summary of the key points in the following document:
+  Carefully read the document below and answer the user's question. Your answer must be based solely on the information found within the document. If the document does not contain the answer, you must state that the information is not available in the provided text.
 
-  Document: {{{documentText}}}
+  Document:
+  """
+  {{{documentText}}}
+  """
+
+  Question: "{{{question}}}"
   `,
 });
 
-const summarizeDocumentFlow = ai.defineFlow(
+const documentQaFlow = ai.defineFlow(
   {
-    name: 'summarizeDocumentFlow',
-    inputSchema: SummarizeDocumentInputSchema,
-    outputSchema: SummarizeDocumentOutputSchema,
+    name: 'documentQaFlow',
+    inputSchema: DocumentQaInputSchema,
+    outputSchema: DocumentQaOutputSchema,
   },
   async input => {
     const {output} = await prompt(input);
