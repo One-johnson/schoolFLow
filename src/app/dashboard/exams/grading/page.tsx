@@ -36,7 +36,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 type Exam = { id: string; name: string; status: "Upcoming" | "Ongoing" | "Grading" | "Published"; };
 type Class = { id: string; name: string; teacherId?: string; studentIds?: Record<string, boolean>; };
-type Subject = { id: string; name: string; classId?: string; teacherId?: string; };
+type Subject = { id: string; name: string; classIds?: Record<string, boolean>; teacherIds?: Record<string, boolean>; };
 type Student = { id: string; name: string };
 type StudentGrade = { id: string; examId: string; studentId: string; subjectId: string; classScore: number; examScore: number; teacherComment?: string; };
 type ScoresState = { [studentId: string]: { classScore: string; examScore: string; teacherComment: string } };
@@ -159,6 +159,8 @@ export default function GradingPage() {
     }
   };
 
+  const isGradingDisabled = exams.find(e => e.id === selectedExamId)?.status === 'Upcoming';
+
 
   return (
     <Card>
@@ -166,6 +168,7 @@ export default function GradingPage() {
         <CardTitle>Exam Grading</CardTitle>
         <CardDescription>
           Enter class scores and examination scores for students in your subjects.
+          {isGradingDisabled && <span className="text-destructive font-semibold ml-2">Grading is not yet open for this exam.</span>}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -175,7 +178,7 @@ export default function GradingPage() {
             <Select value={selectedExamId} onValueChange={setSelectedExamId}>
               <SelectTrigger><SelectValue placeholder="Select Exam..." /></SelectTrigger>
               <SelectContent>
-                {exams.filter(e => e.status === "Grading" || e.status === "Ongoing").map(exam => (
+                {exams.filter(e => e.status === "Grading" || e.status === "Ongoing" || e.status === "Upcoming").map(exam => (
                   <SelectItem key={exam.id} value={exam.id}>{exam.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -223,6 +226,7 @@ export default function GradingPage() {
                         value={scores[student.id]?.classScore || ''}
                         onChange={(e) => handleScoreChange(student.id, 'classScore', e.target.value)}
                         max={100}
+                        disabled={isGradingDisabled}
                       />
                     </TableCell>
                      <TableCell>
@@ -232,6 +236,7 @@ export default function GradingPage() {
                         value={scores[student.id]?.examScore || ''}
                         onChange={(e) => handleScoreChange(student.id, 'examScore', e.target.value)}
                         max={100}
+                        disabled={isGradingDisabled}
                       />
                     </TableCell>
                      <TableCell>
@@ -240,6 +245,7 @@ export default function GradingPage() {
                         className="min-h-[40px]"
                         value={scores[student.id]?.teacherComment || ''}
                         onChange={(e) => handleScoreChange(student.id, 'teacherComment', e.target.value)}
+                        disabled={isGradingDisabled}
                       />
                     </TableCell>
                   </TableRow>
@@ -255,7 +261,7 @@ export default function GradingPage() {
       </CardContent>
       {selectedExamId && selectedClassId && selectedSubjectId && (
         <CardFooter className="justify-end">
-            <Button onClick={handleSaveGrades} disabled={isLoading}>
+            <Button onClick={handleSaveGrades} disabled={isLoading || isGradingDisabled}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                 <Save className="mr-2 h-4 w-4" />
                 Save Grades
