@@ -182,33 +182,35 @@ export default function MessagesPage() {
   const handleSendMessage = async () => {
     if ((!messageContent.trim() && !file) || !user || !selectedConversation) return;
     setIsSending(true);
-    
+
+    let filePayload: { fileUrl?: string; fileName?: string } = {};
+
     try {
-      let filePayload: { fileUrl?: string; fileName?: string } = {};
-      if(file) {
-          const downloadURL = await uploadFile(file, `message_attachments/${user.uid}/${file.name}`);
-          filePayload = { fileUrl: downloadURL, fileName: file.name };
-      }
+        if (file) {
+            const downloadURL = await uploadFile(file, `message_attachments/${user.uid}/${Date.now()}_${file.name}`);
+            filePayload = { fileUrl: downloadURL, fileName: file.name };
+        }
 
-      await addData({
-        senderId: user.uid,
-        recipientId: selectedConversation.id,
-        recipientType: selectedConversation.isGroup ? 'class' : 'user',
-        content: messageContent,
-        readBy: { [user.uid]: true },
-        timestamp: Date.now(),
-        ...filePayload,
-      } as Omit<Message, 'id'>);
+        await addData({
+            senderId: user.uid,
+            recipientId: selectedConversation.id,
+            recipientType: selectedConversation.isGroup ? 'class' : 'user',
+            content: messageContent,
+            readBy: { [user.uid]: true },
+            timestamp: Date.now(),
+            ...filePayload,
+        } as Omit<Message, 'id'>);
 
-      setMessageContent("");
-      setFile(null);
-    } catch(e) {
-      toast({ title: "Error sending message", variant: "destructive"});
-      console.error(e);
+        setMessageContent("");
+        setFile(null);
+
+    } catch (e) {
+        toast({ title: "Error sending message", variant: "destructive"});
+        console.error(e);
     } finally {
-      setIsSending(false);
+        setIsSending(false);
     }
-  }
+}
   
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if(e.target.files?.[0]) {
