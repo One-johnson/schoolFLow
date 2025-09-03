@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button"
 import { Search, User, UserCheck, BookOpen } from "lucide-react"
 import { useDatabase } from "@/hooks/use-database"
 import { useAuth } from "@/hooks/use-auth"
+import { DialogTitle, DialogDescription } from "../ui/dialog"
 
 type Student = { id: string; name: string; studentId: string; }
 type Teacher = { id: string; name: string; teacherId: string; }
@@ -51,6 +52,7 @@ export function GlobalSearch() {
       items: students.map(s => ({
         id: s.id,
         label: s.name,
+        value: `${s.name} ${s.studentId}`,
         sublabel: s.studentId,
         icon: User,
         action: () => router.push(`/dashboard/students/${s.id}`),
@@ -62,6 +64,7 @@ export function GlobalSearch() {
       items: teachers.map(t => ({
         id: t.id,
         label: t.name,
+        value: `${t.name} ${t.teacherId}`,
         sublabel: t.teacherId,
         icon: UserCheck,
         action: () => router.push(`/dashboard/teachers/${t.id}`),
@@ -73,6 +76,7 @@ export function GlobalSearch() {
       items: classes.map(c => ({
         id: c.id,
         label: c.name,
+        value: c.name,
         sublabel: 'Class',
         icon: BookOpen,
         action: () => router.push(`/dashboard/classes`),
@@ -100,6 +104,8 @@ export function GlobalSearch() {
         </kbd>
       </Button>
       <CommandDialog open={open} onOpenChange={setOpen}>
+         <DialogTitle className="sr-only">Global Search</DialogTitle>
+        <DialogDescription className="sr-only">Use this dialog to search for students, teachers, classes, and more across the application.</DialogDescription>
         <CommandInput placeholder="Type a command or search..." />
         <CommandList>
           <CommandEmpty>No results found.</CommandEmpty>
@@ -108,7 +114,7 @@ export function GlobalSearch() {
               {group.items.map((item) => (
                 <CommandItem
                   key={item.id}
-                  value={item.label}
+                  value={item.value}
                   onSelect={() => runCommand(item.action)}
                   className="flex items-center justify-between"
                 >
