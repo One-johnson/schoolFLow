@@ -70,14 +70,15 @@ import { cn } from "@/lib/utils";
 // Data types
 type Term = { id: string; name: string };
 type Exam = { id: string; name: string; termId: string; status: "Upcoming" | "Ongoing" | "Grading" | "Published" };
-type Class = { id: string; name: string };
+type Class = { id: string; name: string, studentIds?: Record<string, boolean> };
 type Subject = { id: string; name: string; classId?: string; };
 type ExamSchedule = { id: string; examId: string; classId: string; subjectId: string; date: string; time: string; maxScore: number; };
 
 export default function ExamSetupPage() {
   const { data: exams, addData, updateData, deleteData, loading } = useDatabase<Exam>("exams");
   const { data: terms, loading: termsLoading } = useDatabase<Term>("terms");
-  
+  const { data: allSchedules } = useDatabase<ExamSchedule>("examSchedules");
+
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = React.useState(false);
@@ -93,6 +94,8 @@ export default function ExamSetupPage() {
   const { data: classes } = useDatabase<Class>("classes");
   const { data: subjects } = useDatabase<Subject>("subjects");
   const { data: schedules, addData: addSchedule } = useDatabase<ExamSchedule>("examSchedules");
+  const { addData: addNotification } = useDatabase("notifications");
+
 
   const [scheduleForm, setScheduleForm] = React.useState<Partial<Omit<ExamSchedule, 'id'>>>({});
   const [scheduleDate, setScheduleDate] = React.useState<Date | undefined>();
@@ -132,13 +135,37 @@ export default function ExamSetupPage() {
 
   const handleUpdateExam = async () => {
     if (!selectedExam || !examForm.name || !examForm.termId || !examForm.status) return;
+    const wasPublished = selectedExam.status !== 'Published' && examForm.status === 'Published';
     setIsLoading(true);
     try {
         await updateData(selectedExam.id, { name: examForm.name, termId: examForm.termId, status: examForm.status });
         toast({ title: "Success", description: "Examination updated." });
+        
+        if (wasPublished) {
+            toast({ title: "Publishing Results...", description: "Sending notifications to students."});
+            const scheduledClasses = allSchedules.filter(s => s.examId === selectedExam.id);
+            const classIds = new Set(scheduledClasses.map(s => s.classId));
+            const studentIdsToNotify = new Set<string>();
+            classes.forEach(c => {
+                if (classIds.has(c.id) && c.studentIds) {
+                    Object.keys(c.studentIds).forEach(sid => studentIdsToNotify.add(sid));
+                }
+            });
+            
+            for (const studentId of studentIdsToNotify) {
+                await addNotification({
+                    type: 'exam_published',
+                    message: `Results for "${examForm.name}" are now available.`,
+                    read: false,
+                    recipientId: studentId
+                } as any);
+            }
+        }
+
         setIsEditDialogOpen(false);
         setSelectedExam(null);
     } catch (error) {
+        console.error(error);
         toast({ title: "Error", description: "Failed to update examination.", variant: "destructive" });
     } finally {
         setIsLoading(false);

@@ -33,6 +33,7 @@ export default function AssignFeesPage() {
   const { data: feeStructures } = useDatabase<FeeStructure>("feeStructures");
   const { data: classes } = useDatabase<Class>("classes");
   const { addDataWithId } = useDatabase("studentFees");
+  const { addData: addNotification } = useDatabase("notifications");
   const { toast } = useToast();
 
   const [selectedFeeId, setSelectedFeeId] = React.useState<string | undefined>();
@@ -74,13 +75,22 @@ export default function AssignFeesPage() {
     try {
       const assignmentPromises = selectedStudentIds.map(studentId => {
         const recordId = `${studentId}_${fee.id}`;
-        return addDataWithId(recordId, {
+        const feePromise = addDataWithId(recordId, {
           studentId,
           feeId: fee.id,
           amountDue: fee.amount,
           amountPaid: 0,
           status: "Unpaid"
         });
+        
+        const notificationPromise = addNotification({
+            type: 'fee_assigned',
+            message: `A new fee has been assigned: ${fee.name} (GH₵${fee.amount})`,
+            read: false,
+            recipientId: studentId
+        } as any);
+
+        return Promise.all([feePromise, notificationPromise]);
       });
       
       await Promise.all(assignmentPromises);
