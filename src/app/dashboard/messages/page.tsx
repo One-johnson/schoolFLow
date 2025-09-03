@@ -182,9 +182,9 @@ export default function MessagesPage() {
   const handleSendMessage = async () => {
     if ((!messageContent.trim() && !file) || !user || !selectedConversation) return;
     setIsSending(true);
-    let filePayload: { fileUrl?: string; fileName?: string } = {};
-
+    
     try {
+      let filePayload: { fileUrl?: string; fileName?: string } = {};
       if(file) {
           const downloadURL = await uploadFile(file, `message_attachments/${user.uid}/${file.name}`);
           filePayload = { fileUrl: downloadURL, fileName: file.name };
@@ -199,6 +199,7 @@ export default function MessagesPage() {
         timestamp: Date.now(),
         ...filePayload,
       } as Omit<Message, 'id'>);
+
       setMessageContent("");
       setFile(null);
     } catch(e) {
