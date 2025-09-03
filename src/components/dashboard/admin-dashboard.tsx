@@ -43,7 +43,9 @@ type Teacher = { id: string; name: string; createdAt: number };
 type Class = { id: string; name: string, studentIds?: Record<string, boolean> };
 type Event = { id: string; title: string, startDate: string };
 type StudentFee = { id: string; amountDue: number; amountPaid: number; status: "Paid" | "Unpaid" | "Partial"; };
-type AttendanceRecord = Record<string, "Present" | "Absent" | "Late" | "Excused">;
+type AttendanceStatus = "Present" | "Absent" | "Late" | "Excused";
+type AttendanceEntry = { status: AttendanceStatus, comment?: string };
+type AttendanceRecord = Record<string, AttendanceEntry>;
 type DailyAttendance = { [classId: string]: AttendanceRecord };
 type Notification = { id: string, message: string, createdAt: number, type: string };
 type Subject = { id: string; name: string; teacherIds?: Record<string, boolean>; };
@@ -200,9 +202,9 @@ export function AdminDashboard() {
         Object.entries(todaysLog).forEach(([classId, classRecords]) => {
           if (classId === 'id' || (attendanceClassFilter !== 'all' && classId !== attendanceClassFilter)) return;
           if (typeof classRecords === 'object' && classRecords !== null) {
-            Object.entries(classRecords).forEach(([studentId, status]) => {
-              if (relevantStudentIds.has(studentId)) {
-                dailyStatuses[studentId] = status;
+            Object.entries(classRecords).forEach(([studentId, entry]) => {
+              if (relevantStudentIds.has(studentId) && entry?.status) {
+                dailyStatuses[studentId] = entry.status;
               }
             });
           }
@@ -457,3 +459,5 @@ export function AdminDashboard() {
     </div>
   );
 }
+
+    

@@ -46,7 +46,8 @@ type PermissionSlip = { id: string; studentName: string; studentId: string; star
 type Exam = { id: string; name: string; status: "Published" | "Grading" | "Upcoming" | "Ongoing"; };
 type StudentGrade = { id: string; examId: string; studentId: string; subjectId: string; classScore: number; examScore: number; };
 type AttendanceStatus = "Present" | "Absent" | "Late" | "Excused";
-type AttendanceRecord = Record<string, AttendanceStatus>;
+type AttendanceEntry = { status: AttendanceStatus, comment?: string };
+type AttendanceRecord = Record<string, AttendanceEntry>;
 type DailyAttendance = { [classId: string]: AttendanceRecord };
 type TimetableEntry = { subjectId: string; teacherId: string; };
 type ClassTimetable = { id: string, [day: string]: { [timeSlot: string]: TimetableEntry | null } };
@@ -168,9 +169,9 @@ export function TeacherDashboard() {
             for (const classId in todaysLog) {
                 if(classId === 'id') continue;
                 const classRecords = todaysLog[classId] as AttendanceRecord;
-                 Object.entries(classRecords).forEach(([studentId, status]) => {
-                     if (studentIdsInTeacherClasses.has(studentId)) {
-                        dailyStatuses[studentId] = status;
+                 Object.entries(classRecords).forEach(([studentId, entry]) => {
+                     if (studentIdsInTeacherClasses.has(studentId) && entry?.status) {
+                        dailyStatuses[studentId] = entry.status;
                      }
                  });
             }
@@ -734,3 +735,5 @@ export function TeacherDashboard() {
     </>
   );
 }
+
+    
