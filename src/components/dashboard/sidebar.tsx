@@ -23,6 +23,7 @@ import {
   UserCheck,
   Users,
   MessageSquare,
+  Home,
 } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
@@ -103,6 +104,12 @@ export function DashboardSidebar({
       path: "/dashboard/messages",
       icon: MessageSquare,
       label: "Messages",
+      roles: ["admin", "teacher", "student"],
+    },
+    {
+      path: "/dashboard/assignments",
+      icon: Home,
+      label: "Assignments",
       roles: ["admin", "teacher", "student"],
     },
     {
