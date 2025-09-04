@@ -14,6 +14,7 @@ import { Loader2, Download, FileUp } from "lucide-react";
 import { format, isPast, parseISO } from "date-fns";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Progress } from "@/components/ui/progress";
+import { Label } from "@/components/ui/label";
 
 // Types
 type Assignment = { id: string; title: string; description: string; classId: string; subjectId: string; teacherId: string; createdAt: number; dueDate: string; fileUrl?: string; fileName?: string; };
@@ -79,8 +80,7 @@ export default function StudentAssignmentsView() {
         setUploadProgress(0);
         
         try {
-            const fileUrl = await uploadFile(submissionFile, `submissions/${user.uid}/${submissionFile.name}_${Date.now()}`);
-            setUploadProgress(100);
+            const fileUrl = await uploadFile(submissionFile, `submissions/${user.uid}/${submissionFile.name}_${Date.now()}`, setUploadProgress);
 
             const submissionId = `${selectedAssignment.id}_${user.uid}`;
             const isLate = isPast(new Date(selectedAssignment.dueDate));
