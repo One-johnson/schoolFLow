@@ -297,52 +297,52 @@ export default function TeacherAssignmentsView() {
                 return (
                 <Card key={assignment.id}>
                 <AccordionItem value={assignment.id} className="border-b-0">
-                    <CardHeader>
-                        <AccordionTrigger className="w-full text-left group">
-                            <div className="flex-1">
+                    <div className="flex items-center group p-4">
+                        <AccordionTrigger className="w-full text-left flex-1">
+                            <div>
                                 <CardTitle>{assignment.title}</CardTitle>
                                 <CardDescription>For {classesMap.get(assignment.classId)} - {subjectsMap.get(assignment.subjectId)} | Due: {format(parseISO(assignment.dueDate), "PPP")}</CardDescription>
                             </div>
-                            <div className="flex items-center gap-4">
-                                <Badge variant={isPast(parseISO(assignment.dueDate)) ? "destructive" : "secondary"}>
-                                    {isPast(parseISO(assignment.dueDate)) ? "Past Due" : "Active"}
-                                </Badge>
-                                <Badge>{submissionsForAssignment.length} / {studentsInClass.length} Submitted</Badge>
-                                <AlertDialog>
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                                                <MoreHorizontal className="h-4 w-4"/>
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                                            <DropdownMenuItem onSelect={() => openEditDialog(assignment)}>
-                                                <Pencil className="mr-2 h-4 w-4"/> Edit
-                                            </DropdownMenuItem>
-                                            <DropdownMenuSeparator/>
-                                            <AlertDialogTrigger asChild>
-                                                <DropdownMenuItem className="text-destructive focus:text-destructive">
-                                                    <Trash2 className="mr-2 h-4 w-4"/> Delete
-                                                </DropdownMenuItem>
-                                            </AlertDialogTrigger>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                    <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                            <AlertDialogDescription>This will permanently delete the assignment and all student submissions. This action cannot be undone.</AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleDeleteAssignment(assignment.id)} className="bg-destructive hover:bg-destructive/90" disabled={isLoading}>
-                                                {isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : "Delete"}
-                                            </AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
-                            </div>
                         </AccordionTrigger>
-                    </CardHeader>
+                        <div className="flex items-center gap-4 ml-4">
+                            <Badge variant={isPast(parseISO(assignment.dueDate)) ? "destructive" : "secondary"}>
+                                {isPast(parseISO(assignment.dueDate)) ? "Past Due" : "Active"}
+                            </Badge>
+                            <Badge>{submissionsForAssignment.length} / {studentsInClass.length} Submitted</Badge>
+                            <AlertDialog>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                                            <MoreHorizontal className="h-4 w-4"/>
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onSelect={() => openEditDialog(assignment)}>
+                                            <Pencil className="mr-2 h-4 w-4"/> Edit
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator/>
+                                        <AlertDialogTrigger asChild>
+                                            <DropdownMenuItem className="text-destructive focus:text-destructive">
+                                                <Trash2 className="mr-2 h-4 w-4"/> Delete
+                                            </DropdownMenuItem>
+                                        </AlertDialogTrigger>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>This will permanently delete the assignment and all student submissions. This action cannot be undone.</AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteAssignment(assignment.id)} className="bg-destructive hover:bg-destructive/90" disabled={isLoading}>
+                                            {isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : "Delete"}
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </div>
+                    </div>
                     <AccordionContent>
                         <CardContent>
                             <p className="text-sm mb-4">{assignment.description}</p>
