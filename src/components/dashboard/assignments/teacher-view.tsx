@@ -17,7 +17,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, PlusCircle, CalendarIcon, UploadCloud, File, Download, Send } from "lucide-react";
-import { format, isPast } from "date-fns";
+import { format, isPast, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -102,6 +102,7 @@ export default function TeacherAssignmentsView() {
             setDueDate(undefined);
             setAssignmentFile(null);
         } catch (error) {
+            console.error("Assignment creation error:", error);
             toast({ title: "Error", description: "Failed to create assignment.", variant: "destructive" });
         } finally {
             setIsLoading(false);
@@ -199,7 +200,7 @@ export default function TeacherAssignmentsView() {
                 const submissionsForAssignment = submissionsMap.get(assignment.id) || [];
                 const submittedStudentIds = new Set(submissionsForAssignment.map(s => s.studentId));
                 const assignmentClass = classes.find(c => c.id === assignment.classId);
-                const studentsInClass = assignmentClass?.studentIds ? Object.keys(assignmentClass.studentIds).map(id => studentsMap.get(id)).filter(Boolean) : [];
+                const studentsInClass = assignmentClass?.studentIds ? Object.keys(assignmentClass.studentIds).map(id => studentsMap.get(id)).filter(Boolean) as Student[] : [];
                 
                 return (
                 <Card key={assignment.id}>
@@ -208,11 +209,11 @@ export default function TeacherAssignmentsView() {
                         <AccordionTrigger className="w-full text-left">
                             <div className="flex-1">
                                 <CardTitle>{assignment.title}</CardTitle>
-                                <CardDescription>For {classesMap.get(assignment.classId)} - {subjectsMap.get(assignment.subjectId)} | Due: {format(new Date(assignment.dueDate), "PPP")}</CardDescription>
+                                <CardDescription>For {classesMap.get(assignment.classId)} - {subjectsMap.get(assignment.subjectId)} | Due: {format(parseISO(assignment.dueDate), "PPP")}</CardDescription>
                             </div>
                             <div className="flex items-center gap-4">
-                                <Badge variant={isPast(new Date(assignment.dueDate)) ? "destructive" : "secondary"}>
-                                    {isPast(new Date(assignment.dueDate)) ? "Past Due" : "Active"}
+                                <Badge variant={isPast(parseISO(assignment.dueDate)) ? "destructive" : "secondary"}>
+                                    {isPast(parseISO(assignment.dueDate)) ? "Past Due" : "Active"}
                                 </Badge>
                                 <Badge>{submissionsForAssignment.length} / {studentsInClass.length} Submitted</Badge>
                             </div>
