@@ -15,13 +15,28 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Send, MessageSquare, Search, CheckCheck, BookOpen, Users, ChevronsUpDown, XCircle, Paperclip } from "lucide-react";
+import { Loader2, Send, MessageSquare, Search, CheckCheck, BookOpen, Users, ChevronsUpDown, Paperclip, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 type UserProfile = { id: string; name: string; avatarUrl?: string; role: 'student' | 'teacher' | 'admin' };
 type Class = { id: string; name: string, studentIds?: Record<string, boolean>, teacherId?: string };
@@ -42,13 +57,17 @@ export default function MessagesPage() {
   const { user, role } = useAuth();
   const { data: allUsers, loading: usersLoading } = useDatabase<UserProfile>("users");
   const { data: classes, loading: classesLoading } = useDatabase<Class>("classes");
-  const { data: messages, addData, updateData, loading: messagesLoading } = useDatabase<Message>("messages");
+  const { data: messages, addData, updateData, deleteData, loading: messagesLoading } = useDatabase<Message>("messages");
   const { toast } = useToast();
 
   const [selectedContact, setSelectedContact] = React.useState<Contact | null>(null);
   const [messageContent, setMessageContent] = React.useState("");
   const [isSending, setIsSending] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
+  
+  const [editingMessageId, setEditingMessageId] = React.useState<string | null>(null);
+  const [editingContent, setEditingContent] = React.useState("");
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   const usersMap = React.useMemo(() => new Map(allUsers.map(u => [u.id, u])), [allUsers]);
   const studentClass = React.useMemo(() => user ? classes.find(c => c.studentIds && c.studentIds[user.uid]) : null, [classes, user]);
@@ -64,7 +83,7 @@ export default function MessagesPage() {
 
         if (msg.recipientType === 'class') {
             const myClasses = role === 'student' ? (studentClass ? [studentClass] : []) : teacherClasses;
-            if (myClasses.some(c => c.id === msg.recipientId) || (role === 'teacher' && msg.senderId === user.uid) || role === 'admin') {
+            if (myClasses.some(c => c.id === msg.recipientId) || (role === 'teacher' && msg.senderId === user.uid) || (role === 'admin' && teacherClasses.some(c => c.id === msg.recipientId))) {
                 isRelevantToMe = true;
                 conversationId = msg.recipientId;
             }
@@ -162,6 +181,38 @@ export default function MessagesPage() {
     }
   }
 
+  const handleUpdateMessage = async () => {
+    if(!editingMessageId || !editingContent.trim() || !user) return;
+    setIsSending(true);
+    try {
+        await updateData(editingMessageId, { content: editingContent });
+        setEditingMessageId(null);
+        setEditingContent("");
+        toast({ title: "Message updated" });
+    } catch(e) {
+        toast({ title: "Error updating message", variant: "destructive"});
+    } finally {
+        setIsSending(false);
+    }
+  }
+
+  const handleDeleteMessage = async (messageId: string) => {
+    setIsDeleting(true);
+    try {
+        await deleteData(messageId);
+        toast({ title: "Message deleted" });
+    } catch (e) {
+        toast({ title: "Error deleting message", variant: "destructive"});
+    } finally {
+        setIsDeleting(false);
+    }
+  }
+
+  const startEditing = (message: Message) => {
+    setEditingMessageId(message.id);
+    setEditingContent(message.content);
+  }
+
   const getContactList = (): { classes: Contact[], users: Contact[] } => {
     if (!user || !role) return { classes: [], users: [] };
     
@@ -181,7 +232,7 @@ export default function MessagesPage() {
       teacherClasses.forEach(c => {
           if (c.studentIds) Object.keys(c.studentIds).forEach(id => studentIds.add(id));
       });
-      additionalUsers = allUsers.filter(u => studentIds.has(u.id)).map(u => ({...u, type: 'user'}));
+      additionalUsers = allUsers.filter(u => studentIds.has(u.id) || u.role === 'admin').map(u => ({...u, type: 'user'}));
     } else if (role === 'student') {
       if (studentClass) {
         additionalClasses = [{ ...studentClass, type: 'class' }];
@@ -237,7 +288,7 @@ export default function MessagesPage() {
           <CardContent>
             <ScrollArea className="h-[calc(75vh-150px)]">
                 <div className="space-y-2 pr-4">
-                  {role !== 'student' && filteredClasses.length > 0 && (
+                  {(role === 'admin' || role === 'teacher') && filteredClasses.length > 0 && (
                      <Collapsible defaultOpen={true}>
                         <CollapsibleTrigger className="flex w-full items-center justify-between py-2 font-semibold text-sm">
                             <div className="flex items-center gap-2"><BookOpen className="h-4 w-4"/> Classes</div>
@@ -324,23 +375,78 @@ export default function MessagesPage() {
                 <ScrollArea className="flex-1 p-4 space-y-4">
                     {currentMessages.map(msg => {
                         const sender = usersMap.get(msg.senderId);
+                        const isMyMessage = msg.senderId === user?.uid;
+                        const isEditingThisMessage = editingMessageId === msg.id;
+
                         return (
-                        <div key={msg.id} className={cn("flex items-end gap-2", msg.senderId === user?.uid ? "justify-end" : "justify-start")}>
-                            {msg.senderId !== user?.uid && (
+                        <div key={msg.id} className={cn("flex items-end gap-2 group", isMyMessage ? "justify-end" : "justify-start")}>
+                            {!isMyMessage && (
                                 <Avatar className="h-8 w-8">
                                     <AvatarImage src={sender?.avatarUrl} />
                                     <AvatarFallback>{getInitials(sender?.name)}</AvatarFallback>
                                </Avatar>
                            )}
-                           <div className={cn("max-w-xs md:max-w-md lg:max-w-lg rounded-lg p-3 text-sm", msg.senderId === user?.uid ? "bg-primary text-primary-foreground" : "bg-muted")}>
-                                {msg.recipientType === 'class' && msg.senderId !== user?.uid && <p className="text-xs font-bold mb-1">{sender?.name}</p>}
-                                <p className="whitespace-pre-wrap">{msg.content}</p>
-                                <div className={cn("flex items-center justify-end gap-1 text-xs mt-1", msg.senderId === user?.uid ? "text-primary-foreground/70" : "text-muted-foreground")}>
-                                    <span>{typeof msg.timestamp === 'number' ? formatDistanceToNow(new Date(msg.timestamp), { addSuffix: true }) : 'sending...'}</span>
-                                    {msg.senderId === user?.uid && typeof msg.timestamp === 'number' && msg.readBy && Object.keys(msg.readBy).length > 1 && (
-                                        <CheckCheck className="h-4 w-4 text-blue-400" />
-                                    )}
-                                </div>
+                           {isMyMessage && (
+                             <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <MoreHorizontal className="h-4 w-4"/>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent>
+                                    <DropdownMenuItem onSelect={() => startEditing(msg)}>
+                                        <Pencil className="mr-2 h-4 w-4"/> Edit
+                                    </DropdownMenuItem>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">
+                                                 <Trash2 className="mr-2 h-4 w-4"/> Delete
+                                            </DropdownMenuItem>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Delete Message?</AlertDialogTitle>
+                                                <AlertDialogDescription>This action cannot be undone. Are you sure you want to delete this message?</AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleDeleteMessage(msg.id)} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
+                                                    {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : "Delete"}
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </DropdownMenuContent>
+                             </DropdownMenu>
+                           )}
+                           <div className={cn("max-w-xs md:max-w-md lg:max-w-lg rounded-lg p-3 text-sm", isMyMessage ? "bg-primary text-primary-foreground" : "bg-muted")}>
+                                {msg.recipientType === 'class' && !isMyMessage && <p className="text-xs font-bold mb-1">{sender?.name}</p>}
+                                {isEditingThisMessage ? (
+                                    <div className="flex flex-col gap-2">
+                                        <Input 
+                                            value={editingContent}
+                                            onChange={(e) => setEditingContent(e.target.value)}
+                                            onKeyDown={(e) => { if(e.key === 'Enter') handleUpdateMessage(); if(e.key === 'Escape') setEditingMessageId(null);}}
+                                            className="bg-primary-foreground/10 h-8"
+                                        />
+                                        <div className="flex gap-2 justify-end">
+                                            <Button size="xs" variant="secondary" onClick={() => setEditingMessageId(null)}>Cancel</Button>
+                                            <Button size="xs" onClick={handleUpdateMessage} disabled={isSending}>
+                                                {isSending ? <Loader2 className="h-3 w-3 animate-spin"/> : "Save"}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <p className="whitespace-pre-wrap">{msg.content}</p>
+                                        <div className={cn("flex items-center justify-end gap-1 text-xs mt-1", isMyMessage ? "text-primary-foreground/70" : "text-muted-foreground")}>
+                                            <span>{typeof msg.timestamp === 'number' ? formatDistanceToNow(new Date(msg.timestamp), { addSuffix: true }) : 'sending...'}</span>
+                                            {isMyMessage && typeof msg.timestamp === 'number' && msg.readBy && Object.keys(msg.readBy).length > 1 && (
+                                                <CheckCheck className="h-4 w-4 text-blue-400" />
+                                            )}
+                                        </div>
+                                    </>
+                                )}
                            </div>
                         </div>
                     )})}
