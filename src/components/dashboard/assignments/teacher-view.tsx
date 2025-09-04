@@ -40,6 +40,8 @@ export default function TeacherAssignmentsView() {
     const { data: subjects, loading: subjectsLoading } = useDatabase<Subject>("subjects");
     const { data: students, loading: studentsLoading } = useDatabase<Student>("students");
     const { uploadFile } = useDatabase<any>('assignments'); // For file uploads
+    const { addData: addNotification } = useDatabase("notifications");
+
 
     // State
     const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
@@ -86,7 +88,6 @@ export default function TeacherAssignmentsView() {
                 ...newAssignment,
                 teacherId: user!.uid,
                 dueDate: format(dueDate, "yyyy-MM-dd"),
-                createdAt: Date.now(),
             };
     
             if (assignmentFile) {
@@ -95,8 +96,23 @@ export default function TeacherAssignmentsView() {
             }
     
             await addData(assignmentData as Omit<Assignment, 'id'>);
+            
+            // Notify students in the class
+            const targetClass = classes.find(c => c.id === newAssignment.classId);
+            if (targetClass?.studentIds) {
+                const studentIds = Object.keys(targetClass.studentIds);
+                const subjectName = subjectsMap.get(newAssignment.subjectId);
+                for (const studentId of studentIds) {
+                    await addNotification({
+                        type: 'assignment_created',
+                        message: `New assignment "${assignmentData.title}" posted for ${subjectName}.`,
+                        recipientId: studentId,
+                        read: false
+                    } as any);
+                }
+            }
     
-            toast({ title: "Success", description: "Assignment created successfully." });
+            toast({ title: "Success", description: "Assignment created and students notified." });
             setIsCreateDialogOpen(false);
             setNewAssignment({});
             setDueDate(undefined);

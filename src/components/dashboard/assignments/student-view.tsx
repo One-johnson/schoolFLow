@@ -32,6 +32,7 @@ export default function StudentAssignmentsView() {
     const { data: classes, loading: classesLoading } = useDatabase<Class>("classes");
     const { data: subjects, loading: subjectsLoading } = useDatabase<Subject>("subjects");
     const { uploadFile } = useDatabase<any>('submissions');
+    const { addData: addNotification } = useDatabase("notifications");
 
     // State
     const [isSubmitDialogOpen, setIsSubmitDialogOpen] = React.useState(false);
@@ -92,6 +93,14 @@ export default function StudentAssignmentsView() {
                 fileName: submissionFile.name,
                 status: isLate ? 'Late' : 'Submitted'
             } as Omit<Submission, 'id' | 'submittedAt'>);
+
+            // Notify teacher
+            await addNotification({
+                type: 'assignment_submitted',
+                message: `${user.displayName} submitted their work for "${selectedAssignment.title}".`,
+                recipientId: selectedAssignment.teacherId,
+                read: false
+            } as any);
 
             toast({ title: "Success", description: "Your assignment has been submitted." });
             setIsSubmitDialogOpen(false);
