@@ -62,8 +62,10 @@ export default function MessagesPage() {
         let conversationId: string | undefined;
         let isRelevantToMe = false;
 
+        // Message is relevant if I am the sender, the individual recipient, or in the recipient class
         if (msg.recipientType === 'class') {
-            if (studentClass?.id === msg.recipientId || teacherClasses.some(c => c.id === msg.recipientId) || (role === 'teacher' && msg.senderId === user.uid)) {
+            const myClasses = role === 'student' ? (studentClass ? [studentClass] : []) : teacherClasses;
+            if (myClasses.some(c => c.id === msg.recipientId) || msg.senderId === user.uid) {
                 isRelevantToMe = true;
                 conversationId = msg.recipientId;
             }
@@ -163,40 +165,45 @@ export default function MessagesPage() {
   const getContactList = (): { classes: Contact[], users: Contact[] } => {
     if (!user || !role) return { classes: [], users: [] };
     
-    const contactMap = new Map(Array.from(conversationThreads.values()).map(c => [c.contact.id, c.contact]));
+    const contactMap = new Map<string, Contact>();
+    conversationThreads.forEach(({ contact }) => {
+        contactMap.set(contact.id, contact);
+    });
 
-    let finalClasses: Contact[] = [];
-    let finalUsers: Contact[] = [];
+    let additionalClasses: Contact[] = [];
+    let additionalUsers: Contact[] = [];
 
     if (role === 'admin') {
-      // Admins can only message teachers
-      finalUsers = allUsers.filter(u => u.role === 'teacher');
+      // Admins can message teachers
+      additionalUsers = allUsers.filter(u => u.role === 'teacher').map(u => ({...u, type: 'user'}));
     } else if (role === 'teacher') {
       // Teachers see their classes and students in those classes
-      finalClasses = teacherClasses.map(c => ({ ...c, type: 'class' }));
+      additionalClasses = teacherClasses.map(c => ({ ...c, type: 'class' }));
       const studentIds = new Set<string>();
       teacherClasses.forEach(c => {
           if (c.studentIds) Object.keys(c.studentIds).forEach(id => studentIds.add(id));
       });
-      finalUsers = allUsers.filter(u => studentIds.has(u.id));
+      additionalUsers = allUsers.filter(u => studentIds.has(u.id)).map(u => ({...u, type: 'user'}));
     } else if (role === 'student') {
       // Students see their class and their teachers
       if (studentClass) {
-        finalClasses = [{ ...studentClass, type: 'class' }];
+        additionalClasses = [{ ...studentClass, type: 'class' }];
         const teacherId = studentClass.teacherId;
-        finalUsers = allUsers.filter(u => u.id === teacherId);
+        additionalUsers = allUsers.filter(u => u.id === teacherId).map(u => ({...u, type: 'user'}));
       }
     }
     
-    // Add existing conversations to the list if not already present
-    finalClasses.forEach(c => contactMap.set(c.id, c));
-    finalUsers.forEach(u => contactMap.set(u.id, u));
+    additionalClasses.forEach(c => contactMap.set(c.id, c));
+    additionalUsers.forEach(u => contactMap.set(u.id, u));
+
+    const allContacts = Array.from(contactMap.values());
 
     return { 
-      classes: Array.from(contactMap.values()).filter(c => c.type === 'class'), 
-      users: Array.from(contactMap.values()).filter(c => c.type === 'user')
+      classes: allContacts.filter(c => c.type === 'class'), 
+      users: allContacts.filter(c => c.type === 'user')
     };
   };
+
 
   const { classes: contactClasses, users: contactUsers } = getContactList();
 
@@ -357,4 +364,3 @@ export default function MessagesPage() {
     </div>
   );
 }
-
