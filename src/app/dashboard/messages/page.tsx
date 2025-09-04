@@ -82,20 +82,43 @@ export default function MessagesPage() {
         let conversationId: string | undefined;
         let isRelevantToMe = false;
 
-        if (msg.recipientType === 'class') {
-            const myClasses = role === 'student' ? (studentClass ? [studentClass] : []) : teacherClasses;
-            if (myClasses.some(c => c.id === msg.recipientId) || (role === 'teacher' && msg.senderId === user.uid) || (role === 'admin' && teacherClasses.some(c => c.id === msg.recipientId))) {
+        // Admin-Teacher chat
+        if (role === 'admin' && msg.recipientType === 'individual') {
+            const otherUserId = msg.senderId === user.uid ? msg.recipientId : msg.senderId;
+            const otherUser = usersMap.get(otherUserId);
+            if (otherUser?.role === 'teacher') {
+                isRelevantToMe = true;
+                conversationId = otherUserId;
+            }
+        }
+        // Teacher-Student or Teacher-Admin chat
+        else if (role === 'teacher' && msg.recipientType === 'individual') {
+            const otherUserId = msg.senderId === user.uid ? msg.recipientId : msg.senderId;
+            isRelevantToMe = true;
+            conversationId = otherUserId;
+        }
+        // Teacher-Class chat
+        else if (role === 'teacher' && msg.recipientType === 'class') {
+             if (teacherClasses.some(c => c.id === msg.recipientId)) {
                 isRelevantToMe = true;
                 conversationId = msg.recipientId;
-            }
-        } else { // Individual message
-            if (msg.senderId === user.uid) {
-                isRelevantToMe = true;
-                conversationId = msg.recipientId;
-            } else if (msg.recipientId === user.uid) {
-                isRelevantToMe = true;
-                conversationId = msg.senderId;
-            }
+             }
+        }
+        // Student chat
+        else if (role === 'student') {
+             if (msg.recipientType === 'individual') {
+                 const otherUserId = msg.senderId === user.uid ? msg.recipientId : msg.senderId;
+                 const otherUser = usersMap.get(otherUserId);
+                 if (otherUser?.role === 'teacher') {
+                    isRelevantToMe = true;
+                    conversationId = otherUserId;
+                 }
+             } else if (msg.recipientType === 'class') {
+                 if (studentClass?.id === msg.recipientId) {
+                    isRelevantToMe = true;
+                    conversationId = msg.recipientId;
+                 }
+             }
         }
         
         if (!isRelevantToMe || !conversationId) return;
@@ -132,13 +155,14 @@ export default function MessagesPage() {
   const currentMessages = React.useMemo(() => {
     if (!user || !selectedContact) return [];
     
+    // Class chat for students and teachers
     if (selectedContact.type === 'class') {
       return messages
         .filter(m => m.recipientType === 'class' && m.recipientId === selectedContact.id)
         .sort((a,b) => a.timestamp - b.timestamp);
     }
-
-    // Individual chat logic
+    
+    // Individual chat logic for all roles
     return messages
       .filter(m => 
         m.recipientType === 'individual' && (
@@ -289,7 +313,7 @@ export default function MessagesPage() {
           <CardContent>
             <ScrollArea className="h-[calc(75vh-150px)]">
                 <div className="space-y-2 pr-4">
-                  {(role === 'admin' || role === 'teacher') && filteredClasses.length > 0 && (
+                  {(role === 'teacher' || role === 'student') && filteredClasses.length > 0 && (
                      <Collapsible defaultOpen={true}>
                         <CollapsibleTrigger className="flex w-full items-center justify-between py-2 font-semibold text-sm">
                             <div className="flex items-center gap-2"><BookOpen className="h-4 w-4"/> Classes</div>
