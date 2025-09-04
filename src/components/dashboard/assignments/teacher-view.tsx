@@ -8,6 +8,25 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,7 +35,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, PlusCircle, CalendarIcon, UploadCloud, File, Download, Send } from "lucide-react";
+import { Loader2, PlusCircle, CalendarIcon, UploadCloud, File, Download, Send, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { format, isPast, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -34,7 +53,7 @@ export default function TeacherAssignmentsView() {
     const { toast } = useToast();
 
     // Database Hooks
-    const { data: assignments, addData, loading: assignmentsLoading } = useDatabase<Assignment>("assignments");
+    const { data: assignments, addData, updateData, deleteData, loading: assignmentsLoading } = useDatabase<Assignment>("assignments");
     const { data: submissions, updateData: updateSubmission, loading: submissionsLoading } = useDatabase<Submission>("submissions");
     const { data: classes, loading: classesLoading } = useDatabase<Class>("classes");
     const { data: subjects, loading: subjectsLoading } = useDatabase<Subject>("subjects");
@@ -45,7 +64,10 @@ export default function TeacherAssignmentsView() {
 
     // State
     const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
+    const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
+    const [selectedAssignment, setSelectedAssignment] = React.useState<Assignment | null>(null);
     const [newAssignment, setNewAssignment] = React.useState<Partial<Omit<Assignment, 'id' | 'createdAt'>>>({});
+    const [editAssignment, setEditAssignment] = React.useState<Partial<Assignment>>({});
     const [dueDate, setDueDate] = React.useState<Date | undefined>();
     const [assignmentFile, setAssignmentFile] = React.useState<File | null>(null);
     const [isLoading, setIsLoading] = React.useState(false);
@@ -95,7 +117,7 @@ export default function TeacherAssignmentsView() {
                 assignmentData.fileName = assignmentFile.name;
             }
     
-            await addData(assignmentData as Omit<Assignment, 'id'>);
+            await addData(assignmentData as Omit<Assignment, 'id' | 'createdAt'>);
             
             // Notify students in the class
             const targetClass = classes.find(c => c.id === newAssignment.classId);
@@ -120,6 +142,61 @@ export default function TeacherAssignmentsView() {
         } catch (error) {
             console.error("Assignment creation error:", error);
             toast({ title: "Error", description: "Failed to create assignment.", variant: "destructive" });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    
+    const openEditDialog = (assignment: Assignment) => {
+        setSelectedAssignment(assignment);
+        setEditAssignment(assignment);
+        setDueDate(parseISO(assignment.dueDate));
+        setAssignmentFile(null);
+        setIsEditDialogOpen(true);
+    };
+
+    const handleUpdateAssignment = async () => {
+        if (!selectedAssignment || !editAssignment.title || !editAssignment.classId || !editAssignment.subjectId || !dueDate) {
+            toast({ title: "Error", description: "All fields are required.", variant: "destructive" });
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            const assignmentData: Partial<Assignment> = {
+                title: editAssignment.title,
+                description: editAssignment.description,
+                classId: editAssignment.classId,
+                subjectId: editAssignment.subjectId,
+                dueDate: format(dueDate, "yyyy-MM-dd"),
+            };
+
+            // Note: Currently does not support changing the attachment.
+            // A more robust solution would handle file deletion and re-upload.
+
+            await updateData(selectedAssignment.id, assignmentData);
+            toast({ title: "Success", description: "Assignment updated." });
+            setIsEditDialogOpen(false);
+        } catch (error) {
+            toast({ title: "Error", description: "Failed to update assignment.", variant: "destructive" });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleDeleteAssignment = async (assignmentId: string) => {
+        setIsLoading(true);
+        try {
+            // Note: Does not delete submission files from storage. This would require more complex logic, potentially a Cloud Function.
+            await deleteData(assignmentId);
+            // Optionally, delete all related submissions from the database
+            const relatedSubmissions = submissions.filter(s => s.assignmentId === assignmentId);
+            for (const sub of relatedSubmissions) {
+                await deleteData(sub.id);
+            }
+            toast({ title: "Success", description: "Assignment and all its submissions have been deleted." });
+        } catch (error) {
+            toast({ title: "Error", description: "Failed to delete assignment.", variant: "destructive" });
         } finally {
             setIsLoading(false);
         }
@@ -214,7 +291,6 @@ export default function TeacherAssignmentsView() {
             <Accordion type="single" collapsible className="w-full space-y-4">
             {loading ? <p>Loading assignments...</p> : teacherAssignments.map(assignment => {
                 const submissionsForAssignment = submissionsMap.get(assignment.id) || [];
-                const submittedStudentIds = new Set(submissionsForAssignment.map(s => s.studentId));
                 const assignmentClass = classes.find(c => c.id === assignment.classId);
                 const studentsInClass = assignmentClass?.studentIds ? Object.keys(assignmentClass.studentIds).map(id => studentsMap.get(id)).filter(Boolean) as Student[] : [];
                 
@@ -222,7 +298,7 @@ export default function TeacherAssignmentsView() {
                 <Card key={assignment.id}>
                 <AccordionItem value={assignment.id} className="border-b-0">
                     <CardHeader>
-                        <AccordionTrigger className="w-full text-left">
+                        <AccordionTrigger className="w-full text-left group">
                             <div className="flex-1">
                                 <CardTitle>{assignment.title}</CardTitle>
                                 <CardDescription>For {classesMap.get(assignment.classId)} - {subjectsMap.get(assignment.subjectId)} | Due: {format(parseISO(assignment.dueDate), "PPP")}</CardDescription>
@@ -232,6 +308,38 @@ export default function TeacherAssignmentsView() {
                                     {isPast(parseISO(assignment.dueDate)) ? "Past Due" : "Active"}
                                 </Badge>
                                 <Badge>{submissionsForAssignment.length} / {studentsInClass.length} Submitted</Badge>
+                                <AlertDialog>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                                                <MoreHorizontal className="h-4 w-4"/>
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                            <DropdownMenuItem onSelect={() => openEditDialog(assignment)}>
+                                                <Pencil className="mr-2 h-4 w-4"/> Edit
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator/>
+                                            <AlertDialogTrigger asChild>
+                                                <DropdownMenuItem className="text-destructive focus:text-destructive">
+                                                    <Trash2 className="mr-2 h-4 w-4"/> Delete
+                                                </DropdownMenuItem>
+                                            </AlertDialogTrigger>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>This will permanently delete the assignment and all student submissions. This action cannot be undone.</AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDeleteAssignment(assignment.id)} className="bg-destructive hover:bg-destructive/90" disabled={isLoading}>
+                                                {isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : "Delete"}
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
                             </div>
                         </AccordionTrigger>
                     </CardHeader>
@@ -300,6 +408,47 @@ export default function TeacherAssignmentsView() {
                 </Card>
             )})}
             </Accordion>
+
+            {/* Edit Dialog */}
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                <DialogContent className="sm:max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Edit Assignment</DialogTitle>
+                        <DialogDescription>Update the details for this assignment.</DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <Input placeholder="Assignment Title" value={editAssignment.title || ''} onChange={e => setEditAssignment(p => ({...p, title: e.target.value}))} />
+                        <Textarea placeholder="Description and instructions..." value={editAssignment.description || ''} onChange={e => setEditAssignment(p => ({...p, description: e.target.value}))} rows={5} />
+                        <div className="grid md:grid-cols-3 gap-4">
+                            <Select value={editAssignment.classId} onValueChange={v => setEditAssignment(p => ({...p, classId: v}))}>
+                                <SelectTrigger><SelectValue placeholder="Select Class"/></SelectTrigger>
+                                <SelectContent>{teacherClasses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                            </Select>
+                            <Select value={editAssignment.subjectId} onValueChange={v => setEditAssignment(p => ({...p, subjectId: v}))}>
+                                <SelectTrigger><SelectValue placeholder="Select Subject"/></SelectTrigger>
+                                <SelectContent>{teacherSubjects.filter(s => s.classIds && editAssignment.classId && s.classIds[editAssignment.classId]).map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                            </Select>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" className={cn("justify-start text-left font-normal", !dueDate && "text-muted-foreground")}>
+                                        <CalendarIcon className="mr-2 h-4 w-4"/>
+                                        {dueDate ? format(dueDate, "PPP") : <span>Due Date</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={dueDate} onSelect={setDueDate} initialFocus /></PopoverContent>
+                            </Popover>
+                        </div>
+                        {selectedAssignment?.fileName && (
+                             <div className="text-sm text-muted-foreground">Attachment: {selectedAssignment.fileName} (Cannot be changed)</div>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button onClick={handleUpdateAssignment} disabled={isLoading}>
+                            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Save Changes
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
