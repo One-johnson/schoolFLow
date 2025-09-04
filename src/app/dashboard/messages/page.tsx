@@ -15,7 +15,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Send, MessageSquare, Search, CheckCheck, BookOpen, Users, ChevronsUpDown } from "lucide-react";
+import { Loader2, Send, MessageSquare, Search, CheckCheck, BookOpen, Users, ChevronsUpDown, XCircle, Paperclip } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -64,7 +64,7 @@ export default function MessagesPage() {
 
         if (msg.recipientType === 'class') {
             const myClasses = role === 'student' ? (studentClass ? [studentClass] : []) : teacherClasses;
-            if (myClasses.some(c => c.id === msg.recipientId) || (role === 'teacher' && msg.senderId === user.uid)) {
+            if (myClasses.some(c => c.id === msg.recipientId) || (role === 'teacher' && msg.senderId === user.uid) || role === 'admin') {
                 isRelevantToMe = true;
                 conversationId = msg.recipientId;
             }
@@ -148,7 +148,7 @@ export default function MessagesPage() {
         await addData({
             senderId: user.uid,
             recipientId: selectedContact.id,
-            recipientType: selectedContact.type,
+            recipientType: selectedContact.type === 'class' ? 'class' : 'individual',
             content: messageContent,
             readBy: { [user.uid]: true },
             timestamp: Date.now(),
@@ -237,7 +237,7 @@ export default function MessagesPage() {
           <CardContent>
             <ScrollArea className="h-[calc(75vh-150px)]">
                 <div className="space-y-2 pr-4">
-                  {filteredClasses.length > 0 && (
+                  {role !== 'student' && filteredClasses.length > 0 && (
                      <Collapsible defaultOpen={true}>
                         <CollapsibleTrigger className="flex w-full items-center justify-between py-2 font-semibold text-sm">
                             <div className="flex items-center gap-2"><BookOpen className="h-4 w-4"/> Classes</div>
