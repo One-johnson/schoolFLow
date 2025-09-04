@@ -184,7 +184,7 @@ export function DashboardSidebar({
     {
       path: "/dashboard/summarize",
       icon: Sparkles,
-      label: "AI Summarizer",
+      label: "Document Q&A",
       roles: ["admin", "teacher", "student"],
     },
   ];

@@ -7,7 +7,7 @@ import { useDatabase } from "@/hooks/use-database"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "../ui/button";
 import Link from "next/link";
-import { ArrowRight, BookOpen, Calendar as CalendarIcon, ClipboardCheck, DollarSign, GraduationCap, Megaphone, User, School, Clock, MessageSquare } from "lucide-react";
+import { ArrowRight, BookOpen, Calendar as CalendarIcon, ClipboardCheck, DollarSign, GraduationCap, Megaphone, User, School, Clock, MessageSquare, MailCheck, CheckCircle2, XCircle } from "lucide-react";
 import { Skeleton } from "../ui/skeleton";
 import { format, isFuture, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, formatDistanceToNow } from 'date-fns';
 import { Badge } from "../ui/badge";
@@ -52,7 +52,14 @@ type AttendanceRecord = Record<string, AttendanceEntry>;
 type DailyAttendance = { [classId: string]: AttendanceRecord };
 type Message = { id: string; senderId: string; content: string; timestamp: number; read: boolean; };
 type UserProfile = { id: string; name: string; avatarUrl?: string; role: 'student' | 'teacher' | 'admin' };
+type PermissionSlip = { id: string; studentId: string; reason: string; status: "Pending" | "Approved" | "Rejected"; createdAt: number; };
 
+
+const slipStatusConfig = {
+    Pending: { icon: Clock, color: "text-yellow-600" },
+    Approved: { icon: CheckCircle2, color: "text-green-600" },
+    Rejected: { icon: XCircle, color: "text-red-600" },
+}
 
 export function StudentDashboard() {
   const { user } = useAuth();
@@ -68,13 +75,14 @@ export function StudentDashboard() {
   const { data: rawAttendance, loading: attendanceLoading } = useDatabase<DailyAttendance>("attendance");
   const { data: messages, loading: messagesLoading } = useDatabase<Message>("messages");
   const { data: users, loading: usersLoading } = useDatabase<UserProfile>("users");
+  const { data: permissionSlips, loading: slipsLoading } = useDatabase<PermissionSlip>("permissionSlips");
 
   const [attendanceDateRange, setAttendanceDateRange] = React.useState<DateRange | undefined>({
     from: startOfMonth(new Date()),
     to: new Date(),
   });
 
-  const loading = studentsLoading || classesLoading || eventsLoading || feesLoading || announcementsLoading || examsLoading || gradesLoading || subjectsLoading || timetablesLoading || attendanceLoading || messagesLoading || usersLoading;
+  const loading = studentsLoading || classesLoading || eventsLoading || feesLoading || announcementsLoading || examsLoading || gradesLoading || subjectsLoading || timetablesLoading || attendanceLoading || messagesLoading || usersLoading || slipsLoading;
 
   // Memoized calculations
   const student = React.useMemo(() => user ? students.find(s => s.id === user.uid) : null, [students, user]);
@@ -188,6 +196,11 @@ export function StudentDashboard() {
         .sort((a,b) => b.timestamp - a.timestamp)
         .slice(0, 3);
   }, [messages, user]);
+  
+  const myRecentSlips = React.useMemo(() => {
+    if (!user) return [];
+    return permissionSlips.filter(p => p.studentId === user.uid).sort((a,b) => b.createdAt - a.createdAt).slice(0,2);
+  }, [permissionSlips, user]);
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return "S";
@@ -419,6 +432,37 @@ export function StudentDashboard() {
                      <Button asChild variant="outline"><Link href="/dashboard/exams/my-results"><GraduationCap/>Results</Link></Button>
                      <Button asChild variant="outline"><Link href={`/dashboard/students/${user?.uid}`}><User/>Profile</Link></Button>
                 </CardContent>
+            </Card>
+            
+            {/* My Leave Requests Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle>My Leave Requests</CardTitle>
+                <CardDescription>Status of your recent requests.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {loading ? <Skeleton className="h-20 w-full" /> : myRecentSlips.length > 0 ? (
+                  myRecentSlips.map(slip => {
+                    const StatusIcon = slipStatusConfig[slip.status].icon;
+                    return (
+                        <div key={slip.id} className="flex items-start gap-4">
+                            <div className="p-2 bg-muted rounded-full text-muted-foreground mt-1">
+                                <StatusIcon className={cn("h-4 w-4", slipStatusConfig[slip.status].color)} />
+                            </div>
+                            <div>
+                                <p className="font-semibold text-sm truncate">{slip.reason}</p>
+                                <Badge variant={slip.status === 'Pending' ? 'default' : 'outline'} className="capitalize">{slip.status}</Badge>
+                            </div>
+                        </div>
+                    )
+                  })
+                ) : <p className="text-sm text-center text-muted-foreground py-4">No recent leave requests.</p>}
+              </CardContent>
+               <CardFooter>
+                 <Button asChild variant="outline" className="w-full">
+                    <Link href="/dashboard/permissions">View All Requests <ArrowRight className="ml-2 h-4 w-4"/></Link>
+                </Button>
+              </CardFooter>
             </Card>
         </div>
       </div>

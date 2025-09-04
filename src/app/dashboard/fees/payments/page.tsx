@@ -69,7 +69,8 @@ export default function StudentPaymentsPage() {
   const { data: students, loading: studentsLoading } = useDatabase<Student>("students");
   const { data: feeStructures, loading: feesLoading } = useDatabase<FeeStructure>("feeStructures");
   const { data: studentFees, updateData, loading: studentFeesLoading } = useDatabase<StudentFee>("studentFees");
-  
+  const { addData: addNotification } = useDatabase("notifications");
+
   const { toast } = useToast();
   const [isLoading, setIsLoading] = React.useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
@@ -113,6 +114,14 @@ export default function StudentPaymentsPage() {
             amountPaid: newAmountPaid,
             status: newStatus
         });
+
+        await addNotification({
+            type: 'payment_received',
+            message: `A payment of GH₵${amount.toFixed(2)} was received for ${selectedFee.feeName}.`,
+            read: false,
+            recipientId: selectedFee.studentId
+        } as any);
+
         toast({ title: "Success", description: "Payment recorded successfully." });
         setIsPaymentDialogOpen(false);
         setSelectedFee(null);

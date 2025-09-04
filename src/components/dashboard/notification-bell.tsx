@@ -1,5 +1,7 @@
+
 "use client";
 
+import * as React from "react";
 import {
   Bell,
   CheckCheck,
@@ -7,6 +9,8 @@ import {
   UserPlus,
   BookOpen,
   Megaphone,
+  DollarSign,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,16 +23,18 @@ import {
   DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu";
 import { useDatabase } from "@/hooks/use-database";
+import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { FirebaseOptions } from "firebase/app";
 
 type Notification = {
   id: string;
-  type: "student_enrolled" | "teacher_added" | "class_created" | "announcement";
+  type: "student_enrolled" | "teacher_added" | "class_created" | "announcement" | "exam_published" | "fee_assigned" | "payment_received" | "fee_reminder";
   message: string;
   read: boolean;
   createdAt: number;
+  recipientId?: string; // For user-specific notifications
 };
 
 const iconMap = {
@@ -36,17 +42,27 @@ const iconMap = {
   teacher_added: <UserPlus className="h-4 w-4" />,
   class_created: <BookOpen className="h-4 w-4" />,
   announcement: <Megaphone className="h-4 w-4" />,
+  exam_published: <FileText className="h-4 w-4 text-purple-500" />,
+  fee_assigned: <DollarSign className="h-4 w-4 text-red-500" />,
+  payment_received: <DollarSign className="h-4 w-4 text-green-500" />,
+  fee_reminder: <DollarSign className="h-4 w-4 text-orange-500" />,
 };
 
 export function NotificationBell() {
+  const { user } = useAuth();
   const { data: notifications, updateData, deleteData } = useDatabase<Notification>('notifications');
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
-  const sortedNotifications = [...notifications].sort((a, b) => b.createdAt - a.createdAt);
+  // Filter notifications for the current user or system-wide
+  const userNotifications = React.useMemo(() => {
+    return notifications.filter(n => !n.recipientId || n.recipientId === user?.uid)
+  }, [notifications, user]);
+
+  const unreadCount = userNotifications.filter((n) => !n.read).length;
+  const sortedNotifications = [...userNotifications].sort((a, b) => b.createdAt - a.createdAt);
 
 
   const markAllAsRead = () => {
-    notifications.forEach((n) => {
+    userNotifications.forEach((n) => {
       if (!n.read) {
         updateData(n.id, { read: true });
       }
@@ -54,7 +70,7 @@ export function NotificationBell() {
   };
 
   const clearAll = () => {
-    notifications.forEach((n) => {
+    userNotifications.forEach((n) => {
       deleteData(n.id);
     });
   };
@@ -99,7 +115,7 @@ export function NotificationBell() {
                     {iconMap[notification.type] || <Bell className="h-4 w-4" />}
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm">{notification.message}</p>
+                    <p className="text-sm whitespace-pre-wrap">{notification.message}</p>
                     <p className="text-xs text-muted-foreground">
                         {new Date(notification.createdAt).toLocaleString()}
                     </p>
@@ -128,5 +144,3 @@ export function NotificationBell() {
     </DropdownMenu>
   );
 }
-
-    
