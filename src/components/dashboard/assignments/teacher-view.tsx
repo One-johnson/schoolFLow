@@ -79,23 +79,23 @@ export default function TeacherAssignmentsView() {
             toast({ title: "Error", description: "Title, class, subject, and due date are required.", variant: "destructive" });
             return;
         }
-
+    
         setIsLoading(true);
-        let fileUrl, fileName;
         try {
-            if (assignmentFile) {
-                fileUrl = await uploadFile(assignmentFile, `assignments/${assignmentFile.name}_${Date.now()}`);
-                fileName = assignmentFile.name;
-            }
-
-            await addData({
+            const assignmentData: Partial<Omit<Assignment, 'id'>> = {
                 ...newAssignment,
                 teacherId: user!.uid,
                 dueDate: format(dueDate, "yyyy-MM-dd"),
-                fileUrl,
-                fileName,
-            } as Omit<Assignment, 'id'>);
-
+                createdAt: Date.now(),
+            };
+    
+            if (assignmentFile) {
+                assignmentData.fileUrl = await uploadFile(assignmentFile, `assignments/${assignmentFile.name}_${Date.now()}`);
+                assignmentData.fileName = assignmentFile.name;
+            }
+    
+            await addData(assignmentData as Omit<Assignment, 'id'>);
+    
             toast({ title: "Success", description: "Assignment created successfully." });
             setIsCreateDialogOpen(false);
             setNewAssignment({});
