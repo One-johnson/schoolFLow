@@ -39,6 +39,7 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuBadge,
+  SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { auth } from "@/lib/firebase";
 
