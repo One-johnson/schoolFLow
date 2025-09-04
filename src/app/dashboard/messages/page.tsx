@@ -15,13 +15,12 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Send, MessageSquare, Search, CheckCheck, BookOpen, Users } from "lucide-react";
+import { Loader2, Send, MessageSquare, Search, CheckCheck, BookOpen, Users, ChevronsUpDown } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronsUpDown } from "lucide-react";
 
 
 type UserProfile = { id: string; name: string; avatarUrl?: string; role: 'student' | 'teacher' | 'admin' };
@@ -41,7 +40,7 @@ const getInitials = (name?: string) => name ? name.split(' ').map(n => n[0]).joi
 
 export default function MessagesPage() {
   const { user, role } = useAuth();
-  const { data: users, loading: usersLoading } = useDatabase<UserProfile>("users");
+  const { data: allUsers, loading: usersLoading } = useDatabase<UserProfile>("users");
   const { data: classes, loading: classesLoading } = useDatabase<Class>("classes");
   const { data: messages, addData, updateData, loading: messagesLoading } = useDatabase<Message>("messages");
   const { toast } = useToast();
@@ -51,63 +50,63 @@ export default function MessagesPage() {
   const [isSending, setIsSending] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
 
-  const usersMap = React.useMemo(() => new Map(users.map(u => [u.id, u])), [users]);
+  const usersMap = React.useMemo(() => new Map(allUsers.map(u => [u.id, u])), [allUsers]);
   const studentClass = React.useMemo(() => user ? classes.find(c => c.studentIds && c.studentIds[user.uid]) : null, [classes, user]);
+  const teacherClasses = React.useMemo(() => user ? classes.filter(c => c.teacherId === user.uid) : [], [classes, user]);
 
   const conversationThreads = React.useMemo(() => {
     if (!user) return new Map();
     const threads = new Map<string, { contact: Contact, lastMessage: Message, unreadCount: number }>();
     
     messages.forEach(msg => {
-      const isMyMessage = msg.senderId === user.uid;
-      let otherPartyId: string;
-      let isRelevantToMe = false;
+        let conversationId: string | undefined;
+        let isRelevantToMe = false;
 
-      if (msg.recipientType === 'individual') {
-        if (msg.senderId === user.uid || msg.recipientId === user.uid) {
-           otherPartyId = isMyMessage ? msg.recipientId : msg.senderId;
-           isRelevantToMe = true;
-        } else {
-            return;
+        if (msg.recipientType === 'class') {
+            if (studentClass?.id === msg.recipientId || teacherClasses.some(c => c.id === msg.recipientId) || (role === 'teacher' && msg.senderId === user.uid)) {
+                isRelevantToMe = true;
+                conversationId = msg.recipientId;
+            }
+        } else { // Individual message
+            if (msg.senderId === user.uid) {
+                isRelevantToMe = true;
+                conversationId = msg.recipientId;
+            } else if (msg.recipientId === user.uid) {
+                isRelevantToMe = true;
+                conversationId = msg.senderId;
+            }
         }
-      } else { // It's a class message
-         if (msg.senderId === user.uid || studentClass?.id === msg.recipientId) {
-             otherPartyId = msg.recipientId;
-             isRelevantToMe = true;
-         } else {
-             return;
-         }
-      }
+        
+        if (!isRelevantToMe || !conversationId) return;
 
-      if (!isRelevantToMe) return;
+        let contact: Contact | undefined;
+        const potentialClass = classes.find(c => c.id === conversationId);
+        if (potentialClass) {
+            contact = {...potentialClass, type: 'class'};
+        } else {
+            const potentialUser = usersMap.get(conversationId);
+            if (potentialUser) contact = {...potentialUser, type: 'user'};
+        }
 
-      let contact: Contact | undefined;
-      if (msg.recipientType === 'class') {
-        const c = classes.find(c => c.id === otherPartyId);
-        if (c) contact = {...c, type: 'class'};
-      } else {
-        const u = usersMap.get(otherPartyId);
-        if (u) contact = {...u, type: 'user'};
-      }
-      
-      if (!contact) return;
-      
-      const existing = threads.get(otherPartyId);
-      const isUnread = !isMyMessage && (!msg.readBy || !msg.readBy[user.uid]);
+        if (!contact) return;
 
-      if (!existing || msg.timestamp > existing.lastMessage.timestamp) {
-        threads.set(otherPartyId, {
-          contact,
-          lastMessage: msg,
-          unreadCount: (existing?.unreadCount || 0) + (isUnread ? 1 : 0)
-        });
-      } else if (isUnread) {
-        existing.unreadCount += 1;
-      }
+        const isMyMessage = msg.senderId === user.uid;
+        const isUnread = !isMyMessage && (!msg.readBy || !msg.readBy[user.uid]);
+        const existing = threads.get(conversationId);
+
+        if (!existing || msg.timestamp > existing.lastMessage.timestamp) {
+            threads.set(conversationId, {
+                contact,
+                lastMessage: msg,
+                unreadCount: (existing?.unreadCount || 0) + (isUnread ? 1 : 0)
+            });
+        } else if (isUnread) {
+            existing.unreadCount++;
+        }
     });
 
     return threads;
-  }, [messages, user, usersMap, classes, studentClass]);
+  }, [messages, user, usersMap, classes, studentClass, teacherClasses, role]);
   
   const currentMessages = React.useMemo(() => {
     if (!user || !selectedContact) return [];
@@ -166,34 +165,37 @@ export default function MessagesPage() {
     
     const contactMap = new Map(Array.from(conversationThreads.values()).map(c => [c.contact.id, c.contact]));
 
-    let availableClasses: Contact[] = [];
-    if (role === 'admin' || role === 'teacher') {
-        availableClasses = classes.map(c => ({...c, type: 'class' as 'class'}));
-        availableClasses.forEach(c => {
-          if (!contactMap.has(c.id)) contactMap.set(c.id, c);
-        });
-    }
+    let finalClasses: Contact[] = [];
+    let finalUsers: Contact[] = [];
 
-    let availableUsers: Contact[] = [];
     if (role === 'admin') {
-        availableUsers = users.filter(u => u.id !== user.uid).map(u => ({...u, type: 'user' as 'user'}));
+      // Admins can only message teachers
+      finalUsers = allUsers.filter(u => u.role === 'teacher');
     } else if (role === 'teacher') {
-        availableUsers = users.filter(u => u.role === 'student' || u.role === 'admin').map(u => ({...u, type: 'user' as 'user'}));
-    } else { // student
-        availableUsers = users.filter(u => u.role === 'teacher' || u.role === 'admin').map(u => ({...u, type: 'user' as 'user'}));
-    }
-
-    availableUsers.forEach(u => {
-      if(!contactMap.has(u.id)) {
-        contactMap.set(u.id, u);
+      // Teachers see their classes and students in those classes
+      finalClasses = teacherClasses.map(c => ({ ...c, type: 'class' }));
+      const studentIds = new Set<string>();
+      teacherClasses.forEach(c => {
+          if (c.studentIds) Object.keys(c.studentIds).forEach(id => studentIds.add(id));
+      });
+      finalUsers = allUsers.filter(u => studentIds.has(u.id));
+    } else if (role === 'student') {
+      // Students see their class and their teachers
+      if (studentClass) {
+        finalClasses = [{ ...studentClass, type: 'class' }];
+        const teacherId = studentClass.teacherId;
+        finalUsers = allUsers.filter(u => u.id === teacherId);
       }
-    });
+    }
     
-    const allContacts = Array.from(contactMap.values());
-    const finalClasses = allContacts.filter(c => c.type === 'class');
-    const finalUsers = allContacts.filter(c => c.type === 'user');
+    // Add existing conversations to the list if not already present
+    finalClasses.forEach(c => contactMap.set(c.id, c));
+    finalUsers.forEach(u => contactMap.set(u.id, u));
 
-    return { classes: finalClasses, users: finalUsers };
+    return { 
+      classes: Array.from(contactMap.values()).filter(c => c.type === 'class'), 
+      users: Array.from(contactMap.values()).filter(c => c.type === 'user')
+    };
   };
 
   const { classes: contactClasses, users: contactUsers } = getContactList();
@@ -228,7 +230,7 @@ export default function MessagesPage() {
           <CardContent>
             <ScrollArea className="h-[calc(75vh-150px)]">
                 <div className="space-y-2 pr-4">
-                  {(role === 'admin' || role === 'teacher') && filteredClasses.length > 0 && (
+                  {filteredClasses.length > 0 && (
                      <Collapsible defaultOpen={true}>
                         <CollapsibleTrigger className="flex w-full items-center justify-between py-2 font-semibold text-sm">
                             <div className="flex items-center gap-2"><BookOpen className="h-4 w-4"/> Classes</div>
@@ -324,7 +326,7 @@ export default function MessagesPage() {
                                </Avatar>
                            )}
                            <div className={cn("max-w-xs md:max-w-md lg:max-w-lg rounded-lg p-3 text-sm", msg.senderId === user?.uid ? "bg-primary text-primary-foreground" : "bg-muted")}>
-                                {msg.senderId !== user?.uid && <p className="text-xs font-bold mb-1">{sender?.name}</p>}
+                                {msg.recipientType === 'class' && msg.senderId !== user?.uid && <p className="text-xs font-bold mb-1">{sender?.name}</p>}
                                 <p className="whitespace-pre-wrap">{msg.content}</p>
                                 <div className={cn("flex items-center justify-end gap-1 text-xs mt-1", msg.senderId === user?.uid ? "text-primary-foreground/70" : "text-muted-foreground")}>
                                     <span>{typeof msg.timestamp === 'number' ? formatDistanceToNow(new Date(msg.timestamp), { addSuffix: true }) : 'sending...'}</span>
