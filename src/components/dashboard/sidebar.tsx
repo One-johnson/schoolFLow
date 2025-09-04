@@ -23,9 +23,11 @@ import {
   UserCheck,
   Users,
   MessageSquare,
+  Home,
 } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
+import { useUnreadCount } from "@/hooks/use-unread-count";
 import {
   Sidebar,
   SidebarContent,
@@ -36,6 +38,7 @@ import {
   SidebarMenuItem,
   SidebarMenuSub,
   SidebarMenuSubButton,
+  SidebarMenuBadge,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { auth } from "@/lib/firebase";
@@ -48,6 +51,7 @@ export function DashboardSidebar({
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
+  const unreadMessageCount = useUnreadCount();
 
   const isActive = (path: string, exact: boolean = true) => {
     if (!path) return false;
@@ -103,6 +107,13 @@ export function DashboardSidebar({
       path: "/dashboard/messages",
       icon: MessageSquare,
       label: "Messages",
+      roles: ["admin", "teacher", "student"],
+      badge: unreadMessageCount > 0 ? unreadMessageCount : undefined,
+    },
+    {
+      path: "/dashboard/assignments",
+      icon: Home,
+      label: "Assignments",
       roles: ["admin", "teacher", "student"],
     },
     {
@@ -224,6 +235,7 @@ export function DashboardSidebar({
                     >
                       <item.icon />
                       <span>{item.label}</span>
+                       {item.badge && <SidebarMenuBadge>{item.badge}</SidebarMenuBadge>}
                     </SidebarMenuButton>
                   </Link>
                 ) : (
@@ -240,6 +252,7 @@ export function DashboardSidebar({
                   >
                     <item.icon />
                     <span>{item.label}</span>
+                    {item.badge && <SidebarMenuBadge>{item.badge}</SidebarMenuBadge>}
                   </SidebarMenuButton>
                 )}
 

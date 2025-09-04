@@ -7,9 +7,9 @@ import { useDatabase } from "@/hooks/use-database"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "../ui/button";
 import Link from "next/link";
-import { ArrowRight, BookOpen, Calendar as CalendarIcon, ClipboardCheck, DollarSign, GraduationCap, Megaphone, User, School, Clock, MessageSquare, MailCheck, CheckCircle2, XCircle } from "lucide-react";
+import { ArrowRight, BookOpen, Calendar as CalendarIcon, ClipboardCheck, DollarSign, GraduationCap, Megaphone, User, School, Clock, MessageSquare, MailCheck, CheckCircle2, XCircle, Home } from "lucide-react";
 import { Skeleton } from "../ui/skeleton";
-import { format, isFuture, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, formatDistanceToNow } from 'date-fns';
+import { format, isFuture, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, formatDistanceToNow, isPast } from 'date-fns';
 import { Badge } from "../ui/badge";
 import { cn, calculateGrade } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
@@ -34,6 +34,7 @@ import {
 import { DateRange } from "react-day-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 
 // Data Types
 type Student = { id: string; name: string; studentId: string; avatarUrl?: string; createdAt: number; };
@@ -44,13 +45,14 @@ type Announcement = { id: string; title: string; content: string; createdAt: num
 type Exam = { id: string; name: string; status: "Published" | "Grading" | "Upcoming" | "Ongoing" };
 type StudentGrade = { id: string; examId: string; studentId: string; subjectId: string; classScore: number; examScore: number; };
 type Subject = { id: string; name: string; };
+type Assignment = { id: string; title: string; classId: string; subjectId: string; dueDate: string; };
+type Submission = { id: string; assignmentId: string; studentId: string; };
 type TimetableEntry = { subjectId: string; teacherId: string; };
 type ClassTimetable = { id: string, [day: string]: { [timeSlot: string]: TimetableEntry | null } };
 type AttendanceStatus = "Present" | "Absent" | "Late" | "Excused";
 type AttendanceEntry = { status: AttendanceStatus, comment?: string };
 type AttendanceRecord = Record<string, AttendanceEntry>;
 type DailyAttendance = { [classId: string]: AttendanceRecord };
-type Message = { id: string; senderId: string; content: string; timestamp: number; read: boolean; };
 type UserProfile = { id: string; name: string; avatarUrl?: string; role: 'student' | 'teacher' | 'admin' };
 type PermissionSlip = { id: string; studentId: string; reason: string; status: "Pending" | "Approved" | "Rejected"; createdAt: number; };
 
@@ -73,16 +75,17 @@ export function StudentDashboard() {
   const { data: subjects, loading: subjectsLoading } = useDatabase<Subject>("subjects");
   const { data: timetables, loading: timetablesLoading } = useDatabase<ClassTimetable>("timetables");
   const { data: rawAttendance, loading: attendanceLoading } = useDatabase<DailyAttendance>("attendance");
-  const { data: messages, loading: messagesLoading } = useDatabase<Message>("messages");
-  const { data: users, loading: usersLoading } = useDatabase<UserProfile>("users");
   const { data: permissionSlips, loading: slipsLoading } = useDatabase<PermissionSlip>("permissionSlips");
+  const { data: assignments, loading: assignmentsLoading } = useDatabase<Assignment>("assignments");
+  const { data: submissions, loading: submissionsLoading } = useDatabase<Submission>("submissions");
+
 
   const [attendanceDateRange, setAttendanceDateRange] = React.useState<DateRange | undefined>({
     from: startOfMonth(new Date()),
     to: new Date(),
   });
 
-  const loading = studentsLoading || classesLoading || eventsLoading || feesLoading || announcementsLoading || examsLoading || gradesLoading || subjectsLoading || timetablesLoading || attendanceLoading || messagesLoading || usersLoading || slipsLoading;
+  const loading = studentsLoading || classesLoading || eventsLoading || feesLoading || announcementsLoading || examsLoading || gradesLoading || subjectsLoading || timetablesLoading || attendanceLoading || slipsLoading || assignmentsLoading || submissionsLoading;
 
   // Memoized calculations
   const student = React.useMemo(() => user ? students.find(s => s.id === user.uid) : null, [students, user]);
@@ -188,19 +191,24 @@ export function StudentDashboard() {
 
   }, [rawAttendance, user, studentClass, attendanceDateRange, attendanceLoading]);
   
-   const usersMap = React.useMemo(() => new Map(users.map(u => [u.id, u])), [users]);
-   const recentMessages = React.useMemo(() => {
-    if (!user) return [];
-    return messages
-        .filter(m => m.read === false)
-        .sort((a,b) => b.timestamp - a.timestamp)
-        .slice(0, 3);
-  }, [messages, user]);
-  
-  const myRecentSlips = React.useMemo(() => {
+   const myRecentSlips = React.useMemo(() => {
     if (!user) return [];
     return permissionSlips.filter(p => p.studentId === user.uid).sort((a,b) => b.createdAt - a.createdAt).slice(0,2);
   }, [permissionSlips, user]);
+
+  const { newAssignments, overdueAssignments } = React.useMemo(() => {
+    if (!studentClass) return { newAssignments: [], overdueAssignments: [] };
+    
+    const mySubmissions = submissions.filter(s => s.studentId === user?.uid);
+    const mySubmissionIds = new Set(mySubmissions.map(s => s.assignmentId));
+
+    const myAssignments = assignments.filter(a => a.classId === studentClass.id && !mySubmissionIds.has(a.id));
+
+    const newAssignments = myAssignments.filter(a => !isPast(parseISO(a.dueDate))).slice(0, 3);
+    const overdueAssignments = myAssignments.filter(a => isPast(parseISO(a.dueDate))).slice(0, 3);
+    
+    return { newAssignments, overdueAssignments };
+  }, [assignments, submissions, studentClass, user]);
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return "S";
@@ -222,6 +230,18 @@ export function StudentDashboard() {
     Late: { label: "Late", color: "hsl(var(--chart-4))" },
     Excused: { label: "Excused", color: "hsl(var(--chart-1))" },
   }
+
+  const AssignmentItem = ({ assignment }: { assignment: Assignment }) => (
+    <div className="flex items-start gap-3">
+        <div className="p-2 bg-muted rounded-full text-muted-foreground mt-1"><Home className="h-4 w-4" /></div>
+        <div>
+            <p className="font-semibold text-sm truncate">{assignment.title}</p>
+            <p className="text-xs text-muted-foreground">
+                {subjectsMap.get(assignment.subjectId)} | Due: {format(parseISO(assignment.dueDate), "PPP")}
+            </p>
+        </div>
+    </div>
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -494,38 +514,36 @@ export function StudentDashboard() {
               </CardFooter>
             </Card>
 
-             {/* New Messages Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle>New Messages</CardTitle>
-                <CardDescription>Recent unread conversations.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {loading ? <Skeleton className="h-20 w-full" /> : recentMessages.length > 0 ? (
-                  recentMessages.map(msg => {
-                    const sender = usersMap.get(msg.senderId);
-                    return (
-                        <div key={msg.id} className="flex items-start gap-4">
-                            <Avatar className="h-10 w-10">
-                                <AvatarImage src={sender?.avatarUrl} />
-                                <AvatarFallback>{getInitials(sender?.name)}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                                <p className="font-semibold text-sm">{sender?.name}</p>
-                                <p className="text-xs text-muted-foreground truncate">{msg.content}</p>
-                                <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(msg.timestamp), { addSuffix: true })}</p>
-                            </div>
-                        </div>
-                    )
-                  })
-                ) : <p className="text-sm text-center text-muted-foreground py-4">No new messages.</p>}
-              </CardContent>
-               <CardFooter>
-                 <Button asChild variant="outline" className="w-full">
-                    <Link href="/dashboard/messages">View All Messages <ArrowRight className="ml-2 h-4 w-4"/></Link>
-                </Button>
-              </CardFooter>
-            </Card>
+             {/* New Assignments Card */}
+             <Card>
+                <CardHeader>
+                    <CardTitle>My Assignments</CardTitle>
+                    <CardDescription>A summary of your current assignments.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Tabs defaultValue="new">
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="new">New ({newAssignments.length})</TabsTrigger>
+                            <TabsTrigger value="overdue" className="text-destructive">Overdue ({overdueAssignments.length})</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="new" className="mt-4 space-y-3">
+                           {loading ? <Skeleton className="h-20 w-full"/> : newAssignments.length > 0 ? (
+                               newAssignments.map(assignment => <AssignmentItem key={assignment.id} assignment={assignment}/>)
+                           ) : <p className="text-sm text-center text-muted-foreground py-4">No new assignments. Great job!</p>}
+                        </TabsContent>
+                        <TabsContent value="overdue" className="mt-4 space-y-3">
+                            {loading ? <Skeleton className="h-20 w-full"/> : overdueAssignments.length > 0 ? (
+                                overdueAssignments.map(assignment => <AssignmentItem key={assignment.id} assignment={assignment}/>)
+                            ) : <p className="text-sm text-center text-muted-foreground py-4">No overdue assignments.</p>}
+                        </TabsContent>
+                    </Tabs>
+                </CardContent>
+                <CardFooter>
+                    <Button asChild variant="outline" className="w-full">
+                        <Link href="/dashboard/assignments">View All Assignments <ArrowRight className="ml-2 h-4 w-4"/></Link>
+                    </Button>
+                </CardFooter>
+             </Card>
       </div>
     </div>
   );

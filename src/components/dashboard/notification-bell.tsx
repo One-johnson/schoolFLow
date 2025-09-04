@@ -11,6 +11,8 @@ import {
   Megaphone,
   DollarSign,
   FileText,
+  Home,
+  CheckSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,7 +32,7 @@ import type { FirebaseOptions } from "firebase/app";
 
 type Notification = {
   id: string;
-  type: "student_enrolled" | "teacher_added" | "class_created" | "announcement" | "exam_published" | "fee_assigned" | "payment_received" | "fee_reminder";
+  type: "student_enrolled" | "teacher_added" | "class_created" | "announcement" | "exam_published" | "fee_assigned" | "payment_received" | "fee_reminder" | "assignment_created" | "assignment_submitted";
   message: string;
   read: boolean;
   createdAt: number;
@@ -46,6 +48,8 @@ const iconMap = {
   fee_assigned: <DollarSign className="h-4 w-4 text-red-500" />,
   payment_received: <DollarSign className="h-4 w-4 text-green-500" />,
   fee_reminder: <DollarSign className="h-4 w-4 text-orange-500" />,
+  assignment_created: <Home className="h-4 w-4 text-blue-500" />,
+  assignment_submitted: <CheckSquare className="h-4 w-4 text-green-500" />,
 };
 
 export function NotificationBell() {
