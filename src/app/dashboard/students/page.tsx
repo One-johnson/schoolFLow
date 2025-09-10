@@ -268,9 +268,6 @@ export default function StudentsPage() {
     }
     setIsLoading(true);
     
-    // This is a temporary ID for the database record. 
-    // The actual user UID from Firebase Auth will replace this if using Cloud Functions.
-    // For now, we use a uniquely generated ID.
     const tempUid = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
     try {
@@ -292,13 +289,24 @@ export default function StudentsPage() {
             name: newStudent.name,
         });
 
+        // Notification for admins
         await addNotification({
             type: 'student_enrolled',
             message: `New student "${newStudent.name}" was enrolled.`,
             read: false,
-        });
+            recipientRole: 'admin',
+        } as any);
 
-        toast({ title: "Success", description: "Student record created. An admin must create their auth account." });
+        // Welcome notification for the student
+        await addNotification({
+            type: 'welcome',
+            message: `Welcome to SchoolFlow, ${newStudent.name}!`,
+            read: false,
+            recipientId: tempUid,
+        } as any);
+
+
+        toast({ title: "Success", description: "Student record created." });
         setNewStudent({});
         setDob(undefined);
         setIsCreateDialogOpen(false);
@@ -1214,5 +1222,3 @@ export default function StudentsPage() {
     </Card>
   )
 }
-
-    

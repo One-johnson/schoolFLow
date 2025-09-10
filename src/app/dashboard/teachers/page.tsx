@@ -248,13 +248,23 @@ export default function TeachersPage() {
             name: newTeacher.name,
         });
 
+      // Notification for admins
       await addNotification({
         type: 'teacher_added',
         message: `New teacher "${newTeacher.name}" was added.`,
         read: false,
+        recipientRole: 'admin',
       } as any);
 
-      toast({ title: "Success", description: "Teacher record created. An admin must create their auth account." });
+       // Welcome notification for the teacher
+        await addNotification({
+            type: 'welcome',
+            message: `Welcome to the team, ${newTeacher.name}! We're glad to have you.`,
+            read: false,
+            recipientId: tempUid,
+        } as any);
+
+      toast({ title: "Success", description: "Teacher record created." });
       resetFormStates();
       setIsCreateDialogOpen(false);
     } catch (error: any) {
@@ -1062,7 +1072,7 @@ export default function TeachersPage() {
                      </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="academicQualification" className="text-right">Academic Qualification</Label>
-                        <Input id="academicQualification" placeholder="e.g., M.Sc. Physics" className="col-span-3" value={editTeacher.academicQualification || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
+                        <Input id="academicQualification" placeholder="e.g., M.Sc. Physics" className="col-span-3" value={editTeacher.academicQualification || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="gender" className="text-right">Gender</Label>
@@ -1079,15 +1089,15 @@ export default function TeachersPage() {
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="nationality" className="text-right">Nationality</Label>
-                        <Input id="nationality" placeholder="e.g., Nigerian" className="col-span-3" value={editTeacher.nationality || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
+                        <Input id="nationality" placeholder="e.g., Nigerian" className="col-span-3" value={editTeacher.nationality || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="address" className="text-right">Address</Label>
-                        <Input id="address" placeholder="123 Main St, Anytown" className="col-span-3" value={editTeacher.address || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
+                        <Input id="address" placeholder="123 Main St, Anytown" className="col-span-3" value={editTeacher.address || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="religion" className="text-right">Religion</Label>
-                        <Input id="religion" placeholder="e.g., Christianity" className="col-span-3" value={editTeacher.religion || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
+                        <Input id="religion" placeholder="e.g., Christianity" className="col-span-3" value={editTeacher.religion || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="status" className="text-right">Status</Label>
@@ -1115,5 +1125,3 @@ export default function TeachersPage() {
     </Card>
   )
 }
-
-    
