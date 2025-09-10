@@ -32,7 +32,7 @@ import {
 import Link from "next/link"
 import { database, auth } from '@/lib/firebase';
 import { set, ref, update, serverTimestamp } from 'firebase/database';
-import { createUserWithEmailAndPassword, deleteUser } from 'firebase/auth';
+import { createUserWithEmailAndPassword, deleteUser, signInWithCredential, EmailAuthProvider } from 'firebase/auth';
 
 
 import { Button } from "@/components/ui/button"
@@ -265,12 +265,28 @@ export default function StudentsPage() {
       toast({ title: "Error", description: "Student name and email are required.", variant: "destructive" });
       return;
     }
+    if (!auth.currentUser || !auth.currentUser.email) {
+      toast({ title: "Error", description: "Admin user is not properly authenticated.", variant: "destructive" });
+      return;
+    }
     setIsLoading(true);
 
     const studentId = generateStudentId();
     const password = studentId;
 
+    // Temporarily store admin credentials. This is a workaround for client-side user creation.
+    const adminUser = auth.currentUser;
+    const adminPassword = prompt("Please re-enter your admin password to confirm student creation:");
+
+    if (!adminPassword) {
+      toast({ title: "Action Canceled", description: "Admin password not provided.", variant: "destructive"});
+      setIsLoading(false);
+      return;
+    }
+
     try {
+        const adminCredential = EmailAuthProvider.credential(adminUser.email!, adminPassword);
+
         const userCredential = await createUserWithEmailAndPassword(auth, newStudent.email!, password);
         const { uid } = userCredential.user;
 
@@ -291,6 +307,9 @@ export default function StudentsPage() {
             name: newStudent.name,
         });
 
+        // Re-authenticate the admin
+        await signInWithCredential(auth, adminCredential);
+
         await addNotification({
             type: 'student_enrolled',
             message: `New student "${newStudent.name}" was enrolled.`,
@@ -305,9 +324,17 @@ export default function StudentsPage() {
         console.error("Student creation error:", error);
         if (error.code === 'auth/email-already-in-use') {
             toast({ title: "Error", description: "This email is already in use.", variant: "destructive" });
+        } else if (error.code === 'auth/wrong-password') {
+            toast({ title: "Authentication Error", description: "Incorrect admin password. Student not created.", variant: "destructive" });
         } else {
             toast({ title: "Error", description: `Failed to add student: ${error.message}`, variant: "destructive" });
         }
+        
+        // Ensure admin is still logged in if something fails after new user creation
+        if(auth.currentUser?.uid !== adminUser.uid) {
+            await signInWithCredential(auth, EmailAuthProvider.credential(adminUser.email!, adminPassword)).catch(e => console.error("Admin re-login failed:", e));
+        }
+
     } finally {
         setIsLoading(false);
     }
@@ -1065,7 +1092,7 @@ export default function StudentsPage() {
             <DialogTitle>Edit Student</DialogTitle>
             <DialogDescription>Update the student's information below.</DialogDescription>
           </DialogHeader>
-           <ScrollArea className="h-[60vh] pr-6">
+           <ScrollArea className="max-h-[60vh] pr-6">
               <Tabs defaultValue="student-details" className="w-full">
                     <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="student-details">Student Details</TabsTrigger>

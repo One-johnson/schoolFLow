@@ -33,7 +33,7 @@ import {
 import Link from "next/link"
 import { database, auth } from '@/lib/firebase';
 import { set, ref, update, serverTimestamp } from 'firebase/database';
-import { createUserWithEmailAndPassword } from "firebase/auth"
+import { createUserWithEmailAndPassword, EmailAuthProvider, signInWithCredential } from "firebase/auth"
 
 
 import { Button } from "@/components/ui/button"
@@ -225,12 +225,28 @@ export default function TeachersPage() {
       toast({ title: "Error", description: "Name, email, and department are required.", variant: "destructive" });
       return;
     }
+     if (!auth.currentUser || !auth.currentUser.email) {
+      toast({ title: "Error", description: "Admin user is not properly authenticated.", variant: "destructive" });
+      return;
+    }
     setIsLoading(true);
 
     const teacherId = generateTeacherId(newTeacher.department);
     const password = teacherId; // Use generated ID as password
 
+    // Temporarily store admin credentials. This is a workaround for client-side user creation.
+    const adminUser = auth.currentUser;
+    const adminPassword = prompt("Please re-enter your admin password to confirm teacher creation:");
+    
+    if (!adminPassword) {
+      toast({ title: "Action Canceled", description: "Admin password not provided.", variant: "destructive"});
+      setIsLoading(false);
+      return;
+    }
+
     try {
+        const adminCredential = EmailAuthProvider.credential(adminUser.email!, adminPassword);
+
         const userCredential = await createUserWithEmailAndPassword(auth, newTeacher.email!, password);
         const { uid } = userCredential.user;
 
@@ -251,6 +267,9 @@ export default function TeachersPage() {
             name: newTeacher.name,
         });
 
+        // Re-authenticate the admin
+        await signInWithCredential(auth, adminCredential);
+
       await addNotification({
         type: 'teacher_added',
         message: `New teacher "${newTeacher.name}" was added.`,
@@ -264,9 +283,16 @@ export default function TeachersPage() {
       console.error("Teacher creation error:", error);
       if (error.code === 'auth/email-already-in-use') {
         toast({ title: "Error", description: "This email is already in use.", variant: "destructive" });
+      } else if (error.code === 'auth/wrong-password') {
+         toast({ title: "Authentication Error", description: "Incorrect admin password. Teacher not created.", variant: "destructive" });
       } else {
         toast({ title: "Error", description: `Failed to add teacher: ${error.message}`, variant: "destructive" });
       }
+      
+      // Ensure admin is still logged in if something fails after new user creation
+       if(auth.currentUser?.uid !== adminUser.uid) {
+           await signInWithCredential(auth, EmailAuthProvider.credential(adminUser.email!, adminPassword)).catch(e => console.error("Admin re-login failed:", e));
+       }
     } finally {
       setIsLoading(false);
     }
