@@ -198,19 +198,30 @@ export default function TeachersPage() {
 
    const handleFileChange = async (file: File | null, form: 'new' | 'edit') => {
       if (!file) return;
-      setIsLoading(true);
-      try {
-          const downloadURL = await uploadFile(file, `avatars/teachers/${file.name}`);
-           if (form === 'new') {
-                setNewTeacher(prev => ({ ...prev, avatarUrl: downloadURL }));
-            } else {
-                setEditTeacher(prev => ({ ...prev, avatarUrl: downloadURL }));
-            }
-          toast({ title: "Image uploaded", description: "Avatar has been updated."});
-      } catch (error) {
-           toast({ title: "Upload failed", description: "Could not upload image.", variant: "destructive" });
-      } finally {
-          setIsLoading(false);
+
+      if (form === 'edit' && selectedTeacher) {
+          setIsLoading(true);
+          try {
+              const downloadURL = await uploadFile(file, `avatars/teachers/${selectedTeacher.id}/${file.name}`);
+              await updateTeacherData(selectedTeacher.id, { avatarUrl: downloadURL });
+              setEditTeacher(prev => ({ ...prev, avatarUrl: downloadURL }));
+              toast({ title: "Avatar uploaded", description: "Teacher's avatar has been updated." });
+          } catch (error) {
+              toast({ title: "Upload failed", description: "Could not upload image.", variant: "destructive" });
+          } finally {
+              setIsLoading(false);
+          }
+      } else if (form === 'new') {
+          setIsLoading(true);
+          try {
+              const downloadURL = await uploadFile(file, `avatars/teachers/temp/${file.name}`);
+              setNewTeacher(prev => ({ ...prev, avatarUrl: downloadURL }));
+              toast({ title: "Image ready", description: "Avatar will be saved with the new teacher." });
+          } catch (error) {
+              toast({ title: "Upload failed", description: "Could not upload image.", variant: "destructive" });
+          } finally {
+              setIsLoading(false);
+          }
       }
   }
   
@@ -293,6 +304,7 @@ export default function TeachersPage() {
     try {
       const updates: any = {
         ...editTeacher,
+        avatarUrl: editTeacher.avatarUrl || selectedTeacher.avatarUrl,
         dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
         dateOfEmployment: doe ? format(doe, "yyyy-MM-dd") : undefined,
         updatedAt: serverTimestamp(),
@@ -1076,7 +1088,7 @@ export default function TeachersPage() {
                      </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="academicQualification" className="text-right">Academic Qualification</Label>
-                        <Input id="academicQualification" placeholder="e.g., M.Sc. Physics" className="col-span-3" value={editTeacher.academicQualification || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
+                        <Input id="academicQualification" placeholder="e.g., M.Sc. Physics" className="col-span-3" value={editTeacher.academicQualification || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="gender" className="text-right">Gender</Label>
@@ -1093,15 +1105,15 @@ export default function TeachersPage() {
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="nationality" className="text-right">Nationality</Label>
-                        <Input id="nationality" placeholder="e.g., Nigerian" className="col-span-3" value={editTeacher.nationality || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
+                        <Input id="nationality" placeholder="e.g., Nigerian" className="col-span-3" value={editTeacher.nationality || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="address" className="text-right">Address</Label>
-                        <Input id="address" placeholder="123 Main St, Anytown" className="col-span-3" value={editTeacher.address || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
+                        <Input id="address" placeholder="123 Main St, Anytown" className="col-span-3" value={editTeacher.address || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="religion" className="text-right">Religion</Label>
-                        <Input id="religion" placeholder="e.g., Christianity" className="col-span-3" value={editTeacher.religion || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
+                        <Input id="religion" placeholder="e.g., Christianity" className="col-span-3" value={editTeacher.religion || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="status" className="text-right">Status</Label>
