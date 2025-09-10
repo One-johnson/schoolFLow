@@ -46,7 +46,7 @@ export function DashboardHeader() {
       <div className="flex items-center gap-2">
         <Tooltip>
           <TooltipTrigger asChild>
-            <SidebarTrigger className="md:hidden" />
+            <SidebarTrigger />
           </TooltipTrigger>
           <TooltipContent>
             <p>Toggle Navigation</p>

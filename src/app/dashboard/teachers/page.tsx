@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import * as React from "react"
@@ -196,14 +197,24 @@ export default function TeachersPage() {
       }
   }
 
-   const handleFileChange = async (file: File | null, form: 'new' | 'edit') => {
+  const handleFileChange = async (file: File | null, form: 'new' | 'edit') => {
       if (!file) return;
       setIsLoading(true);
+      
+      const teacherId = form === 'new' ? '' : selectedTeacher?.id;
+      if (!teacherId && form === 'edit') {
+        toast({ title: "Error", description: "No teacher selected for avatar change.", variant: "destructive" });
+        setIsLoading(false);
+        return;
+      }
+      
       try {
-          const downloadURL = await uploadFile(file, `avatars/teachers/${file.name}`);
+          const path = `avatars/teachers/${teacherId || 'new'}/${file.name}_${Date.now()}`;
+          const downloadURL = await uploadFile(file, path);
            if (form === 'new') {
                 setNewTeacher(prev => ({ ...prev, avatarUrl: downloadURL }));
-            } else {
+            } else if (teacherId) {
+                await updateTeacherData(teacherId, { avatarUrl: downloadURL });
                 setEditTeacher(prev => ({ ...prev, avatarUrl: downloadURL }));
             }
           toast({ title: "Image uploaded", description: "Avatar has been updated."});
@@ -231,17 +242,24 @@ export default function TeachersPage() {
     const tempUid = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
     try {
-        const teacherProfile = {
+        const teacherProfile: any = {
             ...newTeacher,
             id: tempUid,
             teacherId: generateTeacherId(newTeacher.department!),
             status: 'Active',
             createdAt: serverTimestamp(),
-            dateOfBirth: dob ? format(dob, 'yyyy-MM-dd') : undefined,
-            dateOfEmployment: doe ? format(doe, 'yyyy-MM-dd') : undefined,
         };
 
+        if (dob) {
+            teacherProfile.dateOfBirth = format(dob, 'yyyy-MM-dd');
+        }
+
+        if (doe) {
+            teacherProfile.dateOfEmployment = format(doe, 'yyyy-MM-dd');
+        }
+
         await addDataWithId(tempUid, teacherProfile as Omit<Teacher, 'id'>);
+        
         await set(ref(database, `users/${tempUid}`), {
             role: 'teacher',
             email: newTeacher.email,
@@ -284,15 +302,25 @@ export default function TeachersPage() {
   }
 
   const handleUpdateTeacher = async () => {
-    if (!selectedTeacher || !editTeacher) return
+    if (!selectedTeacher || !editTeacher) return;
     setIsLoading(true);
     try {
       const updates: any = {
         ...editTeacher,
-        dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
-        dateOfEmployment: doe ? format(doe, "yyyy-MM-dd") : undefined,
         updatedAt: serverTimestamp(),
       };
+      
+      if (dob) {
+        updates.dateOfBirth = format(dob, "yyyy-MM-dd");
+      } else {
+        delete updates.dateOfBirth;
+      }
+      
+      if (doe) {
+        updates.dateOfEmployment = format(doe, "yyyy-MM-dd");
+      } else {
+        delete updates.dateOfEmployment;
+      }
       
       await updateTeacherData(selectedTeacher.id, updates);
       await update(ref(database, `users/${selectedTeacher.id}`), { name: editTeacher.name, email: editTeacher.email });
@@ -302,6 +330,7 @@ export default function TeachersPage() {
       resetFormStates()
       setSelectedTeacher(null)
     } catch (error) {
+      console.error(error);
       toast({ title: "Error", description: "Failed to update teacher.", variant: "destructive" })
     } finally {
       setIsLoading(false);
@@ -813,7 +842,7 @@ export default function TeachersPage() {
       </CardHeader>
       <CardContent>
         <div className="w-full">
-            <div className="mb-4 flex flex-wrap items-center gap-6 rounded-md bg-muted p-1 sm:w-fit">
+            <div className="mb-4 flex flex-wrap items-center gap-6 rounded-md bg-muted p-1">
                 <Button variant="ghost" className="h-8 justify-start gap-2 px-3 text-muted-foreground hover:bg-background hover:text-foreground data-[active=true]:bg-background data-[active=true]:text-foreground data-[active=true]:shadow-sm" data-active={true}>
                     <Users className="h-4 w-4" /> All Teachers <Badge className="ml-2">{teacherStatusCounts.total}</Badge>
                 </Button>
@@ -1072,7 +1101,7 @@ export default function TeachersPage() {
                      </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="academicQualification" className="text-right">Academic Qualification</Label>
-                        <Input id="academicQualification" placeholder="e.g., M.Sc. Physics" className="col-span-3" value={editTeacher.academicQualification || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
+                        <Input id="academicQualification" placeholder="e.g., M.Sc. Physics" className="col-span-3" value={editTeacher.academicQualification || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="gender" className="text-right">Gender</Label>
@@ -1089,15 +1118,15 @@ export default function TeachersPage() {
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="nationality" className="text-right">Nationality</Label>
-                        <Input id="nationality" placeholder="e.g., Nigerian" className="col-span-3" value={editTeacher.nationality || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
+                        <Input id="nationality" placeholder="e.g., Nigerian" className="col-span-3" value={editTeacher.nationality || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="address" className="text-right">Address</Label>
-                        <Input id="address" placeholder="123 Main St, Anytown" className="col-span-3" value={editTeacher.address || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
+                        <Input id="address" placeholder="123 Main St, Anytown" className="col-span-3" value={editTeacher.address || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="religion" className="text-right">Religion</Label>
-                        <Input id="religion" placeholder="e.g., Christianity" className="col-span-3" value={editTeacher.religion || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
+                        <Input id="religion" placeholder="e.g., Christianity" className="col-span-3" value={editTeacher.religion || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="status" className="text-right">Status</Label>
