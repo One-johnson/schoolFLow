@@ -197,31 +197,18 @@ export default function TeachersPage() {
   }
 
    const handleFileChange = async (file: File | null, form: 'new' | 'edit') => {
-      if (!file) return;
+      if (!file || !selectedTeacher) return;
 
-      if (form === 'edit' && selectedTeacher) {
-          setIsLoading(true);
-          try {
-              const downloadURL = await uploadFile(file, `avatars/teachers/${selectedTeacher.id}/${file.name}`);
-              await updateTeacherData(selectedTeacher.id, { avatarUrl: downloadURL });
-              setEditTeacher(prev => ({ ...prev, avatarUrl: downloadURL }));
-              toast({ title: "Avatar uploaded", description: "Teacher's avatar has been updated." });
-          } catch (error) {
-              toast({ title: "Upload failed", description: "Could not upload image.", variant: "destructive" });
-          } finally {
-              setIsLoading(false);
-          }
-      } else if (form === 'new') {
-          setIsLoading(true);
-          try {
-              const downloadURL = await uploadFile(file, `avatars/teachers/temp/${file.name}`);
-              setNewTeacher(prev => ({ ...prev, avatarUrl: downloadURL }));
-              toast({ title: "Image ready", description: "Avatar will be saved with the new teacher." });
-          } catch (error) {
-              toast({ title: "Upload failed", description: "Could not upload image.", variant: "destructive" });
-          } finally {
-              setIsLoading(false);
-          }
+      setIsLoading(true);
+      try {
+          const downloadURL = await uploadFile(file, `avatars/teachers/${selectedTeacher.id}/${file.name}`);
+          await updateTeacherData(selectedTeacher.id, { avatarUrl: downloadURL });
+          setEditTeacher(prev => ({ ...prev, avatarUrl: downloadURL }));
+          toast({ title: "Avatar uploaded", description: "Teacher's avatar has been updated." });
+      } catch (error) {
+          toast({ title: "Upload failed", description: "Could not upload image.", variant: "destructive" });
+      } finally {
+          setIsLoading(false);
       }
   }
   
@@ -248,8 +235,11 @@ export default function TeachersPage() {
             teacherId: generateTeacherId(newTeacher.department!),
             status: 'Active',
             createdAt: serverTimestamp(),
-            dateOfBirth: dob ? format(dob, 'yyyy-MM-dd') : undefined,
         };
+
+        if (dob) {
+            teacherProfile.dateOfBirth = format(dob, 'yyyy-MM-dd');
+        }
 
         if (doe) {
             teacherProfile.dateOfEmployment = format(doe, 'yyyy-MM-dd');
@@ -299,16 +289,25 @@ export default function TeachersPage() {
   }
 
   const handleUpdateTeacher = async () => {
-    if (!selectedTeacher || !editTeacher) return
+    if (!selectedTeacher || !editTeacher) return;
     setIsLoading(true);
     try {
       const updates: any = {
         ...editTeacher,
-        avatarUrl: editTeacher.avatarUrl || selectedTeacher.avatarUrl,
-        dateOfBirth: dob ? format(dob, "yyyy-MM-dd") : undefined,
-        dateOfEmployment: doe ? format(doe, "yyyy-MM-dd") : undefined,
         updatedAt: serverTimestamp(),
       };
+      
+      if (dob) {
+        updates.dateOfBirth = format(dob, "yyyy-MM-dd");
+      } else {
+        updates.dateOfBirth = null;
+      }
+      
+      if (doe) {
+        updates.dateOfEmployment = format(doe, "yyyy-MM-dd");
+      } else {
+        updates.dateOfEmployment = null;
+      }
       
       await updateTeacherData(selectedTeacher.id, updates);
       await update(ref(database, `users/${selectedTeacher.id}`), { name: editTeacher.name, email: editTeacher.email });
@@ -318,6 +317,7 @@ export default function TeachersPage() {
       resetFormStates()
       setSelectedTeacher(null)
     } catch (error) {
+      console.error(error);
       toast({ title: "Error", description: "Failed to update teacher.", variant: "destructive" })
     } finally {
       setIsLoading(false);
@@ -1141,3 +1141,5 @@ export default function TeachersPage() {
     </Card>
   )
 }
+
+    
