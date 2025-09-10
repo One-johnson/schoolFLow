@@ -153,6 +153,7 @@ export default function TeachersPage() {
   const {
     data: teachers,
     loading: dataLoading,
+    addDataWithId,
     deleteData,
     updateData: updateTeacherData,
     uploadFile,
@@ -225,50 +226,27 @@ export default function TeachersPage() {
       toast({ title: "Error", description: "Name, email, and department are required.", variant: "destructive" });
       return;
     }
-     if (!auth.currentUser || !auth.currentUser.email) {
-      toast({ title: "Error", description: "Admin user is not properly authenticated.", variant: "destructive" });
-      return;
-    }
     setIsLoading(true);
-
-    const teacherId = generateTeacherId(newTeacher.department);
-    const password = teacherId; // Use generated ID as password
-
-    // Temporarily store admin credentials. This is a workaround for client-side user creation.
-    const adminUser = auth.currentUser;
-    const adminPassword = prompt("Please re-enter your admin password to confirm teacher creation:");
     
-    if (!adminPassword) {
-      toast({ title: "Action Canceled", description: "Admin password not provided.", variant: "destructive"});
-      setIsLoading(false);
-      return;
-    }
+    const tempUid = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
     try {
-        const adminCredential = EmailAuthProvider.credential(adminUser.email!, adminPassword);
-
-        const userCredential = await createUserWithEmailAndPassword(auth, newTeacher.email!, password);
-        const { uid } = userCredential.user;
-
         const teacherProfile = {
             ...newTeacher,
-            id: uid,
-            teacherId,
+            id: tempUid,
+            teacherId: generateTeacherId(newTeacher.department!),
             status: 'Active',
             createdAt: serverTimestamp(),
             dateOfBirth: dob ? format(dob, 'yyyy-MM-dd') : undefined,
             dateOfEmployment: doe ? format(doe, 'yyyy-MM-dd') : undefined,
         };
 
-        await set(ref(database, `teachers/${uid}`), teacherProfile);
-        await set(ref(database, `users/${uid}`), {
+        await addDataWithId(tempUid, teacherProfile as Omit<Teacher, 'id'>);
+        await set(ref(database, `users/${tempUid}`), {
             role: 'teacher',
             email: newTeacher.email,
             name: newTeacher.name,
         });
-
-        // Re-authenticate the admin
-        await signInWithCredential(auth, adminCredential);
 
       await addNotification({
         type: 'teacher_added',
@@ -276,23 +254,12 @@ export default function TeachersPage() {
         read: false,
       } as any);
 
-      toast({ title: "Success", description: "Teacher added successfully." });
+      toast({ title: "Success", description: "Teacher record created. An admin must create their auth account." });
       resetFormStates();
       setIsCreateDialogOpen(false);
     } catch (error: any) {
       console.error("Teacher creation error:", error);
-      if (error.code === 'auth/email-already-in-use') {
-        toast({ title: "Error", description: "This email is already in use.", variant: "destructive" });
-      } else if (error.code === 'auth/wrong-password') {
-         toast({ title: "Authentication Error", description: "Incorrect admin password. Teacher not created.", variant: "destructive" });
-      } else {
-        toast({ title: "Error", description: `Failed to add teacher: ${error.message}`, variant: "destructive" });
-      }
-      
-      // Ensure admin is still logged in if something fails after new user creation
-       if(auth.currentUser?.uid !== adminUser.uid) {
-           await signInWithCredential(auth, EmailAuthProvider.credential(adminUser.email!, adminPassword)).catch(e => console.error("Admin re-login failed:", e));
-       }
+      toast({ title: "Error", description: `Failed to add teacher record: ${error.message}`, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -1148,3 +1115,5 @@ export default function TeachersPage() {
     </Card>
   )
 }
+
+    

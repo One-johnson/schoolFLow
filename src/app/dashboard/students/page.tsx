@@ -183,6 +183,7 @@ export default function StudentsPage() {
   const {
     data: allStudents,
     loading: dataLoading,
+    addDataWithId,
     deleteData,
     updateData: updateStudent,
     uploadFile,
@@ -265,50 +266,31 @@ export default function StudentsPage() {
       toast({ title: "Error", description: "Student name and email are required.", variant: "destructive" });
       return;
     }
-    if (!auth.currentUser || !auth.currentUser.email) {
-      toast({ title: "Error", description: "Admin user is not properly authenticated.", variant: "destructive" });
-      return;
-    }
     setIsLoading(true);
-
-    const studentId = generateStudentId();
-    const password = studentId;
-
-    // Temporarily store admin credentials. This is a workaround for client-side user creation.
-    const adminUser = auth.currentUser;
-    const adminPassword = prompt("Please re-enter your admin password to confirm student creation:");
-
-    if (!adminPassword) {
-      toast({ title: "Action Canceled", description: "Admin password not provided.", variant: "destructive"});
-      setIsLoading(false);
-      return;
-    }
+    
+    // This is a temporary ID for the database record. 
+    // The actual user UID from Firebase Auth will replace this if using Cloud Functions.
+    // For now, we use a uniquely generated ID.
+    const tempUid = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
     try {
-        const adminCredential = EmailAuthProvider.credential(adminUser.email!, adminPassword);
-
-        const userCredential = await createUserWithEmailAndPassword(auth, newStudent.email!, password);
-        const { uid } = userCredential.user;
-
         const studentProfile = {
             ...newStudent,
-            id: uid,
-            studentId,
+            id: tempUid,
+            studentId: generateStudentId(),
             admissionNo: generateAdmissionNo(),
             status: 'Active',
             createdAt: serverTimestamp(),
             dateOfBirth: dob ? format(dob, 'yyyy-MM-dd') : undefined,
         };
 
-        await set(ref(database, `students/${uid}`), studentProfile);
-        await set(ref(database, `users/${uid}`), {
+        await addDataWithId(tempUid, studentProfile as Omit<Student, 'id'>);
+        
+        await set(ref(database, `users/${tempUid}`), {
             role: 'student',
             email: newStudent.email,
             name: newStudent.name,
         });
-
-        // Re-authenticate the admin
-        await signInWithCredential(auth, adminCredential);
 
         await addNotification({
             type: 'student_enrolled',
@@ -316,25 +298,13 @@ export default function StudentsPage() {
             read: false,
         });
 
-        toast({ title: "Success", description: "Student created successfully." });
+        toast({ title: "Success", description: "Student record created. An admin must create their auth account." });
         setNewStudent({});
         setDob(undefined);
         setIsCreateDialogOpen(false);
     } catch (error: any) {
         console.error("Student creation error:", error);
-        if (error.code === 'auth/email-already-in-use') {
-            toast({ title: "Error", description: "This email is already in use.", variant: "destructive" });
-        } else if (error.code === 'auth/wrong-password') {
-            toast({ title: "Authentication Error", description: "Incorrect admin password. Student not created.", variant: "destructive" });
-        } else {
-            toast({ title: "Error", description: `Failed to add student: ${error.message}`, variant: "destructive" });
-        }
-        
-        // Ensure admin is still logged in if something fails after new user creation
-        if(auth.currentUser?.uid !== adminUser.uid) {
-            await signInWithCredential(auth, EmailAuthProvider.credential(adminUser.email!, adminPassword)).catch(e => console.error("Admin re-login failed:", e));
-        }
-
+        toast({ title: "Error", description: `Failed to add student record: ${error.message}`, variant: "destructive" });
     } finally {
         setIsLoading(false);
     }
@@ -1244,3 +1214,5 @@ export default function StudentsPage() {
     </Card>
   )
 }
+
+    
