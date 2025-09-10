@@ -62,3 +62,5 @@ export const onUserDeleted = auth.user().onDelete(async (user) => {
 
 
 setGlobalOptions({maxInstances: 10});
+
+    

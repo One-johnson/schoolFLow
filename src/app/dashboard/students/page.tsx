@@ -1,5 +1,5 @@
 
-"use client";
+"use client"
 
 import * as React from "react"
 import {
@@ -194,7 +194,7 @@ export default function StudentsPage() {
     uploadFile,
   } = useDatabase<Student>("students")
   const { data: classes, updateData: updateClass, updatePath: updateClassPath } = useDatabase<Class>("classes");
-  const { data: addNotification } = useDatabase("notifications")
+  const { addData: addNotification } = useDatabase("notifications")
   
   // Hooks for related data
   const { data: studentFees } = useDatabase<StudentFee>('studentFees');
@@ -912,7 +912,7 @@ export default function StudentsPage() {
       <CardContent>
         <div className="w-full">
            {role === 'admin' && (
-             <div className="mb-4 flex flex-wrap items-center gap-6 rounded-md bg-muted p-1">
+             <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2 rounded-lg bg-muted p-1">
                 <Button variant="ghost" className="h-8 justify-start gap-2 px-3 text-muted-foreground hover:bg-background hover:text-foreground data-[active=true]:bg-background data-[active=true]:text-foreground data-[active=true]:shadow-sm" data-active={true}>
                     <Users className="h-4 w-4" /> All Students <Badge className="ml-2">{studentStatusCounts.total}</Badge>
                 </Button>
@@ -1254,3 +1254,5 @@ export default function StudentsPage() {
     </Card>
   )
 }
+
+    
