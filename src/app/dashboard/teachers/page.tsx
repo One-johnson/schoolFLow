@@ -231,17 +231,21 @@ export default function TeachersPage() {
     const tempUid = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
     try {
-        const teacherProfile = {
+        const teacherProfile: any = {
             ...newTeacher,
             id: tempUid,
             teacherId: generateTeacherId(newTeacher.department!),
             status: 'Active',
             createdAt: serverTimestamp(),
             dateOfBirth: dob ? format(dob, 'yyyy-MM-dd') : undefined,
-            dateOfEmployment: doe ? format(doe, 'yyyy-MM-dd') : undefined,
         };
 
+        if (doe) {
+            teacherProfile.dateOfEmployment = format(doe, 'yyyy-MM-dd');
+        }
+
         await addDataWithId(tempUid, teacherProfile as Omit<Teacher, 'id'>);
+        
         await set(ref(database, `users/${tempUid}`), {
             role: 'teacher',
             email: newTeacher.email,
