@@ -228,64 +228,66 @@ export default function TeacherAssignmentsView() {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold">My Assignments</h2>
-                <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-                    <DialogTrigger asChild>
-                        <Button><PlusCircle className="mr-2 h-4 w-4" /> Create Assignment</Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-2xl">
-                        <DialogHeader>
-                            <DialogTitle>Create New Assignment</DialogTitle>
-                            <DialogDescription>Fill out the details below to post a new assignment.</DialogDescription>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                            <Input placeholder="Assignment Title" value={newAssignment.title || ''} onChange={e => setNewAssignment(p => ({...p, title: e.target.value}))} />
-                            <Textarea placeholder="Description and instructions..." value={newAssignment.description || ''} onChange={e => setNewAssignment(p => ({...p, description: e.target.value}))} rows={5} />
-                            <div className="grid md:grid-cols-3 gap-4">
-                                <Select value={newAssignment.classId} onValueChange={v => setNewAssignment(p => ({...p, classId: v}))}>
-                                    <SelectTrigger><SelectValue placeholder="Select Class"/></SelectTrigger>
-                                    <SelectContent>{teacherClasses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                                </Select>
-                                 <Select value={newAssignment.subjectId} onValueChange={v => setNewAssignment(p => ({...p, subjectId: v}))}>
-                                    <SelectTrigger><SelectValue placeholder="Select Subject"/></SelectTrigger>
-                                    <SelectContent>{teacherSubjects.filter(s => s.classIds && newAssignment.classId && s.classIds[newAssignment.classId]).map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
-                                </Select>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button variant="outline" className={cn("justify-start text-left font-normal", !dueDate && "text-muted-foreground")}>
-                                            <CalendarIcon className="mr-2 h-4 w-4"/>
-                                            {dueDate ? format(dueDate, "PPP") : <span>Due Date</span>}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={dueDate} onSelect={setDueDate} initialFocus /></PopoverContent>
-                                </Popover>
-                            </div>
-                            <div>
-                                <Label htmlFor="assignment-file" className="block text-sm font-medium mb-2">Attach File (Optional)</Label>
-                                <div className="flex items-center justify-center w-full">
-                                    <label htmlFor="assignment-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80">
-                                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                            <UploadCloud className="w-8 h-8 mb-4 text-muted-foreground" />
-                                            {assignmentFile ? (
-                                                <p className="text-sm text-foreground">{assignmentFile.name}</p>
-                                            ) : (
-                                                <>
-                                                    <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span> or drag and drop</p>
-                                                    <p className="text-xs text-muted-foreground">PDF, DOCX, PNG, JPG (MAX. 5MB)</p>
-                                                </>
-                                            )}
-                                        </div>
-                                        <Input id="assignment-file" type="file" className="hidden" onChange={e => setAssignmentFile(e.target.files?.[0] || null)} />
-                                    </label>
+                {role === 'teacher' && (
+                    <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button><PlusCircle className="mr-2 h-4 w-4" /> Create Assignment</Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-2xl">
+                            <DialogHeader>
+                                <DialogTitle>Create New Assignment</DialogTitle>
+                                <DialogDescription>Fill out the details below to post a new assignment.</DialogDescription>
+                            </DialogHeader>
+                            <div className="grid gap-4 py-4">
+                                <Input placeholder="Assignment Title" value={newAssignment.title || ''} onChange={e => setNewAssignment(p => ({...p, title: e.target.value}))} />
+                                <Textarea placeholder="Description and instructions..." value={newAssignment.description || ''} onChange={e => setNewAssignment(p => ({...p, description: e.target.value}))} rows={5} />
+                                <div className="grid md:grid-cols-3 gap-4">
+                                    <Select value={newAssignment.classId} onValueChange={v => setNewAssignment(p => ({...p, classId: v}))}>
+                                        <SelectTrigger><SelectValue placeholder="Select Class"/></SelectTrigger>
+                                        <SelectContent>{teacherClasses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                     <Select value={newAssignment.subjectId} onValueChange={v => setNewAssignment(p => ({...p, subjectId: v}))}>
+                                        <SelectTrigger><SelectValue placeholder="Select Subject"/></SelectTrigger>
+                                        <SelectContent>{teacherSubjects.filter(s => s.classIds && newAssignment.classId && s.classIds[newAssignment.classId]).map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" className={cn("justify-start text-left font-normal", !dueDate && "text-muted-foreground")}>
+                                                <CalendarIcon className="mr-2 h-4 w-4"/>
+                                                {dueDate ? format(dueDate, "PPP") : <span>Due Date</span>}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={dueDate} onSelect={setDueDate} initialFocus /></PopoverContent>
+                                    </Popover>
+                                </div>
+                                <div>
+                                    <Label htmlFor="assignment-file" className="block text-sm font-medium mb-2">Attach File (Optional)</Label>
+                                    <div className="flex items-center justify-center w-full">
+                                        <label htmlFor="assignment-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80">
+                                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                                <UploadCloud className="w-8 h-8 mb-4 text-muted-foreground" />
+                                                {assignmentFile ? (
+                                                    <p className="text-sm text-foreground">{assignmentFile.name}</p>
+                                                ) : (
+                                                    <>
+                                                        <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span> or drag and drop</p>
+                                                        <p className="text-xs text-muted-foreground">PDF, DOCX, PNG, JPG (MAX. 5MB)</p>
+                                                    </>
+                                                )}
+                                            </div>
+                                            <Input id="assignment-file" type="file" className="hidden" onChange={e => setAssignmentFile(e.target.files?.[0] || null)} />
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <DialogFooter>
-                            <Button onClick={handleCreateAssignment} disabled={isLoading}>
-                                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Post Assignment
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
+                            <DialogFooter>
+                                <Button onClick={handleCreateAssignment} disabled={isLoading}>
+                                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Post Assignment
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                )}
             </div>
             
             <Accordion type="single" collapsible className="w-full space-y-4">
