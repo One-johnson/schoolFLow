@@ -143,7 +143,7 @@ export function AdminDashboard() {
     ]
   }, [students]);
 
-  const studentsMap = useMemo(() => new Map(students.map(s => [s.id, s])), [students]);
+  const studentsMap = useMemo(() => new Map(students.map(s => [s.id, s.name])), [students]);
 
   const classEnrollment = useMemo(() => {
     return classes.map(c => {
@@ -512,4 +512,3 @@ export function AdminDashboard() {
   );
 }
 
-    
