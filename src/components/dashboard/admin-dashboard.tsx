@@ -20,6 +20,8 @@ import {
   PieChart,
   Pie,
   Cell,
+  LineChart,
+  Line,
 } from 'recharts';
 import { Megaphone, BookOpen, Users, UserCheck, DollarSign, Activity, Landmark, UserPlus, AlertCircle, TrendingUp, TrendingDown } from "lucide-react";
 import Link from "next/link";
@@ -30,7 +32,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
-import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval, parseISO, isFuture } from "date-fns";
+import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval, parseISO, isFuture, startOfMonth, endOfMonth } from "date-fns";
 import { Badge } from "../ui/badge";
 import { motion } from "framer-motion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
@@ -228,6 +230,34 @@ export function AdminDashboard() {
     });
   }, [rawAttendance, attendanceClassFilter, attendanceDateFilter, classes, studentIdsInClasses]);
 
+  const enrollmentTrends = useMemo(() => {
+    if (students.length === 0) return [];
+
+    const sortedStudents = [...students].sort((a,b) => a.createdAt - b.createdAt);
+    
+    const enrollmentsByMonth: { [key: string]: number } = {};
+
+    sortedStudents.forEach(student => {
+      if (student.createdAt) {
+        const month = format(new Date(student.createdAt), 'yyyy-MM');
+        enrollmentsByMonth[month] = (enrollmentsByMonth[month] || 0) + 1;
+      }
+    });
+
+    const months = Object.keys(enrollmentsByMonth).sort();
+    if (months.length === 0) return [];
+
+    let cumulativeTotal = 0;
+    return months.map(month => {
+      cumulativeTotal += enrollmentsByMonth[month];
+      return {
+        month: format(parseISO(`${month}-01`), 'MMM yyyy'),
+        count: cumulativeTotal
+      }
+    })
+
+  }, [students]);
+
 
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -269,6 +299,7 @@ export function AdminDashboard() {
     absent: { label: "Absent", color: "hsl(var(--chart-5))" },
     male: { label: "Male", color: "hsl(var(--chart-1))" },
     female: { label: "Female", color: "hsl(var(--chart-3))" },
+    enrollment: { label: "Students", color: "hsl(var(--primary))" },
   }
 
   return (
@@ -287,6 +318,27 @@ export function AdminDashboard() {
         <DashboardCard i={4} title="Fees Collected" icon={<TrendingUp className="h-4 w-4 text-green-600" />} value={`GH₵${feeStats.totalPaid.toLocaleString()}`} description="Total payments received" />
         <DashboardCard i={5} title="Fees Owed" icon={<TrendingDown className="h-4 w-4 text-red-600" />} value={`GH₵${totalFeesOwed.toLocaleString()}`} description="Outstanding balance" />
         <DashboardCard i={3} title="Total Revenue" icon={<DollarSign className="h-4 w-4 text-muted-foreground" />} value={`GH₵${feeStats.totalDue.toLocaleString()}`} description="Total fees generated" />
+      </div>
+
+       <div className="grid gap-4 md:grid-cols-1">
+        <MotionCard variants={cardVariants} initial="hidden" animate="visible" custom={3.5} className="col-span-full">
+           <CardHeader>
+                <CardTitle>Student Enrollment Trends</CardTitle>
+                <CardDescription>Cumulative student growth over time.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                    <LineChart data={enrollmentTrends} accessibilityLayer margin={{ left: 10, right: 30 }}>
+                        <CartesianGrid vertical={false}/>
+                        <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} tick={{ fontSize: 12 }} />
+                        <YAxis tickLine={false} axisLine={false} />
+                        <Tooltip content={<ChartTooltipContent indicator="dot" />} />
+                        <Legend />
+                        <Line dataKey="count" type="monotone" fill="var(--color-enrollment)" stroke="var(--color-enrollment)" strokeWidth={2} dot={false}/>
+                    </LineChart>
+                </ChartContainer>
+            </CardContent>
+        </MotionCard>
       </div>
 
        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
