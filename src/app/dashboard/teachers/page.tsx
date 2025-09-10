@@ -33,7 +33,7 @@ import {
 import Link from "next/link"
 import { database, auth } from '@/lib/firebase';
 import { set, ref, update, serverTimestamp } from 'firebase/database';
-import { createUserWithEmailAndPassword } from "firebase/auth"
+import { createUserWithEmailAndPassword, EmailAuthProvider, signInWithCredential } from "firebase/auth"
 
 
 import { Button } from "@/components/ui/button"
@@ -153,6 +153,7 @@ export default function TeachersPage() {
   const {
     data: teachers,
     loading: dataLoading,
+    addDataWithId,
     deleteData,
     updateData: updateTeacherData,
     uploadFile,
@@ -226,47 +227,49 @@ export default function TeachersPage() {
       return;
     }
     setIsLoading(true);
-
-    const teacherId = generateTeacherId(newTeacher.department);
-    const password = teacherId; // Use generated ID as password
+    
+    const tempUid = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
     try {
-        const userCredential = await createUserWithEmailAndPassword(auth, newTeacher.email!, password);
-        const { uid } = userCredential.user;
-
         const teacherProfile = {
             ...newTeacher,
-            id: uid,
-            teacherId,
+            id: tempUid,
+            teacherId: generateTeacherId(newTeacher.department!),
             status: 'Active',
             createdAt: serverTimestamp(),
             dateOfBirth: dob ? format(dob, 'yyyy-MM-dd') : undefined,
             dateOfEmployment: doe ? format(doe, 'yyyy-MM-dd') : undefined,
         };
 
-        await set(ref(database, `teachers/${uid}`), teacherProfile);
-        await set(ref(database, `users/${uid}`), {
+        await addDataWithId(tempUid, teacherProfile as Omit<Teacher, 'id'>);
+        await set(ref(database, `users/${tempUid}`), {
             role: 'teacher',
             email: newTeacher.email,
             name: newTeacher.name,
         });
 
+      // Notification for admins
       await addNotification({
         type: 'teacher_added',
         message: `New teacher "${newTeacher.name}" was added.`,
         read: false,
+        recipientRole: 'admin',
       } as any);
 
-      toast({ title: "Success", description: "Teacher added successfully." });
+       // Welcome notification for the teacher
+        await addNotification({
+            type: 'welcome',
+            message: `Welcome to the team, ${newTeacher.name}! We're glad to have you.`,
+            read: false,
+            recipientId: tempUid,
+        } as any);
+
+      toast({ title: "Success", description: "Teacher record created." });
       resetFormStates();
       setIsCreateDialogOpen(false);
     } catch (error: any) {
       console.error("Teacher creation error:", error);
-      if (error.code === 'auth/email-already-in-use') {
-        toast({ title: "Error", description: "This email is already in use.", variant: "destructive" });
-      } else {
-        toast({ title: "Error", description: `Failed to add teacher: ${error.message}`, variant: "destructive" });
-      }
+      toast({ title: "Error", description: `Failed to add teacher record: ${error.message}`, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -1069,7 +1072,7 @@ export default function TeachersPage() {
                      </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="academicQualification" className="text-right">Academic Qualification</Label>
-                        <Input id="academicQualification" placeholder="e.g., M.Sc. Physics" className="col-span-3" value={editTeacher.academicQualification || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
+                        <Input id="academicQualification" placeholder="e.g., M.Sc. Physics" className="col-span-3" value={editTeacher.academicQualification || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="gender" className="text-right">Gender</Label>
@@ -1086,15 +1089,15 @@ export default function TeachersPage() {
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="nationality" className="text-right">Nationality</Label>
-                        <Input id="nationality" placeholder="e.g., Nigerian" className="col-span-3" value={editTeacher.nationality || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
+                        <Input id="nationality" placeholder="e.g., Nigerian" className="col-span-3" value={editTeacher.nationality || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="address" className="text-right">Address</Label>
-                        <Input id="address" placeholder="123 Main St, Anytown" className="col-span-3" value={editTeacher.address || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
+                        <Input id="address" placeholder="123 Main St, Anytown" className="col-span-3" value={editTeacher.address || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="religion" className="text-right">Religion</Label>
-                        <Input id="religion" placeholder="e.g., Christianity" className="col-span-3" value={editTeacher.religion || ""} onChange={(e) => handleInputChange(e, 'edit')} disabled={isLoading} />
+                        <Input id="religion" placeholder="e.g., Christianity" className="col-span-3" value={editTeacher.religion || ""} onChange={(e) => handleInputChange(e, 'new')} disabled={isLoading} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="status" className="text-right">Status</Label>

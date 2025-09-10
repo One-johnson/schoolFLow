@@ -13,6 +13,7 @@ import {
   FileText,
   Home,
   CheckSquare,
+  Award,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,11 +33,12 @@ import type { FirebaseOptions } from "firebase/app";
 
 type Notification = {
   id: string;
-  type: "student_enrolled" | "teacher_added" | "class_created" | "announcement" | "exam_published" | "fee_assigned" | "payment_received" | "fee_reminder" | "assignment_created" | "assignment_submitted";
+  type: "student_enrolled" | "teacher_added" | "class_created" | "announcement" | "exam_published" | "fee_assigned" | "payment_received" | "fee_reminder" | "assignment_created" | "assignment_submitted" | "welcome";
   message: string;
   read: boolean;
   createdAt: number;
   recipientId?: string; // For user-specific notifications
+  recipientRole?: 'admin' | 'teacher' | 'student'; // For role-specific notifications
 };
 
 const iconMap = {
@@ -50,16 +52,27 @@ const iconMap = {
   fee_reminder: <DollarSign className="h-4 w-4 text-orange-500" />,
   assignment_created: <Home className="h-4 w-4 text-blue-500" />,
   assignment_submitted: <CheckSquare className="h-4 w-4 text-green-500" />,
+  welcome: <Award className="h-4 w-4 text-yellow-500" />,
 };
 
 export function NotificationBell() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const { data: notifications, updateData, deleteData } = useDatabase<Notification>('notifications');
 
   // Filter notifications for the current user or system-wide
   const userNotifications = React.useMemo(() => {
-    return notifications.filter(n => !n.recipientId || n.recipientId === user?.uid)
-  }, [notifications, user]);
+    if (!user || !role) return [];
+    return notifications.filter(n => {
+        // User-specific notification
+        if (n.recipientId && n.recipientId === user.uid) return true;
+        // Role-specific notification
+        if (n.recipientRole && n.recipientRole === role) return true;
+        // Global notification (no recipientId or recipientRole)
+        if (!n.recipientId && !n.recipientRole) return true;
+        
+        return false;
+    });
+  }, [notifications, user, role]);
 
   const unreadCount = userNotifications.filter((n) => !n.read).length;
   const sortedNotifications = [...userNotifications].sort((a, b) => b.createdAt - a.createdAt);

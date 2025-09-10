@@ -32,7 +32,7 @@ import {
 import Link from "next/link"
 import { database, auth } from '@/lib/firebase';
 import { set, ref, update, serverTimestamp } from 'firebase/database';
-import { createUserWithEmailAndPassword, deleteUser } from 'firebase/auth';
+import { createUserWithEmailAndPassword, deleteUser, signInWithCredential, EmailAuthProvider } from 'firebase/auth';
 
 
 import { Button } from "@/components/ui/button"
@@ -183,6 +183,7 @@ export default function StudentsPage() {
   const {
     data: allStudents,
     loading: dataLoading,
+    addDataWithId,
     deleteData,
     updateData: updateStudent,
     uploadFile,
@@ -266,48 +267,52 @@ export default function StudentsPage() {
       return;
     }
     setIsLoading(true);
-
-    const studentId = generateStudentId();
-    const password = studentId;
+    
+    const tempUid = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
     try {
-        const userCredential = await createUserWithEmailAndPassword(auth, newStudent.email!, password);
-        const { uid } = userCredential.user;
-
         const studentProfile = {
             ...newStudent,
-            id: uid,
-            studentId,
+            id: tempUid,
+            studentId: generateStudentId(),
             admissionNo: generateAdmissionNo(),
             status: 'Active',
             createdAt: serverTimestamp(),
             dateOfBirth: dob ? format(dob, 'yyyy-MM-dd') : undefined,
         };
 
-        await set(ref(database, `students/${uid}`), studentProfile);
-        await set(ref(database, `users/${uid}`), {
+        await addDataWithId(tempUid, studentProfile as Omit<Student, 'id'>);
+        
+        await set(ref(database, `users/${tempUid}`), {
             role: 'student',
             email: newStudent.email,
             name: newStudent.name,
         });
 
+        // Notification for admins
         await addNotification({
             type: 'student_enrolled',
             message: `New student "${newStudent.name}" was enrolled.`,
             read: false,
-        });
+            recipientRole: 'admin',
+        } as any);
 
-        toast({ title: "Success", description: "Student created successfully." });
+        // Welcome notification for the student
+        await addNotification({
+            type: 'welcome',
+            message: `Welcome to SchoolFlow, ${newStudent.name}!`,
+            read: false,
+            recipientId: tempUid,
+        } as any);
+
+
+        toast({ title: "Success", description: "Student record created." });
         setNewStudent({});
         setDob(undefined);
         setIsCreateDialogOpen(false);
     } catch (error: any) {
         console.error("Student creation error:", error);
-        if (error.code === 'auth/email-already-in-use') {
-            toast({ title: "Error", description: "This email is already in use.", variant: "destructive" });
-        } else {
-            toast({ title: "Error", description: `Failed to add student: ${error.message}`, variant: "destructive" });
-        }
+        toast({ title: "Error", description: `Failed to add student record: ${error.message}`, variant: "destructive" });
     } finally {
         setIsLoading(false);
     }
@@ -1065,7 +1070,7 @@ export default function StudentsPage() {
             <DialogTitle>Edit Student</DialogTitle>
             <DialogDescription>Update the student's information below.</DialogDescription>
           </DialogHeader>
-           <ScrollArea className="h-[60vh] pr-6">
+           <ScrollArea className="max-h-[60vh] pr-6">
               <Tabs defaultValue="student-details" className="w-full">
                     <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="student-details">Student Details</TabsTrigger>

@@ -38,7 +38,9 @@ import { motion } from "framer-motion";
 // Data Types
 type Teacher = { id: string; name: string; email: string; status: "Active" | "On Leave" | "Retired"; dateOfBirth?: string; academicQualification?: string; dateOfEmployment?: string; contact?: string; department?: string; employmentType?: "Full Time" | "Part Time" | "Contract"; gender?: "Male" | "Female" | "Other"; address?: string; avatarUrl?: string; teacherId?: string; };
 type Class = { id: string; name: string; teacherId?: string; studentIds?: Record<string, boolean>; };
-type Subject = { id: string; name: string; teacherIds?: Record<string, boolean>; };
+type Subject = {
+    classIds: any; id: string; name: string; teacherIds?: Record<string, boolean>; 
+};
 type Student = { id: string; name: string; avatarUrl?: string; };
 type Announcement = { id: string; title: string; content: string; createdAt: number; audience: 'school' | string; };
 type Event = { id: string; title: string; startDate: string; };
