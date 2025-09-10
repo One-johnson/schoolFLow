@@ -69,7 +69,7 @@ type StudentFee = {
 // Main component
 export default function FeeStructuresPage() {
   const { data: feeStructures, addData, updateData, deleteData, loading } = useDatabase<FeeStructure>("feeStructures");
-  const { data: studentFees } = useDatabase<StudentFee>("studentFees");
+  const { data: studentFees, loading: studentFeesLoading } = useDatabase<StudentFee>("studentFees");
   
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
@@ -216,8 +216,8 @@ export default function FeeStructuresPage() {
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleDeleteFee(fee.id)} disabled={isLoading} className="bg-destructive hover:bg-destructive/90">
-                          {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Delete"}
+                        <AlertDialogAction onClick={() => handleDeleteFee(fee.id)} disabled={isLoading || studentFeesLoading} className="bg-destructive hover:bg-destructive/90">
+                          {isLoading || studentFeesLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Delete"}
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
