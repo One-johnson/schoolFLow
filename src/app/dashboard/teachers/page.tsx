@@ -196,17 +196,29 @@ export default function TeachersPage() {
       }
   }
 
-   const handleFileChange = async (file: File | null, form: 'new' | 'edit') => {
-      if (!file || !selectedTeacher) return;
-
+  const handleFileChange = async (file: File | null, form: 'new' | 'edit') => {
+      if (!file) return;
       setIsLoading(true);
+      
+      const teacherId = form === 'new' ? '' : selectedTeacher?.id;
+      if (!teacherId && form === 'edit') {
+        toast({ title: "Error", description: "No teacher selected for avatar change.", variant: "destructive" });
+        setIsLoading(false);
+        return;
+      }
+      
       try {
-          const downloadURL = await uploadFile(file, `avatars/teachers/${selectedTeacher.id}/${file.name}`);
-          await updateTeacherData(selectedTeacher.id, { avatarUrl: downloadURL });
-          setEditTeacher(prev => ({ ...prev, avatarUrl: downloadURL }));
-          toast({ title: "Avatar uploaded", description: "Teacher's avatar has been updated." });
+          const path = `avatars/teachers/${teacherId || 'new'}/${file.name}_${Date.now()}`;
+          const downloadURL = await uploadFile(file, path);
+           if (form === 'new') {
+                setNewTeacher(prev => ({ ...prev, avatarUrl: downloadURL }));
+            } else if (teacherId) {
+                await updateTeacherData(teacherId, { avatarUrl: downloadURL });
+                setEditTeacher(prev => ({ ...prev, avatarUrl: downloadURL }));
+            }
+          toast({ title: "Image uploaded", description: "Avatar has been updated."});
       } catch (error) {
-          toast({ title: "Upload failed", description: "Could not upload image.", variant: "destructive" });
+           toast({ title: "Upload failed", description: "Could not upload image.", variant: "destructive" });
       } finally {
           setIsLoading(false);
       }
@@ -300,13 +312,13 @@ export default function TeachersPage() {
       if (dob) {
         updates.dateOfBirth = format(dob, "yyyy-MM-dd");
       } else {
-        updates.dateOfBirth = null;
+        delete updates.dateOfBirth;
       }
       
       if (doe) {
         updates.dateOfEmployment = format(doe, "yyyy-MM-dd");
       } else {
-        updates.dateOfEmployment = null;
+        delete updates.dateOfEmployment;
       }
       
       await updateTeacherData(selectedTeacher.id, updates);
@@ -829,7 +841,7 @@ export default function TeachersPage() {
       </CardHeader>
       <CardContent>
         <div className="w-full">
-            <div className="mb-4 flex flex-wrap items-center gap-6 rounded-md bg-muted p-1 sm:w-fit">
+            <div className="mb-4 flex flex-wrap items-center gap-6 rounded-md bg-muted p-1">
                 <Button variant="ghost" className="h-8 justify-start gap-2 px-3 text-muted-foreground hover:bg-background hover:text-foreground data-[active=true]:bg-background data-[active=true]:text-foreground data-[active=true]:shadow-sm" data-active={true}>
                     <Users className="h-4 w-4" /> All Teachers <Badge className="ml-2">{teacherStatusCounts.total}</Badge>
                 </Button>
@@ -1141,5 +1153,3 @@ export default function TeachersPage() {
     </Card>
   )
 }
-
-    
