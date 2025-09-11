@@ -1,5 +1,5 @@
 
-"use client";
+"use client"
 
 import * as React from "react"
 import {
@@ -31,7 +31,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { database, auth } from '@/lib/firebase';
-import { set, ref, update, serverTimestamp } from 'firebase/database';
+import { set, ref, update, serverTimestamp, remove } from 'firebase/database';
 import { createUserWithEmailAndPassword, deleteUser, signInWithCredential, EmailAuthProvider } from 'firebase/auth';
 
 
@@ -129,6 +129,11 @@ type Student = {
  
 }
 type Class = { id: string; name: string; studentIds?: Record<string, boolean>, teacherId?: string };
+type StudentFee = { id: string; studentId: string };
+type StudentGrade = { id: string; studentId: string };
+type Submission = { id: string; studentId: string };
+type PermissionSlip = { id: string; studentId: string };
+
 
 const houseColors: Record<NonNullable<Student["house"]>, string> = {
   Ambassadors: "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300",
@@ -190,6 +195,13 @@ export default function StudentsPage() {
   } = useDatabase<Student>("students")
   const { data: classes, updateData: updateClass, updatePath: updateClassPath } = useDatabase<Class>("classes");
   const { addData: addNotification } = useDatabase("notifications")
+  
+  // Hooks for related data
+  const { data: studentFees } = useDatabase<StudentFee>('studentFees');
+  const { data: studentGrades } = useDatabase<StudentGrade>('studentGrades');
+  const { data: submissions } = useDatabase<Submission>('submissions');
+  const { data: permissionSlips } = useDatabase<PermissionSlip>('permissionSlips');
+
   const { toast } = useToast()
 
   const [newStudent, setNewStudent] = React.useState<Partial<Omit<Student, 'id' | 'status' | 'createdAt'>>>({});
@@ -249,7 +261,8 @@ export default function StudentsPage() {
           const downloadURL = await uploadFile(file, `avatars/${file.name}`);
            if (form === 'new') {
                 setNewStudent(prev => ({ ...prev, avatarUrl: downloadURL }));
-            } else {
+            } else if (selectedStudent) {
+                await updateStudent(selectedStudent.id, { avatarUrl: downloadURL });
                 setEditStudent(prev => ({ ...prev, avatarUrl: downloadURL }));
             }
           toast({ title: "Image uploaded", description: "Avatar has been updated."});
@@ -290,7 +303,7 @@ export default function StudentsPage() {
         });
 
         // Notification for admins
-        await addNotification({
+        await addData({
             type: 'student_enrolled',
             message: `New student "${newStudent.name}" was enrolled.`,
             read: false,
@@ -298,7 +311,7 @@ export default function StudentsPage() {
         } as any);
 
         // Welcome notification for the student
-        await addNotification({
+        await addData({
             type: 'welcome',
             message: `Welcome to SchoolFlow, ${newStudent.name}!`,
             read: false,
@@ -364,26 +377,45 @@ export default function StudentsPage() {
   const handleDeleteStudent = async (studentId: string) => {
     setIsLoading(true);
     try {
-      // Find which class the student is in
-      const classToRemoveFrom = classes.find(c => c.studentIds && c.studentIds[studentId]);
+        const promises: Promise<any>[] = [];
 
-      if (classToRemoveFrom) {
-        const classRefPath = `classes/${classToRemoveFrom.id}/studentIds/${studentId}`;
-        await updateClassPath(classRefPath, null); 
-      }
-      
-      // Note: This only deletes from the database. The auth user remains.
-      // A cloud function is needed to delete the auth user when the DB record is deleted.
-      await deleteData(studentId);
+        // 1. Remove from class
+        const classToRemoveFrom = classes.find(c => c.studentIds && c.studentIds[studentId]);
+        if (classToRemoveFrom) {
+            promises.push(remove(ref(database, `classes/${classToRemoveFrom.id}/studentIds/${studentId}`)));
+        }
 
-      toast({ title: "Success", description: "Student database record deleted." });
+        // 2. Remove related data
+        studentFees.forEach(fee => {
+            if(fee.studentId === studentId) promises.push(remove(ref(database, `studentFees/${fee.id}`)));
+        });
+        studentGrades.forEach(grade => {
+            if(grade.studentId === studentId) promises.push(remove(ref(database, `studentGrades/${grade.id}`)));
+        });
+        submissions.forEach(sub => {
+            if(sub.studentId === studentId) promises.push(remove(ref(database, `submissions/${sub.id}`)));
+        });
+         permissionSlips.forEach(slip => {
+            if(slip.studentId === studentId) promises.push(remove(ref(database, `permissionSlips/${slip.id}`)));
+        });
+
+        // This one is tricky without a cloud function, but we can delete from the student-specific activities node
+        promises.push(remove(ref(database, `studentActivities/${studentId}`)));
+        
+        // 3. Remove main student record
+        promises.push(deleteData(studentId));
+
+        await Promise.all(promises);
+
+        toast({ title: "Success", description: "Student and all related data have been deleted." });
     } catch (error) {
-      console.error("Deletion error:", error);
-      toast({ title: "Error", description: "Failed to delete student.", variant: "destructive" });
+        console.error("Deletion error:", error);
+        toast({ title: "Error", description: "Failed to delete student and their data.", variant: "destructive" });
     } finally {
-      setIsLoading(false);
+        setIsLoading(false);
     }
   };
+
 
   const handleAssignToClass = async () => {
     if (!assignClassId) {
@@ -612,7 +644,7 @@ export default function StudentsPage() {
                   <AlertDialogHeader>
                       <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                       <AlertDialogDescription>
-                          This action cannot be undone. This will permanently delete the student database record. The auth user will need to be deleted manually from the Firebase console.
+                          This will permanently delete the student's records, including their fees, grades, and submissions. This action cannot be undone.
                       </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -880,7 +912,7 @@ export default function StudentsPage() {
       <CardContent>
         <div className="w-full">
            {role === 'admin' && (
-             <div className="mb-4 flex flex-wrap items-center gap-6 rounded-md bg-muted p-1 sm:w-fit">
+             <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2 rounded-lg bg-muted p-1">
                 <Button variant="ghost" className="h-8 justify-start gap-2 px-3 text-muted-foreground hover:bg-background hover:text-foreground data-[active=true]:bg-background data-[active=true]:text-foreground data-[active=true]:shadow-sm" data-active={true}>
                     <Users className="h-4 w-4" /> All Students <Badge className="ml-2">{studentStatusCounts.total}</Badge>
                 </Button>
@@ -1222,3 +1254,5 @@ export default function StudentsPage() {
     </Card>
   )
 }
+
+    

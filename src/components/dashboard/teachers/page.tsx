@@ -305,17 +305,18 @@ export default function TeachersPage() {
     if (!selectedTeacher || !editTeacher) return;
     setIsLoading(true);
     try {
-      const updates: any = {
-        ...editTeacher,
-        updatedAt: serverTimestamp(),
-      };
+      const updates: any = { ...editTeacher, updatedAt: serverTimestamp() };
       
       if (dob) {
         updates.dateOfBirth = format(dob, "yyyy-MM-dd");
+      } else {
+        delete updates.dateOfBirth; // Or set to null if your schema allows
       }
       
       if (doe) {
         updates.dateOfEmployment = format(doe, "yyyy-MM-dd");
+      } else {
+         delete updates.dateOfEmployment; // Or set to null
       }
       
       await updateTeacherData(selectedTeacher.id, updates);

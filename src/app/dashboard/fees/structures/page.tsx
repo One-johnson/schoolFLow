@@ -50,6 +50,8 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react";
+import { ref, remove } from "firebase/database";
+import { database } from "@/lib/firebase";
 
 // Data types
 type FeeStructure = {
@@ -59,9 +61,15 @@ type FeeStructure = {
   createdAt: number;
 };
 
+type StudentFee = {
+  id: string; // studentId_feeId
+  feeId: string;
+}
+
 // Main component
 export default function FeeStructuresPage() {
   const { data: feeStructures, addData, updateData, deleteData, loading } = useDatabase<FeeStructure>("feeStructures");
+  const { data: studentFees, loading: studentFeesLoading } = useDatabase<StudentFee>("studentFees");
   
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
@@ -115,12 +123,21 @@ export default function FeeStructuresPage() {
   const handleDeleteFee = async (id: string) => {
     setIsLoading(true);
     try {
-        await deleteData(id);
-        toast({ title: "Success", description: "Fee structure deleted." });
+      // Find all studentFees associated with this fee structure
+      const associatedStudentFees = studentFees.filter(sf => sf.feeId === id);
+      const deletionPromises = associatedStudentFees.map(sf => remove(ref(database, `studentFees/${sf.id}`)));
+      
+      // Delete the fee structure itself
+      deletionPromises.push(deleteData(id));
+      
+      await Promise.all(deletionPromises);
+
+      toast({ title: "Success", description: "Fee structure and all associated payment records have been deleted." });
     } catch (error) {
-        toast({ title: "Error", description: "Failed to delete fee structure.", variant: "destructive" });
+      console.error("Fee deletion error:", error);
+      toast({ title: "Error", description: "Failed to delete fee structure and its records.", variant: "destructive" });
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -194,13 +211,13 @@ export default function FeeStructuresPage() {
                       <AlertDialogHeader>
                         <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          This action cannot be undone. This will permanently delete the fee structure.
+                          This will permanently delete the fee structure and all associated student payment records. This action cannot be undone.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleDeleteFee(fee.id)} disabled={isLoading} className="bg-destructive hover:bg-destructive/90">
-                          {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Delete"}
+                        <AlertDialogAction onClick={() => handleDeleteFee(fee.id)} disabled={isLoading || studentFeesLoading} className="bg-destructive hover:bg-destructive/90">
+                          {isLoading || studentFeesLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Delete"}
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
