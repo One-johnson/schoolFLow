@@ -53,6 +53,9 @@ function Calendar({
         day_hidden: "invisible",
         ...classNames,
       }}
+      captionLayout="dropdown-buttons"
+      fromYear={1960}
+      toYear={new Date().getFullYear() + 10}
       components={{
         IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
         IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
