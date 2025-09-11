@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -58,7 +57,7 @@ function Calendar({
         IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
         IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
       }}
-      captionLayout="dropdown-buttons"
+      captionLayout="dropdown"
       fromYear={1900}
       toYear={new Date().getFullYear()}
       {...props}
