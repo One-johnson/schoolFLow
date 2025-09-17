@@ -23,6 +23,7 @@ import {
   Pencil,
   Loader2,
   X,
+  Edit,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -141,6 +142,7 @@ export default function SubjectsPage() {
   
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false)
+  const [isBulkUpdateDialogOpen, setIsBulkUpdateDialogOpen] = React.useState(false)
   const [selectedSubject, setSelectedSubject] = React.useState<Subject | null>(null)
   const [isLoading, setIsLoading] = React.useState(false);
   
@@ -150,6 +152,8 @@ export default function SubjectsPage() {
   const [sharedTeacherIds, setSharedTeacherIds] = React.useState<string[]>([]);
 
   const [editSubject, setEditSubject] = React.useState<Partial<Subject>>({});
+  const [bulkUpdateState, setBulkUpdateState] = React.useState<{level?: SubjectLevel, classIds?: string[], teacherIds?: string[]}>({});
+  const availableClassesForBulk = React.useMemo(() => filterClassesByLevel(classes, bulkUpdateState.level), [classes, bulkUpdateState.level]);
 
   const { data: subjects, loading: dataLoading, addData, updateData, deleteData } = useDatabase<Subject>("subjects")
   const { data: teachers } = useDatabase<Teacher>("teachers")
@@ -182,6 +186,16 @@ export default function SubjectsPage() {
         }
     }
   }, [editSubject.level, availableClassesForEdit, editSubject.classIds]);
+
+  React.useEffect(() => {
+    if (bulkUpdateState.level) {
+        const availableClassIds = new Set(availableClassesForBulk.map(c => c.id));
+        const filteredSelected = (bulkUpdateState.classIds || []).filter(id => availableClassIds.has(id));
+        if(filteredSelected.length !== (bulkUpdateState.classIds || []).length) {
+            setBulkUpdateState(p => ({...p, classIds: filteredSelected}));
+        }
+    }
+  }, [bulkUpdateState.level, availableClassesForBulk, bulkUpdateState.classIds]);
 
   const handleAddSubjectRow = () => {
     setNewSubjects(prev => [...prev, { name: "" }]);
@@ -295,6 +309,38 @@ export default function SubjectsPage() {
       setIsLoading(false);
     }
   };
+
+  const handleBulkUpdate = async () => {
+    const selectedRows = table.getFilteredSelectedRowModel().rows;
+    if (selectedRows.length === 0) {
+        toast({ title: "No subjects selected", description: "Please select subjects to update.", variant: "destructive"});
+        return;
+    }
+
+    const updates: Partial<Subject> = {};
+    if (bulkUpdateState.level) updates.level = bulkUpdateState.level;
+    if (bulkUpdateState.classIds) updates.classIds = bulkUpdateState.classIds.reduce((acc, id) => ({...acc, [id]: true}), {});
+    if (bulkUpdateState.teacherIds) updates.teacherIds = bulkUpdateState.teacherIds.reduce((acc, id) => ({...acc, [id]: true}), {});
+
+    if (Object.keys(updates).length === 0) {
+        toast({ title: "No changes", description: "Please select fields to update.", variant: "destructive"});
+        return;
+    }
+
+    setIsLoading(true);
+    try {
+        const updatePromises = selectedRows.map(row => updateData(row.original.id, updates));
+        await Promise.all(updatePromises);
+        toast({ title: "Success", description: `${selectedRows.length} subjects updated.`});
+        setIsBulkUpdateDialogOpen(false);
+        setBulkUpdateState({});
+        table.toggleAllPageRowsSelected(false);
+    } catch (error) {
+        toast({ title: "Error", description: "Failed to perform bulk update.", variant: "destructive"});
+    } finally {
+        setIsLoading(false);
+    }
+  }
 
 
   const columns: ColumnDef<Subject>[] = [
@@ -461,20 +507,73 @@ export default function SubjectsPage() {
             <Input placeholder="Filter by subject name..." value={(table.getColumn("name")?.getFilterValue() as string) ?? ""} onChange={(event) => table.getColumn("name")?.setFilterValue(event.target.value)} className="max-w-sm" />
              <Select onValueChange={(value) => table.getColumn("level")?.setFilterValue(value === "all" ? "" : value)}><SelectTrigger className="w-[180px]"><SelectValue placeholder="Filter by Level" /></SelectTrigger><SelectContent><SelectItem value="all">All Levels</SelectItem>{[...new Set(subjects.map(s => s.level).filter(Boolean))].map(level => <SelectItem key={level} value={level!}>{level}</SelectItem>)}</SelectContent></Select>
              {table.getFilteredSelectedRowModel().rows.length > 0 && (
-                <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <Button variant="destructive" disabled={isLoading}>
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete ({table.getFilteredSelectedRowModel().rows.length})
-                        </Button>
-                    </AlertDialogTrigger>
-                     <AlertDialogContent>
-                        <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete {table.getFilteredSelectedRowModel().rows.length} selected subjects.</AlertDialogDescription></AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleDeleteMultipleSubjects} disabled={isLoading} className="bg-destructive hover:bg-destructive/90">{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Delete"}</AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
+                <div className="flex gap-2">
+                    <Dialog open={isBulkUpdateDialogOpen} onOpenChange={setIsBulkUpdateDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="outline" disabled={isLoading}>
+                                <Edit className="mr-2 h-4 w-4" /> Update ({table.getFilteredSelectedRowModel().rows.length})
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Bulk Update Subjects</DialogTitle>
+                                <DialogDescription>Apply these changes to all {table.getFilteredSelectedRowModel().rows.length} selected subjects. Existing values will be overwritten.</DialogDescription>
+                            </DialogHeader>
+                             <div className="space-y-4 py-4">
+                                <div className="space-y-2">
+                                    <Label>Level</Label>
+                                    <Select onValueChange={(v: SubjectLevel) => setBulkUpdateState(p => ({...p, level: v}))}>
+                                        <SelectTrigger><SelectValue placeholder="Change level for all..."/></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Nursery">Nursery</SelectItem>
+                                            <SelectItem value="Kindergarten">Kindergarten</SelectItem>
+                                            <SelectItem value="Primary">Primary</SelectItem>
+                                            <SelectItem value="Junior High">Junior High</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                 <div className="space-y-2">
+                                    <Label>Classes</Label>
+                                    <MultiSelectPopover 
+                                        options={availableClassesForBulk.map(c => ({value: c.id, label: c.name}))}
+                                        selected={bulkUpdateState.classIds || []}
+                                        onChange={(ids) => setBulkUpdateState(p => ({...p, classIds: ids}))}
+                                        disabled={isLoading || !bulkUpdateState.level}
+                                        placeholder={!bulkUpdateState.level ? "Select a level first" : "Assign to classes..."}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Teachers</Label>
+                                     <MultiSelectPopover 
+                                        options={teachers.map(t => ({value: t.id, label: t.name}))}
+                                        selected={bulkUpdateState.teacherIds || []}
+                                        onChange={(ids) => setBulkUpdateState(p => ({...p, teacherIds: ids}))}
+                                        disabled={isLoading}
+                                    />
+                                </div>
+                             </div>
+                            <DialogFooter>
+                                <Button onClick={handleBulkUpdate} disabled={isLoading}>
+                                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Update Subjects
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="destructive" disabled={isLoading}>
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete ({table.getFilteredSelectedRowModel().rows.length})
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete {table.getFilteredSelectedRowModel().rows.length} selected subjects.</AlertDialogDescription></AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleDeleteMultipleSubjects} disabled={isLoading} className="bg-destructive hover:bg-destructive/90">{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Delete"}</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </div>
              )}
             <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" className="ml-auto">Columns <ChevronDown className="ml-2 h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end">{table.getAllColumns().filter((column) => column.getCanHide()).map((column) => (<DropdownMenuCheckboxItem key={column.id} className="capitalize" checked={column.getIsVisible()} onCheckedChange={(value) => column.toggleVisibility(!!value)}>{column.id}</DropdownMenuCheckboxItem>))}</DropdownMenuContent></DropdownMenu>
           </div>
