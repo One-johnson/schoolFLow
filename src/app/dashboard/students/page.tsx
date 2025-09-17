@@ -294,7 +294,7 @@ export default function StudentsPage() {
             dateOfBirth: dob ? format(dob, 'yyyy-MM-dd') : undefined,
         };
 
-        await addDataWithId(tempUid, studentProfile as Omit<Student, 'id'>);
+        await addDataWithId(tempUid, studentProfile as unknown as Omit<Student, 'id'>);
         
         await set(ref(database, `users/${tempUid}`), {
             role: 'student',
@@ -1255,4 +1255,8 @@ export default function StudentsPage() {
   )
 }
 
+
+function addData(arg0: any) {
+  throw new Error("Function not implemented.")
+}
     

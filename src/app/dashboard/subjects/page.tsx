@@ -22,6 +22,7 @@ import {
   Trash2,
   Pencil,
   Loader2,
+  X,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -85,6 +86,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { MultiSelectPopover } from "@/components/ui/multi-select-popover"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 type SubjectLevel = "Nursery" | "Kindergarten" | "Primary" | "Junior High";
 
@@ -142,7 +144,11 @@ export default function SubjectsPage() {
   const [selectedSubject, setSelectedSubject] = React.useState<Subject | null>(null)
   const [isLoading, setIsLoading] = React.useState(false);
   
-  const [newSubject, setNewSubject] = React.useState<Partial<Omit<Subject, 'id'>>>({});
+  const [newSubjects, setNewSubjects] = React.useState<Partial<Omit<Subject, 'id' | 'code'>>[]>([{ name: "" }]);
+  const [sharedLevel, setSharedLevel] = React.useState<SubjectLevel | undefined>();
+  const [sharedClassIds, setSharedClassIds] = React.useState<string[]>([]);
+  const [sharedTeacherIds, setSharedTeacherIds] = React.useState<string[]>([]);
+
   const [editSubject, setEditSubject] = React.useState<Partial<Subject>>({});
 
   const { data: subjects, loading: dataLoading, addData, updateData, deleteData } = useDatabase<Subject>("subjects")
@@ -153,19 +159,18 @@ export default function SubjectsPage() {
   const teachersMap = React.useMemo(() => new Map(teachers.map(t => [t.id, t.name])), [teachers]);
   const classesMap = React.useMemo(() => new Map(classes.map(c => [c.id, c.name])), [classes]);
 
-  const availableClassesForNew = React.useMemo(() => filterClassesByLevel(classes, newSubject.level), [classes, newSubject.level]);
+  const availableClassesForNew = React.useMemo(() => filterClassesByLevel(classes, sharedLevel), [classes, sharedLevel]);
   const availableClassesForEdit = React.useMemo(() => filterClassesByLevel(classes, editSubject.level), [classes, editSubject.level]);
 
   React.useEffect(() => {
-    if (newSubject.level) {
+    if (sharedLevel) {
         const availableClassIds = new Set(availableClassesForNew.map(c => c.id));
-        const currentSelected = newSubject.classIds ? Object.keys(newSubject.classIds) : [];
-        const filteredSelected = currentSelected.filter(id => availableClassIds.has(id));
-        if(filteredSelected.length !== currentSelected.length) {
-            setNewSubject(p => ({...p, classIds: filteredSelected.reduce((acc, id) => ({...acc, [id]: true}), {}) }));
+        const filteredSelected = sharedClassIds.filter(id => availableClassIds.has(id));
+        if(filteredSelected.length !== sharedClassIds.length) {
+            setSharedClassIds(filteredSelected);
         }
     }
-  }, [newSubject.level, availableClassesForNew, newSubject.classIds]);
+  }, [sharedLevel, availableClassesForNew, sharedClassIds]);
 
   React.useEffect(() => {
     if (editSubject.level) {
@@ -178,30 +183,56 @@ export default function SubjectsPage() {
     }
   }, [editSubject.level, availableClassesForEdit, editSubject.classIds]);
 
-  const handleAddSubject = async () => {
-    if (!newSubject.name?.trim()) {
-      toast({ title: "Error", description: "Subject name is required.", variant: "destructive" })
-      return
+  const handleAddSubjectRow = () => {
+    setNewSubjects(prev => [...prev, { name: "" }]);
+  };
+  
+  const handleRemoveSubjectRow = (index: number) => {
+    setNewSubjects(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSubjectNameChange = (index: number, name: string) => {
+    const updatedSubjects = [...newSubjects];
+    updatedSubjects[index].name = name;
+    setNewSubjects(updatedSubjects);
+  };
+  
+  const handleAddMultipleSubjects = async () => {
+    const validSubjects = newSubjects.filter(s => s.name && s.name.trim() !== "");
+    if(validSubjects.length === 0) {
+        toast({ title: "Error", description: "At least one subject name is required.", variant: "destructive" });
+        return;
     }
     setIsLoading(true);
     try {
-      const subjectCode = generateSubjectCode(newSubject.name);
-      
-      const dataToSave = {
-          ...newSubject,
-          code: subjectCode,
-          classIds: newSubject.classIds ? Object.keys(newSubject.classIds).reduce((acc, id) => ({...acc, [id]: true}), {}) : {},
-          teacherIds: newSubject.teacherIds ? Object.keys(newSubject.teacherIds).reduce((acc, id) => ({...acc, [id]: true}), {}) : {},
-      } as Omit<Subject, "id">;
+        const classIdsObject = sharedClassIds.reduce((acc, id) => ({...acc, [id]: true}), {});
+        const teacherIdsObject = sharedTeacherIds.reduce((acc, id) => ({...acc, [id]: true}), {});
+        
+        const subjectPromises = validSubjects.map(subject => {
+            const subjectCode = generateSubjectCode(subject.name!);
+            const dataToSave: Omit<Subject, 'id'> = {
+                name: subject.name!,
+                code: subjectCode,
+                level: sharedLevel,
+                classIds: classIdsObject,
+                teacherIds: teacherIdsObject,
+            };
+            return addData(dataToSave);
+        });
 
-      await addData(dataToSave)
-      toast({ title: "Success", description: "Subject added." })
-      setNewSubject({})
-      setIsCreateDialogOpen(false)
+        await Promise.all(subjectPromises);
+        toast({ title: "Success", description: `${validSubjects.length} subjects added.` });
+        
+        // Reset form
+        setNewSubjects([{ name: "" }]);
+        setSharedLevel(undefined);
+        setSharedClassIds([]);
+        setSharedTeacherIds([]);
+        setIsCreateDialogOpen(false);
     } catch (error) {
-      toast({ title: "Error", description: "Failed to add subject.", variant: "destructive" })
+        toast({ title: "Error", description: "Failed to add subjects.", variant: "destructive" });
     } finally {
-      setIsLoading(false);
+        setIsLoading(false);
     }
   }
 
@@ -337,52 +368,71 @@ export default function SubjectsPage() {
           <CardDescription>Add, edit, and manage course subjects.</CardDescription>
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild><Button onClick={() => setNewSubject({})}><PlusCircle className="mr-2 h-4 w-4" /> Add Subject</Button></DialogTrigger>
-          <DialogContent className="sm:max-w-[480px]">
-            <DialogHeader><DialogTitle>Add New Subject</DialogTitle><DialogDescription>Fill in the details for the new subject.</DialogDescription></DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name" className="text-right">Name</Label>
-                <Input id="name" placeholder="e.g., Algebra II" className="col-span-3" value={newSubject.name || ""} onChange={(e) => setNewSubject(p => ({ ...p, name: e.target.value }))} disabled={isLoading} />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="level" className="text-right">Level</Label>
-                <Select onValueChange={(value: SubjectLevel) => setNewSubject(p => ({ ...p, level: value }))} value={newSubject.level} disabled={isLoading}>
-                  <SelectTrigger className="col-span-3"><SelectValue placeholder="Select a level" /></SelectTrigger>
-                  <SelectContent>
-                      <SelectItem value="Nursery">Nursery</SelectItem>
-                      <SelectItem value="Kindergarten">Kindergarten</SelectItem>
-                      <SelectItem value="Primary">Primary</SelectItem>
-                      <SelectItem value="Junior High">Junior High</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-4 items-start gap-4">
-                <Label htmlFor="classId" className="text-right pt-2">Classes</Label>
-                 <div className="col-span-3">
-                    <MultiSelectPopover 
-                        options={availableClassesForNew.map(c => ({value: c.id, label: c.name}))}
-                        selected={newSubject.classIds ? Object.keys(newSubject.classIds) : []}
-                        onChange={(selected) => setNewSubject(p => ({ ...p, classIds: selected.reduce((acc, id) => ({...acc, [id]: true}), {})}))}
-                        disabled={isLoading || !newSubject.level}
-                        placeholder={!newSubject.level ? "Select a level first" : "Assign to classes..."}
-                    />
-                 </div>
-              </div>
-              <div className="grid grid-cols-4 items-start gap-4">
-                <Label htmlFor="teacherId" className="text-right pt-2">Teachers</Label>
-                 <div className="col-span-3">
-                    <MultiSelectPopover 
+          <DialogTrigger asChild><Button onClick={() => setNewSubjects([{name: ''}])}><PlusCircle className="mr-2 h-4 w-4" /> Add Subject</Button></DialogTrigger>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader><DialogTitle>Add New Subjects</DialogTitle><DialogDescription>Fill in the details for the new subjects.</DialogDescription></DialogHeader>
+            <ScrollArea className="max-h-[60vh]">
+              <div className="space-y-4 p-4">
+                {newSubjects.map((subject, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                        <Input 
+                            placeholder={`Subject Name ${index + 1}`} 
+                            value={subject.name || ""} 
+                            onChange={(e) => handleSubjectNameChange(index, e.target.value)} 
+                            disabled={isLoading}
+                        />
+                        {newSubjects.length > 1 && (
+                            <Button variant="ghost" size="icon" onClick={() => handleRemoveSubjectRow(index)} disabled={isLoading}>
+                                <X className="h-4 w-4 text-destructive"/>
+                            </Button>
+                        )}
+                    </div>
+                ))}
+                 <Button variant="outline" size="sm" onClick={handleAddSubjectRow} disabled={isLoading}>
+                    <PlusCircle className="mr-2 h-4 w-4"/> Add another subject
+                </Button>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
+                     <div className="space-y-2">
+                        <Label>Level (for all new subjects)</Label>
+                         <Select onValueChange={(value: SubjectLevel) => setSharedLevel(value)} value={sharedLevel} disabled={isLoading}>
+                            <SelectTrigger><SelectValue placeholder="Select a level" /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Nursery">Nursery</SelectItem>
+                                <SelectItem value="Kindergarten">Kindergarten</SelectItem>
+                                <SelectItem value="Primary">Primary</SelectItem>
+                                <SelectItem value="Junior High">Junior High</SelectItem>
+                            </SelectContent>
+                            </Select>
+                     </div>
+                     <div className="space-y-2">
+                        <Label>Classes (for all new subjects)</Label>
+                        <MultiSelectPopover 
+                            options={availableClassesForNew.map(c => ({value: c.id, label: c.name}))}
+                            selected={sharedClassIds}
+                            onChange={setSharedClassIds}
+                            disabled={isLoading || !sharedLevel}
+                            placeholder={!sharedLevel ? "Select a level first" : "Assign to classes..."}
+                        />
+                     </div>
+                </div>
+                 <div className="space-y-2">
+                    <Label>Teachers (for all new subjects)</Label>
+                     <MultiSelectPopover 
                         options={teachers.map(t => ({value: t.id, label: t.name}))}
-                        selected={newSubject.teacherIds ? Object.keys(newSubject.teacherIds) : []}
-                        onChange={(selected) => setNewSubject(p => ({ ...p, teacherIds: selected.reduce((acc, id) => ({...acc, [id]: true}), {})}))}
+                        selected={sharedTeacherIds}
+                        onChange={setSharedTeacherIds}
                         disabled={isLoading}
                         placeholder="Assign to teachers..."
                     />
                  </div>
               </div>
-            </div>
-            <DialogFooter><Button type="submit" onClick={handleAddSubject} disabled={isLoading}>{isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Add Subject</Button></DialogFooter>
+            </ScrollArea>
+            <DialogFooter>
+                <Button type="submit" onClick={handleAddMultipleSubjects} disabled={isLoading}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Add Subjects
+                </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </CardHeader>
