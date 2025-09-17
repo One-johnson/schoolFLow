@@ -27,6 +27,9 @@ import {
   BookOpen,
   Edit,
   X,
+  LayoutGrid,
+  List,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -124,6 +127,7 @@ export default function ClassesPage() {
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
+  const [viewType, setViewType] = React.useState<"table" | "card">("table");
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
@@ -344,6 +348,50 @@ export default function ClassesPage() {
   });
   
   const selectedRowCount = table.getFilteredSelectedRowModel().rows.length;
+  
+  const filteredClasses = table.getRowModel().rows.map(row => row.original);
+
+  const ClassCard = ({ cls }: { cls: Class }) => (
+    <Card className="flex flex-col">
+        <CardHeader>
+            <div className="flex justify-between items-start">
+                <div>
+                    <CardTitle>{cls.name}</CardTitle>
+                    {cls.department && <Badge className={cn("mt-2 border-transparent", departmentColors[cls.department])}>{cls.department}</Badge>}
+                </div>
+                 <AlertDialog>
+                    <DropdownMenu>
+                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openEditDialog(cls)}><Pencil className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openAssignDialog(cls)}><UserPlus className="mr-2 h-4 w-4" /> Assign</DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <AlertDialogTrigger asChild><DropdownMenuItem className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem></AlertDialogTrigger>
+                    </DropdownMenuContent>
+                    </DropdownMenu>
+                    <AlertDialogContent>
+                    <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the class.</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteClass(cls.id)} disabled={isLoading} className="bg-destructive hover:bg-destructive/90">{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : "Delete"}</AlertDialogAction></AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            </div>
+        </CardHeader>
+        <CardContent className="flex-grow space-y-2">
+            <div>
+                <p className="text-sm font-medium text-muted-foreground">Class Teacher</p>
+                <p>{teachersMap.get(cls.teacherId || '')?.name || 'Unassigned'}</p>
+            </div>
+            <div>
+                <p className="text-sm font-medium text-muted-foreground">Students</p>
+                <p className="flex items-center gap-2"><Users className="h-4 w-4"/> {Object.keys(cls.studentIds || {}).length}</p>
+            </div>
+        </CardContent>
+        <CardFooter>
+             <Badge variant={cls.status === "Active" ? "default" : "secondary"} className={cls.status === "Active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>{cls.status}</Badge>
+        </CardFooter>
+    </Card>
+  );
+
 
   return (
     <div className="flex flex-col gap-6">
@@ -404,47 +452,61 @@ export default function ClassesPage() {
                     <SelectTrigger className="w-[180px]"><SelectValue placeholder="Filter by Status"/></SelectTrigger>
                     <SelectContent><SelectItem value="all">All Statuses</SelectItem><SelectItem value="Active">Active</SelectItem><SelectItem value="Inactive">Inactive</SelectItem></SelectContent>
                 </Select>
-                <div className="ml-auto flex gap-2">
-                     {selectedRowCount > 0 && (
-                        <>
-                         <Dialog open={isBulkUpdateDialogOpen} onOpenChange={setIsBulkUpdateDialogOpen}>
-                            <DialogTrigger asChild><Button variant="outline"><Edit className="mr-2 h-4 w-4"/>Update ({selectedRowCount})</Button></DialogTrigger>
-                            <DialogContent><DialogHeader><DialogTitle>Bulk Update Status</DialogTitle><DialogDescription>Apply a new status to all {selectedRowCount} selected classes.</DialogDescription></DialogHeader>
-                                <div className="py-4"><Label>New Status</Label><Select onValueChange={(v: Class["status"]) => setBulkUpdateState({status: v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Active">Active</SelectItem><SelectItem value="Inactive">Inactive</SelectItem></SelectContent></Select></div>
-                                <DialogFooter><Button onClick={handleBulkUpdate} disabled={isLoading}>{isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Apply Update</Button></DialogFooter>
-                            </DialogContent>
-                        </Dialog>
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild><Button variant="destructive"><Trash2 className="mr-2 h-4 w-4"/>Delete ({selectedRowCount})</Button></AlertDialogTrigger>
-                            <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete {selectedRowCount} selected classes.</AlertDialogDescription></AlertDialogHeader>
-                                <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDeleteMultipleClasses} disabled={isLoading} className="bg-destructive hover:bg-destructive/90">{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : "Delete"}</AlertDialogAction></AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                        </>
-                     )}
-                     <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" className="ml-auto">Columns <ChevronDown className="ml-2 h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end">{table.getAllColumns().filter(c => c.getCanHide()).map(c => (<DropdownMenuCheckboxItem key={c.id} className="capitalize" checked={c.getIsVisible()} onCheckedChange={(v) => c.toggleVisibility(!!v)}>{c.id}</DropdownMenuCheckboxItem>))}</DropdownMenuContent></DropdownMenu>
+                <div className="ml-auto flex items-center gap-2">
+                    <div className="flex items-center gap-1 rounded-md bg-muted p-1">
+                        <Button variant={viewType === 'table' ? 'secondary' : 'ghost'} size="sm" onClick={() => setViewType('table')}><List className="h-4 w-4"/></Button>
+                        <Button variant={viewType === 'card' ? 'secondary' : 'ghost'} size="sm" onClick={() => setViewType('card')}><LayoutGrid className="h-4 w-4"/></Button>
+                    </div>
+                    {viewType === 'table' && <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline">Columns <ChevronDown className="ml-2 h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end">{table.getAllColumns().filter(c => c.getCanHide()).map(c => (<DropdownMenuCheckboxItem key={c.id} className="capitalize" checked={c.getIsVisible()} onCheckedChange={(v) => c.toggleVisibility(!!v)}>{c.id}</DropdownMenuCheckboxItem>))}</DropdownMenuContent></DropdownMenu>}
                 </div>
             </div>
+             {viewType === 'table' && selectedRowCount > 0 && (
+                <div className="mt-4 flex gap-2">
+                    <Dialog open={isBulkUpdateDialogOpen} onOpenChange={setIsBulkUpdateDialogOpen}>
+                        <DialogTrigger asChild><Button variant="outline"><Edit className="mr-2 h-4 w-4"/>Update ({selectedRowCount})</Button></DialogTrigger>
+                        <DialogContent><DialogHeader><DialogTitle>Bulk Update Status</DialogTitle><DialogDescription>Apply a new status to all {selectedRowCount} selected classes.</DialogDescription></DialogHeader>
+                            <div className="py-4"><Label>New Status</Label><Select onValueChange={(v: Class["status"]) => setBulkUpdateState({status: v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Active">Active</SelectItem><SelectItem value="Inactive">Inactive</SelectItem></SelectContent></Select></div>
+                            <DialogFooter><Button onClick={handleBulkUpdate} disabled={isLoading}>{isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Apply Update</Button></DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild><Button variant="destructive"><Trash2 className="mr-2 h-4 w-4"/>Delete ({selectedRowCount})</Button></AlertDialogTrigger>
+                        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete {selectedRowCount} selected classes.</AlertDialogDescription></AlertDialogHeader>
+                            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDeleteMultipleClasses} disabled={isLoading} className="bg-destructive hover:bg-destructive/90">{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : "Delete"}</AlertDialogAction></AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </div>
+            )}
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>{table.getHeaderGroups().map(hg => (<TableRow key={hg.id}>{hg.headers.map(h => (<TableHead key={h.id}>{h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}</TableHead>))}</TableRow>))}</TableHeader>
-              <TableBody>
-                {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>{row.getVisibleCells().map(cell => (<TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>))}</TableRow>
-                  ))
-                ) : (
-                  <TableRow><TableCell colSpan={columns.length} className="h-24 text-center">No results.</TableCell></TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-          <div className="flex items-center justify-end space-x-2 py-4">
-            <div className="flex-1 text-sm text-muted-foreground">{table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} row(s) selected.</div>
-            <div className="space-x-2"><Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>Previous</Button><Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>Next</Button></div>
-          </div>
+            {viewType === 'table' ? (
+              <>
+                <div className="rounded-md border">
+                    <Table>
+                    <TableHeader>{table.getHeaderGroups().map(hg => (<TableRow key={hg.id}>{hg.headers.map(h => (<TableHead key={h.id}>{h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}</TableHead>))}</TableRow>))}</TableHeader>
+                    <TableBody>
+                        {table.getRowModel().rows?.length ? (
+                        table.getRowModel().rows.map((row) => (
+                            <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>{row.getVisibleCells().map(cell => (<TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>))}</TableRow>
+                        ))
+                        ) : (
+                        <TableRow><TableCell colSpan={columns.length} className="h-24 text-center">No results.</TableCell></TableRow>
+                        )}
+                    </TableBody>
+                    </Table>
+                </div>
+                <div className="flex items-center justify-end space-x-2 py-4">
+                    <div className="flex-1 text-sm text-muted-foreground">{table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} row(s) selected.</div>
+                    <div className="space-x-2"><Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>Previous</Button><Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>Next</Button></div>
+                </div>
+              </>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {filteredClasses.length > 0 ? (
+                        filteredClasses.map(cls => <ClassCard key={cls.id} cls={cls} />)
+                    ) : <p className="col-span-full text-center text-muted-foreground">No classes found.</p>}
+                </div>
+            )}
         </CardContent>
       </Card>
       
