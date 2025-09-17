@@ -153,18 +153,18 @@ export default function SubjectsPage() {
 
   const [editSubject, setEditSubject] = React.useState<Partial<Subject>>({});
   const [bulkUpdateState, setBulkUpdateState] = React.useState<{level?: SubjectLevel, classIds?: string[], teacherIds?: string[]}>({});
-  const availableClassesForBulk = React.useMemo(() => filterClassesByLevel(classes, bulkUpdateState.level), [classes, bulkUpdateState.level]);
-
+  
   const { data: subjects, loading: dataLoading, addData, updateData, deleteData } = useDatabase<Subject>("subjects")
   const { data: teachers } = useDatabase<Teacher>("teachers")
   const { data: classes } = useDatabase<Class>("classes")
   const { toast } = useToast()
 
-  const teachersMap = React.useMemo(() => new Map(teachers.map(t => [t.id, t.name])), [teachers]);
-  const classesMap = React.useMemo(() => new Map(classes.map(c => [c.id, c.name])), [classes]);
-
+  const availableClassesForBulk = React.useMemo(() => filterClassesByLevel(classes, bulkUpdateState.level), [classes, bulkUpdateState.level]);
   const availableClassesForNew = React.useMemo(() => filterClassesByLevel(classes, sharedLevel), [classes, sharedLevel]);
   const availableClassesForEdit = React.useMemo(() => filterClassesByLevel(classes, editSubject.level), [classes, editSubject.level]);
+
+  const teachersMap = React.useMemo(() => new Map(teachers.map(t => [t.id, t.name])), [teachers]);
+  const classesMap = React.useMemo(() => new Map(classes.map(c => [c.id, c.name])), [classes]);
 
   React.useEffect(() => {
     if (sharedLevel) {
