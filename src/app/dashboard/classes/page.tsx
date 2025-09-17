@@ -147,8 +147,8 @@ export default function ClassesPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const teachersMap = useMemo(() => new Map(teachers.map(t => [t.id, t])), [teachers]);
-  const studentsMap = useMemo(() => new Map(students.map(s => [s.id, s])), [students]);
+  const teachersMap = useMemo(() => new Map(teachers.map(t => [t.id, t.name])), [teachers]);
+  const studentsMap = useMemo(() => new Map(students.map(s => [s.id, s.name])), [students]);
 
   const handleAddClassRow = () => setNewClasses(prev => [...prev, { name: "" }]);
   const handleRemoveClassRow = (index: number) => setNewClasses(prev => prev.filter((_, i) => i !== index));
@@ -355,10 +355,15 @@ export default function ClassesPage() {
     <Card className="flex flex-col">
         <CardHeader>
             <div className="flex justify-between items-start">
-                <div>
-                    <CardTitle>{cls.name}</CardTitle>
-                    {cls.department && <Badge className={cn("mt-2 border-transparent", departmentColors[cls.department])}>{cls.department}</Badge>}
-                </div>
+                 <div className="flex items-center gap-3">
+                    <div className="p-3 bg-primary/10 rounded-full text-primary">
+                        <BookOpen className="h-6 w-6"/>
+                    </div>
+                    <div>
+                        <CardTitle>{cls.name}</CardTitle>
+                        {cls.department && <Badge className={cn("mt-2 border-transparent", departmentColors[cls.department])}>{cls.department}</Badge>}
+                    </div>
+                 </div>
                  <AlertDialog>
                     <DropdownMenu>
                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger>
@@ -560,3 +565,4 @@ export default function ClassesPage() {
     </div>
   );
 }
+
