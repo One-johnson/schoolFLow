@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -94,6 +93,8 @@ import { useState, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { MultiSelectPopover } from "@/components/ui/multi-select-popover";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+
 
 type ClassDepartment = "Nursery" | "Kindergarten" | "Primary" | "Junior High";
 
@@ -106,7 +107,7 @@ type Class = {
   department?: ClassDepartment;
 };
 
-type Student = { id: string; name: string; };
+type Student = { id: string; name: string; studentId: string; };
 type Teacher = { id: string; name: string; };
 
 const departmentColors: Record<ClassDepartment, string> = {
@@ -148,7 +149,8 @@ export default function ClassesPage() {
   const { toast } = useToast();
 
   const teachersMap = useMemo(() => new Map(teachers.map(t => [t.id, t.name])), [teachers]);
-  const studentsMap = useMemo(() => new Map(students.map(s => [s.id, s.name])), [students]);
+  const studentsMap = useMemo(() => new Map(students.map(s => [s.id, s])), [students]);
+
 
   const handleAddClassRow = () => setNewClasses(prev => [...prev, { name: "" }]);
   const handleRemoveClassRow = (index: number) => setNewClasses(prev => prev.filter((_, i) => i !== index));
@@ -310,7 +312,42 @@ export default function ClassesPage() {
         return <Badge className={cn("border-transparent", departmentColors[dept])}>{dept}</Badge>
     }},
     { accessorKey: "teacherId", header: "Teacher", cell: ({ row }) => teachersMap.get(row.original.teacherId || '')?.name || 'Unassigned' },
-    { accessorKey: "studentIds", header: "Students", cell: ({ row }) => Object.keys(row.original.studentIds || {}).length },
+    { accessorKey: "studentIds", header: "Students", cell: ({ row }) => {
+        const studentIds = Object.keys(row.original.studentIds || {});
+        const studentCount = studentIds.length;
+        
+        if (studentCount === 0) {
+            return <span>0</span>;
+        }
+
+        return (
+            <HoverCard>
+                <HoverCardTrigger asChild>
+                    <span className="font-medium text-primary cursor-pointer hover:underline">{studentCount}</span>
+                </HoverCardTrigger>
+                <HoverCardContent className="w-80">
+                    <div className="flex justify-between space-x-4">
+                        <div className="space-y-1">
+                            <h4 className="text-sm font-semibold">{row.original.name} - Students</h4>
+                             <ScrollArea className="h-48">
+                                <div className="space-y-2 pr-4">
+                                {studentIds.map(id => {
+                                    const student = studentsMap.get(id);
+                                    return (
+                                        <div key={id} className="text-sm">
+                                            <p className="font-medium leading-none">{student?.name || "Unknown Student"}</p>
+                                            <p className="text-xs text-muted-foreground">{student?.studentId || "No ID"}</p>
+                                        </div>
+                                    );
+                                })}
+                                </div>
+                            </ScrollArea>
+                        </div>
+                    </div>
+                </HoverCardContent>
+            </HoverCard>
+        );
+    }},
     { accessorKey: "status", header: "Status", cell: ({ row }) => <Badge variant={row.original.status === "Active" ? "default" : "secondary"} className={row.original.status === "Active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>{row.original.status}</Badge> },
     { id: "actions", enableHiding: false, cell: ({ row }) => (
           <AlertDialog>
@@ -565,4 +602,3 @@ export default function ClassesPage() {
     </div>
   );
 }
-
