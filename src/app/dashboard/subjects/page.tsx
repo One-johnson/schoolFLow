@@ -277,6 +277,25 @@ export default function SubjectsPage() {
     }
   }
 
+  const handleDeleteMultipleSubjects = async () => {
+    const selectedRows = table.getFilteredSelectedRowModel().rows;
+    if (selectedRows.length === 0) {
+      toast({ title: "No subjects selected", description: "Please select subjects to delete.", variant: "destructive" });
+      return;
+    }
+    setIsLoading(true);
+    const deletionPromises = selectedRows.map(row => deleteData(row.original.id));
+    try {
+      await Promise.all(deletionPromises);
+      toast({ title: "Success", description: `${selectedRows.length} subjects have been deleted.` });
+      table.toggleAllPageRowsSelected(false); // Clear selection
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to delete all selected subjects.", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
 
   const columns: ColumnDef<Subject>[] = [
     {
@@ -441,6 +460,22 @@ export default function SubjectsPage() {
           <div className="flex items-center py-4 gap-2">
             <Input placeholder="Filter by subject name..." value={(table.getColumn("name")?.getFilterValue() as string) ?? ""} onChange={(event) => table.getColumn("name")?.setFilterValue(event.target.value)} className="max-w-sm" />
              <Select onValueChange={(value) => table.getColumn("level")?.setFilterValue(value === "all" ? "" : value)}><SelectTrigger className="w-[180px]"><SelectValue placeholder="Filter by Level" /></SelectTrigger><SelectContent><SelectItem value="all">All Levels</SelectItem>{[...new Set(subjects.map(s => s.level).filter(Boolean))].map(level => <SelectItem key={level} value={level!}>{level}</SelectItem>)}</SelectContent></Select>
+             {table.getFilteredSelectedRowModel().rows.length > 0 && (
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="destructive" disabled={isLoading}>
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete ({table.getFilteredSelectedRowModel().rows.length})
+                        </Button>
+                    </AlertDialogTrigger>
+                     <AlertDialogContent>
+                        <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete {table.getFilteredSelectedRowModel().rows.length} selected subjects.</AlertDialogDescription></AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDeleteMultipleSubjects} disabled={isLoading} className="bg-destructive hover:bg-destructive/90">{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Delete"}</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+             )}
             <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" className="ml-auto">Columns <ChevronDown className="ml-2 h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end">{table.getAllColumns().filter((column) => column.getCanHide()).map((column) => (<DropdownMenuCheckboxItem key={column.id} className="capitalize" checked={column.getIsVisible()} onCheckedChange={(value) => column.toggleVisibility(!!value)}>{column.id}</DropdownMenuCheckboxItem>))}</DropdownMenuContent></DropdownMenu>
           </div>
           <div className="rounded-md border">
