@@ -94,6 +94,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { MultiSelectPopover } from "@/components/ui/multi-select-popover";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 
 type ClassDepartment = "Nursery" | "Kindergarten" | "Primary" | "Junior High";
@@ -107,7 +108,7 @@ type Class = {
   department?: ClassDepartment;
 };
 
-type Student = { id: string; name: string; studentId: string; };
+type Student = { id: string; name: string; studentId: string; avatarUrl?: string };
 type Teacher = { id: string; name: string; };
 
 const departmentColors: Record<ClassDepartment, string> = {
@@ -116,6 +117,12 @@ const departmentColors: Record<ClassDepartment, string> = {
     Primary: "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300",
     "Junior High": "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300",
 };
+
+const getInitials = (name: string | null | undefined) => {
+    if (!name) return "S";
+    const names = name.split(' ');
+    return (names[0][0] + (names.length > 1 ? names[names.length - 1][0] : '')).toUpperCase();
+}
 
 
 export default function ClassesPage() {
@@ -334,9 +341,15 @@ export default function ClassesPage() {
                                 {studentIds.map(id => {
                                     const student = studentsMap.get(id);
                                     return (
-                                        <div key={id} className="text-sm">
-                                            <p className="font-medium leading-none">{student?.name || "Unknown Student"}</p>
-                                            <p className="text-xs text-muted-foreground">{student?.studentId || "No ID"}</p>
+                                        <div key={id} className="flex items-center gap-3">
+                                            <Avatar className="h-8 w-8">
+                                                <AvatarImage src={student?.avatarUrl} />
+                                                <AvatarFallback>{getInitials(student?.name)}</AvatarFallback>
+                                            </Avatar>
+                                            <div>
+                                                <p className="font-medium leading-none text-sm">{student?.name || "Unknown Student"}</p>
+                                                <p className="text-xs text-muted-foreground">{student?.studentId || "No ID"}</p>
+                                            </div>
                                         </div>
                                     );
                                 })}
