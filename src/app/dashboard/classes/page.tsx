@@ -109,7 +109,7 @@ type Class = {
 };
 
 type Student = { id: string; name: string; studentId: string; avatarUrl?: string };
-type Teacher = { id: string; name: string; };
+type Teacher = { id: string; name: string; avatarUrl?: string };
 
 const departmentColors: Record<ClassDepartment, string> = {
     Nursery: "bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-300",
@@ -155,7 +155,7 @@ export default function ClassesPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const teachersMap = useMemo(() => new Map(teachers.map(t => [t.id, t.name])), [teachers]);
+  const teachersMap = useMemo(() => new Map(teachers.map(t => [t.id, t])), [teachers]);
   const studentsMap = useMemo(() => new Map(students.map(s => [s.id, s])), [students]);
 
 
@@ -318,7 +318,27 @@ export default function ClassesPage() {
         if (!dept) return "N/A";
         return <Badge className={cn("border-transparent", departmentColors[dept])}>{dept}</Badge>
     }},
-    { accessorKey: "teacherId", header: "Teacher", cell: ({ row }) => teachersMap.get(row.original.teacherId || '')?.name || 'Unassigned' },
+    { accessorKey: "teacherId", header: "Teacher", cell: ({ row }) => {
+        const teacher = teachersMap.get(row.original.teacherId || '');
+        if (!teacher) return 'Unassigned';
+
+        return (
+             <HoverCard>
+                <HoverCardTrigger asChild>
+                    <span className="font-medium text-primary cursor-pointer hover:underline">{teacher.name}</span>
+                </HoverCardTrigger>
+                <HoverCardContent className="w-auto">
+                   <div className="flex items-center gap-4">
+                        <Avatar>
+                            <AvatarImage src={teacher.avatarUrl} />
+                            <AvatarFallback>{getInitials(teacher.name)}</AvatarFallback>
+                        </Avatar>
+                        <p className="font-semibold">{teacher.name}</p>
+                    </div>
+                </HoverCardContent>
+            </HoverCard>
+        )
+    }},
     { accessorKey: "studentIds", header: "Students", cell: ({ row }) => {
         const studentIds = Object.keys(row.original.studentIds || {});
         const studentCount = studentIds.length;
