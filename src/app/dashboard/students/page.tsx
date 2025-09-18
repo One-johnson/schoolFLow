@@ -188,6 +188,7 @@ export default function StudentsPage() {
   const {
     data: allStudents,
     loading: dataLoading,
+    addData,
     addDataWithId,
     deleteData,
     updateData: updateStudent,
@@ -303,7 +304,7 @@ export default function StudentsPage() {
         });
 
         // Notification for admins
-        await addData({
+        await addNotification({
             type: 'student_enrolled',
             message: `New student "${newStudent.name}" was enrolled.`,
             read: false,
@@ -311,7 +312,7 @@ export default function StudentsPage() {
         } as any);
 
         // Welcome notification for the student
-        await addData({
+        await addNotification({
             type: 'welcome',
             message: `Welcome to SchoolFlow, ${newStudent.name}!`,
             read: false,
@@ -1254,9 +1255,3 @@ export default function StudentsPage() {
     </Card>
   )
 }
-
-
-function addData(arg0: any) {
-  throw new Error("Function not implemented.")
-}
-    

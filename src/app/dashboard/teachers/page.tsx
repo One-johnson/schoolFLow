@@ -104,6 +104,7 @@ import { format } from "date-fns"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ImageUpload } from "@/components/ui/image-upload"
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 
 type Teacher = {
   id: string
@@ -127,6 +128,7 @@ type Teacher = {
 }
 
 type Class = { id: string; name: string, teacherId?: string };
+type Subject = { id: string; name: string, teacherIds?: Record<string, boolean> };
 
 export default function TeachersPage() {
   const [sorting, setSorting] = React.useState<SortingState>([])
@@ -160,6 +162,7 @@ export default function TeachersPage() {
     uploadFile,
   } = useDatabase<Teacher>("teachers")
   const { data: classes, updateData: updateClass } = useDatabase<Class>("classes");
+  const { data: subjects } = useDatabase<Subject>("subjects");
   const { addData: addNotification } = useDatabase("notifications")
   const { toast } = useToast()
 
@@ -305,17 +308,18 @@ export default function TeachersPage() {
     if (!selectedTeacher || !editTeacher) return;
     setIsLoading(true);
     try {
-      const updates: any = {
-        ...editTeacher,
-        updatedAt: serverTimestamp(),
-      };
+      const updates: any = { ...editTeacher, updatedAt: serverTimestamp() };
       
       if (dob) {
         updates.dateOfBirth = format(dob, "yyyy-MM-dd");
+      } else {
+        delete updates.dateOfBirth; // Or set to null if your schema allows
       }
       
       if (doe) {
         updates.dateOfEmployment = format(doe, "yyyy-MM-dd");
+      } else {
+         delete updates.dateOfEmployment; // Or set to null
       }
       
       await updateTeacherData(selectedTeacher.id, updates);
@@ -417,16 +421,38 @@ export default function TeachersPage() {
       cell: ({ row }) => {
           const teacher = row.original;
           const initials = teacher.name.split(' ').map(n => n[0]).join('');
+          const assignedSubjects = subjects.filter(s => s.teacherIds && s.teacherIds[teacher.id]);
           return (
-            <div className="flex items-center gap-2">
-                <Avatar className="h-8 w-8">
-                    <AvatarImage src={teacher.avatarUrl} alt={teacher.name} />
-                    <AvatarFallback>{initials}</AvatarFallback>
-                </Avatar>
-                <Link href={`/dashboard/teachers/${teacher.id}`} className="capitalize font-medium text-primary hover:underline">
-                    {teacher.name}
-                </Link>
-            </div>
+            <HoverCard>
+                <HoverCardTrigger asChild>
+                    <div className="flex items-center gap-2 cursor-pointer">
+                        <Avatar className="h-8 w-8">
+                            <AvatarImage src={teacher.avatarUrl} alt={teacher.name} />
+                            <AvatarFallback>{initials}</AvatarFallback>
+                        </Avatar>
+                        <Link href={`/dashboard/teachers/${teacher.id}`} className="capitalize font-medium text-primary hover:underline" onClick={e => e.stopPropagation()}>
+                            {teacher.name}
+                        </Link>
+                    </div>
+                </HoverCardTrigger>
+                <HoverCardContent className="w-80">
+                    <div className="flex flex-col gap-2">
+                        <h4 className="font-semibold">{teacher.name}</h4>
+                        <p className="text-sm text-muted-foreground">{teacher.academicQualification || 'N/A'}</p>
+                        <div className="text-sm">
+                            <strong>Class Teacher:</strong> {teacherClassMap.get(teacher.id) || 'None'}
+                        </div>
+                        <div className="text-sm">
+                            <strong>Subjects:</strong>
+                            {assignedSubjects.length > 0 ? (
+                                <ul className="list-disc pl-5">
+                                    {assignedSubjects.map(s => <li key={s.id}>{s.name}</li>)}
+                                </ul>
+                            ) : " None"}
+                        </div>
+                    </div>
+                </HoverCardContent>
+            </HoverCard>
           )
       }
     },
@@ -1150,5 +1176,3 @@ export default function TeachersPage() {
     </Card>
   )
 }
-
-    
