@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import * as React from "react"
@@ -434,12 +435,22 @@ export default function StudentsPage() {
         const targetClass = classes.find(c => c.id === assignClassId);
         if(!targetClass) throw new Error("Class not found");
 
-        const updatedStudentIds = { ...(targetClass.studentIds || {}) };
-        selectedStudentIds.forEach(id => {
-            updatedStudentIds[id] = true;
-        });
+        const classUpdates: Record<string, any> = {};
+
+        // For each selected student, find their current class and remove them
+        for (const studentId of selectedStudentIds) {
+            const currentClass = classes.find(c => c.studentIds && c.studentIds[studentId]);
+            if (currentClass && currentClass.id !== assignClassId) {
+                 classUpdates[`classes/${currentClass.id}/studentIds/${studentId}`] = null;
+            }
+        }
         
-        await updateClass(assignClassId, { studentIds: updatedStudentIds });
+        // Add all selected students to the new class
+        selectedStudentIds.forEach(id => {
+            classUpdates[`classes/${assignClassId}/studentIds/${id}`] = true;
+        });
+
+        await update(ref(database), classUpdates);
 
         toast({ title: "Success", description: `${selectedStudentIds.length} student(s) assigned to ${targetClass.name}.` });
         setIsAssignDialogOpen(false);
