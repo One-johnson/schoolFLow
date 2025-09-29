@@ -188,7 +188,6 @@ export default function StudentsPage() {
   const {
     data: allStudents,
     loading: dataLoading,
-    addData,
     addDataWithId,
     deleteData,
     updateData: updateStudent,
@@ -417,6 +416,22 @@ export default function StudentsPage() {
     }
   };
 
+  const handleDeleteMultipleStudents = async () => {
+    const selectedStudents = table.getFilteredSelectedRowModel().rows.map(row => row.original);
+    if (selectedStudents.length === 0) return;
+    setIsLoading(true);
+    try {
+        const deletionPromises = selectedStudents.map(student => handleDeleteStudent(student.id));
+        await Promise.all(deletionPromises);
+        toast({ title: "Success", description: `${selectedStudents.length} students deleted.` });
+        table.toggleAllPageRowsSelected(false);
+    } catch (error) {
+        toast({ title: "Error", description: "Failed to delete all selected students.", variant: "destructive" });
+    } finally {
+        setIsLoading(false);
+    }
+  }
+
 
   const handleAssignToClass = async () => {
     if (!assignClassId) {
@@ -434,12 +449,19 @@ export default function StudentsPage() {
         const targetClass = classes.find(c => c.id === assignClassId);
         if(!targetClass) throw new Error("Class not found");
 
-        const updatedStudentIds = { ...(targetClass.studentIds || {}) };
-        selectedStudentIds.forEach(id => {
-            updatedStudentIds[id] = true;
+        const classUpdates: Record<string, any> = {};
+
+        // For each selected student, find their current class and remove them
+        selectedStudentIds.forEach(studentId => {
+            const currentClass = classes.find(c => c.studentIds && c.studentIds[studentId]);
+            if (currentClass && currentClass.id !== assignClassId) {
+                 classUpdates[`/classes/${currentClass.id}/studentIds/${studentId}`] = null;
+            }
+             // Add student to the new class
+            classUpdates[`/classes/${assignClassId}/studentIds/${studentId}`] = true;
         });
-        
-        await updateClass(assignClassId, { studentIds: updatedStudentIds });
+
+        await update(ref(database), classUpdates);
 
         toast({ title: "Success", description: `${selectedStudentIds.length} student(s) assigned to ${targetClass.name}.` });
         setIsAssignDialogOpen(false);
@@ -447,6 +469,7 @@ export default function StudentsPage() {
         table.toggleAllPageRowsSelected(false);
 
     } catch (error) {
+        console.error("Assignment error:", error);
         toast({ title: "Error", description: "Failed to assign students.", variant: "destructive" });
     } finally {
         setIsLoading(false);
@@ -737,38 +760,6 @@ export default function StudentsPage() {
         </div>
         {role === 'admin' && (
         <div className="flex items-center gap-2">
-             <Button variant="outline" onClick={handleExportCSV}>
-                <FileDown className="mr-2 h-4 w-4"/>
-                Export CSV {selectedRowsCount > 0 && `(${selectedRowsCount})`}
-             </Button>
-             <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
-                <DialogTrigger asChild>
-                    <Button variant="outline" disabled={selectedRowsCount === 0}>
-                        <Book className="mr-2 h-4 w-4"/>
-                        Assign to Class {selectedRowsCount > 0 && `(${selectedRowsCount})`}
-                    </Button>
-                </DialogTrigger>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Assign Students to Class</DialogTitle>
-                        <DialogDescription>Select a class to assign the {selectedRowsCount} selected student(s) to.</DialogDescription>
-                    </DialogHeader>
-                    <div className="py-4">
-                        <Label>Class</Label>
-                        <Select value={assignClassId} onValueChange={setAssignClassId}>
-                            <SelectTrigger><SelectValue placeholder="Select a class..."/></SelectTrigger>
-                            <SelectContent>
-                                {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <DialogFooter>
-                        <Button onClick={handleAssignToClass} disabled={isLoading || !assignClassId}>
-                            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Assign
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-             </Dialog>
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogTrigger asChild>
                 <Button onClick={() => { setNewStudent({}); setDob(undefined) }}>
@@ -984,9 +975,68 @@ export default function StudentsPage() {
                     <SelectItem value="Continuing">Continuing</SelectItem>
                 </SelectContent>
             </Select>
+            <div className="flex-1" />
+            {role === 'admin' && selectedRowsCount > 0 && (
+                <div className="flex items-center gap-2">
+                     <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="outline" size="sm">
+                                <Book className="mr-2 h-4 w-4"/>
+                                Assign to Class
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Assign Students to Class</DialogTitle>
+                                <DialogDescription>Select a class to assign the {selectedRowsCount} selected student(s) to.</DialogDescription>
+                            </DialogHeader>
+                            <div className="py-4">
+                                <Label>Class</Label>
+                                <Select value={assignClassId} onValueChange={setAssignClassId}>
+                                    <SelectTrigger><SelectValue placeholder="Select a class..."/></SelectTrigger>
+                                    <SelectContent>
+                                        {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <DialogFooter>
+                                <Button onClick={handleAssignToClass} disabled={isLoading || !assignClassId}>
+                                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Assign
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                             <Button variant="destructive" size="sm">
+                                <Trash2 className="mr-2 h-4 w-4"/>
+                                Delete ({selectedRowsCount})
+                            </Button>
+                        </AlertDialogTrigger>
+                         <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This action will permanently delete {selectedRowsCount} student(s) and all their associated data. This cannot be undone.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleDeleteMultipleStudents} disabled={isLoading} className="bg-destructive hover:bg-destructive/90">
+                                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : "Delete"}
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </div>
+            )}
+             <Button variant="outline" size="sm" onClick={handleExportCSV}>
+                <FileDown className="mr-2 h-4 w-4"/>
+                Export
+             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="ml-auto">
+                <Button variant="outline" className="ml-auto" size="sm">
                   Columns <ChevronDown className="ml-2 h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
