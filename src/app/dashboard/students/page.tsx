@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import * as React from "react"
@@ -438,16 +437,13 @@ export default function StudentsPage() {
         const classUpdates: Record<string, any> = {};
 
         // For each selected student, find their current class and remove them
-        for (const studentId of selectedStudentIds) {
+        selectedStudentIds.forEach(studentId => {
             const currentClass = classes.find(c => c.studentIds && c.studentIds[studentId]);
             if (currentClass && currentClass.id !== assignClassId) {
-                 classUpdates[`classes/${currentClass.id}/studentIds/${studentId}`] = null;
+                 classUpdates[`/classes/${currentClass.id}/studentIds/${studentId}`] = null;
             }
-        }
-        
-        // Add all selected students to the new class
-        selectedStudentIds.forEach(id => {
-            classUpdates[`classes/${assignClassId}/studentIds/${id}`] = true;
+             // Add student to the new class
+            classUpdates[`/classes/${assignClassId}/studentIds/${studentId}`] = true;
         });
 
         await update(ref(database), classUpdates);
@@ -458,6 +454,7 @@ export default function StudentsPage() {
         table.toggleAllPageRowsSelected(false);
 
     } catch (error) {
+        console.error("Assignment error:", error);
         toast({ title: "Error", description: "Failed to assign students.", variant: "destructive" });
     } finally {
         setIsLoading(false);
@@ -1266,3 +1263,5 @@ export default function StudentsPage() {
     </Card>
   )
 }
+
+    
