@@ -251,6 +251,105 @@ export const getSchoolByDomain = query({
   },
 });
 
+// Check if super admin exists
+export const superAdminExists = query({
+  args: {},
+  handler: async (ctx) => {
+    const superAdmin = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("role"), "super_admin"))
+      .first();
+    
+    return !!superAdmin;
+  },
+});
+
+// Create super admin (only if none exists)
+export const createSuperAdmin = mutation({
+  args: {
+    email: v.string(),
+    password: v.string(),
+    firstName: v.string(),
+    lastName: v.string(),
+    phone: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Check if any super admin already exists
+    const existingSuperAdmin = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("role"), "super_admin"))
+      .first();
+    
+    if (existingSuperAdmin) {
+      throw new Error("Super admin already exists. Only one super admin can be created.");
+    }
+
+    // Check if email already exists
+    const existingUser = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .first();
+
+    if (existingUser) {
+      throw new Error("Email already registered");
+    }
+
+    const now = Date.now();
+
+    // Hash password
+    const hashedPassword = bcrypt.hashSync(args.password, 10);
+
+    // Create a placeholder school for super admin
+    const schoolId = await ctx.db.insert("schools", {
+      name: "Platform Administration",
+      email: args.email,
+      phone: args.phone,
+      status: "active",
+      subscriptionPlan: "enterprise",
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // Create super admin user (no school association)
+    const userId = await ctx.db.insert("users", {
+      schoolId, // Reference to platform admin school
+      email: args.email,
+      password: hashedPassword,
+      role: "super_admin",
+      firstName: args.firstName,
+      lastName: args.lastName,
+      phone: args.phone,
+      status: "active",
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // Create session
+    const token = generateToken();
+    const expiresAt = now + 30 * 24 * 60 * 60 * 1000; // 30 days
+
+    await ctx.db.insert("sessions", {
+      userId,
+      schoolId,
+      token,
+      expiresAt,
+      createdAt: now,
+    });
+
+    return {
+      token,
+      user: {
+        id: userId,
+        schoolId,
+        email: args.email,
+        role: "super_admin",
+        firstName: args.firstName,
+        lastName: args.lastName,
+      },
+    };
+  },
+});
+
 // Helper function to generate random token
 function generateToken(): string {
   const array = new Uint8Array(32);
