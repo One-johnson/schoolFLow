@@ -93,7 +93,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const value: AuthContextType = {
-    user: user ?? null,
+    user: user && user.role ? { 
+      ...user, 
+      // If user.role is a string, cast it as UserRole
+      role: user.role as UserRole 
+    } : null,
     isLoading: !isInitialized || (token !== undefined && user === undefined),
     login,
     logout,
