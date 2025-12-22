@@ -1,206 +1,170 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 
-// Get all schools (super admin only)
+// Get all schools for super admin
 export const getAllSchools = query({
   args: {},
   handler: async (ctx) => {
     const schools = await ctx.db.query("schools").collect();
-    
+
     // Get user count for each school
-    const schoolsWithStats = await Promise.all(
+    const schoolsWithCounts = await Promise.all(
       schools.map(async (school) => {
-        const userCount = await ctx.db
+        const users = await ctx.db
           .query("users")
           .withIndex("by_school", (q) => q.eq("schoolId", school._id))
           .collect();
-        
+
         return {
-          ...school,
-          userCount: userCount.length,
+          _id: school._id,
+          name: school.name,
+          email: school.email,
+          userCount: users.length,
+          subscriptionPlan: school.subscriptionPlan || "free",
+          status: school.status,
+          createdAt: school.createdAt,
         };
       })
     );
-    
-    return schoolsWithStats;
+
+    return schoolsWithCounts;
   },
 });
 
-// Get all users across all schools (super admin only)
+// Get all users across all schools
 export const getAllUsers = query({
   args: {},
   handler: async (ctx) => {
     const users = await ctx.db.query("users").collect();
-    
-    // Get school info for each user
-    const usersWithSchool = await Promise.all(
+
+    const usersWithSchools = await Promise.all(
       users.map(async (user) => {
         const school = await ctx.db.get(user.schoolId);
+
         return {
           _id: user._id,
           firstName: user.firstName,
           lastName: user.lastName,
           email: user.email,
+          schoolName: school?.name || "Unknown",
           role: user.role,
           status: user.status,
-          schoolName: school?.name || "Unknown",
-          schoolId: user.schoolId,
-          createdAt: user.createdAt,
           lastLogin: user.lastLogin,
         };
       })
     );
-    
-    return usersWithSchool;
+
+    return usersWithSchools;
   },
 });
 
-// Get platform statistics (super admin only)
+// Get platform statistics
 export const getPlatformStats = query({
   args: {},
   handler: async (ctx) => {
     const schools = await ctx.db.query("schools").collect();
     const users = await ctx.db.query("users").collect();
     const sessions = await ctx.db.query("sessions").collect();
-    
+
     const now = Date.now();
-    const oneDayAgo = now - 24 * 60 * 60 * 1000;
-    const oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000;
-    
-    // Active sessions (not expired)
-    const activeSessions = sessions.filter(s => s.expiresAt > now);
-    
-    // Users created in last 7 days
-    const newUsersThisWeek = users.filter(u => u.createdAt > oneWeekAgo);
-    
-    // Schools created in last 7 days
-    const newSchoolsThisWeek = schools.filter(s => s.createdAt > oneWeekAgo);
-    
-    // Active schools
-    const activeSchools = schools.filter(s => s.status === "active");
-    
-    // Users by role
-    const usersByRole = users.reduce((acc: Record<string, number>, user) => {
-      acc[user.role] = (acc[user.role] || 0) + 1;
-      return acc;
-    }, {});
-    
-    // Schools by subscription plan
-    const schoolsByPlan = schools.reduce((acc: Record<string, number>, school) => {
-      const plan = school.subscriptionPlan || "free";
-      acc[plan] = (acc[plan] || 0) + 1;
-      return acc;
-    }, {});
-    
+    const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+
+    const activeSchools = schools.filter((s) => s.status === "active").length;
+    const newSchoolsThisWeek = schools.filter((s) => s.createdAt > weekAgo).length;
+    const newUsersThisWeek = users.filter((u) => u.createdAt > weekAgo).length;
+    const activeSessions = sessions.filter((s) => s.expiresAt > now).length;
+
+    const usersByRole = users.reduce(
+      (acc: Record<string, number>, user) => {
+        acc[user.role] = (acc[user.role] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
+
+    const schoolsByPlan = schools.reduce(
+      (acc: Record<string, number>, school) => {
+        const plan = school.subscriptionPlan || "free";
+        acc[plan] = (acc[plan] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
+
     return {
       totalSchools: schools.length,
-      activeSchools: activeSchools.length,
+      activeSchools,
       totalUsers: users.length,
-      activeSessions: activeSessions.length,
-      newUsersThisWeek: newUsersThisWeek.length,
-      newSchoolsThisWeek: newSchoolsThisWeek.length,
+      activeSessions,
+      newSchoolsThisWeek,
+      newUsersThisWeek,
       usersByRole,
       schoolsByPlan,
     };
   },
 });
 
-// Update school status (super admin only)
+// Update school status
 export const updateSchoolStatus = mutation({
   args: {
     schoolId: v.id("schools"),
-    status: v.union(v.literal("active"), v.literal("inactive"), v.literal("suspended")),
+    status: v.string(),
   },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.schoolId, {
       status: args.status,
       updatedAt: Date.now(),
     });
-    
+
     return { success: true };
   },
 });
 
-// Update school subscription plan (super admin only)
+// Update school subscription plan
 export const updateSchoolPlan = mutation({
   args: {
     schoolId: v.id("schools"),
-    plan: v.union(
-      v.literal("free"),
-      v.literal("basic"),
-      v.literal("premium"),
-      v.literal("enterprise")
-    ),
+    plan: v.string(),
   },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.schoolId, {
       subscriptionPlan: args.plan,
       updatedAt: Date.now(),
     });
-    
+
     return { success: true };
   },
 });
 
-// Get audit logs (super admin only)
+// Get audit logs (placeholder - would need audit logs table)
 export const getAuditLogs = query({
   args: {
-    limit: v.optional(v.number()),
+    limit: v.number(),
   },
   handler: async (ctx, args) => {
-    const limit = args.limit || 100;
-    
-    // For now, we'll return session creation as audit logs
-    // In a real app, you'd have a dedicated audit_logs table
-    const sessions = await ctx.db.query("sessions")
+    // For now, return login events from sessions
+    const sessions = await ctx.db
+      .query("sessions")
       .order("desc")
-      .take(limit);
-    
-    const logsWithDetails = await Promise.all(
+      .take(args.limit);
+
+    const logs = await Promise.all(
       sessions.map(async (session) => {
         const user = await ctx.db.get(session.userId);
         const school = await ctx.db.get(session.schoolId);
-        
+
         return {
           _id: session._id,
           action: "login",
           userName: user ? `${user.firstName} ${user.lastName}` : "Unknown",
-          userEmail: user?.email || "Unknown",
+          userEmail: user?.email || "unknown@email.com",
           schoolName: school?.name || "Unknown",
           timestamp: session.createdAt,
         };
       })
     );
-    
-    return logsWithDetails;
-  },
-});
 
-// Get school details by ID
-export const getSchoolById = query({
-  args: {
-    schoolId: v.id("schools"),
-  },
-  handler: async (ctx, args) => {
-    const school = await ctx.db.get(args.schoolId);
-    if (!school) return null;
-    
-    const users = await ctx.db
-      .query("users")
-      .withIndex("by_school", (q) => q.eq("schoolId", args.schoolId))
-      .collect();
-    
-    return {
-      ...school,
-      userCount: users.length,
-      users: users.map(u => ({
-        _id: u._id,
-        firstName: u.firstName,
-        lastName: u.lastName,
-        email: u.email,
-        role: u.role,
-        status: u.status,
-      })),
-    };
+    return logs;
   },
 });
