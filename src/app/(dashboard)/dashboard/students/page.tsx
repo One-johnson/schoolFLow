@@ -83,7 +83,6 @@ import { exportToCSV, exportToPDF, type ExportColumn } from "@/lib/export-utils"
 
 interface StudentFormData {
   email: string;
-  password: string;
   firstName: string;
   lastName: string;
   phone: string;
@@ -98,10 +97,12 @@ interface StudentFormData {
   emergencyContactRelationship: string;
   emergencyContactPhone: string;
   medicalInfo: string;
+  status: string;
 }
 
 interface StudentData {
   id: Id<"students">;
+  studentId: string;
   admissionNumber: string;
   firstName: string;
   lastName: string;
@@ -136,12 +137,13 @@ export default function StudentsPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false);
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState<boolean>(false);
   const [isBulkAssignDialogOpen, setIsBulkAssignDialogOpen] = useState<boolean>(false);
+  const [isBulkStatusDialogOpen, setIsBulkStatusDialogOpen] = useState<boolean>(false);
+  const [bulkStatusValue, setBulkStatusValue] = useState<string>("");
   const [selectedStudentId, setSelectedStudentId] = useState<Id<"students"> | null>(null);
   const [bulkAssignClassId, setBulkAssignClassId] = useState<string>("");
   const [bulkAssignSectionId, setBulkAssignSectionId] = useState<string>("");
   const [formData, setFormData] = useState<StudentFormData>({
     email: "",
-    password: "",
     firstName: "",
     lastName: "",
     phone: "",
@@ -156,6 +158,7 @@ export default function StudentsPage() {
     emergencyContactRelationship: "",
     emergencyContactPhone: "",
     medicalInfo: "",
+    status: "fresher",
   });
 
   const students = useQuery(
@@ -191,6 +194,7 @@ export default function StudentsPage() {
   const createStudentMutation = useMutation(api.students.createStudent);
   const updateStudentMutation = useMutation(api.students.updateStudent);
   const deleteStudentMutation = useMutation(api.students.deleteStudent);
+  const bulkUpdateStatusMutation = useMutation(api.students.bulkUpdateStatus);
 
   const openEditDialog = (studentId: Id<"students">) => {
     const studentToEdit = students?.find((s) => s.id === studentId);
@@ -198,13 +202,13 @@ export default function StudentsPage() {
 
     setFormData({
       email: studentToEdit.email,
-      password: "",
       firstName: studentToEdit.firstName,
       lastName: studentToEdit.lastName,
       phone: studentToEdit.phone || "",
       admissionNumber: studentToEdit.admissionNumber,
       classId: (studentToEdit as any).classId ? (studentToEdit as any).classId : "",
       sectionId: (studentToEdit as any).sectionId ? (studentToEdit as any).sectionId : "",
+
       rollNumber: studentToEdit.rollNumber || "",
       dateOfBirth: new Date(studentToEdit.dateOfBirth).toISOString().split("T")[0],
       bloodGroup: studentToEdit.bloodGroup || "",
@@ -213,6 +217,7 @@ export default function StudentsPage() {
       emergencyContactRelationship: studentToEdit.emergencyContact.relationship,
       emergencyContactPhone: studentToEdit.emergencyContact.phone,
       medicalInfo: studentToEdit.medicalInfo || "",
+      status: studentToEdit.status,
     });
 
     setSelectedStudentId(studentId);
@@ -224,7 +229,7 @@ export default function StudentsPage() {
     setIsDeleteDialogOpen(true);
   };
 
-  const columns: ColumnDef<StudentData>[] = useMemo(
+  const studentColumns: ColumnDef<StudentData>[] = useMemo(
     () => [
       {
         id: "select",
@@ -244,6 +249,11 @@ export default function StudentsPage() {
         ),
         enableSorting: false,
         enableHiding: false,
+      },
+      {
+        accessorKey: "studentId",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Student ID" />,
+        cell: ({ row }) => <div className="font-mono font-medium">{row.getValue("studentId")}</div>,
       },
       {
         accessorKey: "admissionNumber",
@@ -280,13 +290,13 @@ export default function StudentsPage() {
         header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
         cell: ({ row }) => {
           const status = row.getValue("status") as string;
-          const variants: Record<string, "default" | "secondary" | "outline"> = {
-            active: "default",
-            graduated: "secondary",
-            transferred: "outline",
-            withdrawn: "outline",
+          const statusConfig: Record<string, { label: string; className: string }> = {
+            fresher: { label: "Fresher", className: "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20" },
+            continuing: { label: "Continuing", className: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20" },
+            graduated: { label: "Graduated", className: "bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20" },
           };
-          return <Badge variant={variants[status] || "secondary"}>{status}</Badge>;
+          const config = statusConfig[status] || { label: status, className: "" };
+          return <Badge variant="outline" className={config.className}>{config.label}</Badge>;
         },
       },
       {
@@ -323,11 +333,11 @@ export default function StudentsPage() {
     [students, openEditDialog, openDeleteDialog]
   );
 
-  const data = useMemo(() => students || [], [students]);
+  const studentdData = useMemo(() => students || [], [students]);
 
-  const table = useReactTable({
-    data,
-    columns,
+  const studentTable = useReactTable({
+    data: studentdData,
+    columns: studentColumns as ColumnDef<typeof studentdData[number]>[], // Ensure correct typing for react-table
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
@@ -348,10 +358,9 @@ export default function StudentsPage() {
     if (!user?.schoolId) return;
 
     try {
-      await createStudentMutation({
+      const result = await createStudentMutation({
         schoolId: user.schoolId,
         email: formData.email,
-        password: formData.password,
         firstName: formData.firstName,
         lastName: formData.lastName,
         phone: formData.phone || undefined,
@@ -369,9 +378,17 @@ export default function StudentsPage() {
         },
         medicalInfo: formData.medicalInfo || undefined,
         enrollmentDate: Date.now(),
+        status: formData.status,
       });
 
-      toast.success("Student created successfully");
+      toast.success(
+        <div>
+          <div className="font-semibold">Student created successfully!</div>
+          <div className="text-sm mt-1">Student ID: <span className="font-mono font-bold">{result.studentId}</span></div>
+          <div className="text-xs text-muted-foreground mt-1">This ID is also the default password</div>
+        </div>,
+        { duration: 8000 }
+      );
       setIsAddDialogOpen(false);
       resetForm();
     } catch (error) {
@@ -424,7 +441,7 @@ export default function StudentsPage() {
   };
 
   const handleBulkDelete = async () => {
-    const selectedStudentIds = table.getFilteredSelectedRowModel().rows.map((row) => row.original.id);
+    const selectedStudentIds = studentTable.getFilteredSelectedRowModel().rows.map((row) => row.original.id);
 
     try {
       await Promise.all(selectedStudentIds.map((id) => deleteStudentMutation({ studentId: id })));
@@ -437,7 +454,7 @@ export default function StudentsPage() {
   };
 
   const handleBulkAssignClass = async () => {
-    const selectedStudentIds = table.getFilteredSelectedRowModel().rows.map((row) => row.original.id);
+    const selectedStudentIds = studentTable.getFilteredSelectedRowModel().rows.map((row) => row.original.id);
 
     try {
       await Promise.all(
@@ -459,6 +476,23 @@ export default function StudentsPage() {
     }
   };
 
+  const handleBulkUpdateStatus = async () => {
+    const selectedStudentIds = studentTable.getFilteredSelectedRowModel().rows.map((row) => row.original.id);
+
+    try {
+      await bulkUpdateStatusMutation({
+        studentIds: selectedStudentIds,
+        status: bulkStatusValue,
+      });
+      toast.success(`${selectedStudentIds.length} students status updated successfully`);
+      setIsBulkStatusDialogOpen(false);
+      setBulkStatusValue("");
+      setRowSelection({});
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update student status");
+    }
+  };
+
   const handleExportCSV = () => {
     const exportColumns: ExportColumn[] = [
       { header: "Admission Number", key: "admissionNumber" },
@@ -471,10 +505,10 @@ export default function StudentsPage() {
       { header: "Status", key: "status" },
     ];
 
-   const selectedRows = table.getFilteredSelectedRowModel().rows;
+    const selectedRows = studentTable.getFilteredSelectedRowModel().rows;
     const exportData = selectedRows.length > 0
       ? selectedRows.map((row) => row.original)
-      : table.getFilteredRowModel().rows.map((row) => row.original);
+      : studentTable.getFilteredRowModel().rows.map((row) => row.original);
     
     exportToCSV(exportData as unknown as Record<string, unknown>[], exportColumns, "students");
     const message = selectedRows.length > 0
@@ -482,7 +516,6 @@ export default function StudentsPage() {
       : "All students exported to CSV";
     toast.success(message);
   };
-
 
   const handleExportPDF = () => {
     const exportColumns: ExportColumn[] = [
@@ -494,17 +527,18 @@ export default function StudentsPage() {
       { header: "Status", key: "status" },
     ];
 
-   const selectedRows = table.getFilteredSelectedRowModel().rows;
+    const selectedRows = studentTable.getFilteredSelectedRowModel().rows;
     const exportData = selectedRows.length > 0
       ? selectedRows.map((row) => row.original)
-      : table.getFilteredRowModel().rows.map((row) => row.original);
+      : studentTable.getFilteredRowModel().rows.map((row) => row.original);
     
-    exportToPDF(exportData  as unknown as Record<string, unknown>[],exportColumns, "students", "Students Report");
+    exportToPDF(exportData as unknown as Record<string, unknown>[],exportColumns, "students", "Students Report");
     const message = selectedRows.length > 0
       ? `${selectedRows.length} selected student(s) exported to PDF`
       : "All students exported to PDF";
     toast.success(message);
   };
+
   const openAddDialog = () => {
     resetForm();
     if (nextAdmissionNumber) {
@@ -516,7 +550,6 @@ export default function StudentsPage() {
   const resetForm = () => {
     setFormData({
       email: "",
-      password: "",
       firstName: "",
       lastName: "",
       phone: "",
@@ -531,6 +564,7 @@ export default function StudentsPage() {
       emergencyContactRelationship: "",
       emergencyContactPhone: "",
       medicalInfo: "",
+      status: "fresher",
     });
   };
 
@@ -583,7 +617,7 @@ export default function StudentsPage() {
           ) : (
             <div className="space-y-4">
               <DataTableToolbar
-                table={table}
+                table={studentTable}
                 searchKey="firstName"
                 searchPlaceholder="Search students..."
                 onExportCSV={handleExportCSV}
@@ -591,15 +625,25 @@ export default function StudentsPage() {
                 onBulkDelete={() => setIsBulkDeleteDialogOpen(true)}
                 customActions={
                   <>
-                    {table.getFilteredSelectedRowModel().rows.length > 0 && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8"
-                        onClick={() => setIsBulkAssignDialogOpen(true)}
-                      >
-                        Assign to Class
-                      </Button>
+                    {studentTable.getFilteredSelectedRowModel().rows.length > 0 && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8"
+                          onClick={() => setIsBulkAssignDialogOpen(true)}
+                        >
+                          Assign to Class
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8"
+                          onClick={() => setIsBulkStatusDialogOpen(true)}
+                        >
+                          Update Status
+                        </Button>
+                      </>
                     )}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -608,7 +652,7 @@ export default function StudentsPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        {table
+                        {studentTable
                           .getAllColumns()
                           .filter((column) => column.getCanHide())
                           .map((column) => {
@@ -631,7 +675,7 @@ export default function StudentsPage() {
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
-                    {table.getHeaderGroups().map((headerGroup) => (
+                    {studentTable.getHeaderGroups().map((headerGroup) => (
                       <TableRow key={headerGroup.id}>
                         {headerGroup.headers.map((header) => {
                           return (
@@ -649,8 +693,8 @@ export default function StudentsPage() {
                     ))}
                   </TableHeader>
                   <TableBody>
-                    {table.getRowModel().rows?.length ? (
-                      table.getRowModel().rows.map((row) => (
+                    {studentTable.getRowModel().rows?.length ? (
+                      studentTable.getRowModel().rows.map((row) => (
                         <TableRow
                           key={row.id}
                           data-state={row.getIsSelected() && "selected"}
@@ -664,7 +708,7 @@ export default function StudentsPage() {
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={columns.length} className="h-24 text-center">
+                        <TableCell colSpan={studentColumns.length} className="h-24 text-center">
                           No students found.
                         </TableCell>
                       </TableRow>
@@ -674,26 +718,26 @@ export default function StudentsPage() {
               </div>
               <div className="flex items-center justify-between space-x-2 py-4">
                 <div className="flex-1 text-sm text-muted-foreground">
-                  {table.getFilteredSelectedRowModel().rows.length} of{" "}
-                  {table.getFilteredRowModel().rows.length} row(s) selected.
+                  {studentTable.getFilteredSelectedRowModel().rows.length} of{" "}
+                  {studentTable.getFilteredRowModel().rows.length} row(s) selected.
                 </div>
                 <div className="flex items-center space-x-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => table.previousPage()}
-                    disabled={!table.getCanPreviousPage()}
+                    onClick={() => studentTable.previousPage()}
+                    disabled={!studentTable.getCanPreviousPage()}
                   >
                     Previous
                   </Button>
                   <div className="text-sm">
-                    Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+                    Page {studentTable.getState().pagination.pageIndex + 1} of {studentTable.getPageCount()}
                   </div>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => table.nextPage()}
-                    disabled={!table.getCanNextPage()}
+                    onClick={() => studentTable.nextPage()}
+                    disabled={!studentTable.getCanNextPage()}
                   >
                     Next
                   </Button>
@@ -753,23 +797,30 @@ export default function StudentsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="password">Password *</Label>
+                    <Label htmlFor="admissionNumber">Admission Number *</Label>
                     <Input
-                      id="password"
-                      type="password"
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      id="admissionNumber"
+                      value={formData.admissionNumber}
+                      onChange={(e) => setFormData({ ...formData, admissionNumber: e.target.value })}
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="admissionNumber">Admission Number *</Label>
-                  <Input
-                    id="admissionNumber"
-                    value={formData.admissionNumber}
-                    onChange={(e) => setFormData({ ...formData, admissionNumber: e.target.value })}
-                  />
+                  <Label htmlFor="status">Student Status *</Label>
+                  <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="fresher">Fresher (New Student)</SelectItem>
+                      <SelectItem value="continuing">Continuing (Returning Student)</SelectItem>
+                      <SelectItem value="graduated">Graduated</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Password will be auto-generated (Student ID) and shown after creation
+                  </p>
                 </div>
               </>
             )}
@@ -935,7 +986,7 @@ export default function StudentsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Multiple Students?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete {table.getFilteredSelectedRowModel().rows.length} selected students. This action cannot be undone.
+              This will permanently delete {studentTable.getFilteredSelectedRowModel().rows.length} selected students. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -953,7 +1004,7 @@ export default function StudentsPage() {
           <DialogHeader>
             <DialogTitle>Assign Students to Class</DialogTitle>
             <DialogDescription>
-              Assign {table.getFilteredSelectedRowModel().rows.length} selected students to a class and section
+              Assign {studentTable.getFilteredSelectedRowModel().rows.length} selected students to a class and section
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -1004,6 +1055,66 @@ export default function StudentsPage() {
               Cancel
             </Button>
             <Button onClick={handleBulkAssignClass}>Assign Students</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Status Update Dialog */}
+      <Dialog open={isBulkStatusDialogOpen} onOpenChange={setIsBulkStatusDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Student Status</DialogTitle>
+            <DialogDescription>
+              Update the status of {studentTable.getFilteredSelectedRowModel().rows.length} selected students
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="bulkStatus">Status *</Label>
+              <Select value={bulkStatusValue} onValueChange={setBulkStatusValue}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="fresher">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20">
+                        Fresher
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">New Student</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="continuing">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20">
+                        Continuing
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">Returning Student</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="graduated">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20">
+                        Graduated
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">Completed Studies</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsBulkStatusDialogOpen(false);
+                setBulkStatusValue("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleBulkUpdateStatus}>Update Status</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

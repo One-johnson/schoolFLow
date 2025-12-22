@@ -104,6 +104,7 @@ export default defineSchema({
   students: defineTable({
     userId: v.id("users"), // Reference to user record
     schoolId: v.id("schools"),
+     studentId: v.string(), 
     admissionNumber: v.string(),
     classId: v.optional(v.id("classes")),
     sectionId: v.optional(v.id("sections")),
@@ -124,7 +125,7 @@ export default defineSchema({
       uploadedAt: v.number(),
     }))),
     enrollmentDate: v.number(),
-    status: v.string(), // "active", "graduated", "transferred", "withdrawn"
+ status: v.string(), 
     createdAt: v.number(),
     updatedAt: v.number(),
   })
