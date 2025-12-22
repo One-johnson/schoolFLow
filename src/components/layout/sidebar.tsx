@@ -102,6 +102,12 @@ const schoolNavItems: NavItem[] = [
     icon: GraduationCap,
     requiredRole: ROLES.TEACHER,
   },
+    {
+    title: "Teachers",
+    href: "/dashboard/teachers",
+    icon: Users,
+    requiredRole: ROLES.SCHOOL_ADMIN,
+  },
   {
     title: "Classes",
     href: "/dashboard/classes",
