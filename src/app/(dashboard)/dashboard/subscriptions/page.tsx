@@ -274,7 +274,7 @@ export default function SubscriptionsPage() {
       </div>
 
       {/* Schools by Plan */}
-      <Card className="card-hover">
+      <Card>
         <CardHeader>
           <CardTitle>School Subscriptions</CardTitle>
           <CardDescription>Detailed subscription information for all schools</CardDescription>
