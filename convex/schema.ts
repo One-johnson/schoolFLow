@@ -135,4 +135,48 @@ export default defineSchema({
     .index("by_section", ["sectionId"])
     .index("by_admission_number", ["schoolId", "admissionNumber"])
     .index("by_status", ["schoolId", "status"]),
-});
+
+
+// Teachers
+  teachers: defineTable({
+    userId: v.id("users"), // Reference to user record
+    schoolId: v.id("schools"),
+    employeeId: v.string(), // Auto-generated: "PJTCH012325"
+    qualifications: v.array(v.object({
+      degree: v.string(),
+      subject: v.string(),
+      university: v.string(),
+      yearObtained: v.number(),
+    })),
+    subjectSpecializations: v.array(v.string()), // ["Mathematics", "Physics"]
+    yearsOfExperience: v.number(),
+    employmentType: v.string(), // "full_time", "part_time", "contract"
+    department: v.string(), // "Science", "Arts", "Languages", etc.
+    dateOfJoining: v.number(),
+    salary: v.optional(v.number()),
+    emergencyContact: v.object({
+      name: v.string(),
+      phone: v.string(),
+      relationship: v.string(),
+    }),
+    documents: v.optional(v.array(v.object({
+      name: v.string(),
+      url: v.string(),
+      type: v.string(),
+      uploadedAt: v.number(),
+    }))),
+    bio: v.optional(v.string()),
+    status: v.string(), // "active", "on_leave", "resigned"
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_school", ["schoolId"])
+    .index("by_user", ["userId"])
+    .index("by_employee_id", ["schoolId", "employeeId"])
+    .index("by_department", ["schoolId", "department"])
+    .index("by_status", ["schoolId", "status"])
+    .index("by_employment_type", ["schoolId", "employmentType"]),
+
+
+  });
+
