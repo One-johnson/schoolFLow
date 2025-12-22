@@ -69,6 +69,7 @@ export const getSchoolStudents = query({
           id: student._id,
           userId: student.userId,
           schoolId: student.schoolId,
+          studentId: student.studentId,
           firstName: user?.firstName || "",
           lastName: user?.lastName || "",
           email: user?.email || "",
@@ -147,6 +148,7 @@ export const getStudentById = query({
       id: student._id,
       userId: student.userId,
       schoolId: student.schoolId,
+      studentId: student.studentId,
       firstName: user?.firstName || "",
       lastName: user?.lastName || "",
       email: user?.email || "",
@@ -173,12 +175,50 @@ export const getStudentById = query({
   },
 });
 
+// Helper function to map class name to years until completion
+function getYearsToCompletion(className: string): number {
+  const classMapping: Record<string, number> = {
+    "Nursery 1": 12,
+    "Nursery 2": 11,
+    "Kindergarten 1": 10,
+    "Kindergarten 2": 9,
+    "Basic 1": 8,
+    "Basic 2": 7,
+    "Basic 3": 6,
+    "Basic 4": 5,
+    "Basic 5": 4,
+    "Basic 6": 3,
+    "Basic 7": 2,
+    "Basic 8": 1,
+    "Basic 9": 0,
+  };
+  
+  return classMapping[className] ?? 12; // Default to 12 years if class not found
+}
+
+// Helper function to generate student ID
+function generateStudentId(firstName: string, className: string, enrollmentYear: number): string {
+  // Get first 2 letters of first name (uppercase)
+  const initials = firstName.substring(0, 2).toUpperCase();
+  
+  // Generate 4 random numbers
+  const randomNumbers = Math.floor(1000 + Math.random() * 9000).toString();
+  
+  // Calculate graduation year based on class name
+  const yearsToGraduation = getYearsToCompletion(className);
+  const graduationYear = enrollmentYear + yearsToGraduation;
+  
+  // Get last 2 digits of graduation year
+  const yearSuffix = graduationYear.toString().slice(-2);
+  
+  return `${initials}${randomNumbers}${yearSuffix}`;
+}
+
 // Create a new student
 export const createStudent = mutation({
   args: {
     schoolId: v.id("schools"),
     email: v.string(),
-    password: v.string(),
     firstName: v.string(),
     lastName: v.string(),
     phone: v.optional(v.string()),
@@ -196,6 +236,7 @@ export const createStudent = mutation({
     }),
     medicalInfo: v.optional(v.string()),
     enrollmentDate: v.optional(v.number()),
+    status: v.string(), // "fresher", "continuing", "graduated"
   },
   handler: async (ctx, args) => {
     // Check if admission number already exists
@@ -222,12 +263,14 @@ export const createStudent = mutation({
       throw new Error("Email already exists in this school");
     }
 
-    // Verify class and section exist if provided
+    // Get class name for student ID generation
+    let className = "Nursery 1"; // Default to Nursery 1 if no class assigned
     if (args.classId) {
       const cls = await ctx.db.get(args.classId);
       if (!cls) {
         throw new Error("Class not found");
       }
+      className = cls.name;
     }
 
     if (args.sectionId) {
@@ -238,9 +281,13 @@ export const createStudent = mutation({
     }
 
     const now = Date.now();
+    const enrollmentYear = new Date(args.enrollmentDate || now).getFullYear();
+    
+    // Generate student ID (format: 2 letters + 4 numbers + 2 digit year)
+    const studentId = generateStudentId(args.firstName, className, enrollmentYear);
 
-    // Hash password
-    const hashedPassword = bcrypt.hashSync(args.password, 10);
+    // Hash student ID to use as initial password
+    const hashedPassword = bcrypt.hashSync(studentId, 10);
 
     // Create user record
     const userId = await ctx.db.insert("users", {
@@ -259,9 +306,10 @@ export const createStudent = mutation({
     });
 
     // Create student record
-    const studentId = await ctx.db.insert("students", {
+    const studentRecordId = await ctx.db.insert("students", {
       userId,
       schoolId: args.schoolId,
+      studentId,
       admissionNumber: args.admissionNumber,
       classId: args.classId,
       sectionId: args.sectionId,
@@ -272,12 +320,12 @@ export const createStudent = mutation({
       emergencyContact: args.emergencyContact,
       medicalInfo: args.medicalInfo,
       enrollmentDate: args.enrollmentDate || now,
-      status: "active",
+      status: args.status,
       createdAt: now,
       updatedAt: now,
     });
 
-    return studentId;
+    return { studentRecordId, studentId };
   },
 });
 
@@ -375,6 +423,32 @@ export const deleteStudent = mutation({
     }
 
     return { success: true };
+  },
+});
+
+// Bulk update student status
+export const bulkUpdateStatus = mutation({
+  args: {
+    studentIds: v.array(v.id("students")),
+    status: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    
+    for (const studentId of args.studentIds) {
+      const student = await ctx.db.get(studentId);
+      if (!student) {
+        continue; // Skip if student not found
+      }
+      
+      // Update student record
+      await ctx.db.patch(studentId, {
+        status: args.status,
+        updatedAt: now,
+      });
+    }
+    
+    return { success: true, count: args.studentIds.length };
   },
 });
 
