@@ -861,7 +861,7 @@ const selectedRows = sectionTable.getFilteredSelectedRowModel().rows;
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   {classTable.getRowModel().rows.map((row) => {
                     const classItem = row.original;
                     return (
@@ -1253,7 +1253,7 @@ const selectedRows = sectionTable.getFilteredSelectedRowModel().rows;
                   <SelectValue placeholder="Select teacher" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="None">None</SelectItem>
                   {teachers?.map((teacher) => (
                     <SelectItem key={teacher.id} value={teacher.id}>
                       {teacher.firstName} {teacher.lastName}

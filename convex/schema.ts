@@ -178,5 +178,30 @@ export default defineSchema({
     .index("by_employment_type", ["schoolId", "employmentType"]),
 
 
+  // Subjects
+  subjects: defineTable({
+    schoolId: v.id("schools"),
+    subjectCode: v.string(), // Auto-generated: 2 initials + 4 random digits (e.g., "MA1234")
+    name: v.string(), // e.g., "Mathematics"
+    department: v.string(), // "Creche", "Kindergarten", "Primary", "Junior High"
+    description: v.optional(v.string()),
+    colorCode: v.string(), // Hex color code for department
+    classIds: v.optional(v.array(v.id("classes"))), // Bulk assign to classes
+    teacherIds: v.optional(v.array(v.id("users"))), // Bulk assign to teachers
+    credits: v.optional(v.number()),
+    isCore: v.boolean(), // Core subject or elective
+    status: v.string(), // "active", "inactive"
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_school", ["schoolId"])
+    .index("by_subject_code", ["schoolId", "subjectCode"])
+    .index("by_department", ["schoolId", "department"])
+    .index("by_status", ["schoolId", "status"])
+    .index("by_created_at", ["schoolId", "createdAt"]),
+
+
+
+
   });
 
