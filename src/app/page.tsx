@@ -1,6 +1,9 @@
 'use client'
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+
+export const dynamic = 'force-dynamic';
+export const runtime = 'edge';
 import { useAuth } from "@/contexts/auth-context";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -25,6 +28,21 @@ import {
 import { Footer } from "@/components/layout/footer";
 import { ThemeToggle } from "@/components/theme-toggle";
 
+
+// Import all landing page sections
+import { TestimonialsSection } from "../components/landing/testimonials-section";
+import { PricingSection } from "../components/landing/pricing-section";
+import { FAQSection } from "../components/landing/faq-section";
+import { HowItWorksSection } from "../components/landing/how-it-works-section";
+import { IntegrationsSection } from "../components/landing/integrations-section";
+import { UseCasesSection } from "../components/landing/use-cases-section";
+import { ComparisonSection } from "../components/landing/comparison-section";
+import { TrustIndicatorsSection } from "@/components/landing/trust-indicators-section";
+import { DemoSection } from "../components/landing/demo-section";
+import { AnimatedStatsSection } from "../components/landing/animated-stats-section";
+import { StickyCtaBar } from "../components/landing/sticky-cta-bar";
+import { ExitIntentPopup } from "@/components/landing/exit-intent-popup";
+import { ScreenshotsSection } from "../components/landing/screenshots-section";
 
 const heroSlides = [
   {
@@ -96,15 +114,16 @@ const features = [
   }
 ];
 
-const stats = [
-  { value: "100%", label: "Cloud-Based" },
-  { value: "24/7", label: "Access Anywhere" },
-  { value: "Real-Time", label: "Data Sync" },
-  { value: "Secure", label: "Data Protection" }
-];
-
 export default function LandingPage() {
-   
+  
+  // Add smooth scroll behavior
+  useEffect(() => {
+    document.documentElement.style.scrollBehavior = 'smooth';
+    return () => {
+      document.documentElement.style.scrollBehavior = 'auto';
+    };
+  }, []);
+
   const router = useRouter();
   const { user, isLoading } = useAuth();
   const [currentSlide, setCurrentSlide] = useState<number>(0);
@@ -169,7 +188,7 @@ export default function LandingPage() {
         </AnimatePresence>
 
         {/* Navigation Bar */}
-        <nav className="absolute top-0 left-0 right-0 z-50 backdrop-blur-md bg-black/20">
+        <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-black/20">
           <div className="container mx-auto flex h-20 items-center justify-between px-4">
             <Link href="/" className="flex items-center space-x-2 group">
               <div className="rounded-lg bg-white/10 backdrop-blur-sm p-2 transition-transform group-hover:scale-110">
@@ -216,7 +235,7 @@ export default function LandingPage() {
                   <div className="flex flex-col sm:flex-row gap-4 justify-center">
                     <Link href="/register">
                       <Button size="lg" className="bg-white text-blue-600 hover:bg-white/90 text-lg px-8 py-6">
-                        Start Free Trial
+                        Start Your 30-Day Free Trial
                         <ArrowRight className="ml-2 h-5 w-5" />
                       </Button>
                     </Link>
@@ -226,6 +245,9 @@ export default function LandingPage() {
                       </Button>
                     </Link>
                   </div>
+                  <p className="text-sm text-white/80 mt-4">
+                    No credit card required • Setup in minutes • Cancel anytime
+                  </p>
                 </motion.div>
               </AnimatePresence>
             </div>
@@ -280,28 +302,11 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
-      {/* Stats Section */}
-      <section className="border-y bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30 py-16">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1, duration: 0.5 }}
-                viewport={{ once: true }}
-                className="text-center"
-              >
-                <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
-                  {stat.value}
-                </div>
-                <div className="mt-2 text-sm md:text-base text-muted-foreground">{stat.label}</div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Trust Indicators */}
+      <TrustIndicatorsSection />
+
+      {/* Animated Stats Section */}
+      <AnimatedStatsSection />
 
       {/* Features Section */}
       <section id="features" className="container mx-auto px-4 py-20 md:py-32">
@@ -343,6 +348,27 @@ export default function LandingPage() {
           ))}
         </div>
       </section>
+
+      {/* How It Works Section */}
+      <HowItWorksSection />
+
+      {/* Screenshots Section */}
+      <ScreenshotsSection />
+
+      {/* Use Cases Section */}
+      <UseCasesSection />
+
+      {/* Testimonials Section */}
+      <TestimonialsSection />
+
+      {/* Demo Section */}
+      <DemoSection />
+
+      {/* Comparison Section */}
+      <ComparisonSection />
+
+      {/* Integrations Section */}
+      <IntegrationsSection />
 
       {/* Why Choose Section */}
       <section className="bg-gradient-to-br from-gray-900 to-gray-800 dark:from-gray-950 dark:to-black text-white py-20 md:py-32">
@@ -402,6 +428,12 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Pricing Section */}
+      <PricingSection />
+
+      {/* FAQ Section */}
+      <FAQSection />
+
       {/* CTA Section */}
       <section className="container mx-auto px-4 py-20 md:py-32">
         <motion.div
@@ -415,26 +447,35 @@ export default function LandingPage() {
             Ready to Transform Your School Management?
           </h2>
           <p className="text-lg text-muted-foreground">
-            Join hundreds of schools already using SchoolFlow to streamline their operations
+            Join 500+ schools already using SchoolFlow to streamline their operations and improve student outcomes
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/register">
               <Button size="lg" className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:opacity-90 text-lg px-8">
-                Get Started for Free
+                Start Your Free 30-Day Trial
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
             <Link href="/login">
               <Button size="lg" variant="outline" className="text-lg px-8">
-                Sign In
+                Sign In to Your Account
               </Button>
             </Link>
           </div>
+          <p className="text-sm text-muted-foreground">
+            No credit card required • 30-day money-back guarantee • Setup in under 24 hours
+          </p>
         </motion.div>
       </section>
 
       {/* Footer */}
       <Footer />
+
+      {/* Sticky CTA Bar */}
+      <StickyCtaBar />
+
+      {/* Exit Intent Popup */}
+      <ExitIntentPopup />
     </div>
   );
 }

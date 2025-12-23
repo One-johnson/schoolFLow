@@ -13,7 +13,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Search, User, BookOpen, GraduationCap, Users } from "lucide-react";
+import { Search, User, BookOpen, GraduationCap, Users, History, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StudentDetailDialog } from "./student-detail-dialog";
 import { TeacherDetailDialog } from "./teacher-detail-dialog";
@@ -31,11 +31,59 @@ interface SearchResult {
   data: Record<string, unknown>;
 }
 
+const SEARCH_HISTORY_KEY = "schoolflow-search-history";
+const MAX_HISTORY_ITEMS = 10;
+
 export function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedResult, setSelectedResult] = useState<SearchResult | null>(null);
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const { user } = useAuth();
+
+  // Load search history from localStorage on mount
+  useEffect(() => {
+    const loadHistory = () => {
+      try {
+        const saved = localStorage.getItem(SEARCH_HISTORY_KEY);
+        if (saved) {
+          setSearchHistory(JSON.parse(saved));
+        }
+      } catch (error) {
+        console.error("Failed to load search history:", error);
+      }
+    };
+    loadHistory();
+  }, []);
+
+  // Save search query to history
+  const addToHistory = useCallback((query: string) => {
+    if (!query || query.length < 2) return;
+
+    setSearchHistory((prev) => {
+      // Remove duplicate if exists
+      const filtered = prev.filter((item) => item !== query);
+      // Add to beginning
+      const updated = [query, ...filtered].slice(0, MAX_HISTORY_ITEMS);
+      // Save to localStorage
+      try {
+        localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(updated));
+      } catch (error) {
+        console.error("Failed to save search history:", error);
+      }
+      return updated;
+    });
+  }, []);
+
+  // Clear all search history
+  const clearHistory = useCallback(() => {
+    setSearchHistory([]);
+    try {
+      localStorage.removeItem(SEARCH_HISTORY_KEY);
+    } catch (error) {
+      console.error("Failed to clear search history:", error);
+    }
+  }, []);
 
   const searchResults = useQuery(
     api.search.globalSearch,
@@ -65,8 +113,15 @@ export function GlobalSearch() {
   }, [open]);
 
   const handleResultClick = useCallback((result: SearchResult) => {
+    // Add the current search query to history
+    addToHistory(searchQuery);
     setSelectedResult(result);
     setOpen(false);
+  }, [searchQuery, addToHistory]);
+
+  // Handle clicking on a history item
+  const handleHistoryClick = useCallback((query: string) => {
+    setSearchQuery(query);
   }, []);
 
   const getIcon = (type: string) => {
@@ -116,9 +171,41 @@ export function GlobalSearch() {
             />
             <CommandList>
               {searchQuery.length < 2 ? (
-                <div className="py-6 text-center text-sm text-gray-500">
-                  Type at least 2 characters to search
-                </div>
+                <>
+                  {searchHistory.length > 0 ? (
+                    <CommandGroup heading="Recent Searches">
+                      {searchHistory.map((query, index) => (
+                        <CommandItem
+                          key={index}
+                          onSelect={() => handleHistoryClick(query)}
+                          className="cursor-pointer"
+                        >
+                          <div className="flex items-center gap-3 w-full">
+                            <History className="h-4 w-4 text-gray-400" />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm">{query}</div>
+                            </div>
+                          </div>
+                        </CommandItem>
+                      ))}
+                      <div className="px-2 py-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={clearHistory}
+                          className="w-full justify-start text-xs text-gray-500 hover:text-red-600"
+                        >
+                          <Trash2 className="h-3 w-3 mr-2" />
+                          Clear History
+                        </Button>
+                      </div>
+                    </CommandGroup>
+                  ) : (
+                    <div className="py-6 text-center text-sm text-gray-500">
+                      Type at least 2 characters to search
+                    </div>
+                  )}
+                </>
               ) : (
                 <>
                   <CommandEmpty>No results found.</CommandEmpty>
