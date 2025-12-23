@@ -17,6 +17,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Sidebar } from "./sidebar";
 import { toast } from "sonner";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { GlobalSearch } from "@/components/global-search/global-search";
 
 export function Navbar() {
   const router = useRouter();
@@ -52,11 +53,9 @@ export function Navbar() {
         </Sheet>
       </div>
 
-      {/* Title - Hidden on mobile */}
-      <div className="hidden md:block">
-        <h1 className="text-xl font-semibold text-foreground">
-          Welcome back, {user?.firstName}!
-        </h1>
+      {/* Global Search - Centered */}
+      <div className="flex-1 max-w-2xl mx-auto">
+        <GlobalSearch />
       </div>
 
       {/* Right Side Actions */}

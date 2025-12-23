@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, GraduationCap, Calendar, DollarSign, TrendingUp, Clock, Building2, Shield } from "lucide-react";
+import { Users, GraduationCap, Calendar, DollarSign, TrendingUp, Clock, Building2, Shield, BookMarked } from "lucide-react";
 import { roleDisplayNames } from "@/lib/auth";
 import { DashboardSkeleton } from "@/components/loading-skeletons";
 import { useQuery } from "convex/react";
@@ -10,6 +10,7 @@ import { api } from "@/../convex/_generated/api";
 import type { Id } from "@/../convex/_generated/dataModel";
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'edge';
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -85,8 +86,7 @@ export default function DashboardPage() {
   const schoolStatsCards = [
     {
       title: "Total Students",
-      value: schoolStats?.totalStudents.toString() || "0",
-      icon: GraduationCap,
+      value: schoolStats?.totalStudents.toString() || "0",      icon: GraduationCap,
       description: schoolStats?.newStudentsThisMonth 
         ? `+${schoolStats.newStudentsThisMonth} new this month`
         : "No new students",
@@ -96,9 +96,9 @@ export default function DashboardPage() {
       title: "Total Teachers",
       value: schoolStats?.totalTeachers.toString() || "0",
       icon: Users,
-      description: schoolStats?.newTeachersThisMonth
-        ? `+${schoolStats.newTeachersThisMonth} new this month`
-        : "No new teachers",
+      description: schoolStats
+        ? `${schoolStats.teachersActive || 0} active • ${schoolStats.teachersOnLeave || 0} on leave • ${schoolStats.teachersResigned || 0} resigned`
+        : "No teachers",
       color: "bg-green-500",
     },
     {
@@ -109,10 +109,10 @@ export default function DashboardPage() {
       color: "bg-purple-500",
     },
     {
-      title: "Total Staff",
-      value: schoolStats?.totalStaff.toString() || "0",
-      icon: Shield,
-      description: "School administrators",
+      title: "Total Subjects",
+      value: schoolStats?.totalSubjects.toString() || "0",
+      icon: BookMarked,
+      description: `${schoolStats?.activeSubjects || 0} active subjects`,
       color: "bg-cyan-500",
     },
   ];

@@ -175,7 +175,7 @@ export const createTeacher = mutation({
     const employeeId = generateEmployeeId(args.firstName, joiningYear);
 
     // Hash employee ID to use as initial password
-    const hashedPassword =  bcrypt.hashSync(employeeId, 10);
+    const hashedPassword = await bcrypt.hash(employeeId, 10);
 
     // Create user record
     const userId = await ctx.db.insert("users", {
@@ -325,6 +325,12 @@ export const bulkUpdateStatus = mutation({
     status: v.string(),
   },
   handler: async (ctx, args) => {
+    // Validate status - must be one of the valid teacher statuses
+    const validStatuses = ["active", "on_leave", "resigned"];
+    if (!validStatuses.includes(args.status)) {
+      throw new Error(`Invalid status. Must be one of: ${validStatuses.join(", ")}`);
+    }
+
     const now = Date.now();
     
     for (const teacherId of args.teacherIds) {
@@ -333,15 +339,20 @@ export const bulkUpdateStatus = mutation({
         continue; // Skip if teacher not found
       }
       
-      // Update teacher record
+      // Update teacher record with the new status
       await ctx.db.patch(teacherId, {
         status: args.status,
         updatedAt: now,
       });
 
-      // Update user status
+      // Map teacher status to user status
+      // active → active
+      // on_leave → inactive
+      // resigned → inactive
+      const userStatus = args.status === "active" ? "active" : "inactive";
+      
       await ctx.db.patch(teacher.userId, {
-        status: args.status === "active" ? "active" : "inactive",
+        status: userStatus,
         updatedAt: now,
       });
     }

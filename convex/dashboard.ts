@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
-import type { Id } from "./_generated/dataModel";
+
 
 // Get school-level dashboard statistics
 export const getSchoolStats = query({
@@ -14,8 +14,8 @@ export const getSchoolStats = query({
       .withIndex("by_school", (q) => q.eq("schoolId", args.schoolId))
       .collect();
 
-    // Get active students
-    const activeStudents = students.filter((s) => s.status === "active");
+    // Get active students (exclude graduated students)
+    const activeStudents = students.filter((s) => s.status !== "graduated");
 
     // Get all users in the school
     const users = await ctx.db
@@ -25,7 +25,10 @@ export const getSchoolStats = query({
 
     // Count teachers
     const teachers = users.filter((u) => u.role === "teacher");
-    const activeTeachers = teachers.filter((t) => t.status === "active");
+    const activeTeachers = teachers.filter((t) => t.status !== "resigned");
+    const teachersOnLeave = teachers.filter((t) => t.status === "on_leave").length;
+    const teachersActive = teachers.filter((t) => t.status === "active").length;
+    const teachersResigned = teachers.filter((t) => t.status === "resigned").length;
 
     // Count other staff
     const staff = users.filter((u) => 
@@ -44,6 +47,14 @@ export const getSchoolStats = query({
       .withIndex("by_school", (q) => q.eq("schoolId", args.schoolId))
       .collect();
 
+    // Get subjects
+    const subjects = await ctx.db
+      .query("subjects")
+      .withIndex("by_school", (q) => q.eq("schoolId", args.schoolId))
+      .collect();
+
+    const activeSubjects = subjects.filter((s) => s.status === "active");
+
     // Calculate recent growth (last 30 days)
     const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
     const newStudents = students.filter((s) => s.createdAt > thirtyDaysAgo).length;
@@ -52,9 +63,14 @@ export const getSchoolStats = query({
     return {
       totalStudents: activeStudents.length,
       totalTeachers: activeTeachers.length,
+      teachersActive,
+      teachersOnLeave,
+      teachersResigned,
       totalStaff: staff.length,
       totalClasses: classes.length,
       totalSections: sections.length,
+      totalSubjects: subjects.length,
+      activeSubjects: activeSubjects.length,
       newStudentsThisMonth: newStudents,
       newTeachersThisMonth: newTeachers,
     };
