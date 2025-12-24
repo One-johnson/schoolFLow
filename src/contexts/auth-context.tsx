@@ -9,7 +9,7 @@ import type { Id } from "../../convex/_generated/dataModel";
 
 interface User {
   id: Id<"users">;
-  schoolId: Id<"schools">;
+  schoolId?: Id<"schools">;
   schoolName: string;
   email: string;
   role: UserRole;
@@ -93,14 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const value: AuthContextType = {
-    user: user && user.role
-      ? {
-          ...user,
-          role: user.role as UserRole,
-          // Only use schoolId if it's not undefined, otherwise remove the property
-          schoolId: user.schoolId ?? undefined as unknown as Id<"schools">,
-        }
-      : null,
+    user: user && user.role ? { ...user, role: user.role as UserRole } : null,
     isLoading: !isInitialized || (token !== undefined && user === undefined),
     login,
     logout,

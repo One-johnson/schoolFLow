@@ -87,7 +87,7 @@ export function GlobalSearch() {
 
   const searchResults = useQuery(
     api.search.globalSearch,
-    user && searchQuery.length >= 2
+    user && user.schoolId && searchQuery.length >= 2
       ? { schoolId: user.schoolId, searchQuery }
       : "skip"
   );
