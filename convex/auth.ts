@@ -52,7 +52,7 @@ export const registerSchool = mutation({
     });
 
     // Hash password
-    const hashedPassword = bcrypt.hashSync(args.password, 10);
+    const hashedPassword = await bcrypt.hash(args.password, 10);
 
     // Create admin user
     const userId = await ctx.db.insert("users", {
@@ -108,7 +108,7 @@ export const login = mutation({
       user = await ctx.db
         .query("users")
         .withIndex("by_school_and_email", (q) =>
-          q.eq("schoolId", args.schoolId!).eq("email", args.email)
+          q.eq("schoolId", args.schoolId).eq("email", args.email)
         )
         .first();
     } else {
@@ -123,7 +123,7 @@ export const login = mutation({
     }
 
     // Verify password
-    const isValid = bcrypt.compareSync(args.password, user.password);
+    const isValid = await bcrypt.compare(args.password, user.password);
     if (!isValid) {
       throw new Error("Invalid email or password");
     }
@@ -133,10 +133,12 @@ export const login = mutation({
       throw new Error("Account is not active");
     }
 
-    // Get school
-    const school = await ctx.db.get(user.schoolId);
-    if (!school || school.status !== "active") {
-      throw new Error("School account is not active");
+    // Get school (only for non-super_admin users)
+    if (user.role !== "super_admin" && user.schoolId) {
+      const school = await ctx.db.get(user.schoolId);
+      if (!school || school.status !== "active") {
+        throw new Error("School account is not active");
+      }
     }
 
     const now = Date.now();
@@ -173,27 +175,40 @@ export const login = mutation({
 
 // Verify session and get current user
 export const getCurrentUser = query({
-  args: { token: v.string() },
+  args: {
+    token: v.string(),
+  },
   handler: async (ctx, args) => {
     const session = await ctx.db
       .query("sessions")
       .withIndex("by_token", (q) => q.eq("token", args.token))
       .first();
 
-    if (!session || session.expiresAt < Date.now()) {
+    if (!session) {
       return null;
     }
 
-    const user = await ctx.db.get(session.userId);
-    if (!user || user.status !== "active") return null;
+    
 
-    const school = await ctx.db.get(session.schoolId);
-    if (!school || school.status !== "active") return null;
+    const user = await ctx.db.get(session.userId);
+    if (!user || user.status !== "active") {
+      return null;
+    }
+
+    // Get school info (only for users with schoolId)
+    let schoolName = "Platform Administrator";
+    if (user.role !== "super_admin" && session.schoolId) {
+      const school = await ctx.db.get(session.schoolId);
+      if (!school || school.status !== "active") {
+        return null;
+      }
+      schoolName = school.name;
+    }
 
     return {
       id: user._id,
       schoolId: user.schoolId,
-      schoolName: school.name,
+      schoolName,
       email: user.email,
       role: user.role,
       firstName: user.firstName,
@@ -203,7 +218,6 @@ export const getCurrentUser = query({
     };
   },
 });
-
 
 // Logout
 export const logout = mutation({
@@ -297,22 +311,10 @@ export const createSuperAdmin = mutation({
     const now = Date.now();
 
     // Hash password
-    const hashedPassword = bcrypt.hashSync(args.password, 10);
-
-    // Create a placeholder school for super admin
-    const schoolId = await ctx.db.insert("schools", {
-      name: "Platform Administration",
-      email: args.email,
-      phone: args.phone,
-      status: "active",
-      subscriptionPlan: "enterprise",
-      createdAt: now,
-      updatedAt: now,
-    });
+    const hashedPassword = await bcrypt.hash(args.password, 10);
 
     // Create super admin user (no school association)
     const userId = await ctx.db.insert("users", {
-      schoolId, // Reference to platform admin school
       email: args.email,
       password: hashedPassword,
       role: "super_admin",
@@ -330,7 +332,6 @@ export const createSuperAdmin = mutation({
 
     await ctx.db.insert("sessions", {
       userId,
-      schoolId,
       token,
       expiresAt,
       createdAt: now,
@@ -340,7 +341,6 @@ export const createSuperAdmin = mutation({
       token,
       user: {
         id: userId,
-        schoolId,
         email: args.email,
         role: "super_admin",
         firstName: args.firstName,

@@ -1,6 +1,5 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
-import type { Id } from "./_generated/dataModel";
 
 // Get all schools for super admin
 export const getAllSchools = query({
@@ -40,7 +39,7 @@ export const getAllUsers = query({
 
     const usersWithSchools = await Promise.all(
       users.map(async (user) => {
-        const school = await ctx.db.get(user.schoolId);
+        const school = await ctx.db.get(user.schoolId!);
 
         return {
           _id: user._id,
@@ -152,7 +151,7 @@ export const getAuditLogs = query({
     const logs = await Promise.all(
       sessions.map(async (session) => {
         const user = await ctx.db.get(session.userId);
-        const school = await ctx.db.get(session.schoolId);
+        const school = await ctx.db.get(session.schoolId!);
 
         return {
           _id: session._id,

@@ -29,7 +29,7 @@ export default defineSchema({
 
   // Users
   users: defineTable({
-    schoolId: v.id("schools"), // Tenant isolation
+    schoolId: v.optional(v.id("schools")), // Tenant isolation - optional for super_admin
     email: v.string(),
     password: v.string(), // Hashed
     role: v.string(), // "super_admin", "school_admin", "principal", "teacher", "student", "parent", "staff"
@@ -63,7 +63,7 @@ export default defineSchema({
   // Sessions for authentication
   sessions: defineTable({
     userId: v.id("users"),
-    schoolId: v.id("schools"),
+    schoolId: v.optional(v.id("schools")),
     token: v.string(),
     expiresAt: v.number(),
     createdAt: v.number(),
@@ -104,7 +104,7 @@ export default defineSchema({
   students: defineTable({
     userId: v.id("users"), // Reference to user record
     schoolId: v.id("schools"),
-     studentId: v.string(), 
+    studentId: v.string(), // Auto-generated student ID (also used as initial password)
     admissionNumber: v.string(),
     classId: v.optional(v.id("classes")),
     sectionId: v.optional(v.id("sections")),
@@ -125,7 +125,7 @@ export default defineSchema({
       uploadedAt: v.number(),
     }))),
     enrollmentDate: v.number(),
- status: v.string(), 
+    status: v.string(), // "fresher", "continuing", "graduated"
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -134,10 +134,10 @@ export default defineSchema({
     .index("by_class", ["classId"])
     .index("by_section", ["sectionId"])
     .index("by_admission_number", ["schoolId", "admissionNumber"])
+    .index("by_student_id", ["schoolId", "studentId"])
     .index("by_status", ["schoolId", "status"]),
 
-
-// Teachers
+  // Teachers
   teachers: defineTable({
     userId: v.id("users"), // Reference to user record
     schoolId: v.id("schools"),
@@ -177,7 +177,6 @@ export default defineSchema({
     .index("by_status", ["schoolId", "status"])
     .index("by_employment_type", ["schoolId", "employmentType"]),
 
-
   // Subjects
   subjects: defineTable({
     schoolId: v.id("schools"),
@@ -199,9 +198,4 @@ export default defineSchema({
     .index("by_department", ["schoolId", "department"])
     .index("by_status", ["schoolId", "status"])
     .index("by_created_at", ["schoolId", "createdAt"]),
-
-
-
-
-  });
-
+});
