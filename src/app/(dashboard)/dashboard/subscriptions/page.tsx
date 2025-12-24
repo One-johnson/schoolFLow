@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CreditCard, TrendingUp, DollarSign, Users, Plus, Package, ArrowUpDown, MoreHorizontal, Search, ChevronDown, Pencil, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { CreditCard, TrendingUp, DollarSign, Users, Plus, Package, ArrowUpDown, MoreHorizontal, Search, ChevronDown, Pencil, Trash2, ChevronLeft, ChevronRight, AlertTriangle, CalendarIcon, X, TrendingDown, CheckCircle2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -36,6 +36,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -57,6 +63,8 @@ import type { Id } from "../../../../../convex/_generated/dataModel";
 import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'edge';
@@ -70,7 +78,11 @@ type SchoolSubscription = {
   startDate: number;
   endDate: number;
   createdAt: number;
+  autoRenew?: boolean;
+  notes?: string;
 };
+
+type StatusFilter = "all" | "active" | "inactive" | "expired" | "trialing";
 
 export default function SubscriptionsPage() {
   const { user } = useAuth();
@@ -86,6 +98,13 @@ export default function SubscriptionsPage() {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [globalFilter, setGlobalFilter] = useState("");
   
+  // Filter state
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [startDateFrom, setStartDateFrom] = useState<Date | undefined>();
+  const [startDateTo, setStartDateTo] = useState<Date | undefined>();
+  const [endDateFrom, setEndDateFrom] = useState<Date | undefined>();
+  const [endDateTo, setEndDateTo] = useState<Date | undefined>();
+  
   // Dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -98,6 +117,45 @@ export default function SubscriptionsPage() {
   const [editEndDate, setEditEndDate] = useState<string>("");
   const [editNotes, setEditNotes] = useState<string>("");
   const [editAutoRenew, setEditAutoRenew] = useState<boolean>(false);
+
+  // Filter subscriptions based on status and date ranges
+  const filteredSubscriptions = useMemo(() => {
+    if (!subscriptions) return [];
+
+    return subscriptions.filter((sub) => {
+      // Status filter
+      if (statusFilter !== "all" && sub.status !== statusFilter) {
+        return false;
+      }
+
+      // Start date filter
+      if (startDateFrom && sub.startDate < startDateFrom.getTime()) {
+        return false;
+      }
+      if (startDateTo && sub.startDate > startDateTo.getTime()) {
+        return false;
+      }
+
+      // End date filter
+      if (endDateFrom && sub.endDate < endDateFrom.getTime()) {
+        return false;
+      }
+      if (endDateTo && sub.endDate > endDateTo.getTime()) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [subscriptions, statusFilter, startDateFrom, startDateTo, endDateFrom, endDateTo]);
+
+  const getDaysUntilExpiry = (endDate: number) => {
+    return Math.floor((endDate - Date.now()) / (1000 * 60 * 60 * 24));
+  };
+
+  const isExpiringSoon = (subscription: SchoolSubscription) => {
+    const daysLeft = getDaysUntilExpiry(subscription.endDate);
+    return daysLeft > 0 && daysLeft <= 7 && subscription.status === "active";
+  };
 
   const getStatusBadge = (status: string) => {
     const colors: Record<string, string> = {
@@ -139,8 +197,8 @@ export default function SubscriptionsPage() {
     setEditStatus(subscription.status);
     setEditStartDate(new Date(subscription.startDate).toISOString().split("T")[0]);
     setEditEndDate(new Date(subscription.endDate).toISOString().split("T")[0]);
-    setEditNotes("");
-    setEditAutoRenew(false);
+    setEditNotes(subscription.notes || "");
+    setEditAutoRenew(subscription.autoRenew || false);
     setEditDialogOpen(true);
   };
 
@@ -177,6 +235,15 @@ export default function SubscriptionsPage() {
       toast.error("Failed to update subscription");
       console.error(error);
     }
+  };
+
+  const clearFilters = () => {
+    setStatusFilter("all");
+    setStartDateFrom(undefined);
+    setStartDateTo(undefined);
+    setEndDateFrom(undefined);
+    setEndDateTo(undefined);
+    setGlobalFilter("");
   };
 
   const columns: ColumnDef<SchoolSubscription>[] = [
@@ -217,7 +284,23 @@ export default function SubscriptionsPage() {
     {
       accessorKey: "endDate",
       header: "Expiry Date",
-      cell: ({ row }) => new Date(row.getValue("endDate")).toLocaleDateString(),
+      cell: ({ row }) => {
+        const subscription = row.original;
+        const daysLeft = getDaysUntilExpiry(subscription.endDate);
+        const expiringSoon = isExpiringSoon(subscription);
+
+        return (
+          <div className="flex items-center gap-2">
+            <span>{new Date(row.getValue("endDate")).toLocaleDateString()}</span>
+            {expiringSoon && (
+              <Badge variant="outline" className="text-orange-500 border-orange-500 flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" />
+                {daysLeft}d left
+              </Badge>
+            )}
+          </div>
+        );
+      },
     },
     {
       accessorKey: "startDate",
@@ -265,7 +348,7 @@ export default function SubscriptionsPage() {
   ];
 
   const table = useReactTable({
-    data: subscriptions || [],
+    data: filteredSubscriptions || [],
     columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -307,6 +390,22 @@ export default function SubscriptionsPage() {
   // Calculate monthly recurring revenue from active subscriptions
   const totalMRR = activeSubscriptions.reduce((sum, sub) => sum + sub.planPrice, 0);
 
+  // Calculate churn and renewal metrics
+  const expiredLastMonth = subscriptions.filter((s) => {
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    return s.status === "expired" && s.endDate >= thirtyDaysAgo && s.endDate <= Date.now();
+  }).length;
+
+  const totalLastMonth = subscriptions.filter((s) => {
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    return s.startDate <= thirtyDaysAgo;
+  }).length;
+
+  const churnRate = totalLastMonth > 0 ? ((expiredLastMonth / totalLastMonth) * 100).toFixed(1) : "0";
+  const renewalRate = totalLastMonth > 0 ? (((totalLastMonth - expiredLastMonth) / totalLastMonth) * 100).toFixed(1) : "100";
+
+  const hasActiveFilters = statusFilter !== "all" || startDateFrom || startDateTo || endDateFrom || endDateTo || globalFilter;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -336,7 +435,7 @@ export default function SubscriptionsPage() {
       </div>
 
       {/* Revenue Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
@@ -366,10 +465,10 @@ export default function SubscriptionsPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Expiring Soon</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
+            <AlertTriangle className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{expiringSoon.length}</div>
+            <div className="text-2xl font-bold text-orange-600">{expiringSoon.length}</div>
             <p className="text-xs text-muted-foreground">
               Expire within 7 days
             </p>
@@ -378,22 +477,20 @@ export default function SubscriptionsPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue (Paid)</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Renewal Rate</CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              GHS {paymentStats.totalRevenue.toLocaleString()}
-            </div>
+            <div className="text-2xl font-bold text-green-600">{renewalRate}%</div>
             <p className="text-xs text-muted-foreground">
-              All-time collected
+              Last 30 days
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Plan Breakdown */}
-      <div className="grid gap-4 md:grid-cols-2">
+      {/* Additional Analytics */}
+      <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader>
             <CardTitle>Plan Distribution</CardTitle>
@@ -403,17 +500,25 @@ export default function SubscriptionsPage() {
             <div className="space-y-4">
               {Object.entries(planDistribution).map(([planName, count]) => {
                 const plan = plans.find((p) => p.displayName === planName);
+                const percentage = ((count / activeSubscriptions.length) * 100).toFixed(0);
                 return (
-                  <div key={planName} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {getPlanBadge(planName)}
+                  <div key={planName} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {getPlanBadge(planName)}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold">{count}</span>
+                        <span className="text-xs text-muted-foreground">
+                          ({percentage}%)
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold">{count}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {plan ? `GHS ${(count * plan.price).toLocaleString()}/mo` : ""}
-                      </span>
-                    </div>
+                    {plan && (
+                      <p className="text-xs text-muted-foreground">
+                        Revenue: GHS {(count * plan.price).toLocaleString()}/mo
+                      </p>
+                    )}
                   </div>
                 );
               })}
@@ -451,6 +556,36 @@ export default function SubscriptionsPage() {
             </div>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Performance Metrics</CardTitle>
+            <CardDescription>Last 30 days overview</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">Renewal Rate</p>
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                </div>
+                <p className="text-2xl font-bold text-green-600 mt-1">{renewalRate}%</p>
+              </div>
+              <div>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">Churn Rate</p>
+                  <TrendingDown className="h-4 w-4 text-red-500" />
+                </div>
+                <p className="text-2xl font-bold text-red-600 mt-1">{churnRate}%</p>
+              </div>
+              <div className="pt-4 border-t">
+                <p className="text-xs text-muted-foreground">
+                  Total Revenue: GHS {paymentStats.totalRevenue.toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* School Subscriptions Table */}
@@ -460,22 +595,185 @@ export default function SubscriptionsPage() {
           <CardDescription>Detailed subscription information for all schools</CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Status Filter Buttons */}
+          <div className="mb-4">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={statusFilter === "all" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter("all")}
+              >
+                All ({subscriptions.length})
+              </Button>
+              <Button
+                variant={statusFilter === "active" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter("active")}
+                className={statusFilter === "active" ? "" : "text-green-600"}
+              >
+                Active ({subscriptions.filter(s => s.status === "active").length})
+              </Button>
+              <Button
+                variant={statusFilter === "expired" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter("expired")}
+                className={statusFilter === "expired" ? "" : "text-red-600"}
+              >
+                Expired ({subscriptions.filter(s => s.status === "expired").length})
+              </Button>
+              <Button
+                variant={statusFilter === "inactive" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter("inactive")}
+                className={statusFilter === "inactive" ? "" : "text-gray-600"}
+              >
+                Inactive ({subscriptions.filter(s => s.status === "inactive").length})
+              </Button>
+              <Button
+                variant={statusFilter === "trialing" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter("trialing")}
+                className={statusFilter === "trialing" ? "" : "text-blue-600"}
+              >
+                Trialing ({subscriptions.filter(s => s.status === "trialing").length})
+              </Button>
+            </div>
+          </div>
+
+          {/* Date Range Filters */}
+          <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Start Date Range</Label>
+              <div className="flex gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={cn(
+                        "justify-start text-left font-normal flex-1",
+                        !startDateFrom && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {startDateFrom ? format(startDateFrom, "PPP") : "From"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={startDateFrom}
+                      onSelect={setStartDateFrom}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={cn(
+                        "justify-start text-left font-normal flex-1",
+                        !startDateTo && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {startDateTo ? format(startDateTo, "PPP") : "To"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={startDateTo}
+                      onSelect={setStartDateTo}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">End Date Range</Label>
+              <div className="flex gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={cn(
+                        "justify-start text-left font-normal flex-1",
+                        !endDateFrom && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {endDateFrom ? format(endDateFrom, "PPP") : "From"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={endDateFrom}
+                      onSelect={setEndDateFrom}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={cn(
+                        "justify-start text-left font-normal flex-1",
+                        !endDateTo && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {endDateTo ? format(endDateTo, "PPP") : "To"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={endDateTo}
+                      onSelect={setEndDateTo}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+          </div>
+
           {/* Table Toolbar */}
           <div className="flex items-center justify-between py-4">
-            <div className="flex items-center gap-2">
-              <div className="relative">
+            <div className="flex items-center gap-2 flex-1">
+              <div className="relative flex-1 max-w-sm">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search all columns..."
                   value={globalFilter ?? ""}
                   onChange={(event) => setGlobalFilter(event.target.value)}
-                  className="pl-8 max-w-sm"
+                  className="pl-8"
                 />
               </div>
+              {hasActiveFilters && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearFilters}
+                  className="h-8 px-2 lg:px-3"
+                >
+                  Clear Filters
+                  <X className="ml-2 h-4 w-4" />
+                </Button>
+              )}
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="ml-auto">
+                <Button variant="outline" size="sm" className="ml-auto">
                   Columns <ChevronDown className="ml-2 h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -501,6 +799,23 @@ export default function SubscriptionsPage() {
             </DropdownMenu>
           </div>
 
+          {/* Expiring Soon Alert */}
+          {expiringSoon.length > 0 && statusFilter === "all" && (
+            <div className="mb-4 p-4 border border-orange-200 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-orange-600 mt-0.5" />
+                <div>
+                  <h4 className="font-semibold text-orange-900 dark:text-orange-100">
+                    {expiringSoon.length} Subscription{expiringSoon.length !== 1 ? "s" : ""} Expiring Soon
+                  </h4>
+                  <p className="text-sm text-orange-800 dark:text-orange-200 mt-1">
+                    {expiringSoon.map(s => s.schoolName).join(", ")} will expire within 7 days. Consider reaching out for renewal.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Table */}
           <div className="rounded-md border">
             <Table>
@@ -522,21 +837,29 @@ export default function SubscriptionsPage() {
               </TableHeader>
               <TableBody>
                 {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      data-state={row.getIsSelected() && "selected"}
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
+                  table.getRowModel().rows.map((row) => {
+                    const subscription = row.original;
+                    const expiring = isExpiringSoon(subscription);
+                    
+                    return (
+                      <TableRow
+                        key={row.id}
+                        data-state={row.getIsSelected() && "selected"}
+                        className={cn(
+                          expiring && "bg-orange-50 dark:bg-orange-950/10 border-l-4 border-l-orange-500"
+                        )}
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell key={cell.id}>
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext()
+                            )}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    );
+                  })
                 ) : (
                   <TableRow>
                     <TableCell
@@ -552,30 +875,35 @@ export default function SubscriptionsPage() {
           </div>
 
           {/* Pagination */}
-          <div className="flex items-center justify-end space-x-2 py-4">
+          <div className="flex items-center justify-between space-x-2 py-4">
             <div className="flex-1 text-sm text-muted-foreground">
-              Page {table.getState().pagination.pageIndex + 1} of{" "}
-              {table.getPageCount()}
+              Showing {table.getRowModel().rows.length} of {filteredSubscriptions.length} subscription(s)
             </div>
-            <div className="space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
-              >
-                Next
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+            <div className="flex items-center space-x-2">
+              <div className="text-sm text-muted-foreground">
+                Page {table.getState().pagination.pageIndex + 1} of{" "}
+                {table.getPageCount()}
+              </div>
+              <div className="space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => table.previousPage()}
+                  disabled={!table.getCanPreviousPage()}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => table.nextPage()}
+                  disabled={!table.getCanNextPage()}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </CardContent>
