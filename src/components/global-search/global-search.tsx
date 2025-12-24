@@ -87,12 +87,10 @@ export function GlobalSearch() {
 
   const searchResults = useQuery(
     api.search.globalSearch,
-    user?.schoolId && searchQuery.length >= 2
+    user && searchQuery.length >= 2
       ? { schoolId: user.schoolId, searchQuery }
       : "skip"
   );
-
-  // Keyboard shortcut to open search (Cmd+K or Ctrl+K)
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
