@@ -2,32 +2,29 @@ import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 
-// Get all payments
-export const getAllPayments = query({
-  args: {},
-  handler: async (ctx) => {
-    const payments = await ctx.db.query("payments").order("desc").collect();
+// Get all payments for a subscription
+export const getPaymentsBySubscription = query({
+  args: { subscriptionId: v.id("subscriptions") },
+  handler: async (ctx, args) => {
+    const payments = await ctx.db
+      .query("payments")
+      .withIndex("by_subscription", (q) =>
+        q.eq("subscriptionId", args.subscriptionId)
+      )
+      .order("desc")
+      .collect();
 
-    // Enrich with school and subscription data
     const enrichedPayments = await Promise.all(
       payments.map(async (payment) => {
-        const school = await ctx.db.get(payment.schoolId);
-        const subscription = await ctx.db.get(payment.subscriptionId);
         const recorder = await ctx.db.get(payment.recordedBy);
-
-        let planName = "Unknown";
-        if (subscription) {
-          const plan = await ctx.db.get(subscription.planId);
-          planName = plan?.displayName || "Unknown";
-        }
+        const school = await ctx.db.get(payment.schoolId);
 
         return {
           ...payment,
-          schoolName: school?.name || "Unknown",
-          planName,
           recorderName: recorder
             ? `${recorder.firstName} ${recorder.lastName}`
             : "Unknown",
+          schoolName: school?.name || "Unknown",
         };
       })
     );
@@ -36,7 +33,7 @@ export const getAllPayments = query({
   },
 });
 
-// Get payments by school
+// Get all payments for a school
 export const getPaymentsBySchool = query({
   args: { schoolId: v.id("schools") },
   handler: async (ctx, args) => {
@@ -46,19 +43,17 @@ export const getPaymentsBySchool = query({
       .order("desc")
       .collect();
 
-    // Enrich with subscription data
     const enrichedPayments = await Promise.all(
       payments.map(async (payment) => {
+        const recorder = await ctx.db.get(payment.recordedBy);
         const subscription = await ctx.db.get(payment.subscriptionId);
-        let planName = "Unknown";
-        if (subscription) {
-          const plan = await ctx.db.get(subscription.planId);
-          planName = plan?.displayName || "Unknown";
-        }
 
         return {
           ...payment,
-          planName,
+          recorderName: recorder
+            ? `${recorder.firstName} ${recorder.lastName}`
+            : "Unknown",
+          subscriptionDetails: subscription,
         };
       })
     );
@@ -67,21 +62,34 @@ export const getPaymentsBySchool = query({
   },
 });
 
-// Get payments by subscription
-export const getPaymentsBySubscription = query({
-  args: { subscriptionId: v.id("subscriptions") },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query("payments")
-      .withIndex("by_subscription", (q) =>
-        q.eq("subscriptionId", args.subscriptionId)
-      )
-      .order("desc")
-      .collect();
+// Get all payments (super admin)
+export const getAllPayments = query({
+  args: {},
+  handler: async (ctx) => {
+    const payments = await ctx.db.query("payments").order("desc").collect();
+
+    const enrichedPayments = await Promise.all(
+      payments.map(async (payment) => {
+        const school = await ctx.db.get(payment.schoolId);
+        const recorder = await ctx.db.get(payment.recordedBy);
+        const subscription = await ctx.db.get(payment.subscriptionId);
+
+        return {
+          ...payment,
+          schoolName: school?.name || "Unknown",
+          recorderName: recorder
+            ? `${recorder.firstName} ${recorder.lastName}`
+            : "Unknown",
+          subscriptionDetails: subscription,
+        };
+      })
+    );
+
+    return enrichedPayments;
   },
 });
 
-// Get pending/overdue payments
+// Get pending payments
 export const getPendingPayments = query({
   args: {},
   handler: async (ctx) => {
@@ -90,57 +98,53 @@ export const getPendingPayments = query({
       .withIndex("by_status", (q) => q.eq("paymentStatus", "pending"))
       .collect();
 
-    const overduePayments = await ctx.db
-      .query("payments")
-      .withIndex("by_status", (q) => q.eq("paymentStatus", "overdue"))
-      .collect();
-
-    const allPending = [...payments, ...overduePayments];
-
-    // Enrich with school data
-    const enrichedPayments = await Promise.all(
-      allPending.map(async (payment) => {
-        const school = await ctx.db.get(payment.schoolId);
-        const subscription = await ctx.db.get(payment.subscriptionId);
-
-        let planName = "Unknown";
-        if (subscription) {
-          const plan = await ctx.db.get(subscription.planId);
-          planName = plan?.displayName || "Unknown";
-        }
-
-        return {
-          ...payment,
-          schoolName: school?.name || "Unknown",
-          schoolEmail: school?.email || "",
-          planName,
-        };
-      })
-    );
-
-    return enrichedPayments;
+    return payments;
   },
 });
 
-// Record payment
-export const recordPayment = mutation({
+// Get overdue payments
+export const getOverduePayments = query({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+
+    const payments = await ctx.db
+      .query("payments")
+      .withIndex("by_due_date")
+      .filter(
+        (q) =>
+          q.and(
+            q.lt(q.field("dueDate"), now),
+            q.or(
+              q.eq(q.field("paymentStatus"), "pending"),
+              q.eq(q.field("paymentStatus"), "overdue")
+            )
+          )
+      )
+      .collect();
+
+    return payments;
+  },
+});
+
+// Create payment record
+export const createPayment = mutation({
   args: {
     schoolId: v.id("schools"),
     subscriptionId: v.id("subscriptions"),
     amount: v.number(),
     currency: v.string(),
     paymentMethod: v.string(),
+    paymentStatus: v.string(),
     paymentDate: v.optional(v.number()),
     dueDate: v.number(),
     reference: v.optional(v.string()),
     notes: v.optional(v.string()),
+    receiptUrl: v.optional(v.string()),
     recordedBy: v.id("users"),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
-
-    // Determine payment status
-    const paymentStatus = args.paymentDate ? "paid" : "pending";
 
     const paymentId = await ctx.db.insert("payments", {
       schoolId: args.schoolId,
@@ -148,11 +152,12 @@ export const recordPayment = mutation({
       amount: args.amount,
       currency: args.currency,
       paymentMethod: args.paymentMethod,
-      paymentStatus,
+      paymentStatus: args.paymentStatus,
       paymentDate: args.paymentDate,
       dueDate: args.dueDate,
       reference: args.reference,
       notes: args.notes,
+      receiptUrl: args.receiptUrl,
       recordedBy: args.recordedBy,
       createdAt: now,
       updatedAt: now,
@@ -162,7 +167,7 @@ export const recordPayment = mutation({
   },
 });
 
-// Update payment
+// Update payment record
 export const updatePayment = mutation({
   args: {
     paymentId: v.id("payments"),
@@ -170,9 +175,9 @@ export const updatePayment = mutation({
     paymentMethod: v.optional(v.string()),
     paymentStatus: v.optional(v.string()),
     paymentDate: v.optional(v.number()),
-    dueDate: v.optional(v.number()),
     reference: v.optional(v.string()),
     notes: v.optional(v.string()),
+    receiptUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const { paymentId, ...updates } = args;
@@ -186,51 +191,33 @@ export const updatePayment = mutation({
   },
 });
 
+// Delete payment record
+export const deletePayment = mutation({
+  args: {
+    paymentId: v.id("payments"),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.delete(args.paymentId);
+    return args.paymentId;
+  },
+});
+
 // Mark payment as paid
 export const markPaymentAsPaid = mutation({
   args: {
     paymentId: v.id("payments"),
     paymentDate: v.number(),
     reference: v.optional(v.string()),
-    notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.paymentId, {
       paymentStatus: "paid",
       paymentDate: args.paymentDate,
       reference: args.reference,
-      notes: args.notes,
       updatedAt: Date.now(),
     });
 
     return args.paymentId;
-  },
-});
-
-// Mark payment as overdue (cron job)
-export const markOverduePayments = mutation({
-  args: {},
-  handler: async (ctx) => {
-    const now = Date.now();
-
-    const pendingPayments = await ctx.db
-      .query("payments")
-      .withIndex("by_status", (q) => q.eq("paymentStatus", "pending"))
-      .collect();
-
-    const overduePayments = pendingPayments.filter((p) => p.dueDate < now);
-
-    for (const payment of overduePayments) {
-      await ctx.db.patch(payment._id, {
-        paymentStatus: "overdue",
-        updatedAt: now,
-      });
-    }
-
-    return {
-      overdueCount: overduePayments.length,
-      message: `${overduePayments.length} payments marked as overdue`,
-    };
   },
 });
 
@@ -240,41 +227,34 @@ export const getPaymentStats = query({
   handler: async (ctx) => {
     const payments = await ctx.db.query("payments").collect();
 
-    const paidPayments = payments.filter((p) => p.paymentStatus === "paid");
-    const pendingPayments = payments.filter(
+    const totalRevenue = payments
+      .filter((p) => p.paymentStatus === "paid")
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    const pendingAmount = payments
+      .filter((p) => p.paymentStatus === "pending")
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    const overdueAmount = payments
+      .filter((p) => p.paymentStatus === "overdue")
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    const paidCount = payments.filter((p) => p.paymentStatus === "paid").length;
+    const pendingCount = payments.filter(
       (p) => p.paymentStatus === "pending"
-    );
-    const overduePayments = payments.filter(
+    ).length;
+    const overdueCount = payments.filter(
       (p) => p.paymentStatus === "overdue"
-    );
-
-    const totalRevenue = paidPayments.reduce((sum, p) => sum + p.amount, 0);
-    const pendingRevenue = pendingPayments.reduce((sum, p) => sum + p.amount, 0);
-    const overdueRevenue = overduePayments.reduce((sum, p) => sum + p.amount, 0);
-
-    // Get this month's revenue
-    const now = Date.now();
-    const monthStart = new Date(now);
-    monthStart.setDate(1);
-    monthStart.setHours(0, 0, 0, 0);
-
-    const thisMonthPayments = paidPayments.filter(
-      (p) => p.paymentDate && p.paymentDate >= monthStart.getTime()
-    );
-    const thisMonthRevenue = thisMonthPayments.reduce(
-      (sum, p) => sum + p.amount,
-      0
-    );
+    ).length;
 
     return {
       totalRevenue,
-      pendingRevenue,
-      overdueRevenue,
-      thisMonthRevenue,
+      pendingAmount,
+      overdueAmount,
+      paidCount,
+      pendingCount,
+      overdueCount,
       totalPayments: payments.length,
-      paidCount: paidPayments.length,
-      pendingCount: pendingPayments.length,
-      overdueCount: overduePayments.length,
     };
   },
 });
