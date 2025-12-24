@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
-
+import type { Id } from "./_generated/dataModel";
 
 // Get school-level dashboard statistics
 export const getSchoolStats = query({
@@ -95,11 +95,19 @@ export const getPlatformDashboardStats = query({
     const newUsersThisMonth = users.filter((u) => u.createdAt > monthAgo).length;
     const activeSessions = sessions.filter((s) => s.expiresAt > now).length;
 
-    // Calculate revenue (mock for now - would need payment/subscription table)
-    const premiumSchools = schools.filter(
-      (s) => s.subscriptionPlan === "premium"
-    ).length;
-    const mockMonthlyRevenue = premiumSchools * 99; // $99 per premium school
+    // Calculate revenue from active subscriptions
+    const subscriptions = await ctx.db
+      .query("subscriptions")
+      .withIndex("by_status", (q) => q.eq("status", "active"))
+      .collect();
+
+    let monthlyRevenue = 0;
+    for (const sub of subscriptions) {
+      const plan = await ctx.db.get(sub.planId);
+      if (plan) {
+        monthlyRevenue += plan.price;
+      }
+    }
 
     return {
       totalSchools: schools.length,
@@ -109,7 +117,7 @@ export const getPlatformDashboardStats = query({
       activeSessions,
       newSchoolsThisWeek,
       newUsersThisMonth,
-      platformRevenue: mockMonthlyRevenue,
+      platformRevenue: monthlyRevenue,
     };
   },
 });
@@ -264,6 +272,200 @@ export const getPlatformRecentActivities = query({
 
     // Sort by most recent and limit
     return activities.slice(0, args.limit);
+  },
+});
+
+// Get schools growth data for chart (super admin)
+export const getSchoolsGrowthData = query({
+  args: {},
+  handler: async (ctx) => {
+    const schools = await ctx.db.query("schools").collect();
+    
+    // Get data for the last 6 months
+    const now = Date.now();
+    const monthsData: Array<{ month: string; schools: number; active: number }> = [];
+    
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(now);
+      date.setMonth(date.getMonth() - i);
+      const monthStart = new Date(date.getFullYear(), date.getMonth(), 1).getTime();
+      const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59).getTime();
+      
+      const schoolsInMonth = schools.filter((s) => s.createdAt <= monthEnd).length;
+      const activeInMonth = schools.filter(
+        (s) => s.createdAt <= monthEnd && s.status === "active"
+      ).length;
+      
+      monthsData.push({
+        month: date.toLocaleDateString("en-US", { month: "short", year: "numeric" }),
+        schools: schoolsInMonth,
+        active: activeInMonth,
+      });
+    }
+    
+    return monthsData;
+  },
+});
+
+// Get user growth data for chart (super admin)
+export const getUserGrowthData = query({
+  args: {},
+  handler: async (ctx) => {
+    const users = await ctx.db.query("users").collect();
+    
+    // Get data for the last 6 months
+    const now = Date.now();
+    const monthsData: Array<{ 
+      month: string; 
+      total: number; 
+      teachers: number;
+      schoolAdmins: number;
+      students: number;
+    }> = [];
+    
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(now);
+      date.setMonth(date.getMonth() - i);
+      const monthStart = new Date(date.getFullYear(), date.getMonth(), 1).getTime();
+      const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59).getTime();
+      
+      const usersInMonth = users.filter((u) => u.createdAt <= monthEnd);
+      const teachersCount = usersInMonth.filter((u) => u.role === "teacher").length;
+      const schoolAdminsCount = usersInMonth.filter((u) => u.role === "school_admin").length;
+      
+      // Get students count from students table
+      const students = await ctx.db.query("students").collect();
+      const studentsInMonth = students.filter((s) => s.createdAt <= monthEnd).length;
+      
+      monthsData.push({
+        month: date.toLocaleDateString("en-US", { month: "short", year: "numeric" }),
+        total: usersInMonth.length + studentsInMonth,
+        teachers: teachersCount,
+        schoolAdmins: schoolAdminsCount,
+        students: studentsInMonth,
+      });
+    }
+    
+    return monthsData;
+  },
+});
+
+// Get student enrollment data for chart (super admin)
+export const getStudentEnrollmentData = query({
+  args: {},
+  handler: async (ctx) => {
+    const students = await ctx.db.query("students").collect();
+    
+    // Get data for the last 6 months
+    const now = Date.now();
+    const monthsData: Array<{ 
+      month: string; 
+      enrolled: number;
+      graduated: number;
+    }> = [];
+    
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(now);
+      date.setMonth(date.getMonth() - i);
+      const monthStart = new Date(date.getFullYear(), date.getMonth(), 1).getTime();
+      const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59).getTime();
+      
+      // Count students enrolled in this month
+      const enrolledInMonth = students.filter(
+        (s) => s.createdAt >= monthStart && s.createdAt <= monthEnd
+      ).length;
+      
+      // Count students graduated in this month (assuming updatedAt changes when status changes)
+      const graduatedInMonth = students.filter(
+        (s) => s.status === "graduated" && s.updatedAt >= monthStart && s.updatedAt <= monthEnd
+      ).length;
+      
+      monthsData.push({
+        month: date.toLocaleDateString("en-US", { month: "short" }),
+        enrolled: enrolledInMonth,
+        graduated: graduatedInMonth,
+      });
+    }
+    
+    return monthsData;
+  },
+});
+
+// Get school status distribution data for chart (super admin)
+export const getSchoolStatusData = query({
+  args: {},
+  handler: async (ctx) => {
+    const schools = await ctx.db.query("schools").collect();
+    
+    // Group schools by status
+    const statusCounts: Record<string, number> = {};
+    
+    for (const school of schools) {
+      const status = school.status || "active";
+      // Capitalize first letter
+      const displayStatus = status.charAt(0).toUpperCase() + status.slice(1);
+      statusCounts[displayStatus] = (statusCounts[displayStatus] || 0) + 1;
+    }
+    
+    // Convert to array format for chart
+    return Object.entries(statusCounts).map(([status, count]) => ({
+      status,
+      count,
+    }));
+  },
+});
+
+// Get revenue distribution data for chart (super admin)
+export const getRevenueDistributionData = query({
+  args: {},
+  handler: async (ctx) => {
+    const subscriptions = await ctx.db
+      .query("subscriptions")
+      .withIndex("by_status", (q) => q.eq("status", "active"))
+      .collect();
+
+    // Get all plans
+    const plans = await ctx.db.query("subscriptionPlans").collect();
+    const planMap = new Map(plans.map((p) => [p._id, p]));
+
+    // Group by plan
+    const tierData: Record<
+      string,
+      { schools: number; revenue: number; price: number }
+    > = {};
+
+    for (const sub of subscriptions) {
+      const plan = planMap.get(sub.planId);
+      if (plan) {
+        const tierName = plan.displayName;
+        if (!tierData[tierName]) {
+          tierData[tierName] = { schools: 0, revenue: 0, price: plan.price };
+        }
+        tierData[tierName].schools += 1;
+        tierData[tierName].revenue += plan.price;
+      }
+    }
+
+    // Also include schools without active subscriptions (free tier)
+    const schools = await ctx.db.query("schools").collect();
+    const subscribedSchoolIds = new Set(subscriptions.map((s) => s.schoolId));
+    const freeSchools = schools.filter((s) => !subscribedSchoolIds.has(s._id));
+
+    const freePlan = plans.find((p) => p.name === "free");
+    if (freePlan && freeSchools.length > 0) {
+      tierData[freePlan.displayName] = {
+        schools: freeSchools.length,
+        revenue: 0,
+        price: 0,
+      };
+    }
+
+    // Convert to array format for chart
+    return Object.entries(tierData).map(([tier, data]) => ({
+      tier,
+      schools: data.schools,
+      revenue: data.revenue,
+    }));
   },
 });
 

@@ -198,4 +198,66 @@ export default defineSchema({
     .index("by_department", ["schoolId", "department"])
     .index("by_status", ["schoolId", "status"])
     .index("by_created_at", ["schoolId", "createdAt"]),
+
+  // Subscription Plans
+  subscriptionPlans: defineTable({
+    name: v.string(), // "free", "basic", "premium", "enterprise"
+    displayName: v.string(), // "Free Plan", "Basic Plan", etc.
+    description: v.string(), // Plan description
+    price: v.number(), // Monthly price in GHS
+    currency: v.string(), // "GHS" (Ghanaian Cedi)
+    billingPeriod: v.string(), // "monthly", "yearly"
+    features: v.array(v.string()), // List of features
+    maxUsers: v.optional(v.number()), // null for unlimited
+    maxStudents: v.optional(v.number()), // null for unlimited
+    maxClasses: v.optional(v.number()), // null for unlimited
+    isActive: v.boolean(),
+    isPopular: v.optional(v.boolean()), // Highlight as popular plan
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_name", ["name"])
+    .index("by_active", ["isActive"]),
+
+  // Subscriptions (Manual Management)
+  subscriptions: defineTable({
+    schoolId: v.id("schools"),
+    planId: v.id("subscriptionPlans"),
+    status: v.string(), // "active", "inactive", "expired", "trialing"
+    startDate: v.number(),
+    endDate: v.number(),
+    autoRenew: v.boolean(), // For future automation
+    notes: v.optional(v.string()), // Admin notes about subscription
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    createdBy: v.id("users"), // Super admin who created it
+    updatedBy: v.optional(v.id("users")), // Last super admin who updated it
+  })
+    .index("by_school", ["schoolId"])
+    .index("by_plan", ["planId"])
+    .index("by_status", ["status"])
+    .index("by_end_date", ["endDate"]),
+
+  // Payments (Manual Tracking)
+  payments: defineTable({
+    schoolId: v.id("schools"),
+    subscriptionId: v.id("subscriptions"),
+    amount: v.number(), // Amount in GHS
+    currency: v.string(), // "GHS"
+    paymentMethod: v.string(), // "cash", "bank_transfer", "mobile_money"
+    paymentStatus: v.string(), // "paid", "pending", "overdue"
+    paymentDate: v.optional(v.number()), // When payment was received
+    dueDate: v.number(), // When payment is due
+    reference: v.optional(v.string()), // Payment reference/receipt number
+    notes: v.optional(v.string()), // Admin notes about payment
+    receiptUrl: v.optional(v.string()), // Optional receipt document
+    recordedBy: v.id("users"), // Super admin who recorded the payment
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_school", ["schoolId"])
+    .index("by_subscription", ["subscriptionId"])
+    .index("by_status", ["paymentStatus"])
+    .index("by_payment_date", ["paymentDate"])
+    .index("by_due_date", ["dueDate"]),
 });

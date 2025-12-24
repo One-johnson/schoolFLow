@@ -8,6 +8,11 @@ import { DashboardSkeleton } from "@/components/loading-skeletons";
 import { useQuery } from "convex/react";
 import { api } from "@/../convex/_generated/api";
 import type { Id } from "@/../convex/_generated/dataModel";
+import { SchoolsGrowthChart } from "@/components/dashboard/schools-growth-chart";
+import { UserGrowthChart } from "@/components/dashboard/user-growth-chart";
+import { StudentEnrollmentChart } from "@/components/dashboard/student-enrollment-chart";
+import { SchoolStatusChart } from "@/components/dashboard/school-status-chart";
+import { RevenueDistributionChart } from "@/components/dashboard/revenue-distribution-chart";
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'edge';
@@ -42,6 +47,36 @@ export default function DashboardPage() {
     !isSuperAdmin && user?.schoolId
       ? { schoolId: user.schoolId as Id<"schools">, limit: 6 }
       : "skip"
+  );
+
+  // Fetch schools growth data for super admin
+  const schoolsGrowthData = useQuery(
+    api.dashboard.getSchoolsGrowthData,
+    isSuperAdmin ? {} : "skip"
+  );
+
+  // Fetch user growth data for super admin
+  const userGrowthData = useQuery(
+    api.dashboard.getUserGrowthData,
+    isSuperAdmin ? {} : "skip"
+  );
+
+  // Fetch student enrollment data for super admin
+  const studentEnrollmentData = useQuery(
+    api.dashboard.getStudentEnrollmentData,
+    isSuperAdmin ? {} : "skip"
+  );
+
+  // Fetch school status data for super admin
+  const schoolStatusData = useQuery(
+    api.dashboard.getSchoolStatusData,
+    isSuperAdmin ? {} : "skip"
+  );
+
+  // Fetch revenue distribution data for super admin
+  const revenueDistributionData = useQuery(
+    api.dashboard.getRevenueDistributionData,
+    isSuperAdmin ? {} : "skip"
   );
 
   if (!user) return <DashboardSkeleton />;
@@ -86,7 +121,8 @@ export default function DashboardPage() {
   const schoolStatsCards = [
     {
       title: "Total Students",
-      value: schoolStats?.totalStudents.toString() || "0",      icon: GraduationCap,
+      value: schoolStats?.totalStudents.toString() || "0",
+      icon: GraduationCap,
       description: schoolStats?.newStudentsThisMonth 
         ? `+${schoolStats.newStudentsThisMonth} new this month`
         : "No new students",
@@ -174,6 +210,44 @@ export default function DashboardPage() {
           </Card>
         ))}
       </div>
+
+      {/* Charts - Super Admin Only */}
+      {isSuperAdmin && schoolsGrowthData && userGrowthData && (
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-2">
+          {/* Schools Growth Chart */}
+          <div>
+ <SchoolsGrowthChart data={schoolsGrowthData} />
+          </div>
+         
+          <div>
+  <UserGrowthChart data={userGrowthData} />
+          </div>
+          {/* User Growth & Distribution Chart */}
+        
+        </div>
+      )}
+
+      {/* Additional Analytics Charts - Super Admin Only */}
+      {isSuperAdmin && studentEnrollmentData && schoolStatusData && revenueDistributionData && (
+        <div className="space-y-4">
+          {/* First Row: Student Enrollment and School Status in same column */}
+          <div className="grid gap-4 grid-cols-2 lg:grid-cols-2">
+            <div>
+              {/* Student Enrollment Trends Chart */}
+              <StudentEnrollmentChart data={studentEnrollmentData} />
+              
+            
+            </div>
+            <div>
+                {/* School Status Distribution Chart */}
+              <SchoolStatusChart data={schoolStatusData} />
+            </div>
+          </div>
+          
+          {/* Second Row: Revenue Distribution Chart - Full Width */}
+          <RevenueDistributionChart data={revenueDistributionData} />
+        </div>
+      )}
 
       {/* Main Content Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
