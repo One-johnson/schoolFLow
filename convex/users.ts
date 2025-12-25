@@ -36,6 +36,7 @@ export const getSchoolUsers = query({
       gender: user.gender,
       bloodGroup: user.bloodGroup,
       address: user.address,
+      bio: user.bio,
       emergencyContact: user.emergencyContact,
       joiningDate: user.joiningDate,
       status: user.status,
@@ -69,6 +70,7 @@ export const getUserById = query({
       photo: user.photo,
       dateOfBirth: user.dateOfBirth,
       gender: user.gender,
+      bio: user.bio,
       bloodGroup: user.bloodGroup,
       address: user.address,
       emergencyContact: user.emergencyContact,
@@ -84,7 +86,7 @@ export const getUserById = query({
 // Create a new user
 export const createUser = mutation({
   args: {
-    schoolId: v.id("schools"),
+    schoolId: v.optional(v.id("schools")),
     email: v.string(),
     password: v.string(),
     role: v.string(),
@@ -95,6 +97,7 @@ export const createUser = mutation({
     gender: v.optional(v.string()),
     bloodGroup: v.optional(v.string()),
     address: v.optional(v.string()),
+    bio: v.optional(v.string()),
     emergencyContact: v.optional(
       v.object({
         name: v.string(),
@@ -134,6 +137,7 @@ export const createUser = mutation({
       gender: args.gender,
       bloodGroup: args.bloodGroup,
       address: args.address,
+      bio: args.bio,
       emergencyContact: args.emergencyContact,
       joiningDate: args.joiningDate || now,
       status: "active",
@@ -157,6 +161,7 @@ export const updateUser = mutation({
     gender: v.optional(v.string()),
     bloodGroup: v.optional(v.string()),
     address: v.optional(v.string()),
+     bio: v.optional(v.string()),
     emergencyContact: v.optional(
       v.object({
         name: v.string(),
@@ -213,6 +218,78 @@ export const deleteUser = mutation({
     }
 
     return { success: true };
+  },
+});
+
+// Get user recent activities
+export const getUserRecentActivities = query({
+  args: {
+    userId: v.id("users"),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 10;
+    
+    // Check if activities table exists, if not return empty array
+    // In the future, this will query from an activities table
+    // For now, return empty array as placeholder
+    return [];
+  },
+});
+
+// Update user profile
+export const updateUserProfile = mutation({
+  args: {
+    userId: v.id("users"),
+    firstName: v.optional(v.string()),
+    lastName: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    address: v.optional(v.string()),
+    bio: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { userId, ...updates } = args;
+
+    const user = await ctx.db.get(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    await ctx.db.patch(userId, {
+      ...updates,
+      updatedAt: Date.now(),
+    });
+
+    return { success: true };
+  },
+});
+
+// Save profile photo URL after upload
+export const saveProfilePhoto = mutation({
+  args: {
+    userId: v.id("users"),
+    storageId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Get the URL for the uploaded file
+    const photoUrl = await ctx.storage.getUrl(args.storageId);
+    
+    if (!photoUrl) {
+      throw new Error("Failed to get photo URL");
+    }
+
+    // Update user with new photo URL
+    await ctx.db.patch(args.userId, {
+      photo: photoUrl,
+      updatedAt: Date.now(),
+    });
+
+    return { success: true, photoUrl };
   },
 });
 

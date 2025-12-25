@@ -2,7 +2,13 @@
 
 import { useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Database, LogIn, Calendar, ArrowUpDown } from "lucide-react";
@@ -11,9 +17,10 @@ import { ColumnDef } from "@tanstack/react-table";
 import { TablePageSkeleton } from "@/components/loading-skeletons";
 import type { Id } from "../../../../../convex/_generated/dataModel";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 type AuditLog = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   _id: Id<any>;
   action: string;
   userName: string;
@@ -78,7 +85,9 @@ export default function AuditLogsPage() {
           </Button>
         );
       },
-      cell: ({ row }) => <div className="font-medium">{row.getValue("userName")}</div>,
+      cell: ({ row }) => (
+        <div className="font-medium">{row.getValue("userName")}</div>
+      ),
     },
     {
       accessorKey: "userEmail",
@@ -145,9 +154,7 @@ export default function AuditLogsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{logs.length}</div>
-            <p className="text-xs text-muted-foreground">
-              Last 100 events
-            </p>
+            <p className="text-xs text-muted-foreground">Last 100 events</p>
           </CardContent>
         </Card>
 
@@ -158,9 +165,7 @@ export default function AuditLogsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{todayLogs.length}</div>
-            <p className="text-xs text-muted-foreground">
-              Events today
-            </p>
+            <p className="text-xs text-muted-foreground">Events today</p>
           </CardContent>
         </Card>
 
@@ -171,23 +176,23 @@ export default function AuditLogsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{thisWeekLogs.length}</div>
-            <p className="text-xs text-muted-foreground">
-              Events this week
-            </p>
+            <p className="text-xs text-muted-foreground">Events this week</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Logs Table */}
-      <Card className="card-hover">
+      <Card>
         <CardHeader>
           <CardTitle>Recent Activity</CardTitle>
-          <CardDescription>Latest system events and user actions</CardDescription>
+          <CardDescription>
+            Latest system events and user actions
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <DataTable 
-            columns={columns} 
-            data={logs} 
+          <DataTable
+            columns={columns}
+            data={logs}
             searchKey="userEmail"
             searchPlaceholder="Search by email..."
           />
@@ -197,12 +202,15 @@ export default function AuditLogsPage() {
       {/* Info Card */}
       <Card className="border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/30 card-hover">
         <CardHeader>
-          <CardTitle className="text-blue-900 dark:text-blue-100">About Audit Logs</CardTitle>
+          <CardTitle className="text-blue-900 dark:text-blue-100">
+            About Audit Logs
+          </CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-blue-800 dark:text-blue-200">
           <p>
-            Audit logs track important system events and user actions across the platform.
-            Currently showing login events. In future phases, this will include:
+            Audit logs track important system events and user actions across the
+            platform. Currently showing login events. In future phases, this
+            will include:
           </p>
           <ul className="list-disc list-inside mt-2 space-y-1">
             <li>User creation, updates, and deletions</li>

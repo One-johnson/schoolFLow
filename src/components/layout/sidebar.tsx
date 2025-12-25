@@ -47,9 +47,9 @@ const platformNavItems: NavItem[] = [
     icon: Building2,
   },
   {
-    title: "Platform Users",
-    href: "/dashboard/platform-users",
-    icon: Users,
+    title: "School Administrators",
+    href: "/dashboard/school-administrators",
+    icon: Shield,
   },
   {
     title: "Subscriptions",
@@ -102,7 +102,7 @@ const schoolNavItems: NavItem[] = [
     icon: GraduationCap,
     requiredRole: ROLES.TEACHER,
   },
-    {
+  {
     title: "Teachers",
     href: "/dashboard/teachers",
     icon: Users,

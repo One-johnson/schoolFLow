@@ -204,9 +204,7 @@ export const getAllUsers = query({
 
     const usersWithSchools = await Promise.all(
       users.map(async (user) => {
-        const school = user.schoolId
-          ? await ctx.db.get(user.schoolId)
-          : undefined;
+        const school = await ctx.db.get(user.schoolId!);
 
         return {
           _id: user._id,
@@ -222,6 +220,41 @@ export const getAllUsers = query({
     );
 
     return usersWithSchools;
+  },
+});
+
+// Get all school administrators
+export const getSchoolAdmins = query({
+  args: {},
+  handler: async (ctx) => {
+    const users = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("role"), "school_admin"))
+      .collect();
+
+    const adminsWithSchools = await Promise.all(
+      users.map(async (user) => {
+        const school = await ctx.db.get(user.schoolId!);
+
+        return {
+          _id: user._id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          phone: user.phone,
+          photo: user.photo,
+          schoolId: user.schoolId,
+          schoolName: school?.name || "Unknown",
+          schoolStatus: school?.status || "unknown",
+          role: user.role,
+          status: user.status,
+          lastLogin: user.lastLogin,
+          createdAt: user.createdAt,
+        };
+      })
+    );
+
+    return adminsWithSchools;
   },
 });
 
@@ -318,9 +351,7 @@ export const getAuditLogs = query({
     const logs = await Promise.all(
       sessions.map(async (session) => {
         const user = await ctx.db.get(session.userId);
-        const school = session.schoolId 
-          ? await ctx.db.get(session.schoolId) 
-          : undefined;
+        const school = await ctx.db.get(session.schoolId!);
 
         return {
           _id: session._id,

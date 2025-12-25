@@ -41,6 +41,7 @@ export default defineSchema({
     gender: v.optional(v.string()), // "male", "female", "other"
     bloodGroup: v.optional(v.string()),
     address: v.optional(v.string()),
+     bio: v.optional(v.string()),
     emergencyContact: v.optional(
       v.object({
         name: v.string(),
@@ -260,4 +261,23 @@ export default defineSchema({
     .index("by_status", ["paymentStatus"])
     .index("by_payment_date", ["paymentDate"])
     .index("by_due_date", ["dueDate"]),
+
+
+
+     // Notifications
+  notifications: defineTable({
+    userId: v.id("users"), // User who receives the notification
+    schoolId: v.optional(v.id("schools")), // Optional for tenant-specific notifications
+    type: v.string(), // "info", "success", "warning", "error"
+    title: v.string(), // Notification title
+    message: v.string(), // Notification message
+    link: v.optional(v.string()), // Optional link to related page
+    isRead: v.boolean(), // Whether notification has been read
+    createdAt: v.number(),
+    readAt: v.optional(v.number()), // When notification was read
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_and_read", ["userId", "isRead"])
+    .index("by_school", ["schoolId"])
+    .index("by_created_at", ["createdAt"]),
 });

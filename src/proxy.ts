@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from "next/server";
 
-export default async function middleware(request: NextRequest) {
+export default async function proxy(request: NextRequest) {
   const isApiRoute = request.nextUrl.pathname.startsWith("/api/");
   const url = new URL("/api/logger", request.url);
   const requestId = crypto.randomUUID();
@@ -55,5 +55,5 @@ export default async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/image|_next/static|api/logger|favicon.ico).*)" ],
+  matcher: ["/((?!_next/image|_next/static|api/logger|favicon.ico).*)"],
 };

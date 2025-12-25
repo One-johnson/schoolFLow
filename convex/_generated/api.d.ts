@@ -11,6 +11,8 @@
 import type * as auth from "../auth.js";
 import type * as classes from "../classes.js";
 import type * as dashboard from "../dashboard.js";
+import type * as files from "../files.js";
+import type * as notifications from "../notifications.js";
 import type * as payments from "../payments.js";
 import type * as platform from "../platform.js";
 import type * as search from "../search.js";
@@ -32,6 +34,8 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   classes: typeof classes;
   dashboard: typeof dashboard;
+  files: typeof files;
+  notifications: typeof notifications;
   payments: typeof payments;
   platform: typeof platform;
   search: typeof search;
