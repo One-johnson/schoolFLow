@@ -118,6 +118,27 @@ export default function SchoolAdminsPage(): JSX.Element {
     password: string;
   }>>([]);
 
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'pending' | 'suspended'>('all');
+
+  // Calculate stats
+  const stats = useMemo(() => {
+    if (!admins) return { total: 0, active: 0, pending: 0, inactive: 0, suspended: 0 };
+    return {
+      total: admins.length,
+      active: admins.filter((a) => a.status === 'active').length,
+      pending: admins.filter((a) => a.status === 'pending').length,
+      inactive: admins.filter((a) => a.status === 'inactive').length,
+      suspended: admins.filter((a) => a.status === 'suspended').length,
+    };
+  }, [admins]);
+
+  // Filter admins based on status
+  const filteredAdmins = useMemo(() => {
+    if (!admins) return [];
+    if (statusFilter === 'all') return admins;
+    return admins.filter((admin) => admin.status === statusFilter);
+  }, [admins, statusFilter]);
+
   // Single create
   const handleCreate = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
@@ -746,10 +767,76 @@ export default function SchoolAdminsPage(): JSX.Element {
         </div>
       </div>
 
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <Card className="border-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-medium text-muted-foreground">Total Admins</CardTitle>
+          </CardHeader>
+          <CardContent className="pb-3">
+            <div className="text-xl font-bold">{stats.total}</div>
+            <p className="text-xs text-muted-foreground mt-1">All administrators</p>
+          </CardContent>
+        </Card>
+        <Card className="border-2 border-green-200 dark:border-green-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-medium text-green-600 dark:text-green-400">Active</CardTitle>
+          </CardHeader>
+          <CardContent className="pb-3">
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.active}</div>
+            <p className="text-xs text-muted-foreground mt-1">Currently active</p>
+          </CardContent>
+        </Card>
+        <Card className="border-2 border-blue-200 dark:border-blue-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-medium text-blue-600 dark:text-blue-400">Pending</CardTitle>
+          </CardHeader>
+          <CardContent className="pb-3">
+            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.pending}</div>
+            <p className="text-xs text-muted-foreground mt-1">Awaiting activation</p>
+          </CardContent>
+        </Card>
+        <Card className="border-2 border-gray-200 dark:border-gray-700">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-medium text-gray-600 dark:text-gray-400">Inactive</CardTitle>
+          </CardHeader>
+          <CardContent className="pb-3">
+            <div className="text-2xl font-bold text-gray-600 dark:text-gray-400">{stats.inactive}</div>
+            <p className="text-xs text-muted-foreground mt-1">Not currently active</p>
+          </CardContent>
+        </Card>
+        <Card className="border-2 border-red-200 dark:border-red-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-medium text-red-600 dark:text-red-400">Suspended</CardTitle>
+          </CardHeader>
+          <CardContent className="pb-3">
+            <div className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.suspended}</div>
+            <p className="text-xs text-muted-foreground mt-1">Temporarily blocked</p>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>All School Admins ({admins.length})</CardTitle>
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <CardTitle>All School Admins ({filteredAdmins.length})</CardTitle>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="status-filter" className="text-sm font-medium">Filter by Status:</Label>
+              <Select value={statusFilter} onValueChange={(value: 'all' | 'active' | 'inactive' | 'pending' | 'suspended') => setStatusFilter(value)}>
+                <SelectTrigger id="status-filter" className="w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="suspended">Suspended</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex items-center justify-between mt-4">
             {selectedAdmins.length > 0 && (
               <div className="flex gap-2">
                 <Button
@@ -775,7 +862,7 @@ export default function SchoolAdminsPage(): JSX.Element {
         <CardContent>
           <DataTable
             columns={columns}
-            data={admins}
+            data={filteredAdmins}
             searchKey="name"
             searchPlaceholder="Search admins..."
             onExportSelected={(selected) => {
