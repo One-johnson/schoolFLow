@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { ColumnDef } from '@tanstack/react-table';
-import { DataTable, createSortableHeader, createSelectColumn } from '../../../components/ui/data-table'
+import { DataTable, createSortableHeader, createSelectColumn } from '../../../components/ui/data-table';
 import { toast } from 'sonner';
 import { CheckCircle, DollarSign, Plus, MoreVertical, Eye, Edit, Trash } from 'lucide-react';
 import { useQuery, useMutation } from 'convex/react';

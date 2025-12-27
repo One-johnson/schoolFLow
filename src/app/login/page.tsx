@@ -1,48 +1,85 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { authService } from "@/lib/auth";
-import { toast } from "sonner";
-import { Eye, EyeOff, Mail, Lock, GraduationCap } from "lucide-react";
+import { JSX, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { authService } from '@/lib/auth';
+import { toast } from 'sonner';
+import { Eye, EyeOff, Mail, Lock, GraduationCap } from 'lucide-react';
+import { useQuery } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 
 export default function LoginPage(): JSX.Element {
   const router = useRouter();
   const [formData, setFormData] = useState({
-    email: "",
-    password: "",
+    email: '',
+    password: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Query to check school admin by schoolId
+  const schoolAdmins = useQuery(api.schoolAdmins.list);
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     setLoading(true);
 
     if (!formData.email || !formData.password) {
-      toast.error("All fields are required");
+      toast.error('All fields are required');
       setLoading(false);
       return;
     }
 
-    const result = authService.login(formData.email, formData.password);
-    if (result.success) {
-      toast.success("Login successful!");
-      router.push("/dashboard");
-    } else {
-      toast.error(result.message);
+    // First, check if it's a Super Admin login
+    const superAdminResult = authService.login(formData.email, formData.password);
+    if (superAdminResult.success) {
+      toast.success('Login successful!');
+      router.push('/dashboard');
+      setLoading(false);
+      return;
     }
+
+    // If not Super Admin, check School Admin by schoolId
+    if (schoolAdmins) {
+      const schoolAdmin = schoolAdmins.find(
+        (admin) => admin.schoolId === formData.email && admin.tempPassword === formData.password
+      );
+
+      if (schoolAdmin) {
+        // Check if admin is active
+        if (schoolAdmin.status === 'inactive') {
+          toast.error('Your account has been deactivated. Please contact support.');
+          setLoading(false);
+          return;
+        }
+
+        if (schoolAdmin.status === 'suspended') {
+          toast.error('Your account has been suspended. Please contact support.');
+          setLoading(false);
+          return;
+        }
+
+        if (schoolAdmin.status === 'pending') {
+          toast.error('Your account is pending approval. Please wait for activation.');
+          setLoading(false);
+          return;
+        }
+
+        // School Admin login successful
+        toast.success('Login successful!');
+        // TODO: Implement School Admin dashboard redirect
+        router.push('/dashboard'); // For now, redirect to same dashboard
+        setLoading(false);
+        return;
+      }
+    }
+
+    // No matching credentials
+    toast.error('Invalid credentials');
     setLoading(false);
   };
 
@@ -59,22 +96,20 @@ export default function LoginPage(): JSX.Element {
               <GraduationCap className="h-8 w-8 text-primary" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">
-            Welcome to SchoolFlow
-          </CardTitle>
+          <CardTitle className="text-2xl font-bold">Welcome to SchoolFlow</CardTitle>
           <CardDescription>Sign in to your account to continue</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email or School ID</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="email"
                   name="email"
-                  type="email"
-                  placeholder="admin@example.com"
+                  type="text"
+                  placeholder="admin@example.com or SCH12345678"
                   value={formData.email}
                   onChange={handleChange}
                   className="pl-10"
@@ -89,7 +124,7 @@ export default function LoginPage(): JSX.Element {
                 <Input
                   id="password"
                   name="password"
-                  type={showPassword ? "text" : "password"}
+                  type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={handleChange}
@@ -101,16 +136,12 @@ export default function LoginPage(): JSX.Element {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing in..." : "Sign In"}
+              {loading ? 'Signing in...' : 'Sign In'}
             </Button>
           </form>
         </CardContent>
