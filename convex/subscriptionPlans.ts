@@ -20,16 +20,17 @@ export const getById = query({
 export const create = mutation({
   args: {
     name: v.string(),
-    description: v.string(),
-    pricePerStudent: v.number(),
-    billingCycle: v.union(v.literal('monthly'), v.literal('quarterly'), v.literal('yearly')),
+    price: v.number(),
+    maxStudents: v.number(),
+    billingCycle: v.union(v.literal('monthly'), v.literal('termly')),
     features: v.array(v.string()),
   },
   handler: async (ctx, args) => {
     const planId = await ctx.db.insert('subscriptionPlans', {
       name: args.name,
-      description: args.description,
-      pricePerStudent: args.pricePerStudent,
+      description: `${args.name} - Up to ${args.maxStudents} students`,
+      price: args.price,
+      maxStudents: args.maxStudents,
       billingCycle: args.billingCycle,
       features: args.features,
       isActive: true,
@@ -44,16 +45,16 @@ export const update = mutation({
   args: {
     id: v.id('subscriptionPlans'),
     name: v.string(),
-    description: v.string(),
-    pricePerStudent: v.number(),
-    billingCycle: v.union(v.literal('monthly'), v.literal('quarterly'), v.literal('yearly')),
+    price: v.number(),
+    maxStudents: v.number(),
+    billingCycle: v.union(v.literal('monthly'), v.literal('termly')),
     features: v.array(v.string()),
-    isActive: v.boolean(),
   },
   handler: async (ctx, args) => {
     const { id, ...updates } = args;
     await ctx.db.patch(id, {
       ...updates,
+      description: `${args.name} - Up to ${args.maxStudents} students`,
       updatedAt: new Date().toISOString(),
     });
     return id;

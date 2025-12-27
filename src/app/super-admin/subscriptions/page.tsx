@@ -1,38 +1,47 @@
 'use client';
 
-import { JSX, useMemo, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import type { ColumnDef } from '@tanstack/react-table';
-import { DataTable, createSortableHeader, createSelectColumn } from '../../../components/ui/data-table';
-import { toast } from 'sonner';
-import { CheckCircle, DollarSign, Plus, MoreVertical, Eye, Edit, Trash } from 'lucide-react';
+import * as React from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import type { Id } from '../../../../convex/_generated/dataModel';
-import { Skeleton } from '@/components/ui/skeleton';
+import { format } from 'date-fns';
+import type { ColumnDef } from '@tanstack/react-table';
+import {
+  CreditCard,
+  Plus,
+  Pencil,
+  Trash2,
+  DollarSign,
+  Users,
+  Calendar,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  Clock,
+  AlertCircle,
+  FileDown,
+} from 'lucide-react';
+import { DataTable, createSortableHeader, createSelectColumn } from  '../../../components/ui/data-table'
 import { exportToJSON, exportToCSV, exportToPDF } from '../../../lib/exports';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { FileDown } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -40,888 +49,690 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 
-interface Subscription {
-  _id: Id<'subscriptions'>;
-  schoolId: string;
-  schoolName: string;
-  plan: string;
-  studentsCount: number;
-  pricePerStudent: number;
-  totalAmount: number;
-  status: 'pending' | 'verified' | 'expired';
-  paymentDate?: string;
-  verifiedDate?: string;
-  verifiedBy?: string;
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { toast } from 'sonner';
+import { JSX } from 'react';
+
+interface PlanForm {
+  name: string;
+  price: number;
+  maxStudents: number;
+  billingCycle: 'monthly' | 'termly';
+  features: string;
 }
 
-interface SubscriptionPlan {
-  _id: Id<'subscriptionPlans'>;
-  name: string;
-  description: string;
-  pricePerStudent: number;
-  billingCycle: 'monthly' | 'quarterly' | 'yearly';
-  features: string[];
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+interface SubscriptionTableRow {
+  _id: string;
+  schoolAdminEmail: string;
+  type: string;
+  planName: string;
+  price: string;
+  studentCapacity: string;
+  trialEndDate: string;
+  status: string;
+  requestedDate: string;
 }
 
 export default function SubscriptionsPage(): JSX.Element {
-  const subscriptions = useQuery(api.subscriptions.list);
-  const plans = useQuery(api.subscriptionPlans.list);
-  const verifyPayment = useMutation(api.subscriptions.verifyPayment);
+  const subscriptionPlans = useQuery(api.subscriptionPlans.list);
+  const subscriptionRequests = useQuery(api.subscriptionRequests.list);
   const createPlan = useMutation(api.subscriptionPlans.create);
   const updatePlan = useMutation(api.subscriptionPlans.update);
   const deletePlan = useMutation(api.subscriptionPlans.remove);
-  const createAuditLog = useMutation(api.auditLogs.create);
 
-  const [isCreatePlanOpen, setIsCreatePlanOpen] = useState<boolean>(false);
-  const [isEditPlanOpen, setIsEditPlanOpen] = useState<boolean>(false);
-  const [isDeletePlanOpen, setIsDeletePlanOpen] = useState<boolean>(false);
-  const [isViewPlanOpen, setIsViewPlanOpen] = useState<boolean>(false);
-  const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
-  const [isViewSubscriptionOpen, setIsViewSubscriptionOpen] = useState<boolean>(false);
-  const [selectedSubscription, setSelectedSubscription] = useState<Subscription | null>(null);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState<boolean>(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = React.useState<boolean>(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState<boolean>(false);
+  const [selectedPlanId, setSelectedPlanId] = React.useState<Id<'subscriptionPlans'> | null>(null);
+  const [isSubmitting, setIsSubmitting] = React.useState<boolean>(false);
+  const [statusFilter, setStatusFilter] = React.useState<string>('all');
 
-  const [planForm, setPlanForm] = useState({
+  const [planForm, setPlanForm] = React.useState<PlanForm>({
     name: '',
-    description: '',
-    pricePerStudent: '',
-    billingCycle: 'monthly' as 'monthly' | 'quarterly' | 'yearly',
+    price: 0,
+    maxStudents: 0,
+    billingCycle: 'monthly' as 'monthly' | 'termly',
     features: '',
   });
 
-  const resetPlanForm = (): void => {
-    setPlanForm({
-      name: '',
-      description: '',
-      pricePerStudent: '',
-      billingCycle: 'monthly',
-      features: '',
-    });
-  };
+  const selectedPlan = React.useMemo(() => {
+    if (!selectedPlanId || !subscriptionPlans) return null;
+    return subscriptionPlans.find((p) => p._id === selectedPlanId);
+  }, [selectedPlanId, subscriptionPlans]);
+
+  React.useEffect(() => {
+    if (selectedPlan && isEditDialogOpen) {
+      setPlanForm({
+        name: selectedPlan.name,
+        price: selectedPlan.price,
+        maxStudents: selectedPlan.maxStudents,
+        billingCycle: selectedPlan.billingCycle as 'monthly' | 'termly',
+        features: selectedPlan.features.join(', '),
+      });
+    }
+  }, [selectedPlan, isEditDialogOpen]);
 
   const handleCreatePlan = async (): Promise<void> => {
+    if (!planForm.name || planForm.price <= 0 || planForm.maxStudents <= 0) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
-      const features = planForm.features.split('\n').filter((f: string) => f.trim() !== '');
       await createPlan({
         name: planForm.name,
-        description: planForm.description,
-        pricePerStudent: parseFloat(planForm.pricePerStudent),
+        price: planForm.price,
+        maxStudents: planForm.maxStudents,
         billingCycle: planForm.billingCycle,
-        features,
-      });
-      await createAuditLog({
-        userId: 'super_admin',
-        userName: 'Super Admin',
-        action: 'Created Subscription Plan',
-        entity: 'Subscription Plan',
-        entityId: planForm.name,
-        details: `Created plan: ${planForm.name}`,
-        ipAddress: '192.168.1.1',
+        features: planForm.features.split(',').map((f) => f.trim()).filter(Boolean),
       });
       toast.success('Subscription plan created successfully');
-      setIsCreatePlanOpen(false);
-      resetPlanForm();
+      setIsCreateDialogOpen(false);
+      setPlanForm({
+        name: '',
+        price: 0,
+        maxStudents: 0,
+        billingCycle: 'monthly',
+        features: '',
+      });
     } catch (error) {
       toast.error('Failed to create subscription plan');
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleEditPlan = async (): Promise<void> => {
-    if (!selectedPlan) return;
+  const handleUpdatePlan = async (): Promise<void> => {
+    if (!selectedPlanId || !planForm.name || planForm.price <= 0 || planForm.maxStudents <= 0) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
-      const features = planForm.features.split('\n').filter((f: string) => f.trim() !== '');
       await updatePlan({
-        id: selectedPlan._id,
+        id: selectedPlanId,
         name: planForm.name,
-        description: planForm.description,
-        pricePerStudent: parseFloat(planForm.pricePerStudent),
+        price: planForm.price,
+        maxStudents: planForm.maxStudents,
         billingCycle: planForm.billingCycle,
-        features,
-        isActive: selectedPlan.isActive,
-      });
-      await createAuditLog({
-        userId: 'super_admin',
-        userName: 'Super Admin',
-        action: 'Updated Subscription Plan',
-        entity: 'Subscription Plan',
-        entityId: selectedPlan._id,
-        details: `Updated plan: ${planForm.name}`,
-        ipAddress: '192.168.1.1',
+        features: planForm.features.split(',').map((f) => f.trim()).filter(Boolean),
       });
       toast.success('Subscription plan updated successfully');
-      setIsEditPlanOpen(false);
-      setSelectedPlan(null);
-      resetPlanForm();
+      setIsEditDialogOpen(false);
+      setSelectedPlanId(null);
     } catch (error) {
       toast.error('Failed to update subscription plan');
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleDeletePlan = async (): Promise<void> => {
-    if (!selectedPlan) return;
+    if (!selectedPlanId) return;
+
+    setIsSubmitting(true);
     try {
-      await deletePlan({ id: selectedPlan._id });
-      await createAuditLog({
-        userId: 'super_admin',
-        userName: 'Super Admin',
-        action: 'Deleted Subscription Plan',
-        entity: 'Subscription Plan',
-        entityId: selectedPlan._id,
-        details: `Deleted plan: ${selectedPlan.name}`,
-        ipAddress: '192.168.1.1',
-      });
+      await deletePlan({ id: selectedPlanId });
       toast.success('Subscription plan deleted successfully');
-      setIsDeletePlanOpen(false);
-      setSelectedPlan(null);
+      setIsDeleteDialogOpen(false);
+      setSelectedPlanId(null);
     } catch (error) {
       toast.error('Failed to delete subscription plan');
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const openEditPlan = (plan: SubscriptionPlan): void => {
-    setSelectedPlan(plan);
-    setPlanForm({
-      name: plan.name,
-      description: plan.description,
-      pricePerStudent: plan.pricePerStudent.toString(),
-      billingCycle: plan.billingCycle,
-      features: plan.features.join('\n'),
-    });
-    setIsEditPlanOpen(true);
+  const getStatusBadge = (status: string): JSX.Element => {
+    const statusConfig: Record<string, { variant: 'default' | 'secondary' | 'destructive' | 'outline', icon: React.ElementType }> = {
+      approved: { variant: 'default', icon: CheckCircle2 },
+      pending: { variant: 'secondary', icon: Clock },
+      rejected: { variant: 'destructive', icon: XCircle },
+      expired: { variant: 'outline', icon: AlertCircle },
+    };
+
+    const config = statusConfig[status] || statusConfig.pending;
+    const Icon = config.icon;
+
+    return (
+      <Badge variant={config.variant} className="gap-1">
+        <Icon className="h-3 w-3" />
+        {status.charAt(0).toUpperCase() + status.slice(1)}
+      </Badge>
+    );
   };
 
-  const openDeletePlan = (plan: SubscriptionPlan): void => {
-    setSelectedPlan(plan);
-    setIsDeletePlanOpen(true);
-  };
-
-  const openViewPlan = (plan: SubscriptionPlan): void => {
-    setSelectedPlan(plan);
-    setIsViewPlanOpen(true);
-  };
-
-  const openViewSubscription = (subscription: Subscription): void => {
-    setSelectedSubscription(subscription);
-    setIsViewSubscriptionOpen(true);
-  };
-
-  const handleVerifyPayment = async (id: Id<'subscriptions'>): Promise<void> => {
+  const formatDate = (timestamp: number | undefined): string => {
+    if (!timestamp || isNaN(timestamp)) {
+      return 'N/A';
+    }
     try {
-      await verifyPayment({ id, verifiedBy: 'super_admin' });
-      await createAuditLog({
-        userId: 'super_admin',
-        userName: 'Super Admin',
-        action: 'Verified Payment',
-        entity: 'Subscription',
-        entityId: id,
-        details: 'Payment verified and processed',
-        ipAddress: '192.168.1.1',
-      });
-      toast.success('Payment verified successfully');
+      const date = new Date(timestamp);
+      if (isNaN(date.getTime())) {
+        return 'N/A';
+      }
+      return format(date, 'MMM dd, yyyy');
     } catch (error) {
-      toast.error('Failed to verify payment');
+      console.error('Date formatting error:', error);
+      return 'N/A';
     }
   };
 
-  const planColumns: ColumnDef<SubscriptionPlan>[] = useMemo(
-    () => [
-      createSelectColumn<SubscriptionPlan>(),
-      {
-        accessorKey: 'name',
-        header: createSortableHeader('Plan Name'),
-        cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
-      },
-      {
-        accessorKey: 'description',
-        header: createSortableHeader('Description'),
-        cell: ({ row }) => (
-          <span className="text-sm text-gray-600 dark:text-gray-400">
-            {row.original.description.substring(0, 50)}...
-          </span>
-        ),
-      },
-      {
-        accessorKey: 'pricePerStudent',
-        header: createSortableHeader('Price/Student'),
-        cell: ({ row }) => `$${row.original.pricePerStudent}`,
-      },
-      {
-        accessorKey: 'billingCycle',
-        header: createSortableHeader('Billing Cycle'),
-        cell: ({ row }) => (
-          <Badge variant="outline" className="capitalize">
-            {row.original.billingCycle}
-          </Badge>
-        ),
-      },
-      {
-        accessorKey: 'isActive',
-        header: createSortableHeader('Status'),
-        cell: ({ row }) => (
-          <Badge variant={row.original.isActive ? 'default' : 'secondary'}>
-            {row.original.isActive ? 'Active' : 'Inactive'}
-          </Badge>
-        ),
-      },
-      {
-        id: 'actions',
-        header: 'Actions',
-        cell: ({ row }) => (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => openViewPlan(row.original)}>
-                <Eye className="mr-2 h-4 w-4" />
-                View
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => openEditPlan(row.original)}>
-                <Edit className="mr-2 h-4 w-4" />
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => openDeletePlan(row.original)}
-                className="text-red-600 dark:text-red-400"
-              >
-                <Trash className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ),
-      },
-    ],
-    []
-  );
+  // Transform subscription requests to table data
+  const tableData = React.useMemo((): SubscriptionTableRow[] => {
+    if (!subscriptionRequests || !subscriptionPlans) return [];
+    
+    return subscriptionRequests.map((request) => {
+      const plan = subscriptionPlans.find((p) => p._id === request.planId);
+      const isTrial = request.isTrial || false;
+      
+      return {
+        _id: request._id,
+        schoolAdminEmail: request.schoolAdminEmail,
+        type: isTrial ? 'Trial' : 'Paid',
+        planName: plan?.name || 'N/A',
+        price: `₵${plan?.price || 0}`,
+        studentCapacity: `${plan?.maxStudents || 0} students`,
+        trialEndDate: isTrial && request.trialEndDate
+          ? formatDate(Number(request.trialEndDate))
+          : 'N/A',
+        status: request.status,
+        requestedDate: formatDate(Number(request._creationTime)),
+      };
+    });
+  }, [subscriptionRequests, subscriptionPlans]);
 
-  const subscriptionColumns: ColumnDef<Subscription>[] = useMemo(
+  // Filter data by status
+  const filteredTableData = React.useMemo(() => {
+    if (statusFilter === 'all') return tableData;
+    return tableData.filter((row) => row.status === statusFilter);
+  }, [tableData, statusFilter]);
+
+  // Define columns for the data table
+  const columns: ColumnDef<SubscriptionTableRow>[] = React.useMemo(
     () => [
-      createSelectColumn<Subscription>(),
+      createSelectColumn<SubscriptionTableRow>(),
       {
-        accessorKey: 'schoolName',
-        header: createSortableHeader('School Name'),
-        cell: ({ row }) => <span className="font-medium">{row.original.schoolName}</span>,
+        accessorKey: 'schoolAdminEmail',
+        header: createSortableHeader('School Admin'),
+        cell: ({ row }) => (
+          <span className="font-medium text-sm">{row.original.schoolAdminEmail}</span>
+        ),
       },
       {
-        accessorKey: 'plan',
+        accessorKey: 'type',
+        header: createSortableHeader('Type'),
+        cell: ({ row }) => (
+          row.original.type === 'Trial' ? (
+            <Badge variant="outline" className="gap-1">
+              <Clock className="h-3 w-3" />
+              Trial
+            </Badge>
+          ) : (
+            <Badge variant="default" className="gap-1">
+              <DollarSign className="h-3 w-3" />
+              Paid
+            </Badge>
+          )
+        ),
+      },
+      {
+        accessorKey: 'planName',
         header: createSortableHeader('Plan'),
+        cell: ({ row }) => <span className="text-sm">{row.original.planName}</span>,
       },
       {
-        accessorKey: 'studentsCount',
-        header: createSortableHeader('Students'),
+        accessorKey: 'price',
+        header: createSortableHeader('Price'),
+        cell: ({ row }) => <span className="text-sm font-medium">{row.original.price}</span>,
       },
       {
-        accessorKey: 'pricePerStudent',
-        header: createSortableHeader('Price/Student'),
-        cell: ({ row }) => `$${row.original.pricePerStudent}`,
+        accessorKey: 'studentCapacity',
+        header: createSortableHeader('Student Capacity'),
+        cell: ({ row }) => <span className="text-sm">{row.original.studentCapacity}</span>,
       },
       {
-        accessorKey: 'totalAmount',
-        header: createSortableHeader('Total Amount'),
-        cell: ({ row }) => `$${row.original.totalAmount.toLocaleString()}`,
+        accessorKey: 'trialEndDate',
+        header: createSortableHeader('Trial End Date'),
+        cell: ({ row }) => (
+          row.original.trialEndDate !== 'N/A' ? (
+            <div className="flex items-center gap-1">
+              <Calendar className="h-3 w-3 text-gray-500" />
+              <span className="text-sm">{row.original.trialEndDate}</span>
+            </div>
+          ) : (
+            <span className="text-sm text-gray-400">N/A</span>
+          )
+        ),
       },
       {
         accessorKey: 'status',
         header: createSortableHeader('Status'),
-        cell: ({ row }) => (
-          <Badge
-            variant={
-              row.original.status === 'verified'
-                ? 'default'
-                : row.original.status === 'pending'
-                ? 'secondary'
-                : 'outline'
-            }
-          >
-            {row.original.status}
-          </Badge>
-        ),
+        cell: ({ row }) => getStatusBadge(row.original.status),
       },
       {
-        accessorKey: 'paymentDate',
-        header: createSortableHeader('Payment Date'),
-        cell: ({ row }) =>
-          row.original.paymentDate ? new Date(row.original.paymentDate).toLocaleDateString() : 'N/A',
-      },
-      {
-        id: 'actions',
-        header: 'Actions',
-        cell: ({ row }) => (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => openViewSubscription(row.original)}>
-                <Eye className="mr-2 h-4 w-4" />
-                View
-              </DropdownMenuItem>
-              {row.original.status === 'pending' && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => handleVerifyPayment(row.original._id)}
-                    className="text-green-600 dark:text-green-400"
-                  >
-                    <CheckCircle className="mr-2 h-4 w-4" />
-                    Verify Payment
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ),
+        accessorKey: 'requestedDate',
+        header: createSortableHeader('Requested'),
+        cell: ({ row }) => <span className="text-sm text-gray-600">{row.original.requestedDate}</span>,
       },
     ],
     []
   );
 
-  const handleExportPlans = (format: 'json' | 'csv' | 'pdf'): void => {
-    if (plans) {
+  // Export handlers
+  const handleExportAll = (format: 'json' | 'csv' | 'pdf'): void => {
+    if (filteredTableData.length > 0) {
+      const exportData = filteredTableData.map(({ _id, ...rest }) => rest);
       if (format === 'json') {
-        exportToJSON(plans, 'subscription_plans');
+        exportToJSON(exportData, 'school_subscriptions');
       } else if (format === 'csv') {
-        exportToCSV(plans, 'subscription_plans');
+        exportToCSV(exportData, 'school_subscriptions');
       } else {
-        exportToPDF(plans, 'subscription_plans', 'Subscription Plans Report');
-      }
-      toast.success(`Plans exported as ${format.toUpperCase()}`);
-    }
-  };
-
-  const handleExportSubscriptions = (format: 'json' | 'csv' | 'pdf'): void => {
-    if (subscriptions) {
-      if (format === 'json') {
-        exportToJSON(subscriptions, 'subscriptions');
-      } else if (format === 'csv') {
-        exportToCSV(subscriptions, 'subscriptions');
-      } else {
-        exportToPDF(subscriptions, 'subscriptions', 'Subscriptions Report');
+        exportToPDF(exportData, 'school_subscriptions', 'School Subscriptions Report');
       }
       toast.success(`Subscriptions exported as ${format.toUpperCase()}`);
     }
   };
 
-  const handleExportSelectedPlans = (selected: SubscriptionPlan[], format: 'json' | 'csv' | 'pdf'): void => {
+  const handleExportSelected = (selected: SubscriptionTableRow[], format: 'json' | 'csv' | 'pdf'): void => {
+    const exportData = selected.map(({ _id, ...rest }) => rest);
     if (format === 'json') {
-      exportToJSON(selected, 'plans_selected');
+      exportToJSON(exportData, 'school_subscriptions_selected');
     } else if (format === 'csv') {
-      exportToCSV(selected as unknown as Record<string, unknown>[],'plans_selected');
+      exportToCSV(exportData, 'school_subscriptions_selected');
     } else {
-      exportToPDF(selected as unknown as Record<string, unknown>[], 'plans_selected', 'Selected Plans Report');
-    }
-    toast.success(`${selected.length} plan(s) exported as ${format.toUpperCase()}`);
-  };
-
-  const handleExportSelectedSubscriptions = (selected: Subscription[], format: 'json' | 'csv' | 'pdf'): void => {
-    if (format === 'json') {
-      exportToJSON(selected, 'subscriptions_selected');
-    } else if (format === 'csv') {
-      exportToCSV(selected as unknown as Record<string, unknown>[],'subscriptions_selected');
-    } else {
-      exportToPDF(selected as unknown as Record<string, unknown>[], 'subscriptions_selected', 'Selected Subscriptions Report');
+      exportToPDF(exportData, 'school_subscriptions_selected', 'Selected School Subscriptions Report');
     }
     toast.success(`${selected.length} subscription(s) exported as ${format.toUpperCase()}`);
   };
 
-  if (!subscriptions || !plans) {
+  if (!subscriptionPlans || !subscriptionRequests) {
     return (
-      <div className="space-y-6">
-        <Skeleton className="h-8 w-48" />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-32 w-full" />
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="mx-auto h-8 w-8 animate-spin text-blue-600" />
+          <p className="mt-4 text-gray-600">Loading subscriptions...</p>
         </div>
-        <Skeleton className="h-96 w-full" />
       </div>
     );
   }
 
-  const totalRevenue = subscriptions
-    .filter((s) => s.status === 'verified')
-    .reduce((sum, s) => sum + s.totalAmount, 0);
-
-  const pendingRevenue = subscriptions
-    .filter((s) => s.status === 'pending')
-    .reduce((sum, s) => sum + s.totalAmount, 0);
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
+    <div className="space-y-6 p-6">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Subscriptions & Billing</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">
-            Manage subscription plans and payment verification
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900">Subscription Management</h1>
+          <p className="text-gray-600">Manage subscription plans and track school subscriptions</p>
         </div>
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="gap-2">
+              <Plus className="h-4 w-4" />
+              Create Plan
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Create Subscription Plan</DialogTitle>
+              <DialogDescription>Add a new subscription plan for schools</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Plan Name</Label>
+                  <Input
+                    id="name"
+                    placeholder="e.g., Basic Plan"
+                    value={planForm.name}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setPlanForm({ ...planForm, name: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="price">Price (₵)</Label>
+                  <Input
+                    id="price"
+                    type="number"
+                    placeholder="0.00"
+                    value={planForm.price || ''}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setPlanForm({ ...planForm, price: parseFloat(e.target.value) || 0 })
+                    }
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="maxStudents">Max Students</Label>
+                  <Input
+                    id="maxStudents"
+                    type="number"
+                    placeholder="100"
+                    value={planForm.maxStudents || ''}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setPlanForm({ ...planForm, maxStudents: parseInt(e.target.value) || 0 })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="billingCycle">Billing Cycle</Label>
+                  <Select
+                    value={planForm.billingCycle}
+                    onValueChange={(value: 'monthly' | 'termly') =>
+                      setPlanForm({ ...planForm, billingCycle: value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                      <SelectItem value="termly">Termly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="features">Features (comma-separated)</Label>
+                <Input
+                  id="features"
+                  placeholder="e.g., Student Management, Attendance Tracking, Reports"
+                  value={planForm.features}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setPlanForm({ ...planForm, features: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleCreatePlan} disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  'Create Plan'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-950 flex items-center justify-center">
-                <DollarSign className="h-6 w-6 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Total Revenue</p>
-                <p className="text-2xl font-bold">${totalRevenue.toLocaleString()}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-full bg-orange-100 dark:bg-orange-950 flex items-center justify-center">
-                <DollarSign className="h-6 w-6 text-orange-600 dark:text-orange-400" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Pending Revenue</p>
-                <p className="text-2xl font-bold">${pendingRevenue.toLocaleString()}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-950 flex items-center justify-center">
-                <CheckCircle className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Active Plans</p>
-                <p className="text-2xl font-bold">
-                  {plans.filter((p) => p.isActive).length}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Tabs defaultValue="plans" className="w-full">
+      <Tabs defaultValue="plans" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="plans">Subscription Plans</TabsTrigger>
-          <TabsTrigger value="subscriptions">School Subscriptions</TabsTrigger>
+          <TabsTrigger value="plans" className="gap-2">
+            <CreditCard className="h-4 w-4" />
+            Subscription Plans
+            <Badge variant="secondary">{subscriptionPlans.length}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="subscriptions" className="gap-2">
+            <Users className="h-4 w-4" />
+            School Subscriptions
+            <Badge variant="secondary">{subscriptionRequests.length}</Badge>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="plans" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Subscription Plans ({plans.length})</CardTitle>
-                <div className="flex gap-2">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" className="gap-2">
-                        <FileDown className="h-4 w-4" />
-                        Export All
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      <DropdownMenuItem onClick={() => handleExportPlans('json')}>
-                        Export as JSON
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleExportPlans('csv')}>
-                        Export as CSV
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleExportPlans('pdf')}>
-                        Export as PDF
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <Button onClick={() => setIsCreatePlanOpen(true)} className="gap-2">
-                    <Plus className="h-4 w-4" />
-                    Create Plan
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <DataTable
-                columns={planColumns}
-                data={plans}
-                searchKey="name"
-                searchPlaceholder="Search by plan name..."
-                exportFormats={['json', 'csv', 'pdf']}
-                onExport={handleExportSelectedPlans}
-              />
-            </CardContent>
-          </Card>
+          {subscriptionPlans.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <CreditCard className="h-12 w-12 text-gray-400" />
+                <h3 className="mt-4 text-lg font-semibold text-gray-900">No Subscription Plans</h3>
+                <p className="mt-2 text-center text-gray-600">
+                  Get started by creating your first subscription plan
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {subscriptionPlans.map((plan) => (
+                <Card key={plan._id} className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle>{plan.name}</CardTitle>
+                        <CardDescription className="mt-2">
+                          <span className="text-3xl font-bold text-gray-900">₵{plan.price}</span>
+                          <span className="text-gray-600">/{plan.billingCycle}</span>
+                        </CardDescription>
+                      </div>
+                      <div className="flex gap-1">
+                        <Dialog open={isEditDialogOpen && selectedPlanId === plan._id} onOpenChange={(open) => {
+                          setIsEditDialogOpen(open);
+                          if (open) setSelectedPlanId(plan._id);
+                        }}>
+                          <DialogTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl">
+                            <DialogHeader>
+                              <DialogTitle>Edit Subscription Plan</DialogTitle>
+                              <DialogDescription>Update the subscription plan details</DialogDescription>
+                            </DialogHeader>
+                            <div className="grid gap-4 py-4">
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="edit-name">Plan Name</Label>
+                                  <Input
+                                    id="edit-name"
+                                    value={planForm.name}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                      setPlanForm({ ...planForm, name: e.target.value })
+                                    }
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="edit-price">Price (₵)</Label>
+                                  <Input
+                                    id="edit-price"
+                                    type="number"
+                                    value={planForm.price || ''}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                      setPlanForm({ ...planForm, price: parseFloat(e.target.value) || 0 })
+                                    }
+                                  />
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="edit-maxStudents">Max Students</Label>
+                                  <Input
+                                    id="edit-maxStudents"
+                                    type="number"
+                                    value={planForm.maxStudents || ''}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                      setPlanForm({ ...planForm, maxStudents: parseInt(e.target.value) || 0 })
+                                    }
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="edit-billingCycle">Billing Cycle</Label>
+                                  <Select
+                                    value={planForm.billingCycle}
+                                    onValueChange={(value: 'monthly' | 'termly') =>
+                                      setPlanForm({ ...planForm, billingCycle: value })
+                                    }
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="monthly">Monthly</SelectItem>
+                                      <SelectItem value="termly">Termly</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="edit-features">Features (comma-separated)</Label>
+                                <Input
+                                  id="edit-features"
+                                  value={planForm.features}
+                                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                    setPlanForm({ ...planForm, features: e.target.value })
+                                  }
+                                />
+                              </div>
+                            </div>
+                            <DialogFooter>
+                              <Button variant="outline" onClick={() => {
+                                setIsEditDialogOpen(false);
+                                setSelectedPlanId(null);
+                              }}>
+                                Cancel
+                              </Button>
+                              <Button onClick={handleUpdatePlan} disabled={isSubmitting}>
+                                {isSubmitting ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Updating...
+                                  </>
+                                ) : (
+                                  'Update Plan'
+                                )}
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                        <Dialog open={isDeleteDialogOpen && selectedPlanId === plan._id} onOpenChange={(open) => {
+                          setIsDeleteDialogOpen(open);
+                          if (open) setSelectedPlanId(plan._id);
+                        }}>
+                          <DialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="text-red-600 hover:text-red-700">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Delete Subscription Plan</DialogTitle>
+                              <DialogDescription>
+                                Are you sure you want to delete this plan? This action cannot be undone.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <DialogFooter>
+                              <Button variant="outline" onClick={() => {
+                                setIsDeleteDialogOpen(false);
+                                setSelectedPlanId(null);
+                              }}>
+                                Cancel
+                              </Button>
+                              <Button variant="destructive" onClick={handleDeletePlan} disabled={isSubmitting}>
+                                {isSubmitting ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Deleting...
+                                  </>
+                                ) : (
+                                  'Delete'
+                                )}
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Users className="h-4 w-4" />
+                        <span>Up to {plan.maxStudents} students</span>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-sm font-semibold text-gray-900">Features:</p>
+                        <ul className="space-y-1">
+                          {plan.features.map((feature, index) => (
+                            <li key={index} className="flex items-center gap-2 text-sm text-gray-600">
+                              <CheckCircle2 className="h-3 w-3 text-green-600" />
+                              {feature}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="subscriptions" className="space-y-4">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>School Subscriptions ({subscriptions.length})</CardTitle>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="gap-2">
-                      <FileDown className="h-4 w-4" />
-                      Export All
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => handleExportSubscriptions('json')}>
-                      Export as JSON
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleExportSubscriptions('csv')}>
-                      Export as CSV
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleExportSubscriptions('pdf')}>
-                      Export as PDF
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div>
+                  <CardTitle>School Subscriptions</CardTitle>
+                  <CardDescription>Track all school subscription requests and trial periods</CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                      <SelectItem value="expired">Expired</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="gap-2" disabled={filteredTableData.length === 0}>
+                        <FileDown className="h-4 w-4" />
+                        Export All
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem onClick={() => handleExportAll('json')}>Export as JSON</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleExportAll('csv')}>Export as CSV</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleExportAll('pdf')}>Export as PDF</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
-              <DataTable
-                columns={subscriptionColumns}
-                data={subscriptions}
-                searchKey="schoolName"
-                searchPlaceholder="Search by school..."
-                exportFormats={['json', 'csv', 'pdf']}
-                onExport={handleExportSelectedSubscriptions}
-              />
+              {subscriptionRequests.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Users className="h-12 w-12 text-gray-400" />
+                  <h3 className="mt-4 text-lg font-semibold text-gray-900">No Subscriptions Yet</h3>
+                  <p className="mt-2 text-center text-gray-600">
+                    School subscription requests will appear here
+                  </p>
+                </div>
+              ) : (
+                <DataTable
+                  columns={columns}
+                  data={filteredTableData}
+                  searchKey="schoolAdminEmail"
+                  searchPlaceholder="Search by email..."
+                  exportFormats={['json', 'csv', 'pdf']}
+                  onExport={handleExportSelected}
+                />
+              )}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
-
-      {/* Create Plan Dialog */}
-      <Dialog open={isCreatePlanOpen} onOpenChange={setIsCreatePlanOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Create Subscription Plan</DialogTitle>
-            <DialogDescription>Add a new subscription plan for schools</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="name">Plan Name</Label>
-              <Input
-                id="name"
-                value={planForm.name}
-                onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })}
-                placeholder="e.g., Basic Plan, Premium Plan"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={planForm.description}
-                onChange={(e) => setPlanForm({ ...planForm, description: e.target.value })}
-                placeholder="Describe the plan features and benefits"
-                rows={3}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="price">Price Per Student ($)</Label>
-                <Input
-                  id="price"
-                  type="number"
-                  step="0.01"
-                  value={planForm.pricePerStudent}
-                  onChange={(e) => setPlanForm({ ...planForm, pricePerStudent: e.target.value })}
-                  placeholder="0.00"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="billing">Billing Cycle</Label>
-                <Select
-                  value={planForm.billingCycle}
-                  onValueChange={(value: 'monthly' | 'quarterly' | 'yearly') =>
-                    setPlanForm({ ...planForm, billingCycle: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="monthly">Monthly</SelectItem>
-                    <SelectItem value="quarterly">Quarterly</SelectItem>
-                    <SelectItem value="yearly">Yearly</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="features">Features (one per line)</Label>
-              <Textarea
-                id="features"
-                value={planForm.features}
-                onChange={(e) => setPlanForm({ ...planForm, features: e.target.value })}
-                placeholder="Student Management&#10;Teacher Portal&#10;Report Generation"
-                rows={5}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreatePlanOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreatePlan}>Create Plan</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Plan Dialog */}
-      <Dialog open={isEditPlanOpen} onOpenChange={setIsEditPlanOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Edit Subscription Plan</DialogTitle>
-            <DialogDescription>Update subscription plan details</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="edit-name">Plan Name</Label>
-              <Input
-                id="edit-name"
-                value={planForm.name}
-                onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })}
-                placeholder="e.g., Basic Plan, Premium Plan"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-description">Description</Label>
-              <Textarea
-                id="edit-description"
-                value={planForm.description}
-                onChange={(e) => setPlanForm({ ...planForm, description: e.target.value })}
-                placeholder="Describe the plan features and benefits"
-                rows={3}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="edit-price">Price Per Student ($)</Label>
-                <Input
-                  id="edit-price"
-                  type="number"
-                  step="0.01"
-                  value={planForm.pricePerStudent}
-                  onChange={(e) => setPlanForm({ ...planForm, pricePerStudent: e.target.value })}
-                  placeholder="0.00"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-billing">Billing Cycle</Label>
-                <Select
-                  value={planForm.billingCycle}
-                  onValueChange={(value: 'monthly' | 'quarterly' | 'yearly') =>
-                    setPlanForm({ ...planForm, billingCycle: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="monthly">Monthly</SelectItem>
-                    <SelectItem value="quarterly">Quarterly</SelectItem>
-                    <SelectItem value="yearly">Yearly</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-features">Features (one per line)</Label>
-              <Textarea
-                id="edit-features"
-                value={planForm.features}
-                onChange={(e) => setPlanForm({ ...planForm, features: e.target.value })}
-                placeholder="Student Management&#10;Teacher Portal&#10;Report Generation"
-                rows={5}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditPlanOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleEditPlan}>Save Changes</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* View Plan Dialog */}
-      <Dialog open={isViewPlanOpen} onOpenChange={setIsViewPlanOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{selectedPlan?.name}</DialogTitle>
-            <DialogDescription>{selectedPlan?.description}</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Price Per Student</p>
-                <p className="text-2xl font-bold">${selectedPlan?.pricePerStudent}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Billing Cycle</p>
-                <Badge variant="outline" className="capitalize mt-1">
-                  {selectedPlan?.billingCycle}
-                </Badge>
-              </div>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Features</p>
-              <ul className="space-y-2">
-                {selectedPlan?.features.map((feature, index) => (
-                  <li key={index} className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Status</p>
-                <Badge variant={selectedPlan?.isActive ? 'default' : 'secondary'} className="mt-1">
-                  {selectedPlan?.isActive ? 'Active' : 'Inactive'}
-                </Badge>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated</p>
-                <p className="text-sm mt-1">
-                  {selectedPlan?.updatedAt ? new Date(selectedPlan.updatedAt).toLocaleDateString() : 'N/A'}
-                </p>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsViewPlanOpen(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* View Subscription Dialog */}
-      <Dialog open={isViewSubscriptionOpen} onOpenChange={setIsViewSubscriptionOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{selectedSubscription?.schoolName}</DialogTitle>
-            <DialogDescription>Subscription Details</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Plan</p>
-                <p className="text-lg font-semibold">{selectedSubscription?.plan}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</p>
-                <Badge
-                  variant={
-                    selectedSubscription?.status === 'verified'
-                      ? 'default'
-                      : selectedSubscription?.status === 'pending'
-                      ? 'secondary'
-                      : 'outline'
-                  }
-                  className="mt-1"
-                >
-                  {selectedSubscription?.status}
-                </Badge>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Students Count</p>
-                <p className="text-lg font-semibold">{selectedSubscription?.studentsCount}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Price Per Student</p>
-                <p className="text-lg font-semibold">${selectedSubscription?.pricePerStudent}</p>
-              </div>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Amount</p>
-              <p className="text-2xl font-bold">${selectedSubscription?.totalAmount.toLocaleString()}</p>
-            </div>
-            <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Payment Date</p>
-                <p className="text-sm mt-1">
-                  {selectedSubscription?.paymentDate
-                    ? new Date(selectedSubscription.paymentDate).toLocaleDateString()
-                    : 'N/A'}
-                </p>
-              </div>
-              {selectedSubscription?.verifiedDate && (
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Verified Date</p>
-                  <p className="text-sm mt-1">
-                    {new Date(selectedSubscription.verifiedDate).toLocaleDateString()}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsViewSubscriptionOpen(false)}>
-              Close
-            </Button>
-            {selectedSubscription?.status === 'pending' && (
-              <Button onClick={() => {
-                if (selectedSubscription) {
-                  handleVerifyPayment(selectedSubscription._id);
-                  setIsViewSubscriptionOpen(false);
-                }
-              }}>
-                <CheckCircle className="mr-2 h-4 w-4" />
-                Verify Payment
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Plan Confirmation */}
-      <AlertDialog open={isDeletePlanOpen} onOpenChange={setIsDeletePlanOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete the subscription plan &quot;{selectedPlan?.name}&quot;. This action
-              cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeletePlan} className="bg-red-600 hover:bg-red-700">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

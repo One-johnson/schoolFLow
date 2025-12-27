@@ -14,6 +14,7 @@ import {
   Settings,
   HelpCircle,
   GraduationCap,
+  CheckSquare,
 } from 'lucide-react';
 
 import {
@@ -30,6 +31,7 @@ import {
 
 const navItems = [
   { href: '/super-admin', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/super-admin/approvals', icon: CheckSquare, label: 'Approvals' },
   { href: '/super-admin/profile', icon: User, label: 'Profile Management' },
   { href: '/super-admin/school-admins', icon: Users, label: 'School Admins' },
   { href: '/super-admin/schools', icon: School, label: 'Schools' },
