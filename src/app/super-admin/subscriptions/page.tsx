@@ -21,7 +21,7 @@ import {
   AlertCircle,
   FileDown,
 } from 'lucide-react';
-import { DataTable, createSortableHeader, createSelectColumn } from  '../../../components/ui/data-table'
+import { DataTable, createSortableHeader, createSelectColumn } from '../../../components/ui/data-table'
 import { exportToJSON, exportToCSV, exportToPDF } from '../../../lib/exports';
 import {
   DropdownMenu,
@@ -40,6 +40,16 @@ import {
   DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -81,12 +91,16 @@ export default function SubscriptionsPage(): JSX.Element {
   const createPlan = useMutation(api.subscriptionPlans.create);
   const updatePlan = useMutation(api.subscriptionPlans.update);
   const deletePlan = useMutation(api.subscriptionPlans.remove);
+  const bulkDeleteRequests = useMutation(api.subscriptionRequests.bulkDelete);
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState<boolean>(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState<boolean>(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState<boolean>(false);
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = React.useState<boolean>(false);
   const [selectedPlanId, setSelectedPlanId] = React.useState<Id<'subscriptionPlans'> | null>(null);
+  const [selectedRows, setSelectedRows] = React.useState<SubscriptionTableRow[]>([]);
   const [isSubmitting, setIsSubmitting] = React.useState<boolean>(false);
+  const [isBulkDeleting, setIsBulkDeleting] = React.useState<boolean>(false);
   const [statusFilter, setStatusFilter] = React.useState<string>('all');
 
   const [planForm, setPlanForm] = React.useState<PlanForm>({
@@ -190,6 +204,24 @@ export default function SubscriptionsPage(): JSX.Element {
     }
   };
 
+  const handleBulkDelete = async (): Promise<void> => {
+    if (selectedRows.length === 0) return;
+
+    setIsBulkDeleting(true);
+    try {
+      const ids = selectedRows.map((row) => row._id as Id<'subscriptionRequests'>);
+      await bulkDeleteRequests({ ids });
+      toast.success(`${selectedRows.length} subscription(s) deleted successfully`);
+      setIsBulkDeleteDialogOpen(false);
+      setSelectedRows([]);
+    } catch (error) {
+      toast.error('Failed to delete subscriptions');
+      console.error(error);
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
   const getStatusBadge = (status: string): JSX.Element => {
     const statusConfig: Record<string, { variant: 'default' | 'secondary' | 'destructive' | 'outline', icon: React.ElementType }> = {
       approved: { variant: 'default', icon: CheckCircle2 },
@@ -240,9 +272,7 @@ export default function SubscriptionsPage(): JSX.Element {
         planName: plan?.name || 'N/A',
         price: `₵${plan?.price || 0}`,
         studentCapacity: `${plan?.maxStudents || 0} students`,
-        trialEndDate: isTrial && request.trialEndDate
-          ? formatDate(Number(request.trialEndDate))
-          : 'N/A',
+        trialEndDate: isTrial && request.trialEndDate ? formatDate(Number(request.trialEndDate)) : 'N/A',
         status: request.status,
         requestedDate: formatDate(Number(request._creationTime)),
       };
@@ -720,19 +750,78 @@ export default function SubscriptionsPage(): JSX.Element {
                   </p>
                 </div>
               ) : (
-                <DataTable
-                  columns={columns}
-                  data={filteredTableData}
-                  searchKey="schoolAdminEmail"
-                  searchPlaceholder="Search by email..."
-                  exportFormats={['json', 'csv', 'pdf']}
-                  onExport={handleExportSelected}
-                />
+                <>
+                  {selectedRows.length > 0 && (
+                    <div className="mb-4 flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-5 w-5 text-blue-600" />
+                        <span className="font-medium text-gray-900">
+                          {selectedRows.length} subscription(s) selected
+                        </span>
+                      </div>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="gap-2"
+                        onClick={() => setIsBulkDeleteDialogOpen(true)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Delete Selected
+                      </Button>
+                    </div>
+                  )}
+                  <DataTable
+                    columns={columns}
+                    data={filteredTableData}
+                    searchKey="schoolAdminEmail"
+                    searchPlaceholder="Search by email..."
+                    exportFormats={['json', 'csv', 'pdf']}
+                    onExport={handleExportSelected}
+                    onSelectionChange={setSelectedRows}
+                  />
+                </>
               )}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      <AlertDialog open={isBulkDeleteDialogOpen} onOpenChange={setIsBulkDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Subscriptions</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedRows.length} subscription(s)? This will:
+              <ul className="mt-2 list-disc list-inside space-y-1">
+                <li>Remove the subscription records permanently</li>
+                <li>Deactivate associated school admin accounts</li>
+                <li>Send notifications to affected users</li>
+              </ul>
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isBulkDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              disabled={isBulkDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isBulkDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete {selectedRows.length} Subscription(s)
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

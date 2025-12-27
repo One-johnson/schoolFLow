@@ -217,3 +217,47 @@ export const checkTrialExpiry = mutation({
     return expiredTrials.length;
   },
 });
+
+export const bulkDelete = mutation({
+  args: {
+    ids: v.array(v.id('subscriptionRequests')),
+  },
+  handler: async (ctx, args) => {
+    const deletedCount: number = 0;
+    
+    for (const id of args.ids) {
+      const request = await ctx.db.get(id);
+      if (request) {
+        // Update associated school admin if subscription was active
+        if (request.status === 'approved') {
+          const admin = await ctx.db
+            .query('schoolAdmins')
+            .filter((q) => q.eq(q.field('email'), request.schoolAdminEmail))
+            .first();
+
+          if (admin) {
+            await ctx.db.patch(admin._id, {
+              hasActiveSubscription: false,
+              status: 'pending',
+            });
+
+            // Create notification for school admin
+            await ctx.db.insert('notifications', {
+              title: 'Subscription Removed',
+              message: `Your subscription to ${request.planName} has been removed by an administrator.`,
+              type: 'warning',
+              timestamp: new Date().toISOString(),
+              read: false,
+              recipientId: request.schoolAdminId,
+              recipientRole: 'school_admin',
+            });
+          }
+        }
+
+        await ctx.db.delete(id);
+      }
+    }
+
+    return { deletedCount: args.ids.length };
+  },
+});

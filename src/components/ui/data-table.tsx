@@ -33,6 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { JSX } from 'react';
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -43,6 +44,7 @@ interface DataTableProps<TData, TValue> {
   onExportAll?: () => void;
   exportFormats?: ('json' | 'csv' | 'pdf')[];
   onExport?: (rows: TData[], format: 'json' | 'csv' | 'pdf') => void;
+  onSelectionChange?: (rows: TData[]) => void;
 }
 
 export function DataTable<TData, TValue>({
@@ -54,7 +56,8 @@ export function DataTable<TData, TValue>({
   onExportAll,
   exportFormats = ['json', 'csv', 'pdf'],
   onExport,
-}: DataTableProps<TData, TValue>): React.JSX.Element {
+  onSelectionChange,
+}: DataTableProps<TData, TValue>): JSX.Element {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
@@ -90,6 +93,14 @@ export function DataTable<TData, TValue>({
   };
 
   const selectedCount = table.getFilteredSelectedRowModel().rows.length;
+
+  // Notify parent component when selection changes
+  React.useEffect(() => {
+    if (onSelectionChange) {
+      const selectedRows = table.getFilteredSelectedRowModel().rows.map((row) => row.original);
+      onSelectionChange(selectedRows);
+    }
+  }, [rowSelection, onSelectionChange, table]);
 
   return (
     <div className="space-y-4">
