@@ -32,27 +32,13 @@ export default function DashboardPage(): JSX.Element {
   const auditLogs = useQuery(api.auditLogs.list);
   const schools = useQuery(api.schools.list);
 
-  // Generate revenue trend data (last 6 months)
-  const revenueData = useMemo(() => {
-    const months = ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return months.map((month, index) => ({
-      month,
-      revenue: Math.floor(Math.random() * 50000) + 30000 + index * 5000,
-      students: Math.floor(Math.random() * 500) + 300 + index * 50,
-    }));
-  }, []);
+  // Revenue trend data (empty - no data in system yet)
+  const revenueData: Array<{ month: string; revenue: number; students: number }> = [];
 
-  // Generate school growth data
-  const schoolGrowthData = useMemo(() => {
-    const months = ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return months.map((month, index) => ({
-      month,
-      active: 10 + index * 3,
-      pending: 5 + Math.floor(Math.random() * 3),
-    }));
-  }, []);
+  // School growth data (empty - no data in system yet)
+  const schoolGrowthData: Array<{ month: string; active: number; pending: number }> = [];
 
-  // Status distribution data
+  // Status distribution data (real data from schools)
   const statusData = useMemo(() => {
     if (!schools) return [];
     const statusCounts = schools.reduce((acc: Record<string, number>, school) => {
@@ -66,15 +52,8 @@ export default function DashboardPage(): JSX.Element {
     }));
   }, [schools]);
 
-  // Monthly student enrollment data
-  const enrollmentData = useMemo(() => {
-    const months = ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return months.map((month, index) => ({
-      month,
-      enrolled: Math.floor(Math.random() * 200) + 100 + index * 30,
-      target: 150 + index * 30,
-    }));
-  }, []);
+  // Monthly student enrollment data (empty - no data in system yet)
+  const enrollmentData: Array<{ month: string; enrolled: number; target: number }> = [];
 
   if (!stats) {
     return (
@@ -162,47 +141,53 @@ export default function DashboardPage(): JSX.Element {
             <CardTitle>Revenue & Student Growth</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={revenueData}>
-                <defs>
-                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="colorStudents" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.8} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-800" />
-                <XAxis dataKey="month" className="text-xs" />
-                <YAxis className="text-xs" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '0.5rem',
-                  }}
-                />
-                <Legend />
-                <Area
-                  type="monotone"
-                  dataKey="revenue"
-                  stroke="#3b82f6"
-                  fillOpacity={1}
-                  fill="url(#colorRevenue)"
-                  name="Revenue ($)"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="students"
-                  stroke="#10b981"
-                  fillOpacity={1}
-                  fill="url(#colorStudents)"
-                  name="Students"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {revenueData.length === 0 ? (
+              <div className="flex items-center justify-center h-[300px]">
+                <p className="text-sm text-gray-500 dark:text-gray-400">No data available</p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={revenueData}>
+                  <defs>
+                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="colorStudents" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.8} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-800" />
+                  <XAxis dataKey="month" className="text-xs" />
+                  <YAxis className="text-xs" />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '0.5rem',
+                    }}
+                  />
+                  <Legend />
+                  <Area
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="#3b82f6"
+                    fillOpacity={1}
+                    fill="url(#colorRevenue)"
+                    name="Revenue ($)"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="students"
+                    stroke="#10b981"
+                    fillOpacity={1}
+                    fill="url(#colorStudents)"
+                    name="Students"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -211,23 +196,29 @@ export default function DashboardPage(): JSX.Element {
             <CardTitle>School Growth Trend</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={schoolGrowthData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-800" />
-                <XAxis dataKey="month" className="text-xs" />
-                <YAxis className="text-xs" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '0.5rem',
-                  }}
-                />
-                <Legend />
-                <Bar dataKey="active" fill="#3b82f6" name="Active Schools" radius={[8, 8, 0, 0]} />
-                <Bar dataKey="pending" fill="#f59e0b" name="Pending Schools" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {schoolGrowthData.length === 0 ? (
+              <div className="flex items-center justify-center h-[300px]">
+                <p className="text-sm text-gray-500 dark:text-gray-400">No data available</p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={schoolGrowthData}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-800" />
+                  <XAxis dataKey="month" className="text-xs" />
+                  <YAxis className="text-xs" />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '0.5rem',
+                    }}
+                  />
+                  <Legend />
+                  <Bar dataKey="active" fill="#3b82f6" name="Active Schools" radius={[8, 8, 0, 0]} />
+                  <Bar dataKey="pending" fill="#f59e0b" name="Pending Schools" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -263,38 +254,44 @@ export default function DashboardPage(): JSX.Element {
             <CardTitle>Monthly Student Enrollment</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={enrollmentData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-800" />
-                <XAxis dataKey="month" className="text-xs" />
-                <YAxis className="text-xs" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '0.5rem',
-                  }}
-                />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="enrolled"
-                  stroke="#10b981"
-                  strokeWidth={2}
-                  name="Enrolled"
-                  dot={{ r: 4 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="target"
-                  stroke="#ef4444"
-                  strokeWidth={2}
-                  strokeDasharray="5 5"
-                  name="Target"
-                  dot={{ r: 4 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {enrollmentData.length === 0 ? (
+              <div className="flex items-center justify-center h-[300px]">
+                <p className="text-sm text-gray-500 dark:text-gray-400">No data available</p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={enrollmentData}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-800" />
+                  <XAxis dataKey="month" className="text-xs" />
+                  <YAxis className="text-xs" />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '0.5rem',
+                    }}
+                  />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="enrolled"
+                    stroke="#10b981"
+                    strokeWidth={2}
+                    name="Enrolled"
+                    dot={{ r: 4 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="target"
+                    stroke="#ef4444"
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    name="Target"
+                    dot={{ r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
       </div>

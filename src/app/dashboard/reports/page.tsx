@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   LineChart,
   Line,
@@ -12,12 +12,12 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-} from "recharts";
-import { TrendingUp, School, Users, DollarSign } from "lucide-react";
-import { useQuery } from "convex/react";
-import { api } from "../../../../convex/_generated/api";
-import { Skeleton } from "@/components/ui/skeleton";
-import { JSX } from "react";
+} from 'recharts';
+import { TrendingUp, School, Users, DollarSign, BarChart3, TrendingUpIcon } from 'lucide-react';
+import { useQuery } from 'convex/react';
+import { api } from '../../../../convex/_generated/api';
+import { Skeleton } from '@/components/ui/skeleton';
+import { JSX } from 'react';
 
 export default function ReportsPage(): JSX.Element {
   const reportData = useQuery(api.reports.getData);
@@ -40,9 +40,7 @@ export default function ReportsPage(): JSX.Element {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Reports & Analytics
-        </h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Reports & Analytics</h1>
         <p className="text-gray-500 dark:text-gray-400 mt-1">
           Platform-wide metrics and performance trends
         </p>
@@ -56,13 +54,8 @@ export default function ReportsPage(): JSX.Element {
                 <School className="h-6 w-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Total Schools
-                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Total Schools</p>
                 <p className="text-2xl font-bold">{stats.totalSchools}</p>
-                <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                  ↑ 18% growth
-                </p>
               </div>
             </div>
           </CardContent>
@@ -75,15 +68,8 @@ export default function ReportsPage(): JSX.Element {
                 <Users className="h-6 w-6 text-green-600 dark:text-green-400" />
               </div>
               <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Total Students
-                </p>
-                <p className="text-2xl font-bold">
-                  {stats.totalStudents.toLocaleString()}
-                </p>
-                <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                  ↑ 24% growth
-                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Total Students</p>
+                <p className="text-2xl font-bold">{stats.totalStudents.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -96,15 +82,8 @@ export default function ReportsPage(): JSX.Element {
                 <DollarSign className="h-6 w-6 text-purple-600 dark:text-purple-400" />
               </div>
               <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Total Revenue
-                </p>
-                <p className="text-2xl font-bold">
-                  ${stats.totalRevenue.toLocaleString()}
-                </p>
-                <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                  ↑ 32% growth
-                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Total Revenue</p>
+                <p className="text-2xl font-bold">${stats.totalRevenue.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -117,17 +96,9 @@ export default function ReportsPage(): JSX.Element {
                 <TrendingUp className="h-6 w-6 text-orange-600 dark:text-orange-400" />
               </div>
               <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Active Rate
-                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Active Rate</p>
                 <p className="text-2xl font-bold">
-                  {((stats.activeSchools / stats.totalSchools) * 100).toFixed(
-                    0
-                  )}
-                  %
-                </p>
-                <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                  ↑ 5% growth
+                  {stats.totalSchools > 0 ? ((stats.activeSchools / stats.totalSchools) * 100).toFixed(0) : 0}%
                 </p>
               </div>
             </div>
@@ -141,22 +112,34 @@ export default function ReportsPage(): JSX.Element {
             <CardTitle>Schools Growth</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={reportData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="schools"
-                  stroke="#3b82f6"
-                  strokeWidth={2}
-                  name="Schools"
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {reportData.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-[300px] gap-3">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full blur-xl opacity-20 animate-pulse"></div>
+                  <div className="relative h-20 w-20 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 flex items-center justify-center shadow-lg">
+                    <TrendingUpIcon className="h-10 w-10 text-blue-600 dark:text-blue-400 animate-bounce" />
+                  </div>
+                </div>
+                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">No growth data yet</p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={reportData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="schools"
+                    stroke="#3b82f6"
+                    strokeWidth={2}
+                    name="Schools"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -165,16 +148,28 @@ export default function ReportsPage(): JSX.Element {
             <CardTitle>Revenue Growth</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={reportData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="revenue" fill="#10b981" name="Revenue ($)" />
-              </BarChart>
-            </ResponsiveContainer>
+            {reportData.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-[300px] gap-3">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-green-400 to-green-600 rounded-full blur-xl opacity-20 animate-pulse"></div>
+                  <div className="relative h-20 w-20 rounded-full bg-gradient-to-br from-green-100 to-green-200 dark:from-green-900 dark:to-green-800 flex items-center justify-center shadow-lg">
+                    <BarChart3 className="h-10 w-10 text-green-600 dark:text-green-400 animate-bounce" />
+                  </div>
+                </div>
+                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">No revenue data yet</p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={reportData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="revenue" fill="#10b981" name="Revenue ($)" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -184,22 +179,34 @@ export default function ReportsPage(): JSX.Element {
           <CardTitle>Student Enrollment Trend</CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={reportData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey="students"
-                stroke="#8b5cf6"
-                strokeWidth={2}
-                name="Students"
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          {reportData.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-[300px] gap-3">
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-purple-600 rounded-full blur-xl opacity-20 animate-pulse"></div>
+                <div className="relative h-20 w-20 rounded-full bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900 dark:to-purple-800 flex items-center justify-center shadow-lg">
+                  <Users className="h-10 w-10 text-purple-600 dark:text-purple-400 animate-bounce" />
+                </div>
+              </div>
+              <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">No enrollment data yet</p>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={reportData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="students"
+                  stroke="#8b5cf6"
+                  strokeWidth={2}
+                  name="Students"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </CardContent>
       </Card>
     </div>

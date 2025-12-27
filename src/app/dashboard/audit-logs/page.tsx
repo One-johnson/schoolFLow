@@ -5,10 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { ColumnDef } from '@tanstack/react-table';
 import { DataTable, createSortableHeader, createSelectColumn } from '../../../components/ui/data-table';
-import { FileText } from 'lucide-react';
+import { FileText, FileDown } from 'lucide-react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import { exportToJSON, exportToCSV, exportToPDF } from '../../../lib/exports';
 import {
   DropdownMenu,
@@ -16,7 +17,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { FileDown } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Select,
@@ -25,7 +25,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
 
 interface AuditLog {
   _id: string;
@@ -119,21 +118,12 @@ export default function AuditLogsPage(): JSX.Element {
     if (format === 'json') {
       exportToJSON(selected, 'audit_logs_selected');
     } else if (format === 'csv') {
-      exportToCSV(selected as unknown as Record<string, unknown>[], 'audit_logs_selected');
+      exportToCSV(selected as unknown as Record<string, unknown>[],  'audit_logs_selected');
     } else {
-      exportToPDF(selected as unknown as Record<string, unknown>[], 'audit_logs_selected', 'Selected Audit Logs Report');
+      exportToPDF(selected as unknown as Record<string, unknown>[],  'audit_logs_selected', 'Selected Audit Logs Report');
     }
     toast.success(`${selected.length} log(s) exported as ${format.toUpperCase()}`);
   };
-
-  if (!logs) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-96 w-full" />
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -146,7 +136,7 @@ export default function AuditLogsPage(): JSX.Element {
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="gap-2">
+            <Button variant="outline" className="gap-2" disabled={!logs}>
               <FileDown className="h-4 w-4" />
               Export All
             </Button>
@@ -160,7 +150,7 @@ export default function AuditLogsPage(): JSX.Element {
       </div>
 
       <div className="flex gap-4">
-        <Select value={entityFilter} onValueChange={setEntityFilter}>
+        <Select value={entityFilter} onValueChange={setEntityFilter} disabled={!logs}>
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Filter by entity" />
           </SelectTrigger>
@@ -178,18 +168,32 @@ export default function AuditLogsPage(): JSX.Element {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            Activity Logs ({filteredData.length})
+            Activity Logs ({logs ? filteredData.length : '...'})
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <DataTable
-            columns={columns}
-            data={filteredData}
-            searchKey="action"
-            searchPlaceholder="Search logs..."
-            exportFormats={['json', 'csv', 'pdf']}
-            onExport={handleExportSelected}
-          />
+          {!logs ? (
+            <div className="space-y-3">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
+          ) : (
+            <DataTable
+              columns={columns}
+              data={filteredData}
+              searchKey="action"
+              searchPlaceholder="Search logs..."
+              exportFormats={['json', 'csv', 'pdf']}
+              onExport={handleExportSelected}
+            />
+          )}
         </CardContent>
       </Card>
     </div>
