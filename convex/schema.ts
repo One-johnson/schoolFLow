@@ -37,10 +37,10 @@ export default defineSchema({
     email: v.string(),
     schoolId: v.string(),
     tempPassword: v.optional(v.string()),
-    status: v.union(v.literal('active'), v.literal('inactive'), v.literal('pending')),
+    status: v.union(v.literal('active'), v.literal('inactive'), v.literal('pending'), v.literal('suspended')),
     createdAt: v.string(),
     invitedBy: v.string(),
-  }).index('by_email', ['email']),
+  }).index('by_email', ['email']).index('by_school', ['schoolId']),
 
   subscriptions: defineTable({
     schoolId: v.string(),
