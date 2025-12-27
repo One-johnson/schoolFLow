@@ -1,6 +1,6 @@
 'use client';
 
-import { JSX, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Bell, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -26,15 +26,15 @@ import {
 } from 'lucide-react';
 
 const navItems = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/dashboard/profile', icon: User, label: 'Profile Management' },
-  { href: '/dashboard/school-admins', icon: Users, label: 'School Admins' },
-  { href: '/dashboard/schools', icon: School, label: 'Schools' },
-  { href: '/dashboard/subscriptions', icon: CreditCard, label: 'Subscriptions' },
-  { href: '/dashboard/audit-logs', icon: FileText, label: 'Audit Logs' },
-  { href: '/dashboard/reports', icon: BarChart3, label: 'Reports' },
-  { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
-  { href: '/dashboard/support', icon: HelpCircle, label: 'Support' },
+  { href: '/super-admin', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/super-admin/profile', icon: User, label: 'Profile Management' },
+  { href: '/super-admin/school-admins', icon: Users, label: 'School Admins' },
+  { href: '/super-admin/schools', icon: School, label: 'Schools' },
+  { href: '/super-admin/subscriptions', icon: CreditCard, label: 'Subscriptions' },
+  { href: '/super-admin/audit-logs', icon: FileText, label: 'Audit Logs' },
+  { href: '/super-admin/reports', icon: BarChart3, label: 'Reports' },
+  { href: '/super-admin/settings', icon: Settings, label: 'Settings' },
+  { href: '/super-admin/support', icon: HelpCircle, label: 'Support' },
 ];
 
 export function MobileHeader(): JSX.Element {
@@ -112,7 +112,7 @@ export function MobileHeader(): JSX.Element {
           variant="ghost"
           size="icon"
           className="relative"
-          onClick={() => router.push('/dashboard/notifications')}
+          onClick={() => router.push('/super-admin/notifications')}
         >
           <Bell className="h-5 w-5 text-gray-900 dark:text-white" />
           {unreadCount > 0 && (
@@ -125,7 +125,7 @@ export function MobileHeader(): JSX.Element {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => router.push('/dashboard/account')}
+          onClick={() => router.push('/super-admin/account')}
         >
           <Avatar className="h-8 w-8">
             <AvatarImage src="" alt={user?.name || 'User'} />

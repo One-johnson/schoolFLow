@@ -7,6 +7,7 @@ import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/dashboard/app-sidebar';
 import { DesktopHeader } from '@/components/dashboard/desktop-header';
 import { MobileHeader } from '@/components/dashboard/mobile-header';
+import { ClientOnly } from '@/components/dashboard/client-only';
 
 export default function DashboardLayout({
   children,
@@ -28,8 +29,10 @@ export default function DashboardLayout({
         <AppSidebar />
       </div>
       <SidebarInset className="w-full">
-        <DesktopHeader />
-        <MobileHeader />
+        <ClientOnly>
+          <DesktopHeader />
+          <MobileHeader />
+        </ClientOnly>
         <main className="p-4 md:p-8">{children}</main>
       </SidebarInset>
     </SidebarProvider>

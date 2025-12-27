@@ -1,6 +1,6 @@
 'use client';
 
-import { JSX, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Bell, LogOut, User, Moon, Sun, Settings, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -41,15 +41,15 @@ import type { Id } from '../../../convex/_generated/dataModel';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 
 const searchItems = [
-  { label: 'Dashboard', href: '/dashboard', keywords: ['home', 'overview', 'metrics'] },
-  { label: 'Profile Management', href: '/dashboard/profile', keywords: ['profile', 'account', 'settings'] },
-  { label: 'School Admins', href: '/dashboard/school-admins', keywords: ['admins', 'users', 'invite'] },
-  { label: 'Schools', href: '/dashboard/schools', keywords: ['schools', 'institutions', 'approve'] },
-  { label: 'Subscriptions', href: '/dashboard/subscriptions', keywords: ['billing', 'payments', 'subscription'] },
-  { label: 'Audit Logs', href: '/dashboard/audit-logs', keywords: ['logs', 'history', 'audit'] },
-  { label: 'Reports & Analytics', href: '/dashboard/reports', keywords: ['reports', 'analytics', 'charts'] },
-  { label: 'System Settings', href: '/dashboard/settings', keywords: ['settings', 'configuration', 'system'] },
-  { label: 'Support', href: '/dashboard/support', keywords: ['help', 'support', 'tickets'] },
+  { label: 'Dashboard', href: '/super-admin', keywords: ['home', 'overview', 'metrics'] },
+  { label: 'Profile Management', href: '/super-admin/profile', keywords: ['profile', 'account', 'settings'] },
+  { label: 'School Admins', href: '/super-admin/school-admins', keywords: ['admins', 'users', 'invite'] },
+  { label: 'Schools', href: '/super-admin/schools', keywords: ['schools', 'institutions', 'approve'] },
+  { label: 'Subscriptions', href: '/super-admin/subscriptions', keywords: ['billing', 'payments', 'subscription'] },
+  { label: 'Audit Logs', href: '/super-admin/audit-logs', keywords: ['logs', 'history', 'audit'] },
+  { label: 'Reports & Analytics', href: '/super-admin/reports', keywords: ['reports', 'analytics', 'charts'] },
+  { label: 'System Settings', href: '/super-admin/settings', keywords: ['settings', 'configuration', 'system'] },
+  { label: 'Support', href: '/super-admin/support', keywords: ['help', 'support', 'tickets'] },
 ];
 
 export function DesktopHeader(): JSX.Element {
@@ -194,7 +194,7 @@ export function DesktopHeader(): JSX.Element {
                 )}
                 {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push('/dashboard/profile')}>
+              <DropdownMenuItem onClick={() => router.push('/super-admin/profile')}>
                 <Settings className="mr-2 h-4 w-4" />
                 Profile Settings
               </DropdownMenuItem>

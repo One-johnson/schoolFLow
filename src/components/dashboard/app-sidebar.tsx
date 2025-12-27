@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import * as React from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import * as React from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   User,
@@ -14,7 +14,7 @@ import {
   Settings,
   HelpCircle,
   GraduationCap,
-} from "lucide-react";
+} from 'lucide-react';
 
 import {
   Sidebar,
@@ -26,22 +26,18 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
-} from "@/components/ui/sidebar";
+} from '@/components/ui/sidebar';
 
 const navItems = [
-  { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/dashboard/profile", icon: User, label: "Profile Management" },
-  { href: "/dashboard/school-admins", icon: Users, label: "School Admins" },
-  { href: "/dashboard/schools", icon: School, label: "Schools" },
-  {
-    href: "/dashboard/subscriptions",
-    icon: CreditCard,
-    label: "Subscriptions",
-  },
-  { href: "/dashboard/audit-logs", icon: FileText, label: "Audit Logs" },
-  { href: "/dashboard/reports", icon: BarChart3, label: "Reports" },
-  { href: "/dashboard/settings", icon: Settings, label: "Settings" },
-  { href: "/dashboard/support", icon: HelpCircle, label: "Support" },
+  { href: '/super-admin', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/super-admin/profile', icon: User, label: 'Profile Management' },
+  { href: '/super-admin/school-admins', icon: Users, label: 'School Admins' },
+  { href: '/super-admin/schools', icon: School, label: 'Schools' },
+  { href: '/super-admin/subscriptions', icon: CreditCard, label: 'Subscriptions' },
+  { href: '/super-admin/audit-logs', icon: FileText, label: 'Audit Logs' },
+  { href: '/super-admin/reports', icon: BarChart3, label: 'Reports' },
+  { href: '/super-admin/settings', icon: Settings, label: 'Settings' },
+  { href: '/super-admin/support', icon: HelpCircle, label: 'Support' },
 ];
 
 export function AppSidebar(): React.JSX.Element {
@@ -53,7 +49,7 @@ export function AppSidebar(): React.JSX.Element {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
-              <Link href="/dashboard">
+              <Link href="/super-admin">
                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-blue-600 text-white">
                   <GraduationCap className="size-4" />
                 </div>
@@ -76,11 +72,7 @@ export function AppSidebar(): React.JSX.Element {
                 const isActive = pathname === item.href;
                 return (
                   <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive}
-                      tooltip={item.label}
-                    >
+                    <SidebarMenuButton asChild isActive={isActive} tooltip={item.label}>
                       <Link href={item.href}>
                         <Icon />
                         <span>{item.label}</span>
