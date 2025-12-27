@@ -38,19 +38,21 @@ export default function LoginPage(): JSX.Element {
     const superAdminResult = authService.login(formData.email, formData.password);
     if (superAdminResult.success) {
       toast.success('Login successful!');
-      router.push('/dashboard');
+      router.push('/super-admin');
       setLoading(false);
       return;
     }
 
-    // If not Super Admin, check School Admin by schoolId
+    // If not Super Admin, check School Admin by schoolId or email
     if (schoolAdmins) {
       const schoolAdmin = schoolAdmins.find(
-        (admin) => admin.schoolId === formData.email && admin.tempPassword === formData.password
+        (admin) => 
+          (admin.schoolId === formData.email || admin.email === formData.email) && 
+          (admin.tempPassword === formData.password || admin.password === formData.password)
       );
 
       if (schoolAdmin) {
-        // Check if admin is active
+        // Check if admin is active or pending
         if (schoolAdmin.status === 'inactive') {
           toast.error('Your account has been deactivated. Please contact support.');
           setLoading(false);
@@ -58,21 +60,16 @@ export default function LoginPage(): JSX.Element {
         }
 
         if (schoolAdmin.status === 'suspended') {
-          toast.error('Your account has been suspended. Please contact support.');
+          toast.error('Your account has been suspended. Your trial may have expired.');
           setLoading(false);
           return;
         }
 
-        if (schoolAdmin.status === 'pending') {
-          toast.error('Your account is pending approval. Please wait for activation.');
-          setLoading(false);
-          return;
-        }
-
+        // Allow pending admins to login to complete subscription process
         // School Admin login successful
+        localStorage.setItem('schoolAdminEmail', schoolAdmin.email);
         toast.success('Login successful!');
-        // TODO: Implement School Admin dashboard redirect
-        router.push('/dashboard'); // For now, redirect to same dashboard
+        router.push('/school-admin');
         setLoading(false);
         return;
       }
