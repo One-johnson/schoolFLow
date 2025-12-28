@@ -1,15 +1,15 @@
-"use client";
+'use client';
 
-import { JSX, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Moon, Sun, Settings, LogOut, User, Mail } from "lucide-react";
-import { useTheme } from "next-themes";
-import { authService } from "@/lib/auth";
-import { toast } from "sonner";
+import { JSX, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { Moon, Sun, Settings, LogOut, User, Mail } from 'lucide-react';
+import { useTheme } from 'next-themes';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,34 +19,25 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from '@/components/ui/alert-dialog';
 
 export default function AccountPage(): JSX.Element {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [showLogoutDialog, setShowLogoutDialog] = useState<boolean>(false);
-  const [user, setUser] = useState<{ name: string; email: string } | null>(
-    null
-  );
+  const { user, logout } = useAuth();
 
-  useEffect(() => {
-    const currentUser = authService.getCurrentUser();
-    if (currentUser) {
-      setUser({ name: currentUser.name, email: currentUser.email });
-    }
-  }, []);
-
-  const handleLogout = (): void => {
-    authService.logout();
-    toast.success("Logged out successfully");
-    router.push("/login");
+  const handleLogout = async (): Promise<void> => {
+    await logout();
+    toast.success('Logged out successfully');
   };
 
-  const getInitials = (name: string): string => {
-    return name
-      .split(" ")
+  const getInitials = (email: string): string => {
+    return email
+      .split('@')[0]
+      .split('.')
       .map((n) => n[0])
-      .join("")
+      .join('')
       .toUpperCase()
       .slice(0, 2);
   };
@@ -54,9 +45,7 @@ export default function AccountPage(): JSX.Element {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Account
-        </h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Account</h1>
         <p className="text-gray-500 dark:text-gray-400 mt-1">
           Manage your account settings and preferences
         </p>
@@ -69,15 +58,13 @@ export default function AccountPage(): JSX.Element {
         <CardContent className="space-y-6">
           <div className="flex items-center gap-4">
             <Avatar className="h-20 w-20">
-              <AvatarImage src="" alt={user?.name || "User"} />
+              <AvatarImage src="" alt={user?.email || 'User'} />
               <AvatarFallback className="text-2xl">
-                {user ? getInitials(user.name) : "SA"}
+                {user?.email ? getInitials(user.email) : 'SA'}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                {user?.name}
-              </h2>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Super Admin</h2>
               <p className="text-gray-500 dark:text-gray-400">{user?.email}</p>
             </div>
           </div>
@@ -88,19 +75,15 @@ export default function AccountPage(): JSX.Element {
             <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
               <User className="h-5 w-5" />
               <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Full Name
-                </p>
-                <p className="font-medium">{user?.name}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Role</p>
+                <p className="font-medium">Super Administrator</p>
               </div>
             </div>
 
             <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
               <Mail className="h-5 w-5" />
               <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Email Address
-                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Email Address</p>
                 <p className="font-medium">{user?.email}</p>
               </div>
             </div>
@@ -122,10 +105,10 @@ export default function AccountPage(): JSX.Element {
             </div>
             <Button
               variant="outline"
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               className="gap-2"
             >
-              {theme === "dark" ? (
+              {theme === 'dark' ? (
                 <>
                   <Sun className="h-4 w-4" />
                   Light Mode
@@ -149,7 +132,7 @@ export default function AccountPage(): JSX.Element {
           <Button
             variant="outline"
             className="w-full justify-start gap-2"
-            onClick={() => router.push("/dashboard/profile")}
+            onClick={() => router.push('/super-admin/profile')}
           >
             <Settings className="h-4 w-4" />
             Profile Settings
@@ -171,8 +154,7 @@ export default function AccountPage(): JSX.Element {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Logout</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to logout? You will be redirected to the
-              login page.
+              Are you sure you want to logout? You will be redirected to the login page.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

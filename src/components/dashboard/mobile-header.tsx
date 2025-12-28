@@ -1,13 +1,13 @@
 'use client';
 
-import { JSX, useEffect, useState } from 'react';
+import { JSX, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Bell, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { authService } from '@/lib/auth';
+import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import Link from 'next/link';
@@ -43,17 +43,10 @@ const navItems = [
 export function MobileHeader(): JSX.Element {
   const router = useRouter();
   const pathname = usePathname();
-  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const notifications = useQuery(api.notifications.list) || [];
   const unreadCount = notifications.filter((n) => !n.read).length;
-
-  useEffect(() => {
-    const currentUser = authService.getCurrentUser();
-    if (currentUser) {
-      setUser({ name: currentUser.name, email: currentUser.email });
-    }
-  }, []);
 
   const getInitials = (name: string): string => {
     return name
@@ -131,8 +124,8 @@ export function MobileHeader(): JSX.Element {
           onClick={() => router.push('/super-admin/account')}
         >
           <Avatar className="h-8 w-8">
-            <AvatarImage src="" alt={user?.name || 'User'} />
-            <AvatarFallback>{user ? getInitials(user.name) : 'SA'}</AvatarFallback>
+            <AvatarImage src="" alt={user?.email || 'User'} />
+            <AvatarFallback>{user?.email ? getInitials(user.email) : 'SA'}</AvatarFallback>
           </Avatar>
         </Button>
       </div>

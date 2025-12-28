@@ -8,7 +8,8 @@ import { api } from '../../../convex/_generated/api';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
 import { 
   LayoutDashboard, 
   School, 
@@ -16,7 +17,6 @@ import {
   User, 
   Settings 
 } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { JSX } from 'react';
 
@@ -57,12 +57,11 @@ export function MobileHeader(): JSX.Element {
   const notifications = useQuery(api.notifications.list);
   const unreadCount = notifications?.filter((n) => !n.read).length || 0;
   const pathname = usePathname();
-  const router = useRouter();
+  const { logout } = useAuth();
 
-  const handleLogout = (): void => {
-    localStorage.removeItem('schoolAdminEmail');
+  const handleLogout = async (): Promise<void> => {
+    await logout();
     toast.success('Logged out successfully');
-    router.push('/login');
   };
 
   return (

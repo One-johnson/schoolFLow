@@ -1,31 +1,25 @@
-"use client";
+'use client';
 
-import { useState, useEffect, JSX } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { authService } from "@/lib/auth";
-import type { SuperAdmin } from "@/types";
-import { toast } from "sonner";
-import { Eye, EyeOff } from "lucide-react";
-import { useQuery } from "convex/react";
-import { api } from "../../../../convex/_generated/api";
+import { useState, useEffect, JSX } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/hooks/useAuth';
+import { useMutation } from 'convex/react';
+import { toast } from 'sonner';
+import { Eye, EyeOff } from 'lucide-react';
+import { useQuery } from 'convex/react';
+import { api } from '../../../../convex/_generated/api';
 
 export default function ProfilePage(): JSX.Element {
-  const [user, setUser] = useState<SuperAdmin | null>(null);
-  const [profileData, setProfileData] = useState({ name: "", email: "" });
+  const { user } = useAuth();
+  const [profileData, setProfileData] = useState({ name: '', email: '' });
   const [passwordData, setPasswordData] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
   });
   const [showPasswords, setShowPasswords] = useState({
     current: false,
@@ -34,58 +28,48 @@ export default function ProfilePage(): JSX.Element {
   });
 
   const activityLogs = useQuery(api.auditLogs.list);
+  const updateProfile = useMutation(api.auth.updateProfile);
+  const changePassword = useMutation(api.auth.changePassword);
 
   useEffect(() => {
-    const currentUser = authService.getCurrentUser();
-    if (currentUser) {
-      setUser(currentUser);
-      setProfileData({ name: currentUser.name, email: currentUser.email });
+    if (user) {
+      setProfileData({ name: user.email, email: user.email });
     }
-  }, []);
+  }, [user]);
 
-  const handleUpdateProfile = (e: React.FormEvent): void => {
+  const handleUpdateProfile = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
-    const result = authService.updateProfile(
-      profileData.name,
-      profileData.email
-    );
-    if (result.success) {
-      toast.success(result.message);
-      const updatedUser = authService.getCurrentUser();
-      if (updatedUser) setUser(updatedUser);
-    } else {
-      toast.error(result.message);
+    try {
+      await updateProfile({ email: user?.email || '', name: profileData.name });
+      toast.success('Profile updated successfully');
+    } catch (error) {
+      toast.error('Failed to update profile');
     }
   };
 
-  const handleChangePassword = (e: React.FormEvent): void => {
+  const handleChangePassword = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      toast.error("New passwords do not match");
+      toast.error('New passwords do not match');
       return;
     }
-    const result = authService.changePassword(
-      passwordData.currentPassword,
-      passwordData.newPassword
-    );
-    if (result.success) {
-      toast.success(result.message);
-      setPasswordData({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
+    try {
+      await changePassword({
+        email: user?.email || '',
+        oldPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
       });
-    } else {
-      toast.error(result.message);
+      toast.success('Password changed successfully');
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (error) {
+      toast.error('Failed to change password');
     }
   };
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Profile Management
-        </h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Profile Management</h1>
         <p className="text-gray-500 dark:text-gray-400 mt-1">
           Manage your personal information and security settings
         </p>
@@ -131,25 +115,11 @@ export default function ProfilePage(): JSX.Element {
                 </div>
                 <div className="space-y-2">
                   <Label>Account Created</Label>
-                  <Input
-                    value={
-                      user?.createdAt
-                        ? new Date(user.createdAt).toLocaleString()
-                        : ""
-                    }
-                    disabled
-                  />
+                  <Input value="N/A" disabled />
                 </div>
                 <div className="space-y-2">
                   <Label>Last Login</Label>
-                  <Input
-                    value={
-                      user?.lastLogin
-                        ? new Date(user.lastLogin).toLocaleString()
-                        : "N/A"
-                    }
-                    disabled
-                  />
+                  <Input value="N/A" disabled />
                 </div>
                 <Button type="submit">Update Profile</Button>
               </form>
@@ -161,9 +131,7 @@ export default function ProfilePage(): JSX.Element {
           <Card>
             <CardHeader>
               <CardTitle>Change Password</CardTitle>
-              <CardDescription>
-                Update your password to keep your account secure
-              </CardDescription>
+              <CardDescription>Update your password to keep your account secure</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleChangePassword} className="space-y-4">
@@ -172,31 +140,19 @@ export default function ProfilePage(): JSX.Element {
                   <div className="relative">
                     <Input
                       id="currentPassword"
-                      type={showPasswords.current ? "text" : "password"}
+                      type={showPasswords.current ? 'text' : 'password'}
                       value={passwordData.currentPassword}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                        setPasswordData({
-                          ...passwordData,
-                          currentPassword: e.target.value,
-                        })
+                        setPasswordData({ ...passwordData, currentPassword: e.target.value })
                       }
                       required
                     />
                     <button
                       type="button"
-                      onClick={() =>
-                        setShowPasswords({
-                          ...showPasswords,
-                          current: !showPasswords.current,
-                        })
-                      }
+                      onClick={() => setShowPasswords({ ...showPasswords, current: !showPasswords.current })}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400"
                     >
-                      {showPasswords.current ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
+                      {showPasswords.current ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                 </div>
@@ -205,31 +161,19 @@ export default function ProfilePage(): JSX.Element {
                   <div className="relative">
                     <Input
                       id="newPassword"
-                      type={showPasswords.new ? "text" : "password"}
+                      type={showPasswords.new ? 'text' : 'password'}
                       value={passwordData.newPassword}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                        setPasswordData({
-                          ...passwordData,
-                          newPassword: e.target.value,
-                        })
+                        setPasswordData({ ...passwordData, newPassword: e.target.value })
                       }
                       required
                     />
                     <button
                       type="button"
-                      onClick={() =>
-                        setShowPasswords({
-                          ...showPasswords,
-                          new: !showPasswords.new,
-                        })
-                      }
+                      onClick={() => setShowPasswords({ ...showPasswords, new: !showPasswords.new })}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400"
                     >
-                      {showPasswords.new ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
+                      {showPasswords.new ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                 </div>
@@ -238,31 +182,19 @@ export default function ProfilePage(): JSX.Element {
                   <div className="relative">
                     <Input
                       id="confirmPassword"
-                      type={showPasswords.confirm ? "text" : "password"}
+                      type={showPasswords.confirm ? 'text' : 'password'}
                       value={passwordData.confirmPassword}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                        setPasswordData({
-                          ...passwordData,
-                          confirmPassword: e.target.value,
-                        })
+                        setPasswordData({ ...passwordData, confirmPassword: e.target.value })
                       }
                       required
                     />
                     <button
                       type="button"
-                      onClick={() =>
-                        setShowPasswords({
-                          ...showPasswords,
-                          confirm: !showPasswords.confirm,
-                        })
-                      }
+                      onClick={() => setShowPasswords({ ...showPasswords, confirm: !showPasswords.confirm })}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400"
                     >
-                      {showPasswords.confirm ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
+                      {showPasswords.confirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                 </div>
@@ -276,30 +208,21 @@ export default function ProfilePage(): JSX.Element {
           <Card>
             <CardHeader>
               <CardTitle>Activity Log</CardTitle>
-              <CardDescription>
-                Your recent activity on the platform
-              </CardDescription>
+              <CardDescription>Your recent activity on the platform</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 {activityLogs?.slice(0, 10).map((log) => (
-                  <div
-                    key={log._id}
-                    className="border-b pb-3 last:border-0 dark:border-gray-800"
-                  >
+                  <div key={log._id} className="border-b pb-3 last:border-0 dark:border-gray-800">
                     <div className="flex items-start justify-between">
                       <div>
                         <p className="font-medium text-sm">{log.action}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          {log.details}
-                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{log.details}</p>
                         <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                           {new Date(log.timestamp).toLocaleString()}
                         </p>
                       </div>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        {log.entity}
-                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">{log.entity}</span>
                     </div>
                   </div>
                 ))}
