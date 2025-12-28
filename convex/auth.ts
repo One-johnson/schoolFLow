@@ -1,5 +1,5 @@
-import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { v } from 'convex/values';
+import { mutation, query } from './_generated/server';
 
 export const register = mutation({
   args: {
@@ -9,22 +9,52 @@ export const register = mutation({
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db
-      .query("superAdmins")
-      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .query('superAdmins')
+      .withIndex('by_email', (q) => q.eq('email', args.email))
       .first();
 
     if (existing) {
-      throw new Error("Email already exists");
+      throw new Error('Email already exists');
     }
 
-    const id = await ctx.db.insert("superAdmins", {
+    const id = await ctx.db.insert('superAdmins', {
       name: args.name,
       email: args.email,
-      password: args.password,
+      password: args.password, // Already hashed from API route
       createdAt: new Date().toISOString(),
     });
 
     return id;
+  },
+});
+
+export const listSuperAdmins = query({
+  args: {},
+  handler: async (ctx) => {
+    const admins = await ctx.db.query('superAdmins').collect();
+    return admins;
+  },
+});
+
+export const updateLastLogin = mutation({
+  args: {
+    email: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query('superAdmins')
+      .withIndex('by_email', (q) => q.eq('email', args.email))
+      .first();
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    await ctx.db.patch(user._id, {
+      lastLogin: new Date().toISOString(),
+    });
+
+    return user._id;
   },
 });
 
@@ -35,8 +65,8 @@ export const login = query({
   },
   handler: async (ctx, args) => {
     const user = await ctx.db
-      .query("superAdmins")
-      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .query('superAdmins')
+      .withIndex('by_email', (q) => q.eq('email', args.email))
       .first();
 
     if (!user || user.password !== args.password) {
@@ -55,8 +85,8 @@ export const getCurrentUser = query({
   args: { email: v.string() },
   handler: async (ctx, args) => {
     const user = await ctx.db
-      .query("superAdmins")
-      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .query('superAdmins')
+      .withIndex('by_email', (q) => q.eq('email', args.email))
       .first();
 
     if (!user) return null;
@@ -76,12 +106,12 @@ export const updateProfile = mutation({
   },
   handler: async (ctx, args) => {
     const user = await ctx.db
-      .query("superAdmins")
-      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .query('superAdmins')
+      .withIndex('by_email', (q) => q.eq('email', args.email))
       .first();
 
     if (!user) {
-      throw new Error("User not found");
+      throw new Error('User not found');
     }
 
     await ctx.db.patch(user._id, {
@@ -100,16 +130,16 @@ export const changePassword = mutation({
   },
   handler: async (ctx, args) => {
     const user = await ctx.db
-      .query("superAdmins")
-      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .query('superAdmins')
+      .withIndex('by_email', (q) => q.eq('email', args.email))
       .first();
 
     if (!user) {
-      throw new Error("User not found");
+      throw new Error('User not found');
     }
 
     if (user.password !== args.oldPassword) {
-      throw new Error("Current password is incorrect");
+      throw new Error('Current password is incorrect');
     }
 
     await ctx.db.patch(user._id, {

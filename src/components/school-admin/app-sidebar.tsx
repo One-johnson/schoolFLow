@@ -35,7 +35,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { JSX, useState } from 'react';
-import { authService } from '@/lib/auth';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
 const menuItems = [
@@ -74,10 +74,11 @@ const menuItems = [
 export function AppSidebar(): JSX.Element {
   const pathname = usePathname();
   const router = useRouter();
+  const { logout } = useAuth();
   const [showLogoutDialog, setShowLogoutDialog] = useState<boolean>(false);
 
-  const handleLogout = (): void => {
-    authService.logout();
+  const handleLogout = async (): Promise<void> => {
+    await logout();
     toast.success('Logged out successfully');
     router.push('/');
   };

@@ -1,6 +1,6 @@
 'use client';
 
-import { JSX, useEffect, useState } from 'react';
+import { JSX, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Bell, LogOut, Moon, Sun, Settings, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -26,7 +26,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { authService } from '@/lib/auth';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { useTheme } from 'next-themes';
 import { useQuery } from 'convex/react';
@@ -36,32 +36,20 @@ export function DesktopHeader(): JSX.Element {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [showLogoutDialog, setShowLogoutDialog] = useState<boolean>(false);
-  const [user, setUser] = useState<{ name: string; email: string; role: string; schoolId?: string } | null>(null);
+  const { user, logout } = useAuth();
 
   const notifications = useQuery(api.notifications.list);
   const unreadCount = notifications?.filter((n) => !n.read).length || 0;
 
-  useEffect(() => {
-    const currentUser = authService.getCurrentUser();
-    if (currentUser) {
-      setUser({
-        name: currentUser.name,
-        email: currentUser.email,
-        role: 'School Admin',
-        schoolId: currentUser.schoolId || 'Not Assigned',
-      });
-    }
-  }, []);
-
-  const handleLogout = (): void => {
-    authService.logout();
+  const handleLogout = async (): Promise<void> => {
+    await logout();
     toast.success('Logged out successfully');
-    router.push('/');
   };
 
-  const getInitials = (name: string): string => {
-    return name
-      .split(' ')
+  const getInitials = (email: string): string => {
+    return email
+      .split('@')[0]
+      .split('.')
       .map((n) => n[0])
       .join('')
       .toUpperCase()
@@ -101,18 +89,17 @@ export function DesktopHeader(): JSX.Element {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="gap-2 cursor-pointer hover:bg-accent">
                 <Avatar className="h-8 w-8 cursor-pointer">
-                  <AvatarFallback className="cursor-pointer">{user ? getInitials(user.name) : 'SA'}</AvatarFallback>
+                  <AvatarFallback className="cursor-pointer">{user?.email ? getInitials(user.email) : 'SA'}</AvatarFallback>
                 </Avatar>
-                <span className="text-sm font-medium cursor-pointer">{user?.name}</span>
+                <span className="text-sm font-medium cursor-pointer">{user?.email}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
               <DropdownMenuLabel>
                 <div className="flex flex-col space-y-1">
-                  <span className="font-medium">{user?.name}</span>
+                  <span className="font-medium">School Admin</span>
                   <span className="text-xs text-muted-foreground">{user?.email}</span>
-                  <span className="text-xs text-muted-foreground">Role: {user?.role}</span>
-                  <span className="text-xs text-muted-foreground">School ID: {user?.schoolId}</span>
+                  <span className="text-xs text-muted-foreground">School ID: {user?.schoolId || 'Not Assigned'}</span>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />

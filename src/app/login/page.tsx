@@ -6,11 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { authService } from '@/lib/auth';
 import { toast } from 'sonner';
 import { Eye, EyeOff, Mail, Lock, GraduationCap } from 'lucide-react';
-import { useQuery } from 'convex/react';
-import { api } from '../../../convex/_generated/api';
 
 export default function LoginPage(): JSX.Element {
   const router = useRouter();
@@ -20,9 +17,6 @@ export default function LoginPage(): JSX.Element {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  // Query to check school admin by schoolId
-  const schoolAdmins = useQuery(api.schoolAdmins.list);
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
@@ -34,50 +28,32 @@ export default function LoginPage(): JSX.Element {
       return;
     }
 
-    // First, check if it's a Super Admin login
-    const superAdminResult = authService.login(formData.email, formData.password);
-    if (superAdminResult.success) {
-      toast.success('Login successful!');
-      router.push('/super-admin');
-      setLoading(false);
-      return;
-    }
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
 
-    // If not Super Admin, check School Admin by schoolId or email
-    if (schoolAdmins) {
-      const schoolAdmin = schoolAdmins.find(
-        (admin) => 
-          (admin.schoolId === formData.email || admin.email === formData.email) && 
-          (admin.tempPassword === formData.password || admin.password === formData.password)
-      );
+      const data = await response.json();
 
-      if (schoolAdmin) {
-        // Check if admin is active or pending
-        if (schoolAdmin.status === 'inactive') {
-          toast.error('Your account has been deactivated. Please contact support.');
-          setLoading(false);
-          return;
-        }
-
-        if (schoolAdmin.status === 'suspended') {
-          toast.error('Your account has been suspended. Your trial may have expired.');
-          setLoading(false);
-          return;
-        }
-
-        // Allow pending admins to login to complete subscription process
-        // School Admin login successful
-        localStorage.setItem('schoolAdminEmail', schoolAdmin.email);
+      if (data.success) {
         toast.success('Login successful!');
-        router.push('/school-admin');
-        setLoading(false);
-        return;
+        router.push(data.redirectTo);
+      } else {
+        toast.error(data.message || 'Invalid credentials');
       }
+    } catch (error) {
+      console.error('Login error:', error);
+      toast.error('Login failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
-
-    // No matching credentials
-    toast.error('Invalid credentials');
-    setLoading(false);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>): void => {

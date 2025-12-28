@@ -39,6 +39,30 @@ export const getByEmail = query({
   },
 });
 
+export const updatePassword = mutation({
+  args: {
+    email: v.string(),
+    password: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const admin = await ctx.db
+      .query('schoolAdmins')
+      .filter((q) => q.eq(q.field('email'), args.email))
+      .first();
+
+    if (!admin) {
+      throw new Error('Admin not found');
+    }
+
+    await ctx.db.patch(admin._id, {
+      password: args.password,
+      tempPassword: undefined, // Clear temp password once permanent password is set
+    });
+
+    return admin._id;
+  },
+});
+
 export const create = mutation({
   args: {
     name: v.string(),
@@ -159,7 +183,6 @@ export const updateStatus = mutation({
         .collect();
 
       for (const sub of subscriptions) {
-        // Only update to 'expired' if current status is 'approved', to satisfy type constraints
         if (sub.status === 'approved') {
           await ctx.db.patch(sub._id, {
             status: 'expired',
@@ -221,7 +244,7 @@ export const remove = mutation({
 
     for (const sub of subscriptions) {
       await ctx.db.patch(sub._id, {
-        status: 'rejected',
+        status: 'expired',
       });
     }
 
@@ -262,7 +285,7 @@ export const bulkDelete = mutation({
 
       for (const sub of subscriptions) {
         await ctx.db.patch(sub._id, {
-          status: 'rejected',
+          status: 'expired',
         });
       }
 

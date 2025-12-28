@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/command';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { authService } from '@/lib/auth';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { useTheme } from 'next-themes';
 import { useQuery } from 'convex/react';
@@ -57,16 +57,9 @@ export function DesktopHeader(): JSX.Element {
   const { theme, setTheme } = useTheme();
   const [showLogoutDialog, setShowLogoutDialog] = useState<boolean>(false);
   const [showSearch, setShowSearch] = useState<boolean>(false);
-  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+  const { user, logout } = useAuth();
 
   const notifications = useQuery(api.notifications.list) || [];
-
-  useEffect(() => {
-    const currentUser = authService.getCurrentUser();
-    if (currentUser) {
-      setUser({ name: currentUser.name, email: currentUser.email });
-    }
-  }, []);
 
   useEffect(() => {
     const down = (e: KeyboardEvent): void => {
@@ -82,15 +75,15 @@ export function DesktopHeader(): JSX.Element {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  const handleLogout = (): void => {
-    authService.logout();
+  const handleLogout = async (): Promise<void> => {
+    await logout();
     toast.success('Logged out successfully');
-    router.push('/login');
   };
 
-  const getInitials = (name: string): string => {
-    return name
-      .split(' ')
+  const getInitials = (email: string): string => {
+    return email
+      .split('@')[0]
+      .split('.')
       .map((n) => n[0])
       .join('')
       .toUpperCase()
@@ -135,16 +128,16 @@ export function DesktopHeader(): JSX.Element {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="gap-2">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="" alt={user?.name || 'User'} />
-                  <AvatarFallback>{user ? getInitials(user.name) : 'SA'}</AvatarFallback>
+                  <AvatarImage src="" alt={user?.email || 'User'} />
+                  <AvatarFallback>{user?.email ? getInitials(user.email) : 'SA'}</AvatarFallback>
                 </Avatar>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">{user?.name}</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">{user?.email}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>
                 <div className="flex flex-col">
-                  <span className="font-medium text-gray-900 dark:text-white">{user?.name}</span>
+                  <span className="font-medium text-gray-900 dark:text-white">Super Admin</span>
                   <span className="text-xs text-gray-500 dark:text-gray-400">{user?.email}</span>
                 </div>
               </DropdownMenuLabel>

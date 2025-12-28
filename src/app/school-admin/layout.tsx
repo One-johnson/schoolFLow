@@ -1,15 +1,14 @@
 'use client';
 
 import { JSX, useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from 'convex/react';
 import { api } from '@/../convex/_generated/api';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/school-admin/app-sidebar';
 import { DesktopHeader } from '@/components/school-admin/desktop-header';
 import { MobileHeader } from '@/components/school-admin/mobile-header';
-import { ClientOnly } from '@/components/dashboard/client-only';
-import { Loader2 } from 'lucide-react';
 
 export default function SchoolAdminLayout({
   children,
@@ -17,108 +16,58 @@ export default function SchoolAdminLayout({
   children: React.ReactNode;
 }): JSX.Element {
   const router = useRouter();
-  const pathname = usePathname();
-  const [email, setEmail] = useState<string | null>(null);
-  const [isChecking, setIsChecking] = useState<boolean>(true);
+  const { authenticated, loading, user } = useAuth();
+  const [checkingStatus, setCheckingStatus] = useState(true);
 
-  // Get email from localStorage on mount
+  // Get school admin data
+  const schoolAdmins = useQuery(api.schoolAdmins.list);
+  const schoolAdmin = schoolAdmins?.find((admin) => admin.email === user?.email);
+
+  // Get school data if admin has created a school
+  const schools = useQuery(api.schools.list);
+  const school = schools?.find((s) => s.adminId === schoolAdmin?.schoolId);
+
   useEffect(() => {
-    const schoolAdminEmail = localStorage.getItem('schoolAdminEmail');
-    if (!schoolAdminEmail) {
-      router.push('/login');
-    } else {
-      setEmail(schoolAdminEmail);
+    if (!loading && schoolAdmin !== undefined) {
+      setCheckingStatus(false);
     }
-    setIsChecking(false);
-  }, [router]);
+  }, [loading, schoolAdmin]);
 
-  // Query admin data to check status
-  const admin = useQuery(
-    api.schoolAdmins.getByEmail,
-    email ? { email } : 'skip'
-  );
-
-  // Query school data to check school status
-  const school = useQuery(
-    api.schools.getByAdminId,
-    admin && admin.schoolId ? { adminId: admin.schoolId } : 'skip'
-  );
-
-  // Check account status and enforce access control
   useEffect(() => {
-    if (isChecking || !email) return;
-
-    // Skip check on access-blocked and school status pages
-    if (
-      pathname === '/school-admin/access-blocked' ||
-      pathname === '/school-admin/school-suspended' ||
-      pathname === '/school-admin/school-deleted'
-    ) {
-      return;
+    if (!loading && !checkingStatus) {
+      if (!authenticated) {
+        router.push('/login');
+      } else if (user?.role !== 'school_admin') {
+        router.push('/login');
+      }
     }
+  }, [authenticated, loading, user, router, checkingStatus]);
 
-    // If query is still loading, wait
-    if (admin === undefined) return;
-
-    // Account doesn't exist (deleted)
-    if (admin === null) {
-      router.push('/school-admin/access-blocked?status=deleted&reason=Your account has been deleted from the system.');
-      return;
-    }
-
-    // Account is suspended
-    if (admin.status === 'suspended') {
-      router.push('/school-admin/access-blocked?status=suspended&reason=Your account has been suspended. Please contact support for assistance.');
-      return;
-    }
-
-    // Account is inactive
-    if (admin.status === 'inactive') {
-      router.push('/school-admin/access-blocked?status=inactive&reason=Your account has been deactivated. Please contact support to reactivate your account.');
-      return;
-    }
-
-    // Check school status if school query is ready
-    if (school !== undefined && school !== null) {
-      // School is suspended
+  // Check school status and redirect if suspended or deleted
+  useEffect(() => {
+    if (school && !checkingStatus) {
       if (school.status === 'suspended') {
         router.push('/school-admin/school-suspended');
         return;
       }
+      // Check if school is marked as deleted (you might have a deleted status)
+      // Type-safe check for a possibly deleted school
+      if ('deleted' in school && (school as any).deleted === true) {
+        router.push('/school-admin/school-deleted');
+        return;
+      }
     }
+  }, [school, router, checkingStatus]);
 
-    // If admin has created school but school doesn't exist (deleted)
-    if (admin.hasCreatedSchool && school === null && school !== undefined) {
-      router.push('/school-admin/school-deleted');
-      return;
-    }
-  }, [admin, school, email, router, pathname, isChecking]);
-
-  // Show loader while checking authentication
-  if (isChecking || !email) {
+  if (loading || checkingStatus || !authenticated || user?.role !== 'school_admin') {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
       </div>
     );
-  }
-
-  // Show loader while fetching admin data
-  if (admin === undefined) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-      </div>
-    );
-  }
-
-  // If on status pages, render children without layout
-  if (
-    pathname === '/school-admin/access-blocked' ||
-    pathname === '/school-admin/school-suspended' ||
-    pathname === '/school-admin/school-deleted'
-  ) {
-    return <>{children}</>;
   }
 
   return (
@@ -127,10 +76,8 @@ export default function SchoolAdminLayout({
         <AppSidebar />
       </div>
       <SidebarInset className="w-full">
-        <ClientOnly>
-          <DesktopHeader />
-          <MobileHeader />
-        </ClientOnly>
+        <DesktopHeader />
+        <MobileHeader />
         <main className="p-4 md:p-8">{children}</main>
       </SidebarInset>
     </SidebarProvider>
