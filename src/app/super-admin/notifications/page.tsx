@@ -209,9 +209,19 @@ export default function NotificationsPage(): JSX.Element {
         </CardHeader>
         <CardContent>
           {notifications.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Bell className="h-12 w-12 text-gray-300 dark:text-gray-600 mb-4" />
-              <p className="text-gray-500 dark:text-gray-400">No notifications yet</p>
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="relative mb-6">
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full blur-2xl animate-pulse" />
+                <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 p-8 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-700">
+                  <Bell className="h-16 w-16 text-gray-400 dark:text-gray-500" />
+                </div>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                All caught up!
+              </h3>
+              <p className="text-gray-500 dark:text-gray-400 max-w-sm">
+                No notifications at the moment. We'll notify you when something important happens.
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
