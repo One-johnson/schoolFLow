@@ -16,6 +16,17 @@ export const getById = query({
   },
 });
 
+export const getByAdminId = query({
+  args: { adminId: v.string() },
+  handler: async (ctx, args) => {
+    const school = await ctx.db
+      .query('schools')
+      .filter((q) => q.eq(q.field('adminId'), args.adminId))
+      .first();
+    return school;
+  },
+});
+
 export const updateStatus = mutation({
   args: {
     id: v.id('schools'),
@@ -38,6 +49,199 @@ export const updateStatus = mutation({
 
     await ctx.db.patch(args.id, updates);
     return args.id;
+  },
+});
+
+export const suspendSchool = mutation({
+  args: {
+    id: v.id('schools'),
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const school = await ctx.db.get(args.id);
+    if (!school) throw new Error('School not found');
+
+    // Update school status to suspended
+    await ctx.db.patch(args.id, {
+      status: 'suspended',
+    });
+
+    // Get school admin
+    const admin = await ctx.db
+      .query('schoolAdmins')
+      .filter((q) => q.eq(q.field('schoolId'), school.adminId))
+      .first();
+
+    if (admin) {
+      // Send notification to school admin
+      await ctx.db.insert('notifications', {
+        title: 'School Suspended',
+        message: args.reason
+          ? `Your school "${school.name}" has been suspended. Reason: ${args.reason}`
+          : `Your school "${school.name}" has been suspended by an administrator. Please contact support for assistance.`,
+        type: 'error',
+        timestamp: new Date().toISOString(),
+        read: false,
+        recipientId: admin._id,
+        recipientRole: 'school_admin',
+      });
+    }
+
+    return args.id;
+  },
+});
+
+export const deleteSchool = mutation({
+  args: {
+    id: v.id('schools'),
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const school = await ctx.db.get(args.id);
+    if (!school) throw new Error('School not found');
+
+    // Get school admin before deletion
+    const admin = await ctx.db
+      .query('schoolAdmins')
+      .filter((q) => q.eq(q.field('schoolId'), school.adminId))
+      .first();
+
+    if (admin) {
+      // Send notification before deletion
+      await ctx.db.insert('notifications', {
+        title: 'School Deleted',
+        message: args.reason
+          ? `Your school "${school.name}" has been deleted. Reason: ${args.reason}`
+          : `Your school "${school.name}" has been deleted by an administrator.`,
+        type: 'error',
+        timestamp: new Date().toISOString(),
+        read: false,
+        recipientId: admin._id,
+        recipientRole: 'school_admin',
+      });
+
+      // Update admin's hasCreatedSchool flag
+      await ctx.db.patch(admin._id, {
+        hasCreatedSchool: false,
+      });
+
+      // Cancel associated subscriptions
+      const subscriptions = await ctx.db
+        .query('subscriptionRequests')
+        .filter((q) => q.eq(q.field('schoolAdminEmail'), admin.email))
+        .collect();
+
+      for (const sub of subscriptions) {
+        if (sub.status === 'approved') {
+          await ctx.db.patch(sub._id, {
+            status: 'expired',
+          });
+        }
+      }
+    }
+
+    // Delete the school
+    await ctx.db.delete(args.id);
+    return args.id;
+  },
+});
+
+export const bulkSuspend = mutation({
+  args: {
+    ids: v.array(v.id('schools')),
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    for (const id of args.ids) {
+      const school = await ctx.db.get(id);
+      if (!school) continue;
+
+      // Update school status
+      await ctx.db.patch(id, {
+        status: 'suspended',
+      });
+
+      // Get school admin
+      const admin = await ctx.db
+        .query('schoolAdmins')
+        .filter((q) => q.eq(q.field('schoolId'), school.adminId))
+        .first();
+
+      if (admin) {
+        // Send notification
+        await ctx.db.insert('notifications', {
+          title: 'School Suspended',
+          message: args.reason
+            ? `Your school "${school.name}" has been suspended. Reason: ${args.reason}`
+            : `Your school "${school.name}" has been suspended by an administrator. Please contact support for assistance.`,
+          type: 'error',
+          timestamp: new Date().toISOString(),
+          read: false,
+          recipientId: admin._id,
+          recipientRole: 'school_admin',
+        });
+      }
+    }
+
+    return args.ids.length;
+  },
+});
+
+export const bulkDelete = mutation({
+  args: {
+    ids: v.array(v.id('schools')),
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    for (const id of args.ids) {
+      const school = await ctx.db.get(id);
+      if (!school) continue;
+
+      // Get school admin
+      const admin = await ctx.db
+        .query('schoolAdmins')
+        .filter((q) => q.eq(q.field('schoolId'), school.adminId))
+        .first();
+
+      if (admin) {
+        // Send notification before deletion
+        await ctx.db.insert('notifications', {
+          title: 'School Deleted',
+          message: args.reason
+            ? `Your school "${school.name}" has been deleted. Reason: ${args.reason}`
+            : `Your school "${school.name}" has been deleted by an administrator.`,
+          type: 'error',
+          timestamp: new Date().toISOString(),
+          read: false,
+          recipientId: admin._id,
+          recipientRole: 'school_admin',
+        });
+
+        // Update admin's flag
+        await ctx.db.patch(admin._id, {
+          hasCreatedSchool: false,
+        });
+
+        // Cancel subscriptions
+        const subscriptions = await ctx.db
+          .query('subscriptionRequests')
+          .filter((q) => q.eq(q.field('schoolAdminEmail'), admin.email))
+          .collect();
+
+        for (const sub of subscriptions) {
+          if (sub.status === 'approved') {
+            await ctx.db.patch(sub._id, {
+              status: 'expired',
+            });
+          }
+        }
+      }
+
+      // Delete the school
+      await ctx.db.delete(id);
+    }
+
+    return args.ids.length;
   },
 });
 

@@ -28,6 +28,17 @@ export const getBySchoolId = query({
   },
 });
 
+export const getByEmail = query({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    const admin = await ctx.db
+      .query('schoolAdmins')
+      .filter((q) => q.eq(q.field('email'), args.email))
+      .first();
+    return admin;
+  },
+});
+
 export const create = mutation({
   args: {
     name: v.string(),
@@ -116,18 +127,105 @@ export const updateStatus = mutation({
   args: {
     id: v.id('schoolAdmins'),
     status: v.union(v.literal('active'), v.literal('inactive'), v.literal('pending'), v.literal('suspended')),
+    reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const admin = await ctx.db.get(args.id);
+    if (!admin) throw new Error('Admin not found');
+
+    const oldStatus = admin.status;
     await ctx.db.patch(args.id, {
       status: args.status,
     });
+
+    // Send notification if status changed to suspended or inactive
+    if (args.status === 'suspended' && oldStatus !== 'suspended') {
+      await ctx.db.insert('notifications', {
+        title: 'Account Suspended',
+        message: args.reason 
+          ? `Your account has been suspended. Reason: ${args.reason}` 
+          : 'Your account has been suspended by an administrator. Please contact support for assistance.',
+        type: 'error',
+        timestamp: new Date().toISOString(),
+        read: false,
+        recipientId: args.id,
+        recipientRole: 'school_admin',
+      });
+
+      // Update associated subscriptions
+      const subscriptions = await ctx.db
+        .query('subscriptionRequests')
+        .filter((q) => q.eq(q.field('schoolAdminEmail'), admin.email))
+        .collect();
+
+      for (const sub of subscriptions) {
+        // Only update to 'expired' if current status is 'approved', to satisfy type constraints
+        if (sub.status === 'approved') {
+          await ctx.db.patch(sub._id, {
+            status: 'expired',
+          });
+        }
+      }
+    }
+
+    if (args.status === 'inactive' && oldStatus !== 'inactive') {
+      await ctx.db.insert('notifications', {
+        title: 'Account Deactivated',
+        message: args.reason 
+          ? `Your account has been deactivated. Reason: ${args.reason}` 
+          : 'Your account has been deactivated by an administrator. Please contact support for assistance.',
+        type: 'warning',
+        timestamp: new Date().toISOString(),
+        read: false,
+        recipientId: args.id,
+        recipientRole: 'school_admin',
+      });
+
+      // Update subscription status
+      await ctx.db.patch(args.id, {
+        hasActiveSubscription: false,
+      });
+    }
+
     return args.id;
   },
 });
 
 export const remove = mutation({
-  args: { id: v.id('schoolAdmins') },
+  args: { 
+    id: v.id('schoolAdmins'),
+    reason: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
+    const admin = await ctx.db.get(args.id);
+    if (!admin) throw new Error('Admin not found');
+
+    // Send notification before deletion
+    await ctx.db.insert('notifications', {
+      title: 'Account Deleted',
+      message: args.reason 
+        ? `Your account has been deleted. Reason: ${args.reason}` 
+        : 'Your account has been deleted by an administrator.',
+      type: 'error',
+      timestamp: new Date().toISOString(),
+      read: false,
+      recipientId: args.id,
+      recipientRole: 'school_admin',
+    });
+
+    // Delete or expire associated subscriptions
+    const subscriptions = await ctx.db
+      .query('subscriptionRequests')
+      .filter((q) => q.eq(q.field('schoolAdminEmail'), admin.email))
+      .collect();
+
+    for (const sub of subscriptions) {
+      await ctx.db.patch(sub._id, {
+        status: 'rejected',
+      });
+    }
+
+    // Delete the admin
     await ctx.db.delete(args.id);
     return args.id;
   },
@@ -136,9 +234,38 @@ export const remove = mutation({
 export const bulkDelete = mutation({
   args: {
     ids: v.array(v.id('schoolAdmins')),
+    reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     for (const id of args.ids) {
+      const admin = await ctx.db.get(id);
+      if (!admin) continue;
+
+      // Send notification before deletion
+      await ctx.db.insert('notifications', {
+        title: 'Account Deleted',
+        message: args.reason 
+          ? `Your account has been deleted. Reason: ${args.reason}` 
+          : 'Your account has been deleted by an administrator.',
+        type: 'error',
+        timestamp: new Date().toISOString(),
+        read: false,
+        recipientId: id,
+        recipientRole: 'school_admin',
+      });
+
+      // Cancel associated subscriptions
+      const subscriptions = await ctx.db
+        .query('subscriptionRequests')
+        .filter((q) => q.eq(q.field('schoolAdminEmail'), admin.email))
+        .collect();
+
+      for (const sub of subscriptions) {
+        await ctx.db.patch(sub._id, {
+          status: 'rejected',
+        });
+      }
+
       await ctx.db.delete(id);
     }
     return args.ids.length;
