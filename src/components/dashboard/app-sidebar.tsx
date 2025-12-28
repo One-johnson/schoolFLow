@@ -15,6 +15,7 @@ import {
   HelpCircle,
   GraduationCap,
   CheckSquare,
+  Bell,
 } from 'lucide-react';
 
 import {
@@ -28,6 +29,7 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
 } from '@/components/ui/sidebar';
+import { JSX } from 'react';
 
 const navItems = [
   { href: '/super-admin', icon: LayoutDashboard, label: 'Dashboard' },
@@ -37,12 +39,13 @@ const navItems = [
   { href: '/super-admin/schools', icon: School, label: 'Schools' },
   { href: '/super-admin/subscriptions', icon: CreditCard, label: 'Subscriptions' },
   { href: '/super-admin/audit-logs', icon: FileText, label: 'Audit Logs' },
+  { href: '/super-admin/notifications', icon: Bell, label: 'Notifications' },
   { href: '/super-admin/reports', icon: BarChart3, label: 'Reports' },
   { href: '/super-admin/settings', icon: Settings, label: 'Settings' },
   { href: '/super-admin/support', icon: HelpCircle, label: 'Support' },
 ];
 
-export function AppSidebar(): React.JSX.Element {
+export function AppSidebar(): JSX.Element {
   const pathname = usePathname();
 
   return (

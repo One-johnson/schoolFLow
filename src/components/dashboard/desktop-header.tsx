@@ -2,7 +2,7 @@
 
 import { JSX, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Bell, LogOut, User, Moon, Sun, Settings, Search } from 'lucide-react';
+import { Bell, LogOut, Moon, Sun, Settings, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -35,9 +35,8 @@ import { Badge } from '@/components/ui/badge';
 import { authService } from '@/lib/auth';
 import { toast } from 'sonner';
 import { useTheme } from 'next-themes';
-import { useQuery, useMutation } from 'convex/react';
+import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import type { Id } from '../../../convex/_generated/dataModel';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 
 const searchItems = [
@@ -47,6 +46,7 @@ const searchItems = [
   { label: 'Schools', href: '/super-admin/schools', keywords: ['schools', 'institutions', 'approve'] },
   { label: 'Subscriptions', href: '/super-admin/subscriptions', keywords: ['billing', 'payments', 'subscription'] },
   { label: 'Audit Logs', href: '/super-admin/audit-logs', keywords: ['logs', 'history', 'audit'] },
+  { label: 'Notifications', href: '/super-admin/notifications', keywords: ['notifications', 'alerts', 'messages'] },
   { label: 'Reports & Analytics', href: '/super-admin/reports', keywords: ['reports', 'analytics', 'charts'] },
   { label: 'System Settings', href: '/super-admin/settings', keywords: ['settings', 'configuration', 'system'] },
   { label: 'Support', href: '/super-admin/support', keywords: ['help', 'support', 'tickets'] },
@@ -60,7 +60,6 @@ export function DesktopHeader(): JSX.Element {
   const [user, setUser] = useState<{ name: string; email: string } | null>(null);
 
   const notifications = useQuery(api.notifications.list) || [];
-  const markAsRead = useMutation(api.notifications.markAsRead);
 
   useEffect(() => {
     const currentUser = authService.getCurrentUser();
@@ -87,15 +86,6 @@ export function DesktopHeader(): JSX.Element {
     authService.logout();
     toast.success('Logged out successfully');
     router.push('/login');
-  };
-
-  const handleMarkAsRead = async (id: Id<'notifications'>): Promise<void> => {
-    try {
-      await markAsRead({ id });
-      toast.success('Notification marked as read');
-    } catch (error) {
-      toast.error('Failed to mark notification as read');
-    }
   };
 
   const getInitials = (name: string): string => {
@@ -127,46 +117,19 @@ export function DesktopHeader(): JSX.Element {
         </div>
 
         <div className="flex items-center gap-4">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-5 w-5 text-gray-900 dark:text-white" />
-                {unreadCount > 0 && (
-                  <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs">
-                    {unreadCount}
-                  </Badge>
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80">
-              <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {notifications.length === 0 ? (
-                <div className="p-4 text-sm text-gray-500 dark:text-gray-400 text-center">
-                  No notifications
-                </div>
-              ) : (
-                notifications.slice(0, 5).map((notification) => (
-                  <DropdownMenuItem
-                    key={notification._id}
-                    className="flex flex-col items-start gap-1 p-3 cursor-pointer"
-                    onClick={() => handleMarkAsRead(notification._id)}
-                  >
-                    <div className="flex items-center gap-2 w-full">
-                      <span className="font-medium text-sm">{notification.title}</span>
-                      {!notification.read && <span className="h-2 w-2 rounded-full bg-blue-600" />}
-                    </div>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      {notification.message}
-                    </span>
-                    <span className="text-xs text-gray-400 dark:text-gray-500">
-                      {new Date(notification.timestamp).toLocaleString()}
-                    </span>
-                  </DropdownMenuItem>
-                ))
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="relative cursor-pointer" 
+            onClick={() => router.push('/super-admin/notifications')}
+          >
+            <Bell className="h-5 w-5 text-gray-900 dark:text-white" />
+            {unreadCount > 0 && (
+              <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs">
+                {unreadCount}
+              </Badge>
+            )}
+          </Button>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

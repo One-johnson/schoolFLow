@@ -7,12 +7,13 @@ export type SchoolStatus =
 export type UserRole = "super_admin" | "school_admin" | "teacher" | "student";
 
 export interface SuperAdmin {
+  [x: string]: string;
   id: string;
   name: string;
   email: string;
   password: string;
   createdAt: string;
-  lastLogin?: string;
+  lastLogin: string;
 }
 
 export interface SchoolAdmin {

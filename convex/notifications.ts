@@ -44,14 +44,55 @@ export const markAsRead = mutation({
 });
 
 export const markAllAsRead = mutation({
-  args: {},
-  handler: async (ctx) => {
-    const notifications = await ctx.db.query('notifications').filter((q) => q.eq(q.field('read'), false)).collect();
+  args: { recipientId: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    let query = ctx.db.query('notifications').filter((q) => q.eq(q.field('read'), false));
+    
+    if (args.recipientId) {
+      query = query.filter((q) => q.eq(q.field('recipientId'), args.recipientId));
+    }
+    
+    const notifications = await query.collect();
     for (const notification of notifications) {
       await ctx.db.patch(notification._id, {
         read: true,
       });
     }
     return notifications.length;
+  },
+});
+
+export const deleteSingle = mutation({
+  args: { id: v.id('notifications') },
+  handler: async (ctx, args) => {
+    await ctx.db.delete(args.id);
+    return args.id;
+  },
+});
+
+export const deleteAll = mutation({
+  args: { recipientId: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    let query = ctx.db.query('notifications');
+    
+    if (args.recipientId) {
+      query = query.filter((q) => q.eq(q.field('recipientId'), args.recipientId));
+    }
+    
+    const notifications = await query.collect();
+    for (const notification of notifications) {
+      await ctx.db.delete(notification._id);
+    }
+    return notifications.length;
+  },
+});
+
+export const bulkDelete = mutation({
+  args: { ids: v.array(v.id('notifications')) },
+  handler: async (ctx, args) => {
+    for (const id of args.ids) {
+      await ctx.db.delete(id);
+    }
+    return args.ids.length;
   },
 });
