@@ -1,6 +1,6 @@
 'use client';
 
-import { JSX, useState } from 'react';
+import { useState, useEffect, JSX } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,18 +8,32 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { useQuery } from 'convex/react';
+import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { ExternalLink, CheckCircle, Key } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { PasswordChangeDialog } from '@/components/password-change-dialog';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function SettingsPage(): JSX.Element {
   const router = useRouter();
+  const { user } = useAuth();
   const subscriptionPlans = useQuery(api.subscriptionPlans.list);
+  const platformSettingsData = useQuery(api.platformSettings.get);
+  const userSettingsData = useQuery(
+    api.userSettings.get,
+    user?.userId ? { userId: user.userId, userRole: 'super_admin' } : 'skip'
+  );
+  
+  const updatePlatformSettings = useMutation(api.platformSettings.update);
+  const updateUserSettings = useMutation(api.userSettings.updateSuperAdmin);
+  
   const [passwordDialogOpen, setPasswordDialogOpen] = useState<boolean>(false);
+  const [isSavingPlatform, setIsSavingPlatform] = useState<boolean>(false);
+  const [isSavingNotifications, setIsSavingNotifications] = useState<boolean>(false);
+  const [isSavingSecurity, setIsSavingSecurity] = useState<boolean>(false);
 
   const [platformSettings, setPlatformSettings] = useState({
     platformName: 'SchoolFlow',
@@ -41,20 +55,119 @@ export default function SettingsPage(): JSX.Element {
     ipWhitelist: false,
   });
 
-  const handleSavePlatform = (e: React.FormEvent): void => {
+  // Load platform settings from database
+  useEffect(() => {
+    if (platformSettingsData) {
+      setPlatformSettings({
+        platformName: platformSettingsData.platformName,
+        supportEmail: platformSettingsData.supportEmail,
+        maxSchools: String(platformSettingsData.maxSchools),
+        defaultPricePerStudent: String(platformSettingsData.defaultPricePerStudent),
+      });
+    }
+  }, [platformSettingsData]);
+
+  // Load user settings from database
+  useEffect(() => {
+    if (userSettingsData) {
+      setNotifications({
+        emailNotifications: userSettingsData.emailNotifications ?? true,
+        newSchoolRegistration: userSettingsData.newSchoolRegistration ?? true,
+        paymentVerification: userSettingsData.paymentVerification ?? true,
+        systemAlerts: userSettingsData.systemAlerts ?? true,
+      });
+      setSecurity({
+        twoFactorAuth: userSettingsData.twoFactorAuth ?? false,
+        sessionTimeout: String(userSettingsData.sessionTimeout ?? 30),
+        ipWhitelist: userSettingsData.ipWhitelist ?? false,
+      });
+    }
+  }, [userSettingsData]);
+
+  const handleSavePlatform = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
-    toast.success('Platform settings updated successfully');
+    if (!user?.userId) {
+      toast.error('User not authenticated');
+      return;
+    }
+
+    setIsSavingPlatform(true);
+    try {
+      await updatePlatformSettings({
+        platformName: platformSettings.platformName,
+        supportEmail: platformSettings.supportEmail,
+        maxSchools: parseInt(platformSettings.maxSchools, 10),
+        defaultPricePerStudent: parseInt(platformSettings.defaultPricePerStudent, 10),
+      });
+      toast.success('Platform settings updated successfully');
+    } catch (error) {
+      toast.error('Failed to update platform settings');
+      console.error(error);
+    } finally {
+      setIsSavingPlatform(false);
+    }
   };
 
-  const handleSaveNotifications = (e: React.FormEvent): void => {
+  const handleSaveNotifications = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
-    toast.success('Notification settings updated successfully');
+    if (!user?.userId) {
+      toast.error('User not authenticated');
+      return;
+    }
+
+    setIsSavingNotifications(true);
+    try {
+      await updateUserSettings({
+        userId: user.userId,
+        emailNotifications: notifications.emailNotifications,
+        newSchoolRegistration: notifications.newSchoolRegistration,
+        paymentVerification: notifications.paymentVerification,
+        systemAlerts: notifications.systemAlerts,
+      });
+      toast.success('Notification settings updated successfully');
+    } catch (error) {
+      toast.error('Failed to update notification settings');
+      console.error(error);
+    } finally {
+      setIsSavingNotifications(false);
+    }
   };
 
-  const handleSaveSecurity = (e: React.FormEvent): void => {
+  const handleSaveSecurity = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
-    toast.success('Security settings updated successfully');
+    if (!user?.userId) {
+      toast.error('User not authenticated');
+      return;
+    }
+
+    setIsSavingSecurity(true);
+    try {
+      await updateUserSettings({
+        userId: user.userId,
+        twoFactorAuth: security.twoFactorAuth,
+        sessionTimeout: parseInt(security.sessionTimeout, 10),
+        ipWhitelist: security.ipWhitelist,
+      });
+      toast.success('Security settings updated successfully');
+    } catch (error) {
+      toast.error('Failed to update security settings');
+      console.error(error);
+    } finally {
+      setIsSavingSecurity(false);
+    }
   };
+
+  if (!platformSettingsData || !userSettingsData) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-9 w-64 mb-2" />
+          <Skeleton className="h-5 w-96" />
+        </div>
+        <Skeleton className="h-96 w-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -122,7 +235,9 @@ export default function SettingsPage(): JSX.Element {
                     }
                   />
                 </div>
-                <Button type="submit">Save Platform Settings</Button>
+                <Button type="submit" disabled={isSavingPlatform}>
+                  {isSavingPlatform ? 'Saving...' : 'Save Platform Settings'}
+                </Button>
               </form>
             </CardContent>
           </Card>
@@ -196,7 +311,9 @@ export default function SettingsPage(): JSX.Element {
                     }
                   />
                 </div>
-                <Button type="submit">Save Notification Settings</Button>
+                <Button type="submit" disabled={isSavingNotifications}>
+                  {isSavingNotifications ? 'Saving...' : 'Save Notification Settings'}
+                </Button>
               </form>
             </CardContent>
           </Card>
@@ -268,7 +385,9 @@ export default function SettingsPage(): JSX.Element {
                     </Button>
                   </div>
                 </div>
-                <Button type="submit">Save Security Settings</Button>
+                <Button type="submit" disabled={isSavingSecurity}>
+                  {isSavingSecurity ? 'Saving...' : 'Save Security Settings'}
+                </Button>
               </form>
             </CardContent>
           </Card>
