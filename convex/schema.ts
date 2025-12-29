@@ -2,13 +2,16 @@ import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 
 export default defineSchema({
-  superAdmins: defineTable({
+   superAdmins: defineTable({
     name: v.string(),
     email: v.string(),
     password: v.string(),
+    role: v.union(v.literal('owner'), v.literal('admin'), v.literal('moderator')),
+    status: v.union(v.literal('active'), v.literal('suspended')),
     createdAt: v.string(),
+    createdBy: v.optional(v.string()),
     lastLogin: v.optional(v.string()),
-  }).index('by_email', ['email']),
+  }).index('by_email', ['email']).index('by_role', ['role']).index('by_status', ['status']),
 
   schools: defineTable({
     name: v.string(),
