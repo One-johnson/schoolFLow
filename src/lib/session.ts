@@ -10,6 +10,7 @@ export interface SessionData {
   email: string;
   role: 'super_admin' | 'school_admin';
   schoolId?: string;
+  adminRole?: 'owner' | 'admin' | 'moderator'; // For super admin hierarchy
 }
 
 export interface SessionToken {
