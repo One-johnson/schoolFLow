@@ -143,4 +143,37 @@ export default defineSchema({
     createdAt: v.string(),
     updatedAt: v.string(),
   }),
+
+    platformSettings: defineTable({
+    platformName: v.string(),
+    supportEmail: v.string(),
+    maxSchools: v.number(),
+    defaultPricePerStudent: v.number(),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  }),
+
+  userSettings: defineTable({
+    userId: v.string(),
+    userRole: v.union(v.literal('super_admin'), v.literal('school_admin')),
+    // Notification preferences (both roles)
+    emailNotifications: v.optional(v.boolean()),
+    // Super Admin specific
+    newSchoolRegistration: v.optional(v.boolean()),
+    paymentVerification: v.optional(v.boolean()),
+    systemAlerts: v.optional(v.boolean()),
+    // School Admin specific
+    paymentAlerts: v.optional(v.boolean()),
+    systemUpdates: v.optional(v.boolean()),
+    // Security settings (Super Admin)
+    twoFactorAuth: v.optional(v.boolean()),
+    sessionTimeout: v.optional(v.number()),
+    ipWhitelist: v.optional(v.boolean()),
+    // Account settings (School Admin)
+    profileVisibility: v.optional(v.boolean()),
+    dataSharing: v.optional(v.boolean()),
+    // Timestamps
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  }).index('by_user', ['userId', 'userRole']),
 });

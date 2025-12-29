@@ -4,21 +4,58 @@ import { JSX, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useQuery } from 'convex/react';
+import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
-import { Settings as SettingsIcon, Bell, Shield, User, Key } from 'lucide-react';
+import { Bell, Shield, User, Key } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { PasswordChangeDialog } from '@/components/password-change-dialog';
+import { toast } from 'sonner';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function SettingsPage(): JSX.Element {
   const router = useRouter();
   const [passwordDialogOpen, setPasswordDialogOpen] = useState<boolean>(false);
+  const [isSavingNotifications, setIsSavingNotifications] = useState<boolean>(false);
+  const [isSavingAccount, setIsSavingAccount] = useState<boolean>(false);
 
   const schoolAdminEmail = typeof window !== 'undefined' ? localStorage.getItem('schoolAdminEmail') : null;
 
   const schoolAdmins = useQuery(api.schoolAdmins.list);
   const currentAdmin = schoolAdmins?.find((admin) => admin.email === schoolAdminEmail);
+  
+  const userSettingsData = useQuery(
+    api.userSettings.get,
+    currentAdmin?._id ? { userId: currentAdmin._id, userRole: 'school_admin' } : 'skip'
+  );
+  
+  const updateUserSettings = useMutation(api.userSettings.updateSchoolAdmin);
+
+  const [notifications, setNotifications] = useState({
+    emailNotifications: true,
+    paymentAlerts: true,
+    systemUpdates: false,
+  });
+
+  const [account, setAccount] = useState({
+    profileVisibility: true,
+    dataSharing: false,
+  });
+
+  // Load user settings from database
+  useEffect(() => {
+    if (userSettingsData) {
+      setNotifications({
+        emailNotifications: userSettingsData.emailNotifications ?? true,
+        paymentAlerts: userSettingsData.paymentAlerts ?? true,
+        systemUpdates: userSettingsData.systemUpdates ?? false,
+      });
+      setAccount({
+        profileVisibility: userSettingsData.profileVisibility ?? true,
+        dataSharing: userSettingsData.dataSharing ?? false,
+      });
+    }
+  }, [userSettingsData]);
 
   useEffect(() => {
     if (!schoolAdminEmail) {
@@ -26,13 +63,60 @@ export default function SettingsPage(): JSX.Element {
     }
   }, [schoolAdminEmail, router]);
 
-  if (!currentAdmin) {
+  const handleSaveNotifications = async (): Promise<void> => {
+    if (!currentAdmin?._id) {
+      toast.error('User not authenticated');
+      return;
+    }
+
+    setIsSavingNotifications(true);
+    try {
+      await updateUserSettings({
+        userId: currentAdmin._id,
+        emailNotifications: notifications.emailNotifications,
+        paymentAlerts: notifications.paymentAlerts,
+        systemUpdates: notifications.systemUpdates,
+      });
+      toast.success('Notification settings updated successfully');
+    } catch (error) {
+      toast.error('Failed to update notification settings');
+      console.error(error);
+    } finally {
+      setIsSavingNotifications(false);
+    }
+  };
+
+  const handleSaveAccount = async (): Promise<void> => {
+    if (!currentAdmin?._id) {
+      toast.error('User not authenticated');
+      return;
+    }
+
+    setIsSavingAccount(true);
+    try {
+      await updateUserSettings({
+        userId: currentAdmin._id,
+        profileVisibility: account.profileVisibility,
+        dataSharing: account.dataSharing,
+      });
+      toast.success('Account settings updated successfully');
+    } catch (error) {
+      toast.error('Failed to update account settings');
+      console.error(error);
+    } finally {
+      setIsSavingAccount(false);
+    }
+  };
+
+  if (!currentAdmin || !userSettingsData) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Loading...</h2>
-          <p className="text-muted-foreground">Please wait</p>
+      <div className="max-w-3xl mx-auto space-y-6">
+        <div>
+          <Skeleton className="h-9 w-48 mb-2" />
+          <Skeleton className="h-5 w-64" />
         </div>
+        <Skeleton className="h-64 w-full" />
+        <Skeleton className="h-64 w-full" />
       </div>
     );
   }
@@ -62,7 +146,12 @@ export default function SettingsPage(): JSX.Element {
                 Receive email notifications for important updates
               </p>
             </div>
-            <Switch defaultChecked />
+            <Switch 
+              checked={notifications.emailNotifications}
+              onCheckedChange={(checked: boolean) =>
+                setNotifications({ ...notifications, emailNotifications: checked })
+              }
+            />
           </div>
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
@@ -71,7 +160,12 @@ export default function SettingsPage(): JSX.Element {
                 Get notified about payment status and renewals
               </p>
             </div>
-            <Switch defaultChecked />
+            <Switch 
+              checked={notifications.paymentAlerts}
+              onCheckedChange={(checked: boolean) =>
+                setNotifications({ ...notifications, paymentAlerts: checked })
+              }
+            />
           </div>
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
@@ -80,7 +174,17 @@ export default function SettingsPage(): JSX.Element {
                 Receive notifications about system updates
               </p>
             </div>
-            <Switch />
+            <Switch 
+              checked={notifications.systemUpdates}
+              onCheckedChange={(checked: boolean) =>
+                setNotifications({ ...notifications, systemUpdates: checked })
+              }
+            />
+          </div>
+          <div className="pt-4">
+            <Button onClick={handleSaveNotifications} disabled={isSavingNotifications}>
+              {isSavingNotifications ? 'Saving...' : 'Save Notification Settings'}
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -141,7 +245,12 @@ export default function SettingsPage(): JSX.Element {
                 Control who can see your profile information
               </p>
             </div>
-            <Switch defaultChecked />
+            <Switch 
+              checked={account.profileVisibility}
+              onCheckedChange={(checked: boolean) =>
+                setAccount({ ...account, profileVisibility: checked })
+              }
+            />
           </div>
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
@@ -150,7 +259,17 @@ export default function SettingsPage(): JSX.Element {
                 Share anonymized data to help improve the platform
               </p>
             </div>
-            <Switch />
+            <Switch 
+              checked={account.dataSharing}
+              onCheckedChange={(checked: boolean) =>
+                setAccount({ ...account, dataSharing: checked })
+              }
+            />
+          </div>
+          <div className="pt-4">
+            <Button onClick={handleSaveAccount} disabled={isSavingAccount}>
+              {isSavingAccount ? 'Saving...' : 'Save Account Settings'}
+            </Button>
           </div>
         </CardContent>
       </Card>
