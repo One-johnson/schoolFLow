@@ -18,6 +18,7 @@ import {
   Bell,
   Clock,
   Shield,
+  Activity,
 } from 'lucide-react';
 
 import {
@@ -41,6 +42,7 @@ const navItems = [
   { href: '/super-admin/schools', icon: School, label: 'Schools' },
   { href: '/super-admin/subscriptions', icon: CreditCard, label: 'Subscriptions' },
   { href: '/super-admin/trial-management', icon: Clock, label: 'Trial Management' },
+  { href: '/super-admin/activity', icon: Activity, label: 'Activity & Sessions' },
   { href: '/super-admin/audit-logs', icon: FileText, label: 'Audit Logs' },
   { href: '/super-admin/notifications', icon: Bell, label: 'Notifications' },
   { href: '/super-admin/reports', icon: BarChart3, label: 'Reports' },
