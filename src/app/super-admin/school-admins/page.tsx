@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import type { ColumnDef } from '@tanstack/react-table';
-import { DataTable, createSortableHeader, createSelectColumn } from '../../../components/ui/data-table';
+import { DataTable, createSortableHeader, createSelectColumn } from  '../../../components/ui/data-table';
 import {
   Dialog,
   DialogContent,
@@ -43,7 +43,8 @@ import {
   Upload, 
   Users, 
   AlertCircle,
-  MoreVertical
+  MoreVertical,
+  Key
 } from 'lucide-react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
@@ -59,6 +60,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import Papa from 'papaparse';
 import { Textarea } from '@/components/ui/textarea';
+import { AdminPasswordResetDialog } from '@/components/admin-password-reset-dialog';
 
 interface SchoolAdmin {
   _id: Id<'schoolAdmins'>;
@@ -98,6 +100,7 @@ export default function SchoolAdminsPage(): JSX.Element {
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false);
   const [selectedAdmin, setSelectedAdmin] = useState<SchoolAdmin | null>(null);
   const [selectedAdmins, setSelectedAdmins] = useState<SchoolAdmin[]>([]);
 
@@ -521,6 +524,16 @@ export default function SchoolAdminsPage(): JSX.Element {
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
+                onClick={() => {
+                  setSelectedAdmin(row.original);
+                  setIsResetPasswordOpen(true);
+                }}
+              >
+                <Key className="h-4 w-4 mr-2" />
+                Reset Password
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
                 className="text-destructive"
                 onClick={() => {
                   setSelectedAdmin(row.original);
@@ -774,7 +787,7 @@ export default function SchoolAdminsPage(): JSX.Element {
             <CardTitle className="text-xs font-medium text-muted-foreground">Total Admins</CardTitle>
           </CardHeader>
           <CardContent className="pb-3">
-            <div className="text-xl font-bold">{stats.total}</div>
+            <div className="text-2xl font-bold">{stats.total}</div>
             <p className="text-xs text-muted-foreground mt-1">All administrators</p>
           </CardContent>
         </Card>
@@ -1055,6 +1068,18 @@ export default function SchoolAdminsPage(): JSX.Element {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Password Reset Dialog */}
+      <AdminPasswordResetDialog
+        open={isResetPasswordOpen}
+        onOpenChange={setIsResetPasswordOpen}
+        adminId={selectedAdmin?._id || null}
+        adminName={selectedAdmin?.name || ''}
+        adminEmail={selectedAdmin?.email || ''}
+        onSuccess={() => {
+          // Refresh data or show success message
+        }}
+      />
     </div>
   );
 }
