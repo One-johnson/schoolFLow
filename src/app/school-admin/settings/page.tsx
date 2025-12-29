@@ -1,17 +1,19 @@
 'use client';
 
-import { JSX, useEffect } from 'react';
+import { JSX, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useQuery } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
-import { Settings as SettingsIcon, Bell, Shield, User } from 'lucide-react';
+import { Settings as SettingsIcon, Bell, Shield, User, Key } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { PasswordChangeDialog } from '@/components/password-change-dialog';
 
 export default function SettingsPage(): JSX.Element {
   const router = useRouter();
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState<boolean>(false);
 
   const schoolAdminEmail = typeof window !== 'undefined' ? localStorage.getItem('schoolAdminEmail') : null;
 
@@ -110,7 +112,13 @@ export default function SettingsPage(): JSX.Element {
                 Update your password regularly for better security
               </p>
             </div>
-            <Button variant="outline" size="sm">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setPasswordDialogOpen(true)}
+              className="gap-2"
+            >
+              <Key className="h-4 w-4" />
               Change
             </Button>
           </div>
@@ -168,6 +176,12 @@ export default function SettingsPage(): JSX.Element {
           </div>
         </CardContent>
       </Card>
+
+      <PasswordChangeDialog
+        open={passwordDialogOpen}
+        onOpenChange={setPasswordDialogOpen}
+        userRole="school_admin"
+      />
     </div>
   );
 }

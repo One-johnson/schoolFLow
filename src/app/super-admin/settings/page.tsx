@@ -12,12 +12,14 @@ import { useQuery } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { ExternalLink, CheckCircle } from 'lucide-react';
+import { ExternalLink, CheckCircle, Key } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { PasswordChangeDialog } from '@/components/password-change-dialog';
 
 export default function SettingsPage(): JSX.Element {
   const router = useRouter();
   const subscriptionPlans = useQuery(api.subscriptionPlans.list);
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState<boolean>(false);
 
   const [platformSettings, setPlatformSettings] = useState({
     platformName: 'SchoolFlow',
@@ -249,6 +251,23 @@ export default function SettingsPage(): JSX.Element {
                     }
                   />
                 </div>
+                <div className="border-t pt-6 mt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">Change Password</Label>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Update your password regularly for better security</p>
+                    </div>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => setPasswordDialogOpen(true)}
+                      className="gap-2"
+                    >
+                      <Key className="h-4 w-4" />
+                      Change Password
+                    </Button>
+                  </div>
+                </div>
                 <Button type="submit">Save Security Settings</Button>
               </form>
             </CardContent>
@@ -273,7 +292,7 @@ export default function SettingsPage(): JSX.Element {
                   <p className="text-gray-500 dark:text-gray-400 mb-4">
                     No subscription plans available. Create plans on the Subscriptions page.
                   </p>
-                  <Button onClick={() => router.push('/dashboard/subscriptions')} className="gap-2">
+                  <Button onClick={() => router.push('/super-admin/subscriptions')} className="gap-2">
                     <ExternalLink className="h-4 w-4" />
                     Go to Subscriptions
                   </Button>
@@ -300,7 +319,13 @@ export default function SettingsPage(): JSX.Element {
                                 {plan.description}
                               </p>
                               <p className="text-lg font-bold text-blue-700 dark:text-blue-300 mt-2">
-                                ${plan.pricePerStudent} per student/{plan.billingCycle === 'monthly' ? 'month' : plan.billingCycle === 'quarterly' ? 'quarter' : 'year'}
+                                ${plan.price} per student/
+                                {{
+                                  monthly: 'month',
+                                  quarterly: 'quarter',
+                                  termly: 'term',
+                                  yearly: 'year',
+                                }[plan.billingCycle] ?? plan.billingCycle}
                               </p>
                               <div className="mt-3 space-y-1">
                                 {plan.features.slice(0, 3).map((feature, index) => (
@@ -322,7 +347,7 @@ export default function SettingsPage(): JSX.Element {
                   </div>
                   <div className="pt-2">
                     <Button
-                      onClick={() => router.push('/dashboard/subscriptions')}
+                      onClick={() => router.push('/super-admin/subscriptions')}
                       variant="outline"
                       className="gap-2"
                     >
@@ -336,6 +361,12 @@ export default function SettingsPage(): JSX.Element {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <PasswordChangeDialog
+        open={passwordDialogOpen}
+        onOpenChange={setPasswordDialogOpen}
+        userRole="super_admin"
+      />
     </div>
   );
 }
