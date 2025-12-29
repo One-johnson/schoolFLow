@@ -179,4 +179,51 @@ export default defineSchema({
     createdAt: v.string(),
     updatedAt: v.string(),
   }).index('by_user', ['userId', 'userRole']),
+
+  loginHistory: defineTable({
+    userId: v.string(),
+    userRole: v.union(v.literal('super_admin'), v.literal('school_admin')),
+    loginTime: v.string(),
+    logoutTime: v.optional(v.string()),
+    status: v.union(v.literal('success'), v.literal('failed')),
+    ipAddress: v.string(),
+    device: v.string(),
+    browser: v.string(),
+    os: v.string(),
+    deviceType: v.union(v.literal('desktop'), v.literal('mobile'), v.literal('tablet'), v.literal('unknown')),
+    failureReason: v.optional(v.string()),
+    sessionId: v.optional(v.string()),
+  }).index('by_user', ['userId']).index('by_time', ['loginTime']),
+
+  sessions: defineTable({
+    userId: v.string(),
+    userRole: v.union(v.literal('super_admin'), v.literal('school_admin')),
+    sessionToken: v.string(),
+    ipAddress: v.string(),
+    device: v.string(),
+    browser: v.string(),
+    os: v.string(),
+    deviceType: v.union(v.literal('desktop'), v.literal('mobile'), v.literal('tablet'), v.literal('unknown')),
+    createdAt: v.string(),
+    expiresAt: v.number(),
+    lastActivity: v.string(),
+    isActive: v.boolean(),
+  }).index('by_user', ['userId']).index('by_token', ['sessionToken']),
+
+  securityAlerts: defineTable({
+    userId: v.string(),
+    userRole: v.union(v.literal('super_admin'), v.literal('school_admin')),
+    alertType: v.union(
+      v.literal('new_device'),
+      v.literal('suspicious_location'),
+      v.literal('multiple_failed_attempts'),
+      v.literal('unusual_activity')
+    ),
+    severity: v.union(v.literal('low'), v.literal('medium'), v.literal('high')),
+    message: v.string(),
+    timestamp: v.string(),
+    acknowledged: v.boolean(),
+    ipAddress: v.optional(v.string()),
+    device: v.optional(v.string()),
+  }).index('by_user', ['userId']).index('by_severity', ['severity']),
 });

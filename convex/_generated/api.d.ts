@@ -11,6 +11,7 @@
 import type * as auditLogs from "../auditLogs.js";
 import type * as auth from "../auth.js";
 import type * as crons from "../crons.js";
+import type * as loginHistory from "../loginHistory.js";
 import type * as notifications from "../notifications.js";
 import type * as paymentProofs from "../paymentProofs.js";
 import type * as platformSettings from "../platformSettings.js";
@@ -18,6 +19,8 @@ import type * as reports from "../reports.js";
 import type * as schoolAdmins from "../schoolAdmins.js";
 import type * as schoolCreationRequests from "../schoolCreationRequests.js";
 import type * as schools from "../schools.js";
+import type * as securityAlerts from "../securityAlerts.js";
+import type * as sessions from "../sessions.js";
 import type * as subscriptionPlans from "../subscriptionPlans.js";
 import type * as subscriptionRequests from "../subscriptionRequests.js";
 import type * as subscriptions from "../subscriptions.js";
@@ -36,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   auditLogs: typeof auditLogs;
   auth: typeof auth;
   crons: typeof crons;
+  loginHistory: typeof loginHistory;
   notifications: typeof notifications;
   paymentProofs: typeof paymentProofs;
   platformSettings: typeof platformSettings;
@@ -43,6 +47,8 @@ declare const fullApi: ApiFromModules<{
   schoolAdmins: typeof schoolAdmins;
   schoolCreationRequests: typeof schoolCreationRequests;
   schools: typeof schools;
+  securityAlerts: typeof securityAlerts;
+  sessions: typeof sessions;
   subscriptionPlans: typeof subscriptionPlans;
   subscriptionRequests: typeof subscriptionRequests;
   subscriptions: typeof subscriptions;
