@@ -17,6 +17,7 @@ import {
   CheckSquare,
   Bell,
   Clock,
+  Shield,
 } from 'lucide-react';
 
 import {
@@ -35,6 +36,7 @@ const navItems = [
   { href: '/super-admin', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/super-admin/approvals', icon: CheckSquare, label: 'Approvals' },
   { href: '/super-admin/profile', icon: User, label: 'Profile Management' },
+  { href: '/super-admin/manage-admins', icon: Shield, label: 'Manage Admins' },
   { href: '/super-admin/school-admins', icon: Users, label: 'School Admins' },
   { href: '/super-admin/schools', icon: School, label: 'Schools' },
   { href: '/super-admin/subscriptions', icon: CreditCard, label: 'Subscriptions' },

@@ -17,10 +17,16 @@ export const register = mutation({
       throw new Error('Email already exists');
     }
 
+    // Check if this is the first super admin (should be owner)
+    const allAdmins = await ctx.db.query('superAdmins').collect();
+    const isFirstAdmin = allAdmins.length === 0;
+
     const id = await ctx.db.insert('superAdmins', {
       name: args.name,
       email: args.email,
       password: args.password, // Already hashed from API route
+      role: isFirstAdmin ? 'owner' : 'admin', // First admin is owner
+      status: 'active',
       createdAt: new Date().toISOString(),
     });
 
