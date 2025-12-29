@@ -63,6 +63,40 @@ export const updatePassword = mutation({
   },
 });
 
+export const resetPassword = mutation({
+  args: {
+    id: v.id('schoolAdmins'),
+    tempPassword: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const admin = await ctx.db.get(args.id);
+
+    if (!admin) {
+      throw new Error('Admin not found');
+    }
+
+    // Set the temp password and clear the hashed password
+    // User will be required to change password on next login
+    await ctx.db.patch(args.id, {
+      tempPassword: args.tempPassword,
+      password: undefined, // Clear hashed password to force temp password usage
+    });
+
+    // Send notification to the admin
+    await ctx.db.insert('notifications', {
+      title: 'Password Reset',
+      message: 'Your password has been reset by an administrator. You will need to change your password on your next login.',
+      type: 'info',
+      timestamp: new Date().toISOString(),
+      read: false,
+      recipientId: args.id,
+      recipientRole: 'school_admin',
+    });
+
+    return args.id;
+  },
+});
+
 export const create = mutation({
   args: {
     name: v.string(),
