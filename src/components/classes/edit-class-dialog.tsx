@@ -31,7 +31,7 @@ interface Class {
   className: string;
   grade: string;
   section?: string;
-  department: 'kindergarten' | 'primary' | 'junior_high';
+  department: 'creche' | 'kindergarten' | 'primary' | 'junior_high';
   classTeacherId?: string;
   capacity?: number;
   currentStudentCount: number;
@@ -160,6 +160,7 @@ export function EditClassDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="creche">Creche</SelectItem>
                 <SelectItem value="kindergarten">Kindergarten</SelectItem>
                 <SelectItem value="primary">Primary</SelectItem>
                 <SelectItem value="junior_high">Junior High</SelectItem>
