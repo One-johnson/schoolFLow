@@ -27,6 +27,17 @@ export const getByAdminId = query({
   },
 });
 
+export const getBySchoolId = query({
+  args: { schoolId: v.string() },
+  handler: async (ctx, args) => {
+    const school = await ctx.db
+      .query('schools')
+      .withIndex('by_school_id', (q) => q.eq('schoolId', args.schoolId))
+      .first();
+    return school;
+  },
+});
+
 export const updateStatus = mutation({
   args: {
     id: v.id('schools'),
