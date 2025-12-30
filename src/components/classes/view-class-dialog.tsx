@@ -21,7 +21,7 @@ interface Class {
   className: string;
   grade: string;
   section?: string;
-  department: 'kindergarten' | 'primary' | 'junior_high';
+  department: 'creche' | 'kindergarten' | 'primary' | 'junior_high';
   classTeacherId?: string;
   capacity?: number;
   currentStudentCount: number;
@@ -49,6 +49,8 @@ export function ViewClassDialog({
 
   const getDepartmentBadge = (department: string): JSX.Element => {
     switch (department) {
+      case 'creche':
+        return <Badge className="bg-orange-500">Creche</Badge>;
       case 'kindergarten':
         return <Badge className="bg-pink-500">Kindergarten</Badge>;
       case 'primary':

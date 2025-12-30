@@ -13,7 +13,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { ArrowUpDown, ChevronDown, FileDown } from 'lucide-react';
+import { ArrowUpDown, ChevronDown, FileDown, SearchX } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -33,7 +33,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { JSX } from 'react';
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -57,7 +56,7 @@ export function DataTable<TData, TValue>({
   exportFormats = ['json', 'csv', 'pdf'],
   onExport,
   onSelectionChange,
-}: DataTableProps<TData, TValue>): JSX.Element {
+}: DataTableProps<TData, TValue>): React.JSX.Element {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
@@ -209,8 +208,18 @@ export function DataTable<TData, TValue>({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
-                  No results.
+                <TableCell colSpan={columns.length} className="h-64">
+                  <div className="flex flex-col items-center justify-center gap-3 text-center py-12 animate-in fade-in-50 duration-500">
+                    <div className="rounded-full bg-muted p-4 transition-all duration-300 hover:scale-110 hover:bg-muted/80">
+                      <SearchX className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-semibold tracking-tight">No results found</h3>
+                      <p className="text-sm text-muted-foreground max-w-sm">
+                        Try adjusting your search or filter to find what you&apos;re looking for
+                      </p>
+                    </div>
+                  </div>
                 </TableCell>
               </TableRow>
             )}

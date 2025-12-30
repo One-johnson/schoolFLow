@@ -40,6 +40,7 @@ export const getClassStats = query({
 
     const activeClasses = classes.filter((c) => c.status === 'active').length;
     const inactiveClasses = classes.filter((c) => c.status === 'inactive').length;
+    const crecheClasses = classes.filter((c) => c.department === 'creche').length;
     const kindergartenClasses = classes.filter((c) => c.department === 'kindergarten').length;
     const primaryClasses = classes.filter((c) => c.department === 'primary').length;
     const juniorHighClasses = classes.filter((c) => c.department === 'junior_high').length;
@@ -50,6 +51,7 @@ export const getClassStats = query({
       total: classes.length,
       active: activeClasses,
       inactive: inactiveClasses,
+      creche: crecheClasses,
       kindergarten: kindergartenClasses,
       primary: primaryClasses,
       juniorHigh: juniorHighClasses,
@@ -66,7 +68,7 @@ export const addClass = mutation({
     className: v.string(),
     grade: v.string(),
     section: v.optional(v.string()),
-    department: v.union(v.literal('kindergarten'), v.literal('primary'), v.literal('junior_high')),
+    department: v.union(v.literal('creche'), v.literal('kindergarten'), v.literal('primary'), v.literal('junior_high')),
     classTeacherId: v.optional(v.string()),
     capacity: v.optional(v.number()),
     createdBy: v.string(),
@@ -141,7 +143,7 @@ export const addBulkClasses = mutation({
       className: v.string(),
       grade: v.string(),
       section: v.optional(v.string()),
-      department: v.union(v.literal('kindergarten'), v.literal('primary'), v.literal('junior_high')),
+      department: v.union(v.literal('creche'), v.literal('kindergarten'), v.literal('primary'), v.literal('junior_high')),
       classTeacherId: v.optional(v.string()),
       capacity: v.optional(v.number()),
     })),
@@ -230,7 +232,7 @@ export const updateClass = mutation({
     className: v.optional(v.string()),
     grade: v.optional(v.string()),
     section: v.optional(v.string()),
-    department: v.optional(v.union(v.literal('kindergarten'), v.literal('primary'), v.literal('junior_high'))),
+    department: v.optional(v.union(v.literal('creche'), v.literal('kindergarten'), v.literal('primary'), v.literal('junior_high'))),
     classTeacherId: v.optional(v.string()),
     capacity: v.optional(v.number()),
     currentStudentCount: v.optional(v.number()),

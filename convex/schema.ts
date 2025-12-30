@@ -341,7 +341,7 @@ classes: defineTable({
     className: v.string(), // e.g., "Grade 1A", "Form 3B"
     grade: v.string(), // e.g., "1", "2", "Form 1"
     section: v.optional(v.string()), // e.g., "A", "B"
-    department: v.union(v.literal('kindergarten'), v.literal('primary'), v.literal('junior_high')),
+    department: v.union(v.literal("creche"),v.literal('kindergarten'), v.literal('primary'), v.literal('junior_high')),
     classTeacherId: v.optional(v.string()), // Teacher ID from teachers table
     capacity: v.optional(v.number()),
     currentStudentCount: v.number(),

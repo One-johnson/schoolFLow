@@ -41,7 +41,7 @@ export function AddClassDialog({
     className: '',
     grade: '',
     section: '',
-    department: 'primary' as 'kindergarten' | 'primary' | 'junior_high',
+    department: 'primary' as 'creche' | 'kindergarten' | 'primary' | 'junior_high',
     classTeacherId: '',
     capacity: '',
   });
@@ -155,6 +155,7 @@ export function AddClassDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="creche">Creche</SelectItem>
                 <SelectItem value="kindergarten">Kindergarten</SelectItem>
                 <SelectItem value="primary">Primary</SelectItem>
                 <SelectItem value="junior_high">Junior High</SelectItem>

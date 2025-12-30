@@ -44,7 +44,7 @@ import { EditClassDialog } from '@/components/classes/edit-class-dialog';
 import { ViewClassDialog } from '@/components/classes/view-class-dialog';
 import { DeleteClassDialog } from '@/components/classes/delete-class-dialog';
 import { BulkAddClassesDialog } from '@/components/classes/bulk-add-classes-dialog';
-import { DataTable, createSortableHeader, createSelectColumn } from '../../../components/ui/data-table';
+import { DataTable, createSortableHeader, createSelectColumn } from '@/components/ui/data-table';
 import type { ColumnDef } from '@tanstack/react-table';
 import { exportToCSV, exportToPDF } from '../../../lib/exports';
 
@@ -55,7 +55,7 @@ interface Class {
   className: string;
   grade: string;
   section?: string;
-  department: 'kindergarten' | 'primary' | 'junior_high';
+  department: 'creche' | 'kindergarten' | 'primary' | 'junior_high';
   classTeacherId?: string;
   capacity?: number;
   currentStudentCount: number;
@@ -156,6 +156,8 @@ export default function ClassesPage(): JSX.Element {
 
   const getDepartmentBadge = (department: string): JSX.Element => {
     switch (department) {
+      case 'creche':
+        return <Badge className="bg-orange-500">Creche</Badge>;
       case 'kindergarten':
         return <Badge className="bg-pink-500">Kindergarten</Badge>;
       case 'primary':
@@ -427,7 +429,17 @@ export default function ClassesPage(): JSX.Element {
       </div>
 
       {/* Department Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="transition-all duration-200 hover:shadow-lg hover:scale-105 cursor-pointer">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Creche</CardTitle>
+            <Baby className="h-4 w-4 text-orange-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{classStats?.creche || 0}</div>
+          </CardContent>
+        </Card>
+
         <Card className="transition-all duration-200 hover:shadow-lg hover:scale-105 cursor-pointer">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Kindergarten</CardTitle>
@@ -528,6 +540,7 @@ export default function ClassesPage(): JSX.Element {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Departments</SelectItem>
+                      <SelectItem value="creche">Creche</SelectItem>
                       <SelectItem value="kindergarten">Kindergarten</SelectItem>
                       <SelectItem value="primary">Primary</SelectItem>
                       <SelectItem value="junior_high">Junior High</SelectItem>
