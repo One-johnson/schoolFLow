@@ -335,5 +335,28 @@ teachers: defineTable({
     .index('by_status', ['status'])
     .index('by_email', ['email']),
 
+classes: defineTable({
+    schoolId: v.string(),
+    classCode: v.string(), // Auto-generated: CLS + 6 random digits
+    className: v.string(), // e.g., "Grade 1A", "Form 3B"
+    grade: v.string(), // e.g., "1", "2", "Form 1"
+    section: v.optional(v.string()), // e.g., "A", "B"
+    department: v.union(v.literal('kindergarten'), v.literal('primary'), v.literal('junior_high')),
+    classTeacherId: v.optional(v.string()), // Teacher ID from teachers table
+    capacity: v.optional(v.number()),
+    currentStudentCount: v.number(),
+    academicYearId: v.optional(v.string()), // Will be implemented when academic year module is added
+    status: v.union(v.literal('active'), v.literal('inactive')),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+    createdBy: v.string(), // School Admin ID
+  })
+    .index('by_school', ['schoolId'])
+    .index('by_class_code', ['classCode'])
+    .index('by_status', ['status'])
+    .index('by_department', ['department'])
+    .index('by_teacher', ['classTeacherId']),
+
+
 
 });

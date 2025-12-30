@@ -10,6 +10,7 @@
 
 import type * as auditLogs from "../auditLogs.js";
 import type * as auth from "../auth.js";
+import type * as classes from "../classes.js";
 import type * as crons from "../crons.js";
 import type * as loginHistory from "../loginHistory.js";
 import type * as notifications from "../notifications.js";
@@ -40,6 +41,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   auditLogs: typeof auditLogs;
   auth: typeof auth;
+  classes: typeof classes;
   crons: typeof crons;
   loginHistory: typeof loginHistory;
   notifications: typeof notifications;

@@ -23,6 +23,7 @@ import {
   GraduationCap,
   HelpCircle,
   Users,
+  BookOpen,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -46,15 +47,20 @@ const menuItems = [
     icon: LayoutDashboard,
     url: '/school-admin',
   },
-    {
+  {
+    title: 'My School',
+    icon: School,
+    url: '/school-admin/school',
+  },
+  {
     title: 'Teachers',
     icon: Users,
     url: '/school-admin/teachers',
   },
   {
-    title: 'My School',
-    icon: School,
-    url: '/school-admin/school',
+    title: 'Classes',
+    icon: BookOpen,
+    url: '/school-admin/classes',
   },
   {
     title: 'Subscription',
