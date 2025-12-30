@@ -31,9 +31,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function PaymentPage(): JSX.Element {
   const router = useRouter();
+    const { user } = useAuth();
   const [paymentMethod, setPaymentMethod] = useState<'mobile_money' | 'bank_transfer'>('mobile_money');
   const [transactionId, setTransactionId] = useState('');
   const [amount, setAmount] = useState('');
@@ -43,10 +45,11 @@ export default function PaymentPage(): JSX.Element {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  const schoolAdminEmail = typeof window !== 'undefined' ? localStorage.getItem('schoolAdminEmail') : null;
+   const currentAdmin = useQuery(
+    api.schoolAdmins.getByEmail,
+    user?.email ? { email: user.email } : 'skip'
+  );
 
-  const schoolAdmins = useQuery(api.schoolAdmins.list);
-  const currentAdmin = schoolAdmins?.find((admin) => admin.email === schoolAdminEmail);
 
   const subscriptionRequests = useQuery(
     api.subscriptionRequests.getByAdmin,
@@ -64,11 +67,6 @@ export default function PaymentPage(): JSX.Element {
     (req) => req.status === 'pending_approval'
   );
 
-  useEffect(() => {
-    if (!schoolAdminEmail) {
-      router.push('/login');
-    }
-  }, [schoolAdminEmail, router]);
 
   useEffect(() => {
     if (pendingSubscription) {

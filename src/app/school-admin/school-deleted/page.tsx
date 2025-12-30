@@ -8,19 +8,16 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { XCircle, Mail, Phone, ArrowLeft, PlusCircle } from 'lucide-react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function SchoolDeletedPage(): JSX.Element {
   const router = useRouter();
+     const { user } = useAuth();
   const [email, setEmail] = useState<string | null>(null);
 
-  useEffect(() => {
-    const schoolAdminEmail = localStorage.getItem('schoolAdminEmail');
-    setEmail(schoolAdminEmail);
-  }, []);
-
-  const admin = useQuery(
+    const currentAdmin = useQuery(
     api.schoolAdmins.getByEmail,
-    email ? { email } : 'skip'
+    user?.email ? { email: user.email } : 'skip'
   );
 
   const handleLogout = (): void => {
@@ -68,7 +65,7 @@ export default function SchoolDeletedPage(): JSX.Element {
             </p>
           </div>
 
-          {admin && admin.hasActiveSubscription && (
+          {currentAdmin && currentAdmin.hasActiveSubscription && (
             <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-900">
               <AlertDescription className="text-gray-900 dark:text-gray-100">
                 <strong>Good news!</strong> You still have an active subscription. You can use it to create a new school right away.

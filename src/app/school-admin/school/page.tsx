@@ -8,14 +8,16 @@ import { useQuery } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { School, Mail, Phone, MapPin, Users, Calendar, Badge as BadgeIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function SchoolPage(): JSX.Element {
   const router = useRouter();
+  const { user } = useAuth();
 
-  const schoolAdminEmail = typeof window !== 'undefined' ? localStorage.getItem('schoolAdminEmail') : null;
-
-  const schoolAdmins = useQuery(api.schoolAdmins.list);
-  const currentAdmin = schoolAdmins?.find((admin) => admin.email === schoolAdminEmail);
+   const currentAdmin = useQuery(
+    api.schoolAdmins.getByEmail,
+    user?.email ? { email: user.email } : 'skip'
+  );
 
   const schoolCreationRequests = useQuery(
     api.schoolCreationRequests.getByAdmin,
@@ -28,11 +30,7 @@ export default function SchoolPage(): JSX.Element {
   const approvedSchoolRequest = schoolCreationRequests?.find((req) => req.status === 'approved');
   const school = schools?.find((s) => s.adminId === currentAdmin?._id);
 
-  useEffect(() => {
-    if (!schoolAdminEmail) {
-      router.push('/login');
-    }
-  }, [schoolAdminEmail, router]);
+
 
   if (!currentAdmin) {
     return (

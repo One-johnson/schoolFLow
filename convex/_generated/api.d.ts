@@ -27,6 +27,7 @@ import type * as subscriptions from "../subscriptions.js";
 import type * as superAdmins from "../superAdmins.js";
 import type * as support from "../support.js";
 import type * as supportTickets from "../supportTickets.js";
+import type * as teachers from "../teachers.js";
 import type * as trialManagement from "../trialManagement.js";
 import type * as userSettings from "../userSettings.js";
 
@@ -56,6 +57,7 @@ declare const fullApi: ApiFromModules<{
   superAdmins: typeof superAdmins;
   support: typeof support;
   supportTickets: typeof supportTickets;
+  teachers: typeof teachers;
   trialManagement: typeof trialManagement;
   userSettings: typeof userSettings;
 }>;

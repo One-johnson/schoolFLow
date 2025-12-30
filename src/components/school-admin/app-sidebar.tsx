@@ -22,6 +22,7 @@ import {
   LogOut,
   GraduationCap,
   HelpCircle,
+  Users,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -44,6 +45,11 @@ const menuItems = [
     title: 'Dashboard',
     icon: LayoutDashboard,
     url: '/school-admin',
+  },
+    {
+    title: 'Teachers',
+    icon: Users,
+    url: '/school-admin/teachers',
   },
   {
     title: 'My School',

@@ -13,9 +13,11 @@ import { toast } from 'sonner';
 import { School, Mail, Phone, MapPin, Users, AlertCircle, Loader2, CheckCircle2, Clock } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function CreateSchoolPage(): JSX.Element {
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [formData, setFormData] = useState({
     schoolName: '',
     email: '',
@@ -24,10 +26,10 @@ export default function CreateSchoolPage(): JSX.Element {
   });
   const [loading, setLoading] = useState(false);
 
-  const schoolAdminEmail = typeof window !== 'undefined' ? localStorage.getItem('schoolAdminEmail') : null;
-
-  const schoolAdmins = useQuery(api.schoolAdmins.list);
-  const currentAdmin = schoolAdmins?.find((admin) => admin.email === schoolAdminEmail);
+    const currentAdmin = useQuery(
+    api.schoolAdmins.getByEmail,
+    user?.email ? { email: user.email } : 'skip'
+  );
 
   const subscriptionRequests = useQuery(
     api.subscriptionRequests.getByAdmin,
@@ -47,12 +49,6 @@ export default function CreateSchoolPage(): JSX.Element {
 
   const pendingSchool = schoolCreationRequests?.find((req) => req.status === 'pending');
   const approvedSchool = schoolCreationRequests?.find((req) => req.status === 'approved');
-
-  useEffect(() => {
-    if (!schoolAdminEmail) {
-      router.push('/login');
-    }
-  }, [schoolAdminEmail, router]);
 
   useEffect(() => {
     if (currentAdmin && !currentAdmin.hasActiveSubscription) {

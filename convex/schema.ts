@@ -304,4 +304,34 @@ supportTickets: defineTable({
     .index('by_ticket', ['ticketId'])
     .index('by_message', ['messageId']),
 
+teachers: defineTable({
+    schoolId: v.string(),
+    teacherId: v.string(), // Auto-generated: teacher initials + 6 random digits
+    firstName: v.string(),
+    lastName: v.string(),
+    email: v.string(),
+    phone: v.string(),
+    address: v.string(),
+    dateOfBirth: v.string(),
+    gender: v.union(v.literal('male'), v.literal('female'), v.literal('other')),
+    qualifications: v.array(v.string()),
+    subjects: v.array(v.string()), // Subject names (will be IDs when subjects module is implemented)
+    employmentDate: v.string(),
+    employmentType: v.union(v.literal('full_time'), v.literal('part_time'), v.literal('contract')),
+    salary: v.optional(v.number()),
+    status: v.union(v.literal('active'), v.literal('on_leave'), v.literal('inactive')),
+    photoStorageId: v.optional(v.string()),
+    emergencyContact: v.optional(v.string()),
+    emergencyContactName: v.optional(v.string()),
+    emergencyContactRelationship: v.optional(v.string()),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+    createdBy: v.string(), // School Admin ID
+  })
+    .index('by_school', ['schoolId'])
+    .index('by_teacher_id', ['teacherId'])
+    .index('by_status', ['status'])
+    .index('by_email', ['email']),
+
+
 });

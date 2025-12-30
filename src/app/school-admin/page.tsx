@@ -2,6 +2,7 @@
 
 import { JSX, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useQuery } from 'convex/react';
@@ -26,11 +27,13 @@ import { Separator } from '@/components/ui/separator';
 
 export default function SchoolAdminDashboard(): JSX.Element {
   const router = useRouter();
-
-  const schoolAdminEmail = typeof window !== 'undefined' ? localStorage.getItem('schoolAdminEmail') : null;
+  const { user } = useAuth();
   
-  const schoolAdmins = useQuery(api.schoolAdmins.list);
-  const currentAdmin = schoolAdmins?.find((admin) => admin.email === schoolAdminEmail);
+  // Use getByEmail for more efficient querying
+  const currentAdmin = useQuery(
+    api.schoolAdmins.getByEmail,
+    user?.email ? { email: user.email } : 'skip'
+  );
 
   const subscriptionRequests = useQuery(
     api.subscriptionRequests.getByAdmin,
@@ -43,7 +46,8 @@ export default function SchoolAdminDashboard(): JSX.Element {
   );
 
   const notifications = useQuery(
-    api.notifications.list, 'skip'
+    api.notifications.list,
+    currentAdmin ? {} : 'skip'
   );
 
   const activeSubscription = subscriptionRequests?.find(
@@ -59,12 +63,7 @@ export default function SchoolAdminDashboard(): JSX.Element {
 
   const unreadNotifications = notifications?.filter((n) => !n.read).length || 0;
 
-  useEffect(() => {
-    if (!schoolAdminEmail) {
-      router.push('/login');
-    }
-  }, [schoolAdminEmail, router]);
-
+  // Redirect to subscription if no active subscription
   useEffect(() => {
     if (currentAdmin && !currentAdmin.hasActiveSubscription) {
       router.push('/school-admin/subscription');
@@ -79,7 +78,9 @@ export default function SchoolAdminDashboard(): JSX.Element {
     }
   }, [currentAdmin, schoolCreationRequests, router, pendingSchoolRequest]);
 
-  if (!currentAdmin) {
+  // Handle case where admin record doesn't exist
+  if (currentAdmin === undefined) {
+    // Still loading
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center space-y-4">
@@ -87,6 +88,22 @@ export default function SchoolAdminDashboard(): JSX.Element {
           <div>
             <h2 className="text-2xl font-bold mb-2">Loading Dashboard</h2>
             <p className="text-muted-foreground">Please wait while we load your data</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (currentAdmin === null) {
+    // Admin record doesn't exist - redirect to subscription page
+    router.push('/school-admin/subscription');
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center space-y-4">
+          <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+          <div>
+            <h2 className="text-2xl font-bold mb-2">Setting Up Your Account</h2>
+            <p className="text-muted-foreground">Redirecting you to get started...</p>
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, JSX } from 'react';
+import { JSX, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,9 +12,11 @@ import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function SubscriptionPage(): JSX.Element {
   const router = useRouter();
+  const { user } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [studentCount, setStudentCount] = useState<number>(100);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -25,10 +27,10 @@ export default function SubscriptionPage(): JSX.Element {
     isTrial: boolean;
   } | null>(null);
 
-  const schoolAdminEmail = typeof window !== 'undefined' ? localStorage.getItem('schoolAdminEmail') : null;
-
-  const schoolAdmins = useQuery(api.schoolAdmins.list);
-  const currentAdmin = schoolAdmins?.find((admin) => admin.email === schoolAdminEmail);
+  const currentAdmin = useQuery(
+    api.schoolAdmins.getByEmail,
+    user?.email ? { email: user.email } : 'skip'
+  );
 
   const subscriptionPlans = useQuery(api.subscriptionPlans.list);
   const activePlans = subscriptionPlans?.filter((plan) => plan.isActive);
@@ -43,12 +45,6 @@ export default function SubscriptionPage(): JSX.Element {
   const activeSubscription = subscriptionRequests?.find(
     (req) => req.status === 'approved'
   );
-
-  useEffect(() => {
-    if (!schoolAdminEmail) {
-      router.push('/login');
-    }
-  }, [schoolAdminEmail, router]);
 
   const handleSelectPlan = (planId: string, planName: string, pricePerStudent: number, isTrial: boolean): void => {
     setSelectedPlanDetails({

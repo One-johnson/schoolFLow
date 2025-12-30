@@ -19,9 +19,11 @@ export default function SchoolAdminLayout({
   const { authenticated, loading, user } = useAuth();
   const [checkingStatus, setCheckingStatus] = useState(true);
 
-  // Get school admin data
-  const schoolAdmins = useQuery(api.schoolAdmins.list);
-  const schoolAdmin = schoolAdmins?.find((admin) => admin.email === user?.email);
+  // Get school admin data using more efficient query
+  const schoolAdmin = useQuery(
+    api.schoolAdmins.getByEmail,
+    user?.email ? { email: user.email } : 'skip'
+  );
 
   // Get school data if admin has created a school
   const schools = useQuery(api.schools.list);
@@ -33,13 +35,25 @@ export default function SchoolAdminLayout({
     }
   }, [loading, schoolAdmin]);
 
+  // Only perform auth checks after both loading states are complete
   useEffect(() => {
-    if (!loading && !checkingStatus) {
-      if (!authenticated) {
-        router.push('/login');
-      } else if (user?.role !== 'school_admin') {
-        router.push('/login');
-      }
+    // Don't redirect while still loading
+    if (loading || checkingStatus) {
+      return;
+    }
+
+    // Now we've finished loading, check authentication
+    if (!authenticated) {
+      console.log('Not authenticated, redirecting to login');
+      router.push('/login');
+      return;
+    }
+
+    // Check if user has correct role
+    if (user?.role !== 'school_admin') {
+      console.log('User is not school admin, redirecting to login');
+      router.push('/login');
+      return;
     }
   }, [authenticated, loading, user, router, checkingStatus]);
 
@@ -50,9 +64,8 @@ export default function SchoolAdminLayout({
         router.push('/school-admin/school-suspended');
         return;
       }
-      // Check if school is marked as deleted (you might have a deleted status)
-      // Type-safe check for a possibly deleted school
-      if ('deleted' in school && (school as any).deleted === true) {
+      // Check if school is marked as deleted (also handles legacy "deleted" property)
+      if ((school as any).deleted === true) {
         router.push('/school-admin/school-deleted');
         return;
       }

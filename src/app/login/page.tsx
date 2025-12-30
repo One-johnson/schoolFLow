@@ -44,7 +44,8 @@ export default function LoginPage(): JSX.Element {
 
       if (data.success) {
         toast.success('Login successful!');
-        router.push(data.redirectTo);
+        // Use window.location.href for full page reload to ensure cookie is included
+        window.location.href = data.redirectTo;
       } else {
         toast.error(data.message || 'Invalid credentials');
       }
