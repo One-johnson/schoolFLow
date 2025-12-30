@@ -1,19 +1,14 @@
-export type SchoolStatus =
-  | "pending_payment"
-  | "pending_approval"
-  | "active"
-  | "suspended";
+export type SchoolStatus = 'pending_payment' | 'pending_approval' | 'active' | 'suspended';
 
-export type UserRole = "super_admin" | "school_admin" | "teacher" | "student";
+export type UserRole = 'super_admin' | 'school_admin' | 'teacher' | 'student';
 
 export interface SuperAdmin {
-  [x: string]: string;
   id: string;
   name: string;
   email: string;
   password: string;
   createdAt: string;
-  lastLogin: string;
+  lastLogin?: string;
 }
 
 export interface SchoolAdmin {
@@ -22,7 +17,7 @@ export interface SchoolAdmin {
   email: string;
   schoolId: string;
   tempPassword?: string;
-  status: "active" | "inactive" | "pending";
+  status: 'active' | 'inactive' | 'pending';
   createdAt: string;
   invitedBy: string;
 }
@@ -53,7 +48,7 @@ export interface Subscription {
   studentsCount: number;
   pricePerStudent: number;
   totalAmount: number;
-  status: "pending" | "verified" | "expired";
+  status: 'pending' | 'verified' | 'expired';
   paymentMethod: string;
   paymentDate?: string;
   verifiedBy?: string;
@@ -77,7 +72,7 @@ export interface Notification {
   id: string;
   title: string;
   message: string;
-  type: "info" | "warning" | "success" | "error";
+  type: 'info' | 'warning' | 'success' | 'error';
   timestamp: string;
   read: boolean;
   actionUrl?: string;
@@ -105,8 +100,61 @@ export interface SupportRequest {
   id: string;
   schoolName: string;
   subject: string;
-  status: "open" | "in_progress" | "resolved";
-  priority: "low" | "medium" | "high";
+  status: 'open' | 'in_progress' | 'resolved';
+  priority: 'low' | 'medium' | 'high';
   createdAt: string;
   resolvedAt?: string;
+}
+
+export interface SupportTicket {
+  _id: string;
+  _creationTime: number;
+  ticketNumber: string;
+  subject: string;
+  description: string;
+  category: 'payment' | 'technical' | 'account' | 'general';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  status: 'open' | 'in_progress' | 'waiting_customer' | 'resolved' | 'closed';
+  requesterId: string;
+  requesterName: string;
+  requesterEmail: string;
+  schoolId?: string;
+  schoolName?: string;
+  assignedToId?: string;
+  assignedToName?: string;
+  assignedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt?: string;
+  closedAt?: string;
+  lastResponseBy?: 'admin' | 'customer';
+  lastResponseAt?: string;
+  responseCount: number;
+  attachmentCount: number;
+}
+
+export interface SupportTicketMessage {
+  _id: string;
+  _creationTime: number;
+  ticketId: string;
+  senderId: string;
+  senderName: string;
+  senderRole: 'super_admin' | 'school_admin';
+  message: string;
+  isInternal: boolean;
+  createdAt: string;
+  editedAt?: string;
+}
+
+export interface SupportTicketAttachment {
+  _id: string;
+  _creationTime: number;
+  ticketId: string;
+  messageId?: string;
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+  storageId: string;
+  uploadedBy: string;
+  uploadedAt: string;
 }

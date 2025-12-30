@@ -226,4 +226,82 @@ export default defineSchema({
     ipAddress: v.optional(v.string()),
     device: v.optional(v.string()),
   }).index('by_user', ['userId']).index('by_severity', ['severity']),
+
+supportTickets: defineTable({
+    // Ticket Information
+    ticketNumber: v.string(),
+    subject: v.string(),
+    description: v.string(),
+    category: v.union(
+      v.literal('payment'),
+      v.literal('technical'),
+      v.literal('account'),
+      v.literal('general')
+    ),
+    priority: v.union(
+      v.literal('low'),
+      v.literal('medium'),
+      v.literal('high'),
+      v.literal('urgent')
+    ),
+    status: v.union(
+      v.literal('open'),
+      v.literal('in_progress'),
+      v.literal('waiting_customer'),
+      v.literal('resolved'),
+      v.literal('closed')
+    ),
+    // Requester Information (School Admin)
+    requesterId: v.string(),
+    requesterName: v.string(),
+    requesterEmail: v.string(),
+    schoolId: v.optional(v.string()),
+    schoolName: v.optional(v.string()),
+    // Assignment (Super Admin)
+    assignedToId: v.optional(v.string()),
+    assignedToName: v.optional(v.string()),
+    assignedAt: v.optional(v.string()),
+    // Timestamps
+    createdAt: v.string(),
+    updatedAt: v.string(),
+    resolvedAt: v.optional(v.string()),
+    closedAt: v.optional(v.string()),
+    // Metadata
+    lastResponseBy: v.optional(v.union(v.literal('admin'), v.literal('customer'))),
+    lastResponseAt: v.optional(v.string()),
+    responseCount: v.number(),
+    attachmentCount: v.number(),
+  })
+    .index('by_requester', ['requesterId'])
+    .index('by_assigned', ['assignedToId'])
+    .index('by_status', ['status'])
+    .index('by_priority', ['priority'])
+    .index('by_school', ['schoolId']),
+
+  supportTicketMessages: defineTable({
+    ticketId: v.id('supportTickets'),
+    senderId: v.string(),
+    senderName: v.string(),
+    senderRole: v.union(v.literal('super_admin'), v.literal('school_admin')),
+    message: v.string(),
+    isInternal: v.boolean(),
+    createdAt: v.string(),
+    editedAt: v.optional(v.string()),
+  })
+    .index('by_ticket', ['ticketId'])
+    .index('by_sender', ['senderId']),
+
+  supportTicketAttachments: defineTable({
+    ticketId: v.id('supportTickets'),
+    messageId: v.optional(v.id('supportTicketMessages')),
+    fileName: v.string(),
+    fileType: v.string(),
+    fileSize: v.number(),
+    storageId: v.string(),
+    uploadedBy: v.string(),
+    uploadedAt: v.string(),
+  })
+    .index('by_ticket', ['ticketId'])
+    .index('by_message', ['messageId']),
+
 });
