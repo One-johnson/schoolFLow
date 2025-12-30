@@ -357,6 +357,22 @@ classes: defineTable({
     .index('by_department', ['department'])
     .index('by_teacher', ['classTeacherId']),
 
-
+subjects: defineTable({
+    schoolId: v.string(),
+    subjectCode: v.string(), // Auto-generated: department initials + 4 random digits (e.g., CR0234, KG1245)
+    subjectName: v.string(),
+    description: v.optional(v.string()),
+    category: v.union(v.literal('core'), v.literal('elective'), v.literal('extracurricular')),
+    department: v.union(v.literal('creche'), v.literal('kindergarten'), v.literal('primary'), v.literal('junior_high')),
+    status: v.union(v.literal('active'), v.literal('inactive')),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+    createdBy: v.string(), // School Admin ID
+  })
+    .index('by_school', ['schoolId'])
+    .index('by_subject_code', ['subjectCode'])
+    .index('by_status', ['status'])
+    .index('by_department', ['department'])
+    .index('by_category', ['category']),
 
 });
