@@ -1,21 +1,12 @@
 'use client';
 
-import { JSX, useEffect, useState } from 'react';
+import { JSX, useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/../convex/_generated/api';
 import type { Id } from '@/../convex/_generated/dataModel';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,12 +15,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
-import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   Plus,
-  Search,
   MoreVertical,
   UserCheck,
   UserX,
@@ -38,22 +34,28 @@ import {
   Users,
   UserPlus,
   Clock,
+  FileDown,
+  Eye,
+  User,
 } from 'lucide-react';
-import type { Teacher, TeacherStats } from '@/types';
+import type { Teacher } from '@/types';
 import { AddTeacherDialog } from '@/components/teachers/add-teacher-dialog';
 import { EditTeacherDialog } from '@/components/teachers/edit-teacher-dialog';
 import { ViewTeacherDialog } from '@/components/teachers/view-teacher-dialog';
 import { DeleteTeacherDialog } from '@/components/teachers/delete-teacher-dialog';
+import { DataTable, createSortableHeader, createSelectColumn } from '../../../components/ui/data-table';
+import type { ColumnDef } from '@tanstack/react-table';
+import { exportToCSV, exportToPDF } from '../../../lib/exports';
 
 export default function TeachersPage(): JSX.Element {
   const { user } = useAuth();
-  const router = useRouter();
-  const [searchTerm, setSearchTerm] = useState<string>('');
   const [showAddDialog, setShowAddDialog] = useState<boolean>(false);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [showEditDialog, setShowEditDialog] = useState<boolean>(false);
   const [showViewDialog, setShowViewDialog] = useState<boolean>(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState<boolean>(false);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [employmentFilter, setEmploymentFilter] = useState<string>('all');
 
   // Fetch school data
   const schoolAdmin = useQuery(
@@ -123,14 +125,14 @@ export default function TeachersPage(): JSX.Element {
     );
   }
 
-  // Filter teachers based on search term
+  // Filter teachers based on status and employment type
   const filteredTeachers = teachers?.filter(
-    (teacher: Teacher) =>
-      teacher.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      teacher.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      teacher.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      teacher.teacherId.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+    (teacher: Teacher) => {
+      const statusMatch = statusFilter === 'all' || teacher.status === statusFilter;
+      const employmentMatch = employmentFilter === 'all' || teacher.employmentType === employmentFilter;
+      return statusMatch && employmentMatch;
+    }
+  ) || [];
 
   const handleStatusChange = async (teacherId: Id<'teachers'>, newStatus: 'active' | 'on_leave' | 'inactive'): Promise<void> => {
     try {
@@ -172,6 +174,224 @@ export default function TeachersPage(): JSX.Element {
     }
   };
 
+  // Export handlers
+  const handleExportSingle = (teacher: Teacher, format: 'csv' | 'pdf'): void => {
+    const exportData = [{
+      teacherId: teacher.teacherId,
+      firstName: teacher.firstName,
+      lastName: teacher.lastName,
+      email: teacher.email,
+      phone: teacher.phone,
+      employmentType: teacher.employmentType,
+      status: teacher.status,
+      subjects: teacher.subjects.join(', '),
+      qualifications: teacher.qualifications.join(', '),
+      dateOfBirth: teacher.dateOfBirth,
+      address: teacher.address,
+      emergencyContact: teacher.emergencyContact,
+      emergencyPhone: teacher.emergencyContact,
+    }];
+
+    if (format === 'csv') {
+      exportToCSV(exportData, `teacher_${teacher.teacherId}`);
+      toast.success('Teacher exported as CSV');
+    } else {
+      exportToPDF(exportData, `teacher_${teacher.teacherId}`, `Teacher: ${teacher.firstName} ${teacher.lastName}`);
+      toast.success('Teacher exported as PDF');
+    }
+  };
+
+  const handleExportBulk = (teachersToExport: Teacher[], format: 'csv' | 'pdf'): void => {
+    const exportData = teachersToExport.map(teacher => ({
+      teacherId: teacher.teacherId,
+      firstName: teacher.firstName,
+      lastName: teacher.lastName,
+      email: teacher.email,
+      phone: teacher.phone,
+      employmentType: teacher.employmentType,
+      status: teacher.status,
+      subjects: teacher.subjects.join(', '),
+      qualifications: teacher.qualifications.join(', '),
+      dateOfBirth: teacher.dateOfBirth,
+      address: teacher.address,
+      emergencyContact: teacher.emergencyContact,
+      emergencyPhone: teacher.emergencyContact,
+    }));
+
+    if (format === 'csv') {
+      exportToCSV(exportData, 'teachers');
+      toast.success(`${teachersToExport.length} teachers exported as CSV`);
+    } else {
+      exportToPDF(exportData, 'teachers', 'Teachers Report');
+      toast.success(`${teachersToExport.length} teachers exported as PDF`);
+    }
+  };
+
+  // Define columns for DataTable
+  const columns: ColumnDef<Teacher>[] = [
+    createSelectColumn<Teacher>(),
+    {
+      accessorKey: 'photoUrl',
+      header: 'Photo',
+      cell: ({ row }) => {
+        const photoUrl = row.original.photoUrl;
+        return (
+          <div className="flex items-center justify-center">
+            {photoUrl ? (
+              <img
+                src={photoUrl}
+                alt={`${row.original.firstName} ${row.original.lastName}`}
+                className="h-10 w-10 rounded-full object-cover"
+              />
+            ) : (
+              <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                <User className="h-5 w-5 text-gray-500" />
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: 'teacherId',
+      header: createSortableHeader('Teacher ID'),
+      cell: ({ row }) => (
+        <span className="font-medium">{row.getValue('teacherId')}</span>
+      ),
+    },
+    {
+      accessorKey: 'firstName',
+      header: createSortableHeader('First Name'),
+    },
+    {
+      accessorKey: 'lastName',
+      header: createSortableHeader('Last Name'),
+    },
+    {
+      accessorKey: 'email',
+      header: createSortableHeader('Email'),
+    },
+    {
+      accessorKey: 'phone',
+      header: 'Phone',
+    },
+    {
+      accessorKey: 'employmentType',
+      header: 'Employment Type',
+      cell: ({ row }) => getEmploymentTypeBadge(row.getValue('employmentType')),
+    },
+    {
+      accessorKey: 'subjects',
+      header: 'Subjects',
+      cell: ({ row }) => {
+        const subjects = row.getValue('subjects') as string[];
+        return (
+          <div className="flex flex-wrap gap-1">
+            {subjects.slice(0, 2).map((subject: string, index: number) => (
+              <Badge key={index} variant="secondary" className="text-xs">
+                {subject}
+              </Badge>
+            ))}
+            {subjects.length > 2 && (
+              <Badge variant="secondary" className="text-xs">
+                +{subjects.length - 2}
+              </Badge>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: 'status',
+      header: createSortableHeader('Status'),
+      cell: ({ row }) => getStatusBadge(row.getValue('status')),
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => {
+        const teacher = row.original;
+        return (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSelectedTeacher(teacher);
+                setShowViewDialog(true);
+              }}
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                <DropdownMenuItem
+                  onClick={() => {
+                    setSelectedTeacher(teacher);
+                    setShowEditDialog(true);
+                  }}
+                >
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Export</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => handleExportSingle(teacher, 'csv')}>
+                  <FileDown className="mr-2 h-4 w-4" />
+                  Export as CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExportSingle(teacher, 'pdf')}>
+                  <FileDown className="mr-2 h-4 w-4" />
+                  Export as PDF
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Change Status</DropdownMenuLabel>
+                <DropdownMenuItem
+                  onClick={() => handleStatusChange(teacher._id as Id<'teachers'>, 'active')}
+                  disabled={teacher.status === 'active'}
+                >
+                  <UserCheck className="mr-2 h-4 w-4 text-green-500" />
+                  Set Active
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleStatusChange(teacher._id as Id<'teachers'>, 'on_leave')}
+                  disabled={teacher.status === 'on_leave'}
+                >
+                  <Clock className="mr-2 h-4 w-4 text-yellow-500" />
+                  Set On Leave
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleStatusChange(teacher._id as Id<'teachers'>, 'inactive')}
+                  disabled={teacher.status === 'inactive'}
+                >
+                  <UserX className="mr-2 h-4 w-4 text-gray-500" />
+                  Set Inactive
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => {
+                    setSelectedTeacher(teacher);
+                    setShowDeleteDialog(true);
+                  }}
+                  className="text-red-600"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        );
+      },
+    },
+  ];
+
   return (
     <div className="container mx-auto py-6 space-y-6">
       {/* Header */}
@@ -188,9 +408,9 @@ export default function TeachersPage(): JSX.Element {
         </Button>
       </div>
 
-      {/* Statistics Cards */}
+      {/* Statistics Cards with Hover Effects */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="transition-all duration-200 hover:shadow-lg hover:scale-105 cursor-pointer">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Teachers</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
@@ -200,7 +420,7 @@ export default function TeachersPage(): JSX.Element {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="transition-all duration-200 hover:shadow-lg hover:scale-105 cursor-pointer">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active</CardTitle>
             <UserCheck className="h-4 w-4 text-green-500" />
@@ -210,7 +430,7 @@ export default function TeachersPage(): JSX.Element {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="transition-all duration-200 hover:shadow-lg hover:scale-105 cursor-pointer">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">On Leave</CardTitle>
             <Clock className="h-4 w-4 text-yellow-500" />
@@ -220,7 +440,7 @@ export default function TeachersPage(): JSX.Element {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="transition-all duration-200 hover:shadow-lg hover:scale-105 cursor-pointer">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Inactive</CardTitle>
             <UserX className="h-4 w-4 text-gray-500" />
@@ -231,9 +451,9 @@ export default function TeachersPage(): JSX.Element {
         </Card>
       </div>
 
-      {/* Employment Type Stats */}
+      {/* Employment Type Stats with Hover Effects */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+        <Card className="transition-all duration-200 hover:shadow-lg hover:scale-105 cursor-pointer">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Full Time</CardTitle>
             <UserPlus className="h-4 w-4 text-muted-foreground" />
@@ -243,7 +463,7 @@ export default function TeachersPage(): JSX.Element {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="transition-all duration-200 hover:shadow-lg hover:scale-105 cursor-pointer">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Part Time</CardTitle>
             <UserPlus className="h-4 w-4 text-muted-foreground" />
@@ -253,7 +473,7 @@ export default function TeachersPage(): JSX.Element {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="transition-all duration-200 hover:shadow-lg hover:scale-105 cursor-pointer">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Contract</CardTitle>
             <UserPlus className="h-4 w-4 text-muted-foreground" />
@@ -264,24 +484,17 @@ export default function TeachersPage(): JSX.Element {
         </Card>
       </div>
 
-      {/* Teachers Table */}
+      {/* Teachers Table with Filters */}
       <Card>
         <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <CardTitle>All Teachers</CardTitle>
-              <CardDescription>
-                View and manage all teaching staff
-              </CardDescription>
-            </div>
-            <div className="relative w-full md:w-64">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search teachers..."
-                value={searchTerm}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
-                className="pl-8"
-              />
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <CardTitle>All Teachers</CardTitle>
+                <CardDescription>
+                  View and manage all teaching staff
+                </CardDescription>
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -299,116 +512,46 @@ export default function TeachersPage(): JSX.Element {
               </Button>
             </div>
           ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Teacher ID</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Employment Type</TableHead>
-                    <TableHead>Subjects</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredTeachers?.map((teacher: Teacher) => (
-                    <TableRow key={teacher._id}>
-                      <TableCell className="font-medium">
-                        {teacher.teacherId}
-                      </TableCell>
-                      <TableCell>
-                        {teacher.firstName} {teacher.lastName}
-                      </TableCell>
-                      <TableCell>{teacher.email}</TableCell>
-                      <TableCell>{teacher.phone}</TableCell>
-                      <TableCell>
-                        {getEmploymentTypeBadge(teacher.employmentType)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {teacher.subjects.slice(0, 2).map((subject: string, index: number) => (
-                            <Badge key={index} variant="secondary" className="text-xs">
-                              {subject}
-                            </Badge>
-                          ))}
-                          {teacher.subjects.length > 2 && (
-                            <Badge variant="secondary" className="text-xs">
-                              +{teacher.subjects.length - 2}
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(teacher.status)}</TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setSelectedTeacher(teacher);
-                                setShowViewDialog(true);
-                              }}
-                            >
-                              View Details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setSelectedTeacher(teacher);
-                                setShowEditDialog(true);
-                              }}
-                            >
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuLabel>Change Status</DropdownMenuLabel>
-                            <DropdownMenuItem
-                              onClick={() => handleStatusChange(teacher._id as Id<'teachers'>, 'active')}
-                              disabled={teacher.status === 'active'}
-                            >
-                              <UserCheck className="mr-2 h-4 w-4 text-green-500" />
-                              Set Active
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleStatusChange(teacher._id as Id<'teachers'>, 'on_leave')}
-                              disabled={teacher.status === 'on_leave'}
-                            >
-                              <Clock className="mr-2 h-4 w-4 text-yellow-500" />
-                              Set On Leave
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleStatusChange(teacher._id as Id<'teachers'>, 'inactive')}
-                              disabled={teacher.status === 'inactive'}
-                            >
-                              <UserX className="mr-2 h-4 w-4 text-gray-500" />
-                              Set Inactive
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setSelectedTeacher(teacher);
-                                setShowDeleteDialog(true);
-                              }}
-                              className="text-red-600"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <div className="space-y-4">
+              {/* Filters Row */}
+              <div className="flex flex-wrap gap-2">
+                <div className="flex-1 min-w-[180px]">
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Filter by Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="on_leave">On Leave</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="flex-1 min-w-[180px]">
+                  <Select value={employmentFilter} onValueChange={setEmploymentFilter}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Filter by Employment Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      <SelectItem value="full_time">Full Time</SelectItem>
+                      <SelectItem value="part_time">Part Time</SelectItem>
+                      <SelectItem value="contract">Contract</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <DataTable
+                columns={columns}
+                data={filteredTeachers}
+                searchKey="firstName"
+                searchPlaceholder="Search by first name..."
+                exportFormats={['csv', 'pdf']}
+                onExport={(rows, format) => handleExportBulk(rows, format as 'csv' | 'pdf')}
+              />
             </div>
           )}
         </CardContent>

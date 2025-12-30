@@ -322,6 +322,7 @@ teachers: defineTable({
     salary: v.optional(v.number()),
     status: v.union(v.literal('active'), v.literal('on_leave'), v.literal('inactive')),
     photoStorageId: v.optional(v.string()),
+    photoUrl: v.optional(v.string()),
     emergencyContact: v.optional(v.string()),
     emergencyContactName: v.optional(v.string()),
     emergencyContactRelationship: v.optional(v.string()),
