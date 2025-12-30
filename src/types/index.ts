@@ -177,6 +177,7 @@ export interface Teacher {
   employmentType: 'full_time' | 'part_time' | 'contract';
   salary?: number;
   status: 'active' | 'on_leave' | 'inactive';
+  photoUrl?: string,
   photoStorageId?: string;
   emergencyContact?: string;
   emergencyContactName?: string;

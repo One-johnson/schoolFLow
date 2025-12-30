@@ -98,6 +98,7 @@ export const addTeacher = mutation({
     employmentDate: v.string(),
     employmentType: v.union(v.literal('full_time'), v.literal('part_time'), v.literal('contract')),
     salary: v.optional(v.number()),
+    photoUrl: v.optional(v.string()),
     emergencyContact: v.optional(v.string()),
     emergencyContactName: v.optional(v.string()),
     emergencyContactRelationship: v.optional(v.string()),
@@ -149,6 +150,7 @@ export const addTeacher = mutation({
       employmentType: args.employmentType,
       salary: args.salary,
       status: 'active',
+      photoUrl: args.photoUrl,
       emergencyContact: args.emergencyContact,
       emergencyContactName: args.emergencyContactName,
       emergencyContactRelationship: args.emergencyContactRelationship,
@@ -190,6 +192,7 @@ export const updateTeacher = mutation({
     employmentType: v.optional(v.union(v.literal('full_time'), v.literal('part_time'), v.literal('contract'))),
     salary: v.optional(v.number()),
     status: v.optional(v.union(v.literal('active'), v.literal('on_leave'), v.literal('inactive'))),
+    photoUrl: v.optional(v.string()),
     emergencyContact: v.optional(v.string()),
     emergencyContactName: v.optional(v.string()),
     emergencyContactRelationship: v.optional(v.string()),
@@ -206,7 +209,7 @@ export const updateTeacher = mutation({
     if (args.email && args.email !== teacher.email) {
       const existingTeacher = await ctx.db
         .query('teachers')
-        .withIndex('by_email', (q) => q.eq('email', args.email as string))
+        .withIndex('by_email', (q) => q.eq('email', args.email!))
         .filter((q) => q.eq(q.field('schoolId'), teacher.schoolId))
         .first();
 
@@ -234,6 +237,7 @@ export const updateTeacher = mutation({
     if (args.employmentType !== undefined) updateData.employmentType = args.employmentType;
     if (args.salary !== undefined) updateData.salary = args.salary;
     if (args.status !== undefined) updateData.status = args.status;
+    if (args.photoUrl !== undefined) updateData.photoUrl = args.photoUrl;
     if (args.emergencyContact !== undefined) updateData.emergencyContact = args.emergencyContact;
     if (args.emergencyContactName !== undefined) updateData.emergencyContactName = args.emergencyContactName;
     if (args.emergencyContactRelationship !== undefined) updateData.emergencyContactRelationship = args.emergencyContactRelationship;

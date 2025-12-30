@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
-import { X } from 'lucide-react';
+import { X, Upload, User } from 'lucide-react';
 import type { Teacher } from '@/types';
 
 interface EditTeacherDialogProps {
@@ -42,6 +42,8 @@ export function EditTeacherDialog({
   updatedBy,
 }: EditTeacherDialogProps): JSX.Element {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [photoUrl, setPhotoUrl] = useState<string>(teacher.photoUrl || '');
+  const [photoPreview, setPhotoPreview] = useState<string>(teacher.photoUrl || '');
   const [formData, setFormData] = useState({
     firstName: teacher.firstName,
     lastName: teacher.lastName,
@@ -64,6 +66,37 @@ export function EditTeacherDialog({
 
   const updateTeacher = useMutation(api.teachers.updateTeacher);
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size should be less than 5MB');
+        return;
+      }
+
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please upload a valid image file');
+        return;
+      }
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        setPhotoPreview(result);
+        setPhotoUrl(result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = (): void => {
+    setPhotoUrl('');
+    setPhotoPreview('');
+  };
+
   useEffect(() => {
     setFormData({
       firstName: teacher.firstName,
@@ -82,6 +115,8 @@ export function EditTeacherDialog({
     });
     setQualifications(teacher.qualifications);
     setSubjects(teacher.subjects);
+    setPhotoUrl(teacher.photoUrl || '');
+    setPhotoPreview(teacher.photoUrl || '');
   }, [teacher]);
 
   const handleInputChange = (field: string, value: string): void => {
@@ -141,6 +176,7 @@ export function EditTeacherDialog({
         employmentDate: formData.employmentDate,
         employmentType: formData.employmentType,
         salary: formData.salary ? parseFloat(formData.salary) : undefined,
+        photoUrl: photoUrl || undefined,
         emergencyContact: formData.emergencyContact || undefined,
         emergencyContactName: formData.emergencyContactName || undefined,
         emergencyContactRelationship: formData.emergencyContactRelationship || undefined,
@@ -167,6 +203,42 @@ export function EditTeacherDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Photo Upload */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold">Profile Photo (Optional)</h3>
+            <div className="flex items-center gap-4">
+              <div className="h-24 w-24 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                {photoPreview ? (
+                  <img src={photoPreview} alt="Preview" className="h-full w-full object-cover" />
+                ) : (
+                  <User className="h-12 w-12 text-gray-400" />
+                )}
+              </div>
+              <div className="flex-1 space-y-2">
+                <Label htmlFor="photo" className="cursor-pointer">
+                  <div className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 w-fit">
+                    <Upload className="h-4 w-4" />
+                    <span>Upload Photo</span>
+                  </div>
+                  <Input
+                    id="photo"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
+                  />
+                </Label>
+                {photoPreview && (
+                  <Button type="button" variant="outline" size="sm" onClick={removeImage}>
+                    <X className="h-4 w-4 mr-1" />
+                    Remove
+                  </Button>
+                )}
+                <p className="text-xs text-muted-foreground">Max file size: 5MB</p>
+              </div>
+            </div>
+          </div>
+
           {/* Personal Information */}
           <div className="space-y-4">
             <h3 className="text-sm font-semibold">Personal Information</h3>
