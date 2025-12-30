@@ -203,6 +203,7 @@ export function TicketDetailDialog({
   if (!ticket) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogTitle></DialogTitle>
         <DialogContent className="max-w-4xl max-h-[90vh]">
           <div className="flex items-center justify-center h-64">
             <Loader2 className="h-8 w-8 animate-spin" />

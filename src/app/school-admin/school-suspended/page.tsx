@@ -8,24 +8,22 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Ban, Mail, Phone, ArrowLeft } from 'lucide-react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function SchoolSuspendedPage(): React.JSX.Element {
   const router = useRouter();
+  const { user } = useAuth();
+
   const [email, setEmail] = useState<string | null>(null);
 
-  useEffect(() => {
-    const schoolAdminEmail = localStorage.getItem('schoolAdminEmail');
-    setEmail(schoolAdminEmail);
-  }, []);
-
-  const admin = useQuery(
+const currentAdmin = useQuery(
     api.schoolAdmins.getByEmail,
-    email ? { email } : 'skip'
+    user?.email ? { email: user.email } : 'skip'
   );
 
   const school = useQuery(
     api.schools.getByAdminId,
-    admin && admin.schoolId ? { adminId: admin.schoolId } : 'skip'
+    currentAdmin && currentAdmin.schoolId ? { adminId: currentAdmin.schoolId } : 'skip'
   );
 
   const handleLogout = (): void => {

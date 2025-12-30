@@ -11,27 +11,25 @@ import { api } from '../../../../convex/_generated/api';
 import { toast } from 'sonner';
 import { User, Mail, Building2, Calendar, Shield } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function ProfilePage(): JSX.Element {
   const router = useRouter();
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
   });
   const [loading, setLoading] = useState(false);
 
-  const schoolAdminEmail = typeof window !== 'undefined' ? localStorage.getItem('schoolAdminEmail') : null;
-
-  const schoolAdmins = useQuery(api.schoolAdmins.list);
-  const currentAdmin = schoolAdmins?.find((admin) => admin.email === schoolAdminEmail);
+   const currentAdmin = useQuery(
+    api.schoolAdmins.getByEmail,
+    user?.email ? { email: user.email } : 'skip'
+  );
 
   const updateAdmin = useMutation(api.schoolAdmins.update);
 
-  useEffect(() => {
-    if (!schoolAdminEmail) {
-      router.push('/login');
-    }
-  }, [schoolAdminEmail, router]);
+
 
   useEffect(() => {
     if (currentAdmin) {

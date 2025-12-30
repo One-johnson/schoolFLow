@@ -12,17 +12,19 @@ import { Label } from '@/components/ui/label';
 import { PasswordChangeDialog } from '@/components/password-change-dialog';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function SettingsPage(): JSX.Element {
   const router = useRouter();
+    const { user } = useAuth();
   const [passwordDialogOpen, setPasswordDialogOpen] = useState<boolean>(false);
   const [isSavingNotifications, setIsSavingNotifications] = useState<boolean>(false);
   const [isSavingAccount, setIsSavingAccount] = useState<boolean>(false);
 
-  const schoolAdminEmail = typeof window !== 'undefined' ? localStorage.getItem('schoolAdminEmail') : null;
-
-  const schoolAdmins = useQuery(api.schoolAdmins.list);
-  const currentAdmin = schoolAdmins?.find((admin) => admin.email === schoolAdminEmail);
+  const currentAdmin = useQuery(
+    api.schoolAdmins.getByEmail,
+    user?.email ? { email: user.email } : 'skip'
+  );
   
   const userSettingsData = useQuery(
     api.userSettings.get,
@@ -57,12 +59,7 @@ export default function SettingsPage(): JSX.Element {
     }
   }, [userSettingsData]);
 
-  useEffect(() => {
-    if (!schoolAdminEmail) {
-      router.push('/login');
-    }
-  }, [schoolAdminEmail, router]);
-
+ 
   const handleSaveNotifications = async (): Promise<void> => {
     if (!currentAdmin?._id) {
       toast.error('User not authenticated');

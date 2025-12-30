@@ -10,14 +10,16 @@ import { api } from '../../../../convex/_generated/api';
 import { Bell, Check, Info, AlertCircle, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function NotificationsPage(): JSX.Element {
   const router = useRouter();
+   const { user } = useAuth();
 
-  const schoolAdminEmail = typeof window !== 'undefined' ? localStorage.getItem('schoolAdminEmail') : null;
-
-  const schoolAdmins = useQuery(api.schoolAdmins.list);
-  const currentAdmin = schoolAdmins?.find((admin) => admin.email === schoolAdminEmail);
+   const currentAdmin = useQuery(
+    api.schoolAdmins.getByEmail,
+    user?.email ? { email: user.email } : 'skip'
+  );
 
   const allNotifications = useQuery(api.notifications.list);
   const notifications = allNotifications?.filter(
@@ -29,11 +31,6 @@ export default function NotificationsPage(): JSX.Element {
   const markAsRead = useMutation(api.notifications.markAsRead);
   const markAllAsRead = useMutation(api.notifications.markAllAsRead);
 
-  useEffect(() => {
-    if (!schoolAdminEmail) {
-      router.push('/login');
-    }
-  }, [schoolAdminEmail, router]);
 
   const handleMarkAsRead = async (id: string): Promise<void> => {
     try {

@@ -158,3 +158,40 @@ export interface SupportTicketAttachment {
   uploadedBy: string;
   uploadedAt: string;
 }
+
+export interface Teacher {
+  _id: string;
+  _creationTime: number;
+  schoolId: string;
+  teacherId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  address: string;
+  dateOfBirth: string;
+  gender: 'male' | 'female' | 'other';
+  qualifications: string[];
+  subjects: string[];
+  employmentDate: string;
+  employmentType: 'full_time' | 'part_time' | 'contract';
+  salary?: number;
+  status: 'active' | 'on_leave' | 'inactive';
+  photoStorageId?: string;
+  emergencyContact?: string;
+  emergencyContactName?: string;
+  emergencyContactRelationship?: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+}
+
+export interface TeacherStats {
+  total: number;
+  active: number;
+  onLeave: number;
+  inactive: number;
+  fullTime: number;
+  partTime: number;
+  contract: number;
+}
