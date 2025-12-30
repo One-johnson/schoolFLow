@@ -24,6 +24,7 @@ export default defineSchema({
       v.literal('active'),
       v.literal('suspended')
     ),
+       schoolId: v.string(),
     adminId: v.string(),
     adminName: v.string(),
     studentCount: v.number(),
@@ -33,7 +34,7 @@ export default defineSchema({
     approvalDate: v.optional(v.string()),
     paymentVerified: v.boolean(),
     paymentDate: v.optional(v.string()),
-  }).index('by_status', ['status']),
+}).index('by_status', ['status']).index('by_school_id', ['schoolId']),
 
   schoolAdmins: defineTable({
     name: v.string(),

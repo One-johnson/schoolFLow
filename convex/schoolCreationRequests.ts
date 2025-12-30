@@ -96,8 +96,12 @@ export const approve = mutation({
       .filter((q) => q.eq(q.field('status'), 'approved'))
       .first();
 
+    // Generate custom school ID
+    const customSchoolId = 'SCH' + Math.random().toString(36).substring(2, 11).toUpperCase();
+
     // Create the school
     const schoolId = await ctx.db.insert('schools', {
+      schoolId: customSchoolId,
       name: request.schoolName,
       email: request.email,
       phone: request.phone,
@@ -114,7 +118,7 @@ export const approve = mutation({
       paymentDate: new Date().toISOString(),
     });
 
-    // Update school admin
+    // Update school admin with custom school ID
     const admin = await ctx.db
       .query('schoolAdmins')
       .filter((q) => q.eq(q.field('email'), request.schoolAdminEmail))
@@ -123,6 +127,7 @@ export const approve = mutation({
     if (admin) {
       await ctx.db.patch(admin._id, {
         hasCreatedSchool: true,
+        schoolId: customSchoolId,
       });
     }
 

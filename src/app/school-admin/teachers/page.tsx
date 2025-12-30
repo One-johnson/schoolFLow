@@ -56,15 +56,14 @@ export default function TeachersPage(): JSX.Element {
   const [showDeleteDialog, setShowDeleteDialog] = useState<boolean>(false);
 
   // Fetch school data
-  const schoolAdmins = useQuery(api.schoolAdmins.getByEmail, {
-    email: user?.email || '',
-  });
-
-  const schoolAdmin = Array.isArray(schoolAdmins) && schoolAdmins.length > 0 ? schoolAdmins[0] : null;
+  const schoolAdmin = useQuery(
+    api.schoolAdmins.getByEmail,
+    user?.email ? { email: user.email } : 'skip'
+  );
 
   const school = useQuery(
-    api.schools.getById,
-    schoolAdmin?.schoolId ? { id: schoolAdmin.schoolId as Id<'schools'> } : 'skip'
+    api.schools.getBySchoolId,
+    schoolAdmin?.schoolId ? { schoolId: schoolAdmin.schoolId } : 'skip'
   );
 
   // Fetch teachers data
@@ -80,9 +79,41 @@ export default function TeachersPage(): JSX.Element {
 
   const updateTeacherStatus = useMutation(api.teachers.updateTeacherStatus);
 
+  // Show loading only while data is being fetched
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
+  // If user exists but no schoolAdmin found, show error
+  if (schoolAdmin === null) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-muted-foreground">No school admin profile found</p>
+        </div>
+      </div>
+    );
+  }
 
-  if (!user || !schoolAdmin || !school) {
+  // If schoolAdmin exists but no school found, show error
+  if (schoolAdmin && school !== undefined && !school) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-muted-foreground">School not found</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If still loading schoolAdmin or school, show loading
+  if (!schoolAdmin || !school) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
