@@ -21,6 +21,7 @@ import {
   Settings,
   LogOut,
   GraduationCap,
+  HelpCircle,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -58,6 +59,11 @@ const menuItems = [
     title: 'Notifications',
     icon: Bell,
     url: '/school-admin/notifications',
+  },
+  {
+    title: 'Support',
+    icon: HelpCircle,
+    url: '/school-admin/support',
   },
   {
     title: 'Profile',
