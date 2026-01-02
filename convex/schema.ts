@@ -375,4 +375,20 @@ subjects: defineTable({
     .index('by_department', ['department'])
     .index('by_category', ['category']),
 
+    subjectAssignments: defineTable({
+  subjectId: v.id("subjects"),
+  teacherId: v.optional(v.id("teachers")),
+  classId: v.optional(v.id("classes")),
+  schoolId: v.id("schools"),
+  assignedAt: v.number(),
+  assignedBy: v.id("users"),
+})
+  .index("by_subject", ["subjectId"])
+  .index("by_teacher", ["teacherId"])
+  .index("by_class", ["classId"])
+  .index("by_school", ["schoolId"])
+  .index("by_subject_teacher", ["subjectId", "teacherId"])
+  .index("by_subject_class", ["subjectId", "classId"]),
+
+
 });

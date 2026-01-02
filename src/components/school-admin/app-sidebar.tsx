@@ -62,6 +62,11 @@ const menuItems = [
     icon: BookOpen,
     url: '/school-admin/classes',
   },
+   {
+    title: 'Students',           // <-- Added Students link
+    icon: Users,
+    url: '/school-admin/students',
+  },
     {
     title: 'Subjects',
     icon: GraduationCap,
