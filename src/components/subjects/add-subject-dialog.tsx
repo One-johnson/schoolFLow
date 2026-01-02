@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { JSX, useState } from 'react';
 import { useMutation } from 'convex/react';
 import { api } from '@/../convex/_generated/api';
 import {

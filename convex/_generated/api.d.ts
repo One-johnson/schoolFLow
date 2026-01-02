@@ -22,6 +22,7 @@ import type * as schoolCreationRequests from "../schoolCreationRequests.js";
 import type * as schools from "../schools.js";
 import type * as securityAlerts from "../securityAlerts.js";
 import type * as sessions from "../sessions.js";
+import type * as subjectAssignments from "../subjectAssignments.js";
 import type * as subjects from "../subjects.js";
 import type * as subscriptionPlans from "../subscriptionPlans.js";
 import type * as subscriptionRequests from "../subscriptionRequests.js";
@@ -54,6 +55,7 @@ declare const fullApi: ApiFromModules<{
   schools: typeof schools;
   securityAlerts: typeof securityAlerts;
   sessions: typeof sessions;
+  subjectAssignments: typeof subjectAssignments;
   subjects: typeof subjects;
   subscriptionPlans: typeof subscriptionPlans;
   subscriptionRequests: typeof subscriptionRequests;

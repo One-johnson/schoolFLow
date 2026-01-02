@@ -196,3 +196,38 @@ export interface TeacherStats {
   partTime: number;
   contract: number;
 }
+
+
+// types.ts
+export type Gender = 'male' | 'female' | 'other';
+
+export interface Student {
+    _id: string;
+  studentId: string;
+  firstName: string;
+  lastName: string;
+  gender: Gender;
+  dateOfBirth: string; // ISO date string
+  hometown?: string;
+  placeOfBirth?: string;
+  email?: string;
+  phone?: string;
+  address: string;
+  classId: string;
+  className?: string; // optional display name for class
+  enrollmentDate: string; // ISO date string
+  medicalInfo?: string;
+  guardianName?: string;
+  guardianEmail?: string;
+  guardianPhone?: string;
+  guardianRelationship?: string;
+  photoUrl?: string;
+
+  // metadata
+  createdAt: string; // ISO date string
+  updatedAt: string; // ISO date string
+
+  // optional additional fields
+  subjects?: string[]; // e.g., subjects the student is enrolled in
+  status?: 'active' | 'inactive' | 'suspended';
+}
