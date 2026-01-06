@@ -43,6 +43,7 @@ import { AddTeacherDialog } from '@/components/teachers/add-teacher-dialog';
 import { EditTeacherDialog } from '@/components/teachers/edit-teacher-dialog';
 import { ViewTeacherDialog } from '@/components/teachers/view-teacher-dialog';
 import { DeleteTeacherDialog } from '@/components/teachers/delete-teacher-dialog';
+import { BulkAddTeachersDialog } from '@/components/teachers/bulk-add-teachers-dialog';
 import { DataTable, createSortableHeader, createSelectColumn } from '../../../components/ui/data-table';
 import type { ColumnDef } from '@tanstack/react-table';
 import { exportToCSV, exportToPDF } from '../../../lib/exports';
@@ -50,6 +51,7 @@ import { exportToCSV, exportToPDF } from '../../../lib/exports';
 export default function TeachersPage(): JSX.Element {
   const { user } = useAuth();
   const [showAddDialog, setShowAddDialog] = useState<boolean>(false);
+    const [showBulkAddTeachersDialog, setShowBulkAddTeachersDialog] = useState<boolean>(false);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [showEditDialog, setShowEditDialog] = useState<boolean>(false);
   const [showViewDialog, setShowViewDialog] = useState<boolean>(false);
@@ -402,10 +404,16 @@ export default function TeachersPage(): JSX.Element {
             Manage your school&apos;s teaching staff
           </p>
         </div>
-        <Button onClick={() => setShowAddDialog(true)}>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowBulkAddTeachersDialog(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Bulk Add
+          </Button>
+          <Button onClick={() => setShowAddDialog(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Add Teacher
         </Button>
+        </div>
       </div>
 
       {/* Statistics Cards with Hover Effects */}
@@ -563,6 +571,12 @@ export default function TeachersPage(): JSX.Element {
         onOpenChange={setShowAddDialog}
         schoolId={schoolAdmin.schoolId}
         createdBy={schoolAdmin._id}
+      />
+      <BulkAddTeachersDialog
+      open={showBulkAddTeachersDialog}
+      onOpenChange={setShowBulkAddTeachersDialog}
+      schoolId = {schoolAdmin.schoolId}
+      createdBy={schoolAdmin._id}
       />
 
       {selectedTeacher && (
