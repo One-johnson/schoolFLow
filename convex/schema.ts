@@ -2,7 +2,7 @@ import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 
 export default defineSchema({
-   superAdmins: defineTable({
+  superAdmins: defineTable({
     name: v.string(),
     email: v.string(),
     password: v.string(),
@@ -24,7 +24,7 @@ export default defineSchema({
       v.literal('active'),
       v.literal('suspended')
     ),
-       schoolId: v.string(),
+    schoolId: v.string(), // Custom school ID like "SCHQATU3SBB"
     adminId: v.string(),
     adminName: v.string(),
     studentCount: v.number(),
@@ -34,7 +34,7 @@ export default defineSchema({
     approvalDate: v.optional(v.string()),
     paymentVerified: v.boolean(),
     paymentDate: v.optional(v.string()),
-}).index('by_status', ['status']).index('by_school_id', ['schoolId']),
+  }).index('by_status', ['status']).index('by_school_id', ['schoolId']),
 
   schoolAdmins: defineTable({
     name: v.string(),
@@ -148,7 +148,7 @@ export default defineSchema({
     updatedAt: v.string(),
   }),
 
-    platformSettings: defineTable({
+  platformSettings: defineTable({
     platformName: v.string(),
     supportEmail: v.string(),
     maxSchools: v.number(),
@@ -228,7 +228,7 @@ export default defineSchema({
     device: v.optional(v.string()),
   }).index('by_user', ['userId']).index('by_severity', ['severity']),
 
-supportTickets: defineTable({
+  supportTickets: defineTable({
     // Ticket Information
     ticketNumber: v.string(),
     subject: v.string(),
@@ -305,7 +305,7 @@ supportTickets: defineTable({
     .index('by_ticket', ['ticketId'])
     .index('by_message', ['messageId']),
 
-teachers: defineTable({
+  teachers: defineTable({
     schoolId: v.string(),
     teacherId: v.string(), // Auto-generated: teacher initials + 6 random digits
     firstName: v.string(),
@@ -335,13 +335,13 @@ teachers: defineTable({
     .index('by_status', ['status'])
     .index('by_email', ['email']),
 
-classes: defineTable({
+  classes: defineTable({
     schoolId: v.string(),
     classCode: v.string(), // Auto-generated: CLS + 6 random digits
     className: v.string(), // e.g., "Grade 1A", "Form 3B"
     grade: v.string(), // e.g., "1", "2", "Form 1"
     section: v.optional(v.string()), // e.g., "A", "B"
-    department: v.union(v.literal("creche"),v.literal('kindergarten'), v.literal('primary'), v.literal('junior_high')),
+    department: v.union(v.literal('creche'), v.literal('kindergarten'), v.literal('primary'), v.literal('junior_high')),
     classTeacherId: v.optional(v.string()), // Teacher ID from teachers table
     capacity: v.optional(v.number()),
     currentStudentCount: v.number(),
@@ -357,7 +357,7 @@ classes: defineTable({
     .index('by_department', ['department'])
     .index('by_teacher', ['classTeacherId']),
 
-subjects: defineTable({
+  subjects: defineTable({
     schoolId: v.string(),
     subjectCode: v.string(), // Auto-generated: department initials + 4 random digits (e.g., CR0234, KG1245)
     subjectName: v.string(),
@@ -375,20 +375,124 @@ subjects: defineTable({
     .index('by_department', ['department'])
     .index('by_category', ['category']),
 
-    subjectAssignments: defineTable({
-  subjectId: v.id("subjects"),
-  teacherId: v.optional(v.id("teachers")),
-  classId: v.optional(v.id("classes")),
-  schoolId: v.id("schools"),
-  assignedAt: v.number(),
-  assignedBy: v.id("users"),
-})
-  .index("by_subject", ["subjectId"])
-  .index("by_teacher", ["teacherId"])
-  .index("by_class", ["classId"])
-  .index("by_school", ["schoolId"])
-  .index("by_subject_teacher", ["subjectId", "teacherId"])
-  .index("by_subject_class", ["subjectId", "classId"]),
+  students: defineTable({
+    // School Association
+    schoolId: v.string(),
+    
+    // Auto-generated IDs
+    studentId: v.string(), // e.g., "JD123456" (initials + 6 digits)
+    admissionNumber: v.string(), // e.g., "ADM2024001"
+    
+    // Personal Information
+    firstName: v.string(),
+    lastName: v.string(),
+    middleName: v.optional(v.string()),
+    dateOfBirth: v.string(),
+    gender: v.union(v.literal('male'), v.literal('female'), v.literal('other')),
+    nationality: v.optional(v.string()),
+    religion: v.optional(v.string()),
+    
+    // Contact Information
+    email: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    address: v.string(),
+    
+    // Academic Information
+    classId: v.string(), // References classes table
+    className: v.string(), // Denormalized for easy access
+    department: v.union(
+      v.literal('creche'),
+      v.literal('kindergarten'),
+      v.literal('primary'),
+      v.literal('junior_high')
+    ),
+    rollNumber: v.optional(v.string()),
+    admissionDate: v.string(),
+    
+    // Parent/Guardian Information
+    parentName: v.string(),
+    parentEmail: v.string(),
+    parentPhone: v.string(),
+    parentOccupation: v.optional(v.string()),
+    relationship: v.union(v.literal('father'), v.literal('mother'), v.literal('guardian')),
+    
+    // Secondary Contact (Optional)
+    secondaryContactName: v.optional(v.string()),
+    secondaryContactPhone: v.optional(v.string()),
+    secondaryContactRelationship: v.optional(v.string()),
+    
+    // Emergency Contact
+    emergencyContactName: v.string(),
+    emergencyContactPhone: v.string(),
+    emergencyContactRelationship: v.string(),
+    
+    // Medical Information (Optional)
+    medicalConditions: v.optional(v.array(v.string())),
+    allergies: v.optional(v.array(v.string())),
+    
+    // Documents & Photo - Storage IDs only
+    photoStorageId: v.optional(v.string()),
+    birthCertificateStorageId: v.optional(v.string()),
+    
+    // Status & Metadata
+    status: v.union(
+      v.literal('active'),
+      v.literal('inactive'),
+      v.literal('fresher'),
+      v.literal('continuing'),
+      v.literal('transferred'),
+      v.literal('graduated')
+    ),
+    
+    // Timestamps
+    createdAt: v.string(),
+    updatedAt: v.string(),
+    createdBy: v.string(), // School Admin ID
+  })
+    .index('by_school', ['schoolId'])
+    .index('by_student_id', ['studentId'])
+    .index('by_admission_number', ['admissionNumber'])
+    .index('by_class', ['classId'])
+    .index('by_status', ['status'])
+    .index('by_department', ['department'])
+    .index('by_email', ['email']),
 
-
+  photos: defineTable({
+    // Convex storage reference
+    storageId: v.string(), // Reference to Convex storage
+    
+    // File metadata
+    fileName: v.string(),
+    fileSize: v.number(), // Size in bytes
+    mimeType: v.string(), // e.g., 'image/jpeg', 'application/pdf'
+    
+    // Association
+    entityType: v.union(
+      v.literal('student'),
+      v.literal('teacher'),
+      v.literal('school'),
+      v.literal('support_ticket')
+    ),
+    entityId: v.string(), // ID of the associated entity
+    fileType: v.union(
+      v.literal('photo'),
+      v.literal('document'),
+      v.literal('certificate'),
+      v.literal('attachment')
+    ),
+    
+    // Upload tracking
+    uploadedBy: v.string(), // User ID who uploaded
+    uploadedAt: v.string(),
+    schoolId: v.optional(v.string()), // For multi-tenant tracking
+    
+    // Soft delete
+    isDeleted: v.boolean(),
+    deletedAt: v.optional(v.string()),
+  })
+    .index('by_entity', ['entityType', 'entityId'])
+    .index('by_storage', ['storageId'])
+    .index('by_school', ['schoolId'])
+    .index('by_uploader', ['uploadedBy'])
+    .index('by_deleted', ['isDeleted']),
 });

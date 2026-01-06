@@ -39,6 +39,7 @@ interface DataTableProps<TData, TValue> {
   data: TData[];
   searchKey?: string;
   searchPlaceholder?: string;
+  additionalSearchKeys?: string[];
   onExportSelected?: (rows: TData[]) => void;
   onExportAll?: () => void;
   exportFormats?: ('json' | 'csv' | 'pdf')[];
@@ -51,6 +52,7 @@ export function DataTable<TData, TValue>({
   data,
   searchKey,
   searchPlaceholder = 'Search...',
+  additionalSearchKeys = [],
   onExportSelected,
   onExportAll,
   exportFormats = ['json', 'csv', 'pdf'],
@@ -61,6 +63,7 @@ export function DataTable<TData, TValue>({
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
+  const [globalFilter, setGlobalFilter] = React.useState<string>('');
 
   const table = useReactTable({
     data,
@@ -73,11 +76,29 @@ export function DataTable<TData, TValue>({
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
+    onGlobalFilterChange: setGlobalFilter,
+    globalFilterFn: (row, columnId, filterValue) => {
+      // If additionalSearchKeys is provided, search across multiple fields
+      if (searchKey && additionalSearchKeys.length > 0) {
+        const searchKeys = [searchKey, ...additionalSearchKeys];
+        const searchString = String(filterValue).toLowerCase();
+        
+        return searchKeys.some((key) => {
+          const value = row.getValue(key);
+          return String(value).toLowerCase().includes(searchString);
+        });
+      }
+      
+      // Default behavior for single field search
+      const value = row.getValue(columnId);
+      return String(value).toLowerCase().includes(String(filterValue).toLowerCase());
+    },
     state: {
       sorting,
       columnFilters,
       columnVisibility,
       rowSelection,
+      globalFilter,
     },
   });
 
@@ -107,10 +128,15 @@ export function DataTable<TData, TValue>({
         {searchKey && (
           <Input
             placeholder={searchPlaceholder}
-            value={(table.getColumn(searchKey)?.getFilterValue() as string) ?? ''}
-            onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-              table.getColumn(searchKey)?.setFilterValue(event.target.value)
-            }
+            value={additionalSearchKeys.length > 0 ? globalFilter : ((table.getColumn(searchKey)?.getFilterValue() as string) ?? '')}
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+              const value = event.target.value;
+              if (additionalSearchKeys.length > 0) {
+                setGlobalFilter(value);
+              } else {
+                table.getColumn(searchKey)?.setFilterValue(value);
+              }
+            }}
             className="max-w-sm"
           />
         )}

@@ -141,6 +141,30 @@ export const deleteFileFromStorage = mutation({
   },
 });
 
+// Update photo record entityId (used after entity creation)
+export const updatePhotoEntityId = mutation({
+  args: {
+    storageId: v.string(),
+    entityId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const photo = await ctx.db
+      .query('photos')
+      .withIndex('by_storage', (q) => q.eq('storageId', args.storageId))
+      .first();
+
+    if (!photo) {
+      throw new Error('Photo record not found');
+    }
+
+    await ctx.db.patch(photo._id, {
+      entityId: args.entityId,
+    });
+
+    return { success: true };
+  },
+});
+
 // Delete photo record and file (complete cleanup)
 export const deletePhoto = mutation({
   args: { storageId: v.string() },

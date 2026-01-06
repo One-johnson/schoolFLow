@@ -175,6 +175,141 @@ export const addTeacher = mutation({
   },
 });
 
+// Mutation: Add multiple teachers in bulk
+export const addBulkTeachers = mutation({
+  args: {
+    schoolId: v.string(),
+    teachers: v.array(
+      v.object({
+        firstName: v.string(),
+        lastName: v.string(),
+        email: v.string(),
+        phone: v.string(),
+        address: v.string(),
+        dateOfBirth: v.string(),
+        gender: v.union(v.literal('male'), v.literal('female'), v.literal('other')),
+        qualifications: v.array(v.string()),
+        subjects: v.array(v.string()),
+        employmentDate: v.string(),
+        employmentType: v.union(v.literal('full_time'), v.literal('part_time'), v.literal('contract')),
+        salary: v.optional(v.number()),
+        photoUrl: v.optional(v.string()),
+        emergencyContact: v.optional(v.string()),
+        emergencyContactName: v.optional(v.string()),
+        emergencyContactRelationship: v.optional(v.string()),
+      })
+    ),
+    createdBy: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const now = new Date().toISOString();
+    const results = [];
+    const errors = [];
+
+    // Get all existing emails for this school to check for duplicates
+    const existingTeachers = await ctx.db
+      .query('teachers')
+      .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))
+      .collect();
+    
+    const existingEmails = new Set(existingTeachers.map(t => t.email.toLowerCase()));
+
+    for (let i = 0; i < args.teachers.length; i++) {
+      const teacher = args.teachers[i];
+      
+      try {
+        // Check if email already exists
+        if (existingEmails.has(teacher.email.toLowerCase())) {
+          errors.push({
+            index: i,
+            email: teacher.email,
+            name: `${teacher.firstName} ${teacher.lastName}`,
+            error: 'Email already exists in your school',
+          });
+          continue;
+        }
+
+        // Generate unique teacher ID
+        let teacherId = generateTeacherId(teacher.firstName, teacher.lastName);
+        let existingId = await ctx.db
+          .query('teachers')
+          .withIndex('by_teacher_id', (q) => q.eq('teacherId', teacherId))
+          .first();
+
+        // Ensure unique ID
+        while (existingId) {
+          teacherId = generateTeacherId(teacher.firstName, teacher.lastName);
+          existingId = await ctx.db
+            .query('teachers')
+            .withIndex('by_teacher_id', (q) => q.eq('teacherId', teacherId))
+            .first();
+        }
+
+        const teacherDbId = await ctx.db.insert('teachers', {
+          schoolId: args.schoolId,
+          teacherId,
+          firstName: teacher.firstName,
+          lastName: teacher.lastName,
+          email: teacher.email,
+          phone: teacher.phone,
+          address: teacher.address,
+          dateOfBirth: teacher.dateOfBirth,
+          gender: teacher.gender,
+          qualifications: teacher.qualifications,
+          subjects: teacher.subjects,
+          employmentDate: teacher.employmentDate,
+          employmentType: teacher.employmentType,
+          salary: teacher.salary,
+          status: 'active',
+          photoUrl: teacher.photoUrl,
+          emergencyContact: teacher.emergencyContact,
+          emergencyContactName: teacher.emergencyContactName,
+          emergencyContactRelationship: teacher.emergencyContactRelationship,
+          createdAt: now,
+          updatedAt: now,
+          createdBy: args.createdBy,
+        });
+
+        // Add to existing emails set to prevent duplicates within the same bulk operation
+        existingEmails.add(teacher.email.toLowerCase());
+
+        results.push({
+          teacherId: teacherDbId,
+          generatedTeacherId: teacherId,
+          name: `${teacher.firstName} ${teacher.lastName}`,
+          email: teacher.email,
+        });
+      } catch (error) {
+        errors.push({
+          index: i,
+          email: teacher.email,
+          name: `${teacher.firstName} ${teacher.lastName}`,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+
+    // Create audit log for bulk operation
+    await ctx.db.insert('auditLogs', {
+      timestamp: now,
+      userId: args.createdBy,
+      userName: 'School Admin',
+      action: 'CREATE',
+      entity: 'Teacher',
+      entityId: 'bulk',
+      details: `Bulk added ${results.length} teachers (${errors.length} failed)`,
+      ipAddress: '0.0.0.0',
+    });
+
+    return {
+      success: results.length,
+      failed: errors.length,
+      results,
+      errors,
+    };
+  },
+});
+
 // Mutation: Update teacher
 export const updateTeacher = mutation({
   args: {
@@ -290,6 +425,67 @@ export const deleteTeacher = mutation({
     });
 
     return { success: true };
+  },
+});
+
+// Mutation: Delete multiple teachers in bulk
+export const deleteBulkTeachers = mutation({
+  args: {
+    teacherIds: v.array(v.id('teachers')),
+    deletedBy: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const now = new Date().toISOString();
+    const results = [];
+    const errors = [];
+
+    for (let i = 0; i < args.teacherIds.length; i++) {
+      const teacherId = args.teacherIds[i];
+      
+      try {
+        const teacher = await ctx.db.get(teacherId);
+
+        if (!teacher) {
+          errors.push({
+            teacherId,
+            error: 'Teacher not found',
+          });
+          continue;
+        }
+
+        await ctx.db.delete(teacherId);
+
+        results.push({
+          teacherId,
+          name: `${teacher.firstName} ${teacher.lastName}`,
+          teacherCode: teacher.teacherId,
+        });
+      } catch (error) {
+        errors.push({
+          teacherId,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+
+    // Create audit log for bulk operation
+    await ctx.db.insert('auditLogs', {
+      timestamp: now,
+      userId: args.deletedBy,
+      userName: 'School Admin',
+      action: 'DELETE',
+      entity: 'Teacher',
+      entityId: 'bulk',
+      details: `Bulk deleted ${results.length} teachers (${errors.length} failed)`,
+      ipAddress: '0.0.0.0',
+    });
+
+    return {
+      success: results.length,
+      failed: errors.length,
+      results,
+      errors,
+    };
   },
 });
 
