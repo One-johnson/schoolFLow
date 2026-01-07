@@ -423,21 +423,20 @@ export default function StudentsPage(): JSX.Element {
     },
   ], [handleStatusChange, getStatusBadge, getDepartmentBadge, handleExportSingle]);
 
-   // Get unique class names for the filter dropdown
+  // Get unique class names for the filter dropdown
   const uniqueClasses = useMemo(() => {
     if (!students) return [];
     const classNames = students.map((s: Student) => s.className);
     return Array.from(new Set(classNames)).sort();
   }, [students]);
 
-
-  // Filter students based on status, department, and gender
+  // Filter students based on status, department, gender, and class
   const filteredStudents = useMemo(() => students?.filter(
     (student: Student) => {
       const statusMatch = statusFilter === 'all' || student.status === statusFilter;
       const departmentMatch = departmentFilter === 'all' || student.department === departmentFilter;
       const genderMatch = genderFilter === 'all' || student.gender === genderFilter;
-      const classMatch = classFilter === 'all' || student.classId === classFilter;
+      const classMatch = classFilter === 'all' || student.className?.trim() === classFilter?.trim();
       return statusMatch && departmentMatch && genderMatch && classMatch;
     }
   ) || [], [students, statusFilter, departmentFilter, genderFilter, classFilter]);
@@ -487,7 +486,7 @@ export default function StudentsPage(): JSX.Element {
     );
   }
 
-const handleSelectionChange = (rows: Student[]) => {
+  const handleSelectionChange = (rows: Student[]) => {
   setSelectedStudents((prev) => {
     if (prev.length === rows.length) {
       const same =
@@ -497,7 +496,6 @@ const handleSelectionChange = (rows: Student[]) => {
     return rows;
   });
 };
-
 
 
   return (
@@ -731,10 +729,11 @@ const handleSelectionChange = (rows: Student[]) => {
                 columns={columns}
                 data={filteredStudents}
                 searchKey="firstName"
-                searchPlaceholder="Search by first name..."
+                searchPlaceholder="Search by name or class..."
+                additionalSearchKeys={['lastName', 'className']}
                 exportFormats={['csv', 'pdf']}
-                onExport={(rows, format) => handleExportBulk(rows, format as "pdf" | "csv")}
-                onSelectionChange={handleSelectionChange}
+                onExport={(rows, format) => handleExportBulk(rows, format as "csv" | "pdf")}
+              onSelectionChange={handleSelectionChange}
               />
             </div>
           )}
@@ -759,8 +758,7 @@ const handleSelectionChange = (rows: Student[]) => {
             open={editDialogOpen}
             onOpenChange={setEditDialogOpen}
           />
-
-         <ViewStudentDialog
+ <ViewStudentDialog
             student={{
               ...selectedStudent,
               createdAt: selectedStudent.createdAt ?? "",

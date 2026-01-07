@@ -100,7 +100,7 @@ export function PromoteStudentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] overflow-y-auto max-h[90vh]">
         <DialogHeader>
           <DialogTitle>Promote Student</DialogTitle>
           <DialogDescription>

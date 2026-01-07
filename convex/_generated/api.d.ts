@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as academicYears from "../academicYears.js";
 import type * as auditLogs from "../auditLogs.js";
 import type * as auth from "../auth.js";
 import type * as classes from "../classes.js";
@@ -32,6 +33,7 @@ import type * as superAdmins from "../superAdmins.js";
 import type * as support from "../support.js";
 import type * as supportTickets from "../supportTickets.js";
 import type * as teachers from "../teachers.js";
+import type * as terms from "../terms.js";
 import type * as trialManagement from "../trialManagement.js";
 import type * as userSettings from "../userSettings.js";
 
@@ -42,6 +44,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  academicYears: typeof academicYears;
   auditLogs: typeof auditLogs;
   auth: typeof auth;
   classes: typeof classes;
@@ -66,6 +69,7 @@ declare const fullApi: ApiFromModules<{
   support: typeof support;
   supportTickets: typeof supportTickets;
   teachers: typeof teachers;
+  terms: typeof terms;
   trialManagement: typeof trialManagement;
   userSettings: typeof userSettings;
 }>;

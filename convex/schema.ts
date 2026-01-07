@@ -383,6 +383,9 @@ export default defineSchema({
     studentId: v.string(), // e.g., "JD123456" (initials + 6 digits)
     admissionNumber: v.string(), // e.g., "ADM2024001"
     
+    // Authentication
+    password: v.string(), // Default: studentId (can be changed later)
+    
     // Personal Information
     firstName: v.string(),
     lastName: v.string(),
@@ -495,4 +498,54 @@ export default defineSchema({
     .index('by_school', ['schoolId'])
     .index('by_uploader', ['uploadedBy'])
     .index('by_deleted', ['isDeleted']),
+
+     academicYears: defineTable({
+    schoolId: v.string(),
+    yearCode: v.string(), // Auto-generated: AY + 6 random digits (e.g., AY123456)
+    yearName: v.string(), // e.g., "2024/2025", "2025/2026"
+    startDate: v.string(),
+    endDate: v.string(),
+    status: v.union(
+      v.literal('active'),
+      v.literal('upcoming'),
+      v.literal('completed'),
+      v.literal('archived')
+    ),
+    isCurrentYear: v.boolean(), // Only one year can be current per school
+    description: v.optional(v.string()),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+    createdBy: v.string(), // School Admin ID
+  })
+    .index('by_school', ['schoolId'])
+    .index('by_year_code', ['yearCode'])
+    .index('by_status', ['status'])
+    .index('by_current', ['schoolId', 'isCurrentYear']),
+
+  terms: defineTable({
+    schoolId: v.string(),
+    academicYearId: v.id('academicYears'), // References academic year
+    termCode: v.string(), // Auto-generated: TRM + 6 random digits
+    termName: v.string(), // e.g., "Term 1", "Semester 1", "First Term"
+    termNumber: v.number(), // 1, 2, 3
+    startDate: v.string(),
+    endDate: v.string(),
+    status: v.union(
+      v.literal('active'),
+      v.literal('upcoming'),
+      v.literal('completed')
+    ),
+    isCurrentTerm: v.boolean(), // Only one term can be current per school
+    holidayStart: v.optional(v.string()),
+    holidayEnd: v.optional(v.string()),
+    description: v.optional(v.string()),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+    createdBy: v.string(), // School Admin ID
+  })
+    .index('by_school', ['schoolId'])
+    .index('by_academic_year', ['academicYearId'])
+    .index('by_term_code', ['termCode'])
+    .index('by_status', ['status'])
+    .index('by_current', ['schoolId', 'isCurrentTerm']),
 });

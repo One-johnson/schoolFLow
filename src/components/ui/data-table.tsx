@@ -33,6 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { JSX } from 'react';
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -58,7 +59,7 @@ export function DataTable<TData, TValue>({
   exportFormats = ['json', 'csv', 'pdf'],
   onExport,
   onSelectionChange,
-}: DataTableProps<TData, TValue>): React.JSX.Element {
+}: DataTableProps<TData, TValue>): JSX.Element {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
@@ -81,17 +82,19 @@ export function DataTable<TData, TValue>({
       // If additionalSearchKeys is provided, search across multiple fields
       if (searchKey && additionalSearchKeys.length > 0) {
         const searchKeys = [searchKey, ...additionalSearchKeys];
-        const searchString = String(filterValue).toLowerCase();
+        const searchString = String(filterValue).toLowerCase().trim();
         
         return searchKeys.some((key) => {
           const value = row.getValue(key);
-          return String(value).toLowerCase().includes(searchString);
+          const valueString = value ? String(value).toLowerCase().trim() : '';
+          return valueString.includes(searchString);
         });
       }
       
       // Default behavior for single field search
       const value = row.getValue(columnId);
-      return String(value).toLowerCase().includes(String(filterValue).toLowerCase());
+      const valueString = value ? String(value).toLowerCase().trim() : '';
+      return valueString.includes(String(filterValue).toLowerCase().trim());
     },
     state: {
       sorting,

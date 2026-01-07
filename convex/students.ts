@@ -228,6 +228,7 @@ export const addStudent = mutation({
       schoolId: args.schoolId,
       studentId,
       admissionNumber,
+      password: studentId, // Default password is the studentId
       firstName: args.firstName,
       lastName: args.lastName,
       middleName: args.middleName,
@@ -784,4 +785,3 @@ export const bulkUpdateStudentStatus = mutation({
     return { success: true, successCount, failCount };
   },
 });
-
