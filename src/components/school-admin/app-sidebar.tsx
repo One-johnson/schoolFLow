@@ -24,6 +24,7 @@ import {
   HelpCircle,
   Users,
   BookOpen,
+  Calendar,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -53,6 +54,11 @@ const menuItems = [
     url: '/school-admin/school',
   },
   {
+    title: 'Academic Years',
+    icon: Calendar,
+    url: '/school-admin/academic-years',
+  },
+  {
     title: 'Teachers',
     icon: Users,
     url: '/school-admin/teachers',
@@ -62,14 +68,14 @@ const menuItems = [
     icon: BookOpen,
     url: '/school-admin/classes',
   },
-   {
-    title: 'Students',           // <-- Added Students link
-    icon: Users,
+  {
+    title: 'Students',
+    icon: GraduationCap,
     url: '/school-admin/students',
   },
-    {
+  {
     title: 'Subjects',
-    icon: GraduationCap,
+    icon: BookOpen,
     url: '/school-admin/subjects',
   },
   {
