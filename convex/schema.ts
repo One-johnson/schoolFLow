@@ -612,4 +612,17 @@ export default defineSchema({
     .index('by_class', ['schoolId', 'classId'])
     .index('by_subject', ['schoolId', 'subjectId'])
     .index('by_school', ['schoolId']),
+
+    timetableTemplates: defineTable({
+    schoolId: v.string(),
+    templateName: v.string(),
+    description: v.optional(v.string()),
+    periodStructure: v.string(), // JSON stringified array of period definitions
+    createdBy: v.string(), // School Admin ID
+    createdAt: v.string(),
+    isDefault: v.boolean(), // System default templates
+    status: v.union(v.literal('active'), v.literal('archived')),
+  })
+    .index('by_school', ['schoolId'])
+    .index('by_status', ['status']),
 });
