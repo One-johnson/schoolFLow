@@ -32,6 +32,9 @@ import {
   FileText,
   Users,
   GraduationCap,
+  Save,
+  Copy,
+  Layout,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Id } from '../../../../convex/_generated/dataModel';
@@ -39,6 +42,9 @@ import { AddTimetableDialog } from '@/components/timetable/add-timetable-dialog'
 import { DeleteTimetableDialog } from '@/components/timetable/delete-timetable-dialog';
 import { BulkDeleteTimetablesDialog } from '@/components/timetable/bulk-delete-timetables-dialog';
 import { TimetableView } from '@/components/timetable/timetable-view';
+import { SaveAsTemplateDialog } from '@/components/timetable/save-as-template-dialog';
+import { CloneTimetableDialog } from '@/components/timetable/clone-timetable-dialog';
+import { ApplyTemplateDialog } from '@/components/timetable/apply-template-dialog';
 import { 
   exportClassTimetablePDF, 
   exportTeacherSchedulePDF, 
@@ -141,6 +147,10 @@ export default function TimetablePage(): JSX.Element {
   const [showAddDialog, setShowAddDialog] = useState<boolean>(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState<boolean>(false);
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState<boolean>(false);
+  const [showSaveTemplateDialog, setShowSaveTemplateDialog] = useState<boolean>(false);
+  const [showCloneDialog, setShowCloneDialog] = useState<boolean>(false);
+  const [showApplyTemplateDialog, setShowApplyTemplateDialog] = useState<boolean>(false);
+  const [selectedTimetableForTemplate, setSelectedTimetableForTemplate] = useState<Id<'timetables'> | null>(null);
 
   // Selected rows for bulk operations
   const [selectedRows, setSelectedRows] = useState<Record<string, boolean>>({});
@@ -402,10 +412,34 @@ export default function TimetablePage(): JSX.Element {
               Manage class schedules and teacher assignments
             </p>
           </div>
-          <Button onClick={() => setShowAddDialog(true)} disabled={availableClasses.length === 0}>
-            <Plus className="mr-2 h-4 w-4" />
-            Create Timetable
-          </Button>
+          <div className="flex gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Layout className="mr-2 h-4 w-4" />
+                  Templates
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setShowApplyTemplateDialog(true)}>
+                  <Layout className="mr-2 h-4 w-4" />
+                  Apply Template
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => setShowCloneDialog(true)}
+                  disabled={filteredTimetables.length === 0}
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  Clone Timetable
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Button onClick={() => setShowAddDialog(true)} disabled={availableClasses.length === 0}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Timetable
+            </Button>
+          </div>
         </div>
 
         {/* Filters and Actions */}
@@ -563,15 +597,28 @@ export default function TimetablePage(): JSX.Element {
                 <Card key={classId} className="p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-xl font-semibold">{className}</h3>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => timetableId && handleExportClassTimetable(timetableId)}
-                      disabled={exportingClass === timetableId}
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      {exportingClass === timetableId ? 'Exporting...' : 'Export PDF'}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedTimetableForTemplate(timetableId);
+                          setShowSaveTemplateDialog(true);
+                        }}
+                      >
+                        <Save className="mr-2 h-4 w-4" />
+                        Save as Template
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => timetableId && handleExportClassTimetable(timetableId)}
+                        disabled={exportingClass === timetableId}
+                      >
+                        <Download className="mr-2 h-4 w-4" />
+                        {exportingClass === timetableId ? 'Exporting...' : 'Export PDF'}
+                      </Button>
+                    </div>
                   </div>
                   
                   <TimetableView
@@ -607,6 +654,34 @@ export default function TimetablePage(): JSX.Element {
           onOpenChange={setShowBulkDeleteDialog}
           timetableIds={selectedTimetableIds}
           onSuccess={() => setSelectedRows({})}
+        />
+
+        {selectedTimetableForTemplate && (
+          <SaveAsTemplateDialog
+            open={showSaveTemplateDialog}
+            onOpenChange={setShowSaveTemplateDialog}
+            timetableId={selectedTimetableForTemplate}
+            className={filteredTimetables.find(t => t._id === selectedTimetableForTemplate)?.className || ''}
+            schoolId={schoolId}
+            createdBy={user.userId || ''}
+          />
+        )}
+
+        <CloneTimetableDialog
+          open={showCloneDialog}
+          onOpenChange={setShowCloneDialog}
+          timetables={filteredTimetables}
+          availableClasses={availableClasses}
+          schoolId={schoolId}
+          createdBy={user.userId || ''}
+        />
+
+        <ApplyTemplateDialog
+          open={showApplyTemplateDialog}
+          onOpenChange={setShowApplyTemplateDialog}
+          availableClasses={availableClasses}
+          schoolId={schoolId}
+          createdBy={user.userId || ''}
         />
       </div>
   );

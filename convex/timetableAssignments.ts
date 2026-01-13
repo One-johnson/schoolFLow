@@ -49,3 +49,21 @@ export const getAllAssignments = query({
     return assignments;
   },
 });
+
+// Get all assignments for a specific subject
+export const getAssignmentsBySubject = query({
+  args: {
+    schoolId: v.string(),
+    subjectId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const assignments = await ctx.db
+      .query('timetableAssignments')
+      .withIndex('by_subject', (q) => 
+        q.eq('schoolId', args.schoolId).eq('subjectId', args.subjectId)
+      )
+      .collect();
+
+    return assignments;
+  },
+});

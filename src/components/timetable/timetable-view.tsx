@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, JSX } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { Button } from '@/components/ui/button';
@@ -14,11 +14,24 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Edit2, Check, X, UserPlus } from 'lucide-react';
+import { Trash2, Edit2, Check, X, UserPlus, GripVertical } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Id } from '../../../convex/_generated/dataModel';
 import { AssignTeacherDialog } from './assign-teacher-dialog';
+import { ConflictBadge } from './conflict-badge';
 import { convertTo12Hour } from '@/lib/timeUtils';
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  useSensor,
+  useSensors,
+  PointerSensor,
+  closestCenter,
+} from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
+import { JSX } from 'react/jsx-runtime';
 
 type Day = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday';
 
@@ -47,6 +60,7 @@ interface Assignment {
   teacherName: string;
   subjectId: string;
   subjectName: string;
+  subjectColor?: string;
 }
 
 interface Teacher {
@@ -54,6 +68,20 @@ interface Teacher {
   teacherId: string;
   firstName: string;
   lastName: string;
+}
+
+interface Conflict {
+  type: 'teacher_double_booking' | 'teacher_consecutive' | 'teacher_overload' | 'subject_clustering';
+  severity: 'error' | 'warning' | 'info';
+  message: string;
+  details: {
+    teacherId?: string;
+    teacherName?: string;
+    day?: Day;
+    periods?: string[];
+    classNames?: string[];
+    subjectName?: string;
+  };
 }
 
 interface TimetableViewProps {
@@ -75,6 +103,7 @@ export function TimetableView({
 }: TimetableViewProps): JSX.Element {
   const updatePeriod = useMutation(api.timetables.updatePeriod);
   const removeAssignment = useMutation(api.timetables.removeAssignment);
+  const swapPeriods = useMutation(api.timetables.swapPeriodAssignments);
 
   const [editingPeriod, setEditingPeriod] = useState<Id<'periods'> | null>(null);
   const [editStartTime, setEditStartTime] = useState<string>('');
@@ -83,6 +112,8 @@ export function TimetableView({
   const [selectedPeriod, setSelectedPeriod] = useState<Period | null>(null);
   const [selectedTimetableId, setSelectedTimetableId] = useState<Id<'timetables'> | null>(null);
   const [selectedDay, setSelectedDay] = useState<Day | null>(null);
+  const [activePeriodId, setActivePeriodId] = useState<Id<'periods'> | null>(null);
+  const [draggedAssignment, setDraggedAssignment] = useState<Assignment | null>(null);
 
   // Get the first (and only) timetable for this class
   const timetable = timetables[0];
@@ -96,6 +127,12 @@ export function TimetableView({
     api.timetables.getAssignments,
     timetable ? { timetableId: timetable._id } : 'skip'
   );
+
+  // Load conflicts
+  const conflicts = useQuery(
+    api.timetableConflicts.checkTimetableConflicts,
+    timetable ? { timetableId: timetable._id, schoolId } : 'skip'
+  ) as Conflict[] | undefined;
 
   const periodsByDay = timetableDataResponse?.periodsByDay;
   const assignments = assignmentsData || [];
@@ -170,6 +207,48 @@ export function TimetableView({
     return periodsByDay?.[day]?.find(p => p.periodName === periodName);
   };
 
+  // Drag and drop handlers
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
+
+  const handleDragStart = (event: DragStartEvent): void => {
+    const periodId = event.active.id as Id<'periods'>;
+    setActivePeriodId(periodId);
+    
+    const assignment = getAssignmentForPeriod(periodId);
+    if (assignment) {
+      setDraggedAssignment(assignment);
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent): Promise<void> => {
+    const { active, over } = event;
+    
+    setActivePeriodId(null);
+    setDraggedAssignment(null);
+
+    if (!over || active.id === over.id) return;
+
+    const sourcePeriodId = active.id as Id<'periods'>;
+    const targetPeriodId = over.id as Id<'periods'>;
+
+    try {
+      await swapPeriods({
+        periodId1: sourcePeriodId,
+        periodId2: targetPeriodId,
+      });
+      toast.success('Assignments swapped successfully');
+    } catch (error) {
+      console.error('Swap error:', error);
+      toast.error('Failed to swap assignments');
+    }
+  };
+
   if (!timetable || !periodsByDay) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -181,7 +260,12 @@ export function TimetableView({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h4 className="text-lg font-medium">Weekly Schedule</h4>
+        <div className="flex items-center gap-2">
+          <h4 className="text-lg font-medium">Weekly Schedule</h4>
+          {conflicts && conflicts.length > 0 && (
+            <ConflictBadge conflicts={conflicts} />
+          )}
+        </div>
         <Button
           variant="ghost"
           size="sm"
@@ -192,8 +276,14 @@ export function TimetableView({
         </Button>
       </div>
 
-      <div className="rounded-md border overflow-x-auto">
-        <Table>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="rounded-md border overflow-x-auto">
+          <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="w-[200px] font-bold">Period / Time</TableHead>
@@ -290,11 +380,67 @@ export function TimetableView({
                       );
                     }
 
+                    // Helper function to lighten a color for better contrast
+                    const lightenColor = (color: string | undefined): string => {
+                      if (!color) return 'transparent';
+                      // Convert hex to RGB and lighten by 40%
+                      const hex = color.replace('#', '');
+                      const r = parseInt(hex.substring(0, 2), 16);
+                      const g = parseInt(hex.substring(2, 4), 16);
+                      const b = parseInt(hex.substring(4, 6), 16);
+                      const lightenAmount = 0.6;
+                      const newR = Math.round(r + (255 - r) * lightenAmount);
+                      const newG = Math.round(g + (255 - g) * lightenAmount);
+                      const newB = Math.round(b + (255 - b) * lightenAmount);
+                      return `rgb(${newR}, ${newG}, ${newB})`;
+                    };
+
                     return (
-                      <TableCell key={day} className="p-2">
+                      <TableCell 
+                        key={day} 
+                        className="p-2"
+                        style={{
+                          backgroundColor: assignment?.subjectColor ? lightenColor(assignment.subjectColor) : 'transparent',
+                        }}
+                      >
                         {assignment ? (
-                          <div className="flex flex-col gap-1">
-                            <div className="text-sm font-medium">{assignment.subjectName}</div>
+                          <div 
+                            className="flex flex-col gap-1 cursor-move hover:ring-2 hover:ring-primary/50 rounded p-1"
+                            draggable
+                            onDragStart={() => {
+                              setActivePeriodId(period._id);
+                              setDraggedAssignment(assignment);
+                            }}
+                            onDragEnd={() => {
+                              setActivePeriodId(null);
+                              setDraggedAssignment(null);
+                            }}
+                            onDragOver={(e: React.DragEvent) => e.preventDefault()}
+                            onDrop={async (e: React.DragEvent) => {
+                              e.preventDefault();
+                              if (activePeriodId && activePeriodId !== period._id) {
+                                try {
+                                  await swapPeriods({
+                                    periodId1: activePeriodId,
+                                    periodId2: period._id,
+                                  });
+                                  toast.success('Assignments swapped');
+                                } catch (error) {
+                                  toast.error('Failed to swap');
+                                }
+                              }
+                            }}
+                          >
+                            <div className="text-sm font-medium flex items-center gap-2">
+                              <GripVertical className="h-3 w-3 text-muted-foreground" />
+                              {assignment.subjectColor && (
+                                <div 
+                                  className="w-3 h-3 rounded-full border border-gray-300" 
+                                  style={{ backgroundColor: assignment.subjectColor }}
+                                />
+                              )}
+                              {assignment.subjectName}
+                            </div>
                             <div className="text-xs text-muted-foreground">{assignment.teacherName}</div>
                             <div className="flex gap-1 mt-1">
                               <Button
@@ -333,8 +479,18 @@ export function TimetableView({
               );
             })}
           </TableBody>
-        </Table>
-      </div>
+          </Table>
+        </div>
+
+        <DragOverlay>
+          {draggedAssignment && (
+            <div className="bg-white border-2 border-primary rounded p-2 shadow-lg">
+              <div className="text-sm font-medium">{draggedAssignment.subjectName}</div>
+              <div className="text-xs text-muted-foreground">{draggedAssignment.teacherName}</div>
+            </div>
+          )}
+        </DragOverlay>
+      </DndContext>
 
       {/* Assign Teacher Dialog */}
       {selectedPeriod && selectedTimetableId && selectedDay && (

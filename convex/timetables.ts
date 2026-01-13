@@ -45,7 +45,7 @@ export const getTimetable = query({
   },
 });
 
-// Get timetable assignments for a specific timetable
+// Get timetable assignments for a specific timetable with subject colors
 export const getAssignments = query({
   args: { timetableId: v.id('timetables') },
   handler: async (ctx, args) => {
@@ -53,7 +53,23 @@ export const getAssignments = query({
       .query('timetableAssignments')
       .withIndex('by_timetable', (q) => q.eq('timetableId', args.timetableId))
       .collect();
-    return assignments;
+    
+    // Enrich assignments with subject color
+    const enrichedAssignments = await Promise.all(
+      assignments.map(async (assignment) => {
+        const subject = await ctx.db
+          .query('subjects')
+          .filter((q) => q.eq(q.field('_id'), assignment.subjectId as Id<'subjects'>))
+          .first();
+        
+        return {
+          ...assignment,
+          subjectColor: subject?.color,
+        };
+      })
+    );
+    
+    return enrichedAssignments;
   },
 });
 
@@ -399,3 +415,72 @@ function timeToMinutes(time: string): number {
   const [hour, min] = time.split(':').map(Number);
   return hour * 60 + min;
 }
+
+// Swap two period assignments (for drag-and-drop)
+export const swapPeriodAssignments = mutation({
+  args: {
+    periodId1: v.id('periods'),
+    periodId2: v.id('periods'),
+  },
+  handler: async (ctx, args) => {
+    // Get both assignments
+    const assignment1 = await ctx.db
+      .query('timetableAssignments')
+      .withIndex('by_period', (q) => q.eq('periodId', args.periodId1))
+      .first();
+
+    const assignment2 = await ctx.db
+      .query('timetableAssignments')
+      .withIndex('by_period', (q) => q.eq('periodId', args.periodId2))
+      .first();
+
+    // Get both periods to get their time information
+    const period1 = await ctx.db.get(args.periodId1);
+    const period2 = await ctx.db.get(args.periodId2);
+
+    if (!period1 || !period2) {
+      throw new Error('Period not found');
+    }
+
+    // If both have assignments, swap them
+    if (assignment1 && assignment2) {
+      // Swap period IDs and update time information
+      await ctx.db.patch(assignment1._id, {
+        periodId: args.periodId2,
+        day: period2.day,
+        startTime: period2.startTime,
+        endTime: period2.endTime,
+        updatedAt: new Date().toISOString(),
+      });
+
+      await ctx.db.patch(assignment2._id, {
+        periodId: args.periodId1,
+        day: period1.day,
+        startTime: period1.startTime,
+        endTime: period1.endTime,
+        updatedAt: new Date().toISOString(),
+      });
+    } else if (assignment1 && !assignment2) {
+      // Move assignment1 to period2
+      await ctx.db.patch(assignment1._id, {
+        periodId: args.periodId2,
+        day: period2.day,
+        startTime: period2.startTime,
+        endTime: period2.endTime,
+        updatedAt: new Date().toISOString(),
+      });
+    } else if (!assignment1 && assignment2) {
+      // Move assignment2 to period1
+      await ctx.db.patch(assignment2._id, {
+        periodId: args.periodId1,
+        day: period1.day,
+        startTime: period1.startTime,
+        endTime: period1.endTime,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+    // If neither has assignments, do nothing
+
+    return { success: true };
+  },
+});

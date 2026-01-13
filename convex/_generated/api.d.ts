@@ -35,6 +35,8 @@ import type * as supportTickets from "../supportTickets.js";
 import type * as teachers from "../teachers.js";
 import type * as terms from "../terms.js";
 import type * as timetableAssignments from "../timetableAssignments.js";
+import type * as timetableConflicts from "../timetableConflicts.js";
+import type * as timetableTemplates from "../timetableTemplates.js";
 import type * as timetables from "../timetables.js";
 import type * as trialManagement from "../trialManagement.js";
 import type * as userSettings from "../userSettings.js";
@@ -73,6 +75,8 @@ declare const fullApi: ApiFromModules<{
   teachers: typeof teachers;
   terms: typeof terms;
   timetableAssignments: typeof timetableAssignments;
+  timetableConflicts: typeof timetableConflicts;
+  timetableTemplates: typeof timetableTemplates;
   timetables: typeof timetables;
   trialManagement: typeof trialManagement;
   userSettings: typeof userSettings;
