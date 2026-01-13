@@ -25,6 +25,7 @@ import {
   Users,
   BookOpen,
   Calendar,
+  Clock,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -77,6 +78,11 @@ const menuItems = [
     title: 'Subjects',
     icon: BookOpen,
     url: '/school-admin/subjects',
+  },
+  {
+    title: 'Timetable',
+    icon: Clock,
+    url: '/school-admin/timetable',
   },
   {
     title: 'Subscription',

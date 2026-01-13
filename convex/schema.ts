@@ -364,6 +364,7 @@ export default defineSchema({
     description: v.optional(v.string()),
     category: v.union(v.literal('core'), v.literal('elective'), v.literal('extracurricular')),
     department: v.union(v.literal('creche'), v.literal('kindergarten'), v.literal('primary'), v.literal('junior_high')),
+    color: v.optional(v.string()), // Hex color code for visual identification (e.g., #3b82f6)
     status: v.union(v.literal('active'), v.literal('inactive')),
     createdAt: v.string(),
     updatedAt: v.string(),
@@ -499,7 +500,7 @@ export default defineSchema({
     .index('by_uploader', ['uploadedBy'])
     .index('by_deleted', ['isDeleted']),
 
-     academicYears: defineTable({
+  academicYears: defineTable({
     schoolId: v.string(),
     yearCode: v.string(), // Auto-generated: AY + 6 random digits (e.g., AY123456)
     yearName: v.string(), // e.g., "2024/2025", "2025/2026"
@@ -548,4 +549,67 @@ export default defineSchema({
     .index('by_term_code', ['termCode'])
     .index('by_status', ['status'])
     .index('by_current', ['schoolId', 'isCurrentTerm']),
+
+  timetables: defineTable({
+    schoolId: v.string(),
+    classId: v.string(), // References classes table
+    className: v.string(), // Denormalized for easy access
+    academicYearId: v.optional(v.string()),
+    termId: v.optional(v.string()),
+    status: v.union(v.literal('active'), v.literal('inactive')),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+    createdBy: v.string(), // School Admin ID
+  })
+    .index('by_school', ['schoolId'])
+    .index('by_class', ['schoolId', 'classId'])
+    .index('by_status', ['status']),
+
+  periods: defineTable({
+    timetableId: v.id('timetables'), // References timetables table
+    day: v.union(
+      v.literal('monday'),
+      v.literal('tuesday'),
+      v.literal('wednesday'),
+      v.literal('thursday'),
+      v.literal('friday')
+    ),
+    periodName: v.string(), // e.g., "Period 1", "Break Time", "Assembly"
+    startTime: v.string(), // e.g., "08:00"
+    endTime: v.string(), // e.g., "09:10"
+    periodType: v.union(v.literal('class'), v.literal('break')), // class period or break
+    duration: v.number(), // Duration in minutes
+    createdAt: v.string(),
+  })
+    .index('by_timetable', ['timetableId'])
+    .index('by_timetable_day', ['timetableId', 'day']),
+
+  timetableAssignments: defineTable({
+    timetableId: v.id('timetables'),
+    periodId: v.id('periods'),
+    teacherId: v.string(), // References teachers table
+    teacherName: v.string(), // Denormalized
+    subjectId: v.string(), // References subjects table
+    subjectName: v.string(), // Denormalized
+    classId: v.string(),
+    className: v.string(),
+    schoolId: v.string(),
+    day: v.union(
+      v.literal('monday'),
+      v.literal('tuesday'),
+      v.literal('wednesday'),
+      v.literal('thursday'),
+      v.literal('friday')
+    ),
+    startTime: v.string(),
+    endTime: v.string(),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index('by_timetable', ['timetableId'])
+    .index('by_period', ['periodId'])
+    .index('by_teacher', ['schoolId', 'teacherId'])
+    .index('by_class', ['schoolId', 'classId'])
+    .index('by_subject', ['schoolId', 'subjectId'])
+    .index('by_school', ['schoolId']),
 });
