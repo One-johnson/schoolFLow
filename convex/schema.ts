@@ -625,4 +625,181 @@ export default defineSchema({
   })
     .index('by_school', ['schoolId'])
     .index('by_status', ['status']),
+
+
+    feeCategories: defineTable({
+    schoolId: v.string(),
+    categoryCode: v.string(), // Auto-generated: FEE + 6 random digits
+    categoryName: v.string(), // e.g., "Tuition", "Transport", "Library"
+    description: v.optional(v.string()),
+    isOptional: v.boolean(), // true = optional fee, false = mandatory
+    status: v.union(v.literal('active'), v.literal('inactive')),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+    createdBy: v.string(), // School Admin ID
+  })
+    .index('by_school', ['schoolId'])
+    .index('by_category_code', ['categoryCode'])
+    .index('by_status', ['status']),
+
+  feeStructures: defineTable({
+    schoolId: v.string(),
+    structureCode: v.string(), // Auto-generated: FS + 6 random digits
+    structureName: v.string(), // e.g., "Grade 1 Fees", "Form 3 Fees"
+    academicYearId: v.optional(v.string()),
+    termId: v.optional(v.string()),
+    classId: v.optional(v.string()), // If specific to a class
+    department: v.optional(v.union(
+      v.literal('creche'),
+      v.literal('kindergarten'),
+      v.literal('primary'),
+      v.literal('junior_high')
+    )),
+    fees: v.string(), // JSON array of { categoryId, categoryName, amount }
+    totalAmount: v.number(), // Sum of all fees
+    dueDate: v.optional(v.string()),
+    status: v.union(v.literal('active'), v.literal('inactive')),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+    createdBy: v.string(), // School Admin ID
+  })
+    .index('by_school', ['schoolId'])
+    .index('by_structure_code', ['structureCode'])
+    .index('by_class', ['schoolId', 'classId'])
+    .index('by_department', ['schoolId', 'department'])
+    .index('by_status', ['status']),
+
+  feePayments: defineTable({
+    schoolId: v.string(),
+    paymentId: v.string(), // Auto-generated: PAY + 8 random digits
+    receiptNumber: v.string(), // Auto-generated: RCP + 8 random digits
+    studentId: v.string(), // References students table
+    studentName: v.string(), // Denormalized
+    classId: v.string(),
+    className: v.string(), // Denormalized
+    feeStructureId: v.optional(v.string()), // References feeStructures table
+    academicYearId: v.optional(v.string()),
+    termId: v.optional(v.string()),
+    categoryId: v.string(), // References feeCategories table
+    categoryName: v.string(), // Denormalized
+    amountDue: v.number(),
+    amountPaid: v.number(),
+    paymentMethod: v.union(
+      v.literal('cash'),
+      v.literal('bank_transfer'),
+      v.literal('mobile_money'),
+      v.literal('check'),
+      v.literal('other')
+    ),
+    transactionReference: v.optional(v.string()),
+    paymentDate: v.string(),
+    paymentStatus: v.union(
+      v.literal('paid'),
+      v.literal('partial'),
+      v.literal('pending')
+    ),
+    remainingBalance: v.number(), // amountDue - amountPaid
+    notes: v.optional(v.string()),
+    paidBy: v.optional(v.string()), // Name of person who paid (parent/guardian)
+    collectedBy: v.string(), // School Admin ID who recorded payment
+    collectedByName: v.string(), // Denormalized
+    discountId: v.optional(v.string()), // References feeDiscounts table
+    discountAmount: v.optional(v.number()), // Discount applied
+    installmentPlanId: v.optional(v.string()), // References paymentPlans table
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index('by_school', ['schoolId'])
+    .index('by_payment_id', ['paymentId'])
+    .index('by_receipt', ['receiptNumber'])
+    .index('by_student', ['schoolId', 'studentId'])
+    .index('by_class', ['schoolId', 'classId'])
+    .index('by_status', ['paymentStatus'])
+    .index('by_payment_date', ['paymentDate']),
+
+  feeDiscounts: defineTable({
+    schoolId: v.string(),
+    discountCode: v.string(), // Auto-generated: DISC + 6 random digits
+    discountName: v.string(), // e.g., "Sibling Discount", "Merit Scholarship"
+    description: v.optional(v.string()),
+    discountType: v.union(v.literal('percentage'), v.literal('fixed')),
+    discountValue: v.number(), // Percentage (e.g., 20) or fixed amount (e.g., 500)
+    applicableTo: v.union(v.literal('all'), v.literal('specific_categories')),
+    categoryIds: v.optional(v.array(v.string())), // If specific categories
+    reason: v.union(
+      v.literal('scholarship'),
+      v.literal('sibling'),
+      v.literal('merit'),
+      v.literal('need_based'),
+      v.literal('other')
+    ),
+    status: v.union(v.literal('active'), v.literal('inactive')),
+    startDate: v.optional(v.string()),
+    endDate: v.optional(v.string()),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+    createdBy: v.string(), // School Admin ID
+  })
+    .index('by_school', ['schoolId'])
+    .index('by_discount_code', ['discountCode'])
+    .index('by_status', ['status']),
+
+  paymentPlans: defineTable({
+    schoolId: v.string(),
+    planCode: v.string(), // Auto-generated: PP + 6 random digits
+    studentId: v.string(),
+    studentName: v.string(), // Denormalized
+    classId: v.string(),
+    className: v.string(),
+    categoryId: v.string(),
+    categoryName: v.string(),
+    totalAmount: v.number(),
+    numberOfInstallments: v.number(),
+    installmentAmount: v.number(), // totalAmount / numberOfInstallments
+    frequency: v.union(v.literal('monthly'), v.literal('quarterly'), v.literal('custom')),
+    startDate: v.string(),
+    status: v.union(v.literal('active'), v.literal('completed'), v.literal('cancelled')),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+    createdBy: v.string(), // School Admin ID
+  })
+    .index('by_school', ['schoolId'])
+    .index('by_plan_code', ['planCode'])
+    .index('by_student', ['schoolId', 'studentId'])
+    .index('by_status', ['status']),
+
+  installments: defineTable({
+    schoolId: v.string(),
+    paymentPlanId: v.id('paymentPlans'),
+    installmentNumber: v.number(), // 1, 2, 3, etc.
+    amountDue: v.number(),
+    amountPaid: v.number(),
+    dueDate: v.string(),
+    paymentDate: v.optional(v.string()),
+    status: v.union(v.literal('pending'), v.literal('paid'), v.literal('overdue')),
+    notes: v.optional(v.string()),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index('by_payment_plan', ['paymentPlanId'])
+    .index('by_status', ['status'])
+    .index('by_due_date', ['dueDate']),
+
+  feeReminders: defineTable({
+    schoolId: v.string(),
+    studentId: v.string(),
+    studentName: v.string(),
+    parentEmail: v.string(),
+    parentPhone: v.string(),
+    categoryName: v.string(),
+    amountDue: v.number(),
+    reminderType: v.union(v.literal('payment_due'), v.literal('installment_due'), v.literal('overdue')),
+    sentDate: v.string(),
+    method: v.union(v.literal('notification'), v.literal('email'), v.literal('sms')),
+    status: v.union(v.literal('sent'), v.literal('failed')),
+    createdAt: v.string(),
+  })
+    .index('by_school', ['schoolId'])
+    .index('by_student', ['schoolId', 'studentId'])
+    .index('by_sent_date', ['sentDate']),
 });

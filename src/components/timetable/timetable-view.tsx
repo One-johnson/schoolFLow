@@ -30,7 +30,7 @@ import {
   PointerSensor,
   closestCenter,
 } from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
+
 import { JSX } from 'react/jsx-runtime';
 
 type Day = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday';

@@ -26,6 +26,7 @@ import {
   BookOpen,
   Calendar,
   Clock,
+  DollarSign,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -83,6 +84,11 @@ const menuItems = [
     title: 'Timetable',
     icon: Clock,
     url: '/school-admin/timetable',
+  },
+   {
+    title: 'Fees',
+    icon: DollarSign,
+    url: '/school-admin/fees',
   },
   {
     title: 'Subscription',
