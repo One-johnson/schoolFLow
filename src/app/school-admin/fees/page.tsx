@@ -24,6 +24,11 @@ import {
   Send,
   Users,
   Bell,
+  MoreVertical,
+  Eye,
+  Edit,
+  Trash,
+  FolderPlus,
 } from 'lucide-react';
 import { AddCategoryDialog } from '@/components/fees/add-category-dialog';
 import { RecordPaymentDialog } from '@/components/fees/record-payment-dialog';
@@ -32,6 +37,12 @@ import { AddDiscountDialog } from '@/components/fees/add-discount-dialog';
 import { CreatePaymentPlanDialog } from '@/components/fees/create-payment-plan-dialog';
 import { ApplyFeeStructureDialog } from '@/components/fees/apply-fee-structure-dialog';
 import { SendRemindersDialog } from '@/components/fees/send-reminders-dialog';
+import { CreateFeeStructureDialog } from '@/components/fees/create-fee-structure-dialog';
+import { EditCategoryDialog } from '@/components/fees/edit-category-dialog';
+import { DeleteCategoryDialog } from '@/components/fees/delete-category-dialog';
+import { ViewCategoryDialog } from '@/components/fees/view-category-dialog';
+import { ViewPaymentDialog } from '@/components/fees/view-payment-dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { DataTable, createSortableHeader } from '@/components/ui/data-table';
 import type { ColumnDef } from '@tanstack/react-table';
 import { generateFeeReceipt, exportOutstandingFeesPDF } from '@/lib/fee-exports';
@@ -79,6 +90,13 @@ export default function FeesPage(): JSX.Element {
   const [createPlanOpen, setCreatePlanOpen] = useState<boolean>(false);
   const [applyStructureOpen, setApplyStructureOpen] = useState<boolean>(false);
   const [sendRemindersOpen, setSendRemindersOpen] = useState<boolean>(false);
+  const [createStructureOpen, setCreateStructureOpen] = useState<boolean>(false);
+  const [editCategoryOpen, setEditCategoryOpen] = useState<boolean>(false);
+  const [deleteCategoryOpen, setDeleteCategoryOpen] = useState<boolean>(false);
+  const [viewCategoryOpen, setViewCategoryOpen] = useState<boolean>(false);
+  const [viewPaymentOpen, setViewPaymentOpen] = useState<boolean>(false);
+  const [selectedCategory, setSelectedCategory] = useState<FeeCategory | null>(null);
+  const [selectedPayment, setSelectedPayment] = useState<FeePayment | null>(null);
 
   // Fetch school data
   const schoolAdmin = useQuery(
@@ -224,6 +242,52 @@ export default function FeesPage(): JSX.Element {
         );
       },
     },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => {
+        const category = row.original;
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => {
+                  setSelectedCategory(category);
+                  setViewCategoryOpen(true);
+                }}
+              >
+                <Eye className="mr-2 h-4 w-4" />
+                View
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  setSelectedCategory(category);
+                  setEditCategoryOpen(true);
+                }}
+              >
+                <Edit className="mr-2 h-4 w-4" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  setSelectedCategory(category);
+                  setDeleteCategoryOpen(true);
+                }}
+                className="text-red-600"
+              >
+                <Trash className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
+    },
   ], []);
 
   // Payment columns
@@ -296,14 +360,28 @@ export default function FeesPage(): JSX.Element {
       cell: ({ row }) => {
         const payment = row.original;
         return (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleGenerateReceipt(payment)}
-          >
-            <Receipt className="mr-2 h-4 w-4" />
-            Receipt
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => {
+                  setSelectedPayment(payment);
+                  setViewPaymentOpen(true);
+                }}
+              >
+                <Eye className="mr-2 h-4 w-4" />
+                View Details
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleGenerateReceipt(payment)}>
+                <Receipt className="mr-2 h-4 w-4" />
+                Download Receipt
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         );
       },
     },
@@ -364,7 +442,38 @@ export default function FeesPage(): JSX.Element {
         }
       },
     },
-  ], []);
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => {
+        const payment = row.original;
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => {
+                  setSelectedPayment(payment);
+                  setViewPaymentOpen(true);
+                }}
+              >
+                <Eye className="mr-2 h-4 w-4" />
+                View Details
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleGenerateReceipt(payment)}>
+                <Receipt className="mr-2 h-4 w-4" />
+                Download Receipt
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
+    },
+  ], [handleGenerateReceipt]);
 
   // Show loading
   if (!user || !schoolAdmin || !school) {
@@ -389,6 +498,10 @@ export default function FeesPage(): JSX.Element {
             </p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setCreateStructureOpen(true)}>
+              <FolderPlus className="mr-2 h-4 w-4" />
+              Create Structure
+            </Button>
             <Button variant="outline" onClick={() => setAddCategoryOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Add Category
@@ -651,6 +764,54 @@ export default function FeesPage(): JSX.Element {
             open={sendRemindersOpen}
             onOpenChange={setSendRemindersOpen}
             schoolId={schoolAdmin.schoolId}
+          />
+
+          <CreateFeeStructureDialog
+            open={createStructureOpen}
+            onOpenChange={setCreateStructureOpen}
+            schoolId={schoolAdmin.schoolId}
+            createdBy={schoolAdmin._id}
+          />
+
+          <EditCategoryDialog
+            open={editCategoryOpen}
+            onOpenChange={setEditCategoryOpen}
+            category={
+              selectedCategory
+                ? {
+                    ...selectedCategory,
+                    // Assuming selectedCategory._id is a string,
+                    // and EditCategoryDialog expects _id: Id<"feeCategories">
+                    // This will cast the string to match the expected type.
+                    _id: { __tableName: "feeCategories" } as any,
+                  }
+                : null
+            }
+          />
+
+          <DeleteCategoryDialog
+            open={deleteCategoryOpen}
+            onOpenChange={setDeleteCategoryOpen}
+            category={
+              selectedCategory
+                ? {
+                    ...selectedCategory,
+                    _id: { __tableName: "feeCategories" } as any,
+                  }
+                : null
+            }
+          />
+
+          <ViewCategoryDialog
+            open={viewCategoryOpen}
+            onOpenChange={setViewCategoryOpen}
+            category={selectedCategory}
+          />
+
+          <ViewPaymentDialog
+            open={viewPaymentOpen}
+            onOpenChange={setViewPaymentOpen}
+            payment={selectedPayment}
           />
         </>
       )}
