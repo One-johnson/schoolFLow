@@ -1,6 +1,5 @@
 'use client';
 
-import { JSX } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -12,6 +11,14 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { CheckCircle, Clock, XCircle } from 'lucide-react';
+import { JSX } from 'react';
+
+interface FeePaymentItem {
+  categoryName: string;
+  amountDue: number;
+  amountPaid: number;
+  balance: number;
+}
 
 interface ViewPaymentDialogProps {
   open: boolean;
@@ -22,10 +29,15 @@ interface ViewPaymentDialogProps {
     studentName: string;
     studentId: string;
     className: string;
-    categoryName: string;
-    amountDue: number;
-    amountPaid: number;
-    remainingBalance: number;
+    categoryName?: string;
+    amountDue?: number;
+    amountPaid?: number;
+    remainingBalance?: number;
+    version?: number;
+    items?: string;
+    totalAmountDue?: number;
+    totalAmountPaid?: number;
+    totalBalance?: number;
     paymentMethod: string;
     transactionReference?: string;
     paymentDate: string;
@@ -43,6 +55,10 @@ export function ViewPaymentDialog({
   payment,
 }: ViewPaymentDialogProps): JSX.Element {
   if (!payment) return <></>;
+
+  // Check if this is a v2 payment (multi-category)
+  const isV2 = payment.version === 2 && payment.items;
+  const items: FeePaymentItem[] = isV2 ? JSON.parse(payment.items as string) : [];
 
   const getStatusBadge = (status: string) => {
     if (status === 'paid') {
@@ -62,7 +78,7 @@ export function ViewPaymentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Payment Details</DialogTitle>
           <DialogDescription>
@@ -124,37 +140,96 @@ export function ViewPaymentDialog({
           <Separator />
 
           {/* Payment Details */}
-          <div className="space-y-3">
-            <div className="grid grid-cols-3 items-center gap-4">
-              <Label className="font-semibold">Fee Category:</Label>
-              <div className="col-span-2">
-                <span>{payment.categoryName}</span>
+          {isV2 ? (
+            <div className="space-y-3">
+              <Label className="font-semibold">Fee Categories:</Label>
+              <div className="rounded-md border">
+                <table className="w-full text-sm">
+                  <thead className="border-b bg-muted/50">
+                    <tr>
+                      <th className="p-2 text-left font-medium">Category</th>
+                      <th className="p-2 text-right font-medium">Amount Due</th>
+                      <th className="p-2 text-right font-medium">Amount Paid</th>
+                      <th className="p-2 text-right font-medium">Balance</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((item: FeePaymentItem, index: number) => {
+                      const amountDue = item.amountDue || 0;
+                      const amountPaid = item.amountPaid || 0;
+                      const balance = item.balance !== undefined ? item.balance : (amountDue - amountPaid);
+                      
+                      return (
+                        <tr key={index} className="border-b last:border-0">
+                          <td className="p-2">{item.categoryName || 'N/A'}</td>
+                          <td className="p-2 text-right">GHS {amountDue.toFixed(2)}</td>
+                          <td className="p-2 text-right text-green-600">GHS {amountPaid.toFixed(2)}</td>
+                          <td className={`p-2 text-right ${balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            GHS {balance.toFixed(2)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-            </div>
+              
+              <div className="grid grid-cols-3 items-center gap-4 pt-2">
+                <Label className="font-semibold">Total Amount Due:</Label>
+                <div className="col-span-2">
+                  <span className="font-semibold">GHS {(payment.totalAmountDue || 0).toFixed(2)}</span>
+                </div>
+              </div>
 
-            <div className="grid grid-cols-3 items-center gap-4">
-              <Label className="font-semibold">Amount Due:</Label>
-              <div className="col-span-2">
-                <span className="font-semibold">GHS {payment.amountDue.toFixed(2)}</span>
+              <div className="grid grid-cols-3 items-center gap-4">
+                <Label className="font-semibold">Total Amount Paid:</Label>
+                <div className="col-span-2">
+                  <span className="font-semibold text-green-600">GHS {(payment.totalAmountPaid || 0).toFixed(2)}</span>
+                </div>
               </div>
-            </div>
 
-            <div className="grid grid-cols-3 items-center gap-4">
-              <Label className="font-semibold">Amount Paid:</Label>
-              <div className="col-span-2">
-                <span className="font-semibold text-green-600">GHS {payment.amountPaid.toFixed(2)}</span>
+              <div className="grid grid-cols-3 items-center gap-4">
+                <Label className="font-semibold">Total Balance:</Label>
+                <div className="col-span-2">
+                  <span className={`font-semibold ${(payment.totalBalance || 0) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    GHS {(payment.totalBalance || 0).toFixed(2)}
+                  </span>
+                </div>
               </div>
             </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 items-center gap-4">
+                <Label className="font-semibold">Fee Category:</Label>
+                <div className="col-span-2">
+                  <span>{payment.categoryName || 'N/A'}</span>
+                </div>
+              </div>
 
-            <div className="grid grid-cols-3 items-center gap-4">
-              <Label className="font-semibold">Balance:</Label>
-              <div className="col-span-2">
-                <span className={`font-semibold ${payment.remainingBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                  GHS {payment.remainingBalance.toFixed(2)}
-                </span>
+              <div className="grid grid-cols-3 items-center gap-4">
+                <Label className="font-semibold">Amount Due:</Label>
+                <div className="col-span-2">
+                  <span className="font-semibold">GHS {(payment.amountDue || 0).toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 items-center gap-4">
+                <Label className="font-semibold">Amount Paid:</Label>
+                <div className="col-span-2">
+                  <span className="font-semibold text-green-600">GHS {(payment.amountPaid || 0).toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 items-center gap-4">
+                <Label className="font-semibold">Balance:</Label>
+                <div className="col-span-2">
+                  <span className={`font-semibold ${(payment.remainingBalance || 0) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    GHS {(payment.remainingBalance || 0).toFixed(2)}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           <Separator />
 

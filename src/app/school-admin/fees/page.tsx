@@ -3,11 +3,14 @@
 import { useState, useMemo, useCallback, JSX } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
+import type { Id } from '../../../../convex/_generated/dataModel';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import {
   DollarSign,
   TrendingUp,
@@ -30,8 +33,8 @@ import {
   Trash,
   FolderPlus,
 } from 'lucide-react';
-import { AddCategoryDialog } from '@/components/fees/add-category-dialog';
-import { RecordPaymentDialog } from '@/components/fees/record-payment-dialog';
+import { BulkAddCategoriesDialog } from '@/components/fees/bulk-add-categories-dialog';
+import { RecordPaymentMultiDialog } from '@/components/fees/record-payment-multi-dialog';
 import { BulkUploadCSVDialog } from '@/components/fees/bulk-upload-csv-dialog';
 import { AddDiscountDialog } from '@/components/fees/add-discount-dialog';
 import { CreatePaymentPlanDialog } from '@/components/fees/create-payment-plan-dialog';
@@ -42,6 +45,8 @@ import { EditCategoryDialog } from '@/components/fees/edit-category-dialog';
 import { DeleteCategoryDialog } from '@/components/fees/delete-category-dialog';
 import { ViewCategoryDialog } from '@/components/fees/view-category-dialog';
 import { ViewPaymentDialog } from '@/components/fees/view-payment-dialog';
+import { EditPaymentDialog } from '@/components/fees/edit-payment-dialog';
+import { DeletePaymentDialog } from '@/components/fees/delete-payment-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { DataTable, createSortableHeader } from '@/components/ui/data-table';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -49,7 +54,7 @@ import { generateFeeReceipt, exportOutstandingFeesPDF } from '@/lib/fee-exports'
 import { toast } from 'sonner';
 
 interface FeeCategory {
-  _id: string;
+  _id: Id<'feeCategories'>;
   categoryCode: string;
   categoryName: string;
   description?: string;
@@ -66,11 +71,12 @@ interface FeePayment {
   studentName: string;
   classId: string;
   className: string;
-  categoryId: string;
-  categoryName: string;
-  amountDue: number;
-  amountPaid: number;
-  remainingBalance: number;
+  // V2 fields (multi-category only)
+  items: string; // JSON string
+  totalAmountDue: number;
+  totalAmountPaid: number;
+  totalBalance: number;
+  // Common fields
   paymentMethod: 'cash' | 'bank_transfer' | 'mobile_money' | 'check' | 'other';
   transactionReference?: string;
   paymentDate: string;
@@ -79,6 +85,16 @@ interface FeePayment {
   collectedByName: string;
   notes?: string;
   createdAt: string;
+}
+
+// Safe JSON parse helper
+function safeParseItems(items: string | undefined): Array<{ categoryName: string; amountDue: number; amountPaid: number; balance: number }> {
+  if (!items) return [];
+  try {
+    return JSON.parse(items);
+  } catch {
+    return [];
+  }
 }
 
 export default function FeesPage(): JSX.Element {
@@ -95,8 +111,11 @@ export default function FeesPage(): JSX.Element {
   const [deleteCategoryOpen, setDeleteCategoryOpen] = useState<boolean>(false);
   const [viewCategoryOpen, setViewCategoryOpen] = useState<boolean>(false);
   const [viewPaymentOpen, setViewPaymentOpen] = useState<boolean>(false);
+  const [editPaymentOpen, setEditPaymentOpen] = useState<boolean>(false);
+  const [deletePaymentOpen, setDeletePaymentOpen] = useState<boolean>(false);
   const [selectedCategory, setSelectedCategory] = useState<FeeCategory | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<FeePayment | null>(null);
+  const [classFilter, setClassFilter] = useState<string>('');
 
   // Fetch school data
   const schoolAdmin = useQuery(
@@ -135,23 +154,43 @@ export default function FeesPage(): JSX.Element {
     schoolAdmin?.schoolId ? { schoolId: schoolAdmin.schoolId } : 'skip'
   );
 
-  // Generate receipt handler
+  // Fetch classes for filter
+  const classes = useQuery(
+    api.classes.getClassesBySchool,
+    schoolAdmin?.schoolId ? { schoolId: schoolAdmin.schoolId } : 'skip'
+  );
+
+  // Filter payments by class
+  const filteredPayments = useMemo(() => {
+    if (!payments) return [];
+    if (!classFilter) return payments;
+    return payments.filter(p => p.classId === classFilter);
+  }, [payments, classFilter]);
+
+  const filteredOutstandingPayments = useMemo(() => {
+    if (!outstandingPayments) return [];
+    if (!classFilter) return outstandingPayments;
+    return outstandingPayments.filter(p => p.classId === classFilter);
+  }, [outstandingPayments, classFilter]);
+
+  // Generate receipt handler (V2 only)
   const handleGenerateReceipt = useCallback((payment: FeePayment): void => {
     if (!school) {
       toast.error('School information not available');
       return;
     }
 
+    const items = safeParseItems(payment.items);
     generateFeeReceipt({
       receiptNumber: payment.receiptNumber,
       paymentDate: payment.paymentDate,
       studentName: payment.studentName,
       studentId: payment.studentId,
       className: payment.className,
-      categoryName: payment.categoryName,
-      amountDue: payment.amountDue,
-      amountPaid: payment.amountPaid,
-      remainingBalance: payment.remainingBalance,
+      items: items,
+      totalAmountDue: payment.totalAmountDue,
+      totalAmountPaid: payment.totalAmountPaid,
+      remainingBalance: payment.totalBalance,
       paymentMethod: payment.paymentMethod,
       transactionReference: payment.transactionReference,
       paidBy: payment.paidBy,
@@ -166,7 +205,7 @@ export default function FeesPage(): JSX.Element {
 
   // Export outstanding fees
   const handleExportOutstanding = useCallback((): void => {
-    if (!outstandingPayments || outstandingPayments.length === 0) {
+    if (!filteredOutstandingPayments || filteredOutstandingPayments.length === 0) {
       toast.error('No outstanding fees to export');
       return;
     }
@@ -177,21 +216,25 @@ export default function FeesPage(): JSX.Element {
     }
 
     exportOutstandingFeesPDF(
-      outstandingPayments.map(p => ({
-        studentName: p.studentName,
-        studentId: p.studentId,
-        className: p.className,
-        categoryName: p.categoryName,
-        amountDue: p.amountDue,
-        amountPaid: p.amountPaid,
-        remainingBalance: p.remainingBalance,
-        paymentDate: p.paymentDate,
-      })),
+      filteredOutstandingPayments.map(p => {
+        const items = safeParseItems(p.items);
+        const categoryName = items.length > 1 ? 'Multiple Categories' : items[0].categoryName;
+        return {
+          studentName: p.studentName,
+          studentId: p.studentId,
+          className: p.className,
+          categoryName: categoryName,
+          amountDue: p.totalAmountDue,
+          amountPaid: p.totalAmountPaid,
+          remainingBalance: p.totalBalance,
+          paymentDate: p.paymentDate,
+        };
+      }),
       school.name
     );
 
     toast.success('Outstanding fees report downloaded');
-  }, [outstandingPayments, school]);
+  }, [filteredOutstandingPayments, school]);
 
   // Category columns
   const categoryColumns: ColumnDef<FeeCategory>[] = useMemo(() => [
@@ -310,24 +353,34 @@ export default function FeesPage(): JSX.Element {
       ),
     },
     {
-      accessorKey: 'categoryName',
-      header: 'Category',
-      cell: ({ row }) => row.getValue('categoryName'),
+      accessorKey: 'items',
+      header: 'Categories',
+      cell: ({ row }) => {
+        const payment = row.original;
+        const items = safeParseItems(payment.items);
+        if (items.length > 1) {
+          return <Badge variant="outline">{items.length} Categories</Badge>;
+        }
+        return items[0]?.categoryName || 'N/A';
+      },
     },
     {
-      accessorKey: 'amountPaid',
+      accessorKey: 'totalAmountPaid',
       header: createSortableHeader('Amount Paid'),
-      cell: ({ row }) => (
-        <span className="font-medium">
-          GHS {(row.getValue('amountPaid') as number).toFixed(2)}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const amountPaid = (row.getValue('totalAmountPaid') as number) || 0;
+        return (
+          <span className="font-medium">
+            GHS {amountPaid.toFixed(2)}
+          </span>
+        );
+      },
     },
     {
-      accessorKey: 'remainingBalance',
+      accessorKey: 'totalBalance',
       header: createSortableHeader('Balance'),
       cell: ({ row }) => {
-        const balance = row.getValue('remainingBalance') as number;
+        const balance = (row.getValue('totalBalance') as number) || 0;
         return (
           <span className={balance > 0 ? 'text-red-600 font-medium' : 'text-green-600'}>
             GHS {balance.toFixed(2)}
@@ -376,9 +429,28 @@ export default function FeesPage(): JSX.Element {
                 <Eye className="mr-2 h-4 w-4" />
                 View Details
               </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  setSelectedPayment(payment);
+                  setEditPaymentOpen(true);
+                }}
+              >
+                <Edit className="mr-2 h-4 w-4" />
+                Edit Payment
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleGenerateReceipt(payment)}>
                 <Receipt className="mr-2 h-4 w-4" />
                 Download Receipt
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  setSelectedPayment(payment);
+                  setDeletePaymentOpen(true);
+                }}
+                className="text-red-600"
+              >
+                <Trash className="mr-2 h-4 w-4" />
+                Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -402,33 +474,48 @@ export default function FeesPage(): JSX.Element {
       ),
     },
     {
-      accessorKey: 'categoryName',
+      accessorKey: 'items',
       header: 'Fee Category',
+      cell: ({ row }) => {
+        const payment = row.original;
+        const items = safeParseItems(payment.items);
+        if (items.length > 1) {
+          return <Badge variant="outline">{items.length} Categories</Badge>;
+        }
+        return items[0]?.categoryName || 'N/A';
+      },
     },
     {
-      accessorKey: 'amountDue',
+      accessorKey: 'totalAmountDue',
       header: createSortableHeader('Amount Due'),
-      cell: ({ row }) => (
-        <span className="font-medium">
-          GHS {(row.getValue('amountDue') as number).toFixed(2)}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const amountDue = (row.getValue('totalAmountDue') as number) || 0;
+        return (
+          <span className="font-medium">
+            GHS {amountDue.toFixed(2)}
+          </span>
+        );
+      },
     },
     {
-      accessorKey: 'amountPaid',
+      accessorKey: 'totalAmountPaid',
       header: createSortableHeader('Amount Paid'),
-      cell: ({ row }) => (
-        <span>GHS {(row.getValue('amountPaid') as number).toFixed(2)}</span>
-      ),
+      cell: ({ row }) => {
+        const amountPaid = (row.getValue('totalAmountPaid') as number) || 0;
+        return <span>GHS {amountPaid.toFixed(2)}</span>;
+      },
     },
     {
-      accessorKey: 'remainingBalance',
+      accessorKey: 'totalBalance',
       header: createSortableHeader('Balance'),
-      cell: ({ row }) => (
-        <span className="text-red-600 font-bold">
-          GHS {(row.getValue('remainingBalance') as number).toFixed(2)}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const balance = (row.getValue('totalBalance') as number) || 0;
+        return (
+          <span className="text-red-600 font-bold">
+            GHS {balance.toFixed(2)}
+          </span>
+        );
+      },
     },
     {
       accessorKey: 'paymentStatus',
@@ -464,9 +551,28 @@ export default function FeesPage(): JSX.Element {
                 <Eye className="mr-2 h-4 w-4" />
                 View Details
               </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  setSelectedPayment(payment);
+                  setEditPaymentOpen(true);
+                }}
+              >
+                <Edit className="mr-2 h-4 w-4" />
+                Edit Payment
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleGenerateReceipt(payment)}>
                 <Receipt className="mr-2 h-4 w-4" />
                 Download Receipt
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  setSelectedPayment(payment);
+                  setDeletePaymentOpen(true);
+                }}
+                className="text-red-600"
+              >
+                <Trash className="mr-2 h-4 w-4" />
+                Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -547,10 +653,10 @@ export default function FeesPage(): JSX.Element {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              GHS {paymentStats?.totalCollected?.toFixed(2) || '0.00'}
+              GHS {(paymentStats?.totalCollected || 0).toFixed(2)}
             </div>
             <p className="text-xs text-muted-foreground">
-              {paymentStats?.paidCount || 0} paid payments
+              Total from all payments (paid, partial, pending)
             </p>
           </CardContent>
         </Card>
@@ -562,7 +668,7 @@ export default function FeesPage(): JSX.Element {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              GHS {paymentStats?.totalOutstanding?.toFixed(2) || '0.00'}
+              GHS {(paymentStats?.totalOutstanding || 0).toFixed(2)}
             </div>
             <p className="text-xs text-muted-foreground">
               {(paymentStats?.partialCount || 0) + (paymentStats?.pendingCount || 0)} outstanding
@@ -608,10 +714,30 @@ export default function FeesPage(): JSX.Element {
         <TabsContent value="payments" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>All Fee Payments</CardTitle>
-              <CardDescription>
-                View and manage all fee payments
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>All Fee Payments</CardTitle>
+                  <CardDescription>
+                    View and manage all fee payments
+                  </CardDescription>
+                </div>
+                <div className="w-64">
+                  <Label className="text-xs text-muted-foreground">Filter by Class</Label>
+                  <Select value={classFilter} onValueChange={setClassFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All classes" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="All">All Classes</SelectItem>
+                      {classes?.map((cls) => (
+                        <SelectItem key={cls._id} value={cls.classCode}>
+                          {cls.className}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               {!payments || payments.length === 0 ? (
@@ -629,10 +755,10 @@ export default function FeesPage(): JSX.Element {
               ) : (
                 <DataTable
                   columns={paymentColumns}
-                  data={payments}
+                  data={filteredPayments}
                   searchKey="studentName"
                   searchPlaceholder="Search by student name..."
-                  additionalSearchKeys={['receiptNumber', 'categoryName']}
+                  additionalSearchKeys={['receiptNumber']}
                 />
               )}
             </CardContent>
@@ -643,13 +769,29 @@ export default function FeesPage(): JSX.Element {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <div>
+                <div className="flex-1">
                   <CardTitle>Outstanding Fees</CardTitle>
                   <CardDescription>
                     Students with pending or partial payments
                   </CardDescription>
                 </div>
-                {outstandingPayments && outstandingPayments.length > 0 && (
+                <div className="w-64 mr-4">
+                  <Label className="text-xs text-muted-foreground">Filter by Class</Label>
+                  <Select value={classFilter} onValueChange={setClassFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All classes" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="All">All Classes</SelectItem>
+                      {classes?.map((cls) => (
+                        <SelectItem key={cls._id} value={cls.classCode}>
+                          {cls.className}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {filteredOutstandingPayments && filteredOutstandingPayments.length > 0 && (
                   <Button variant="outline" onClick={handleExportOutstanding}>
                     <FileDown className="mr-2 h-4 w-4" />
                     Export Report
@@ -669,7 +811,7 @@ export default function FeesPage(): JSX.Element {
               ) : (
                 <DataTable
                   columns={outstandingColumns}
-                  data={outstandingPayments}
+                  data={filteredOutstandingPayments}
                   searchKey="studentName"
                   searchPlaceholder="Search by student name..."
                   additionalSearchKeys={['studentId', 'className']}
@@ -717,13 +859,13 @@ export default function FeesPage(): JSX.Element {
       {/* Dialogs */}
       {schoolAdmin.schoolId && (
         <>
-          <AddCategoryDialog
+          <BulkAddCategoriesDialog
             open={addCategoryOpen}
             onOpenChange={setAddCategoryOpen}
             schoolId={schoolAdmin.schoolId}
           />
 
-          <RecordPaymentDialog
+          <RecordPaymentMultiDialog
             open={recordPaymentOpen}
             onOpenChange={setRecordPaymentOpen}
             schoolId={schoolAdmin.schoolId}
@@ -776,30 +918,13 @@ export default function FeesPage(): JSX.Element {
           <EditCategoryDialog
             open={editCategoryOpen}
             onOpenChange={setEditCategoryOpen}
-            category={
-              selectedCategory
-                ? {
-                    ...selectedCategory,
-                    // Assuming selectedCategory._id is a string,
-                    // and EditCategoryDialog expects _id: Id<"feeCategories">
-                    // This will cast the string to match the expected type.
-                    _id: { __tableName: "feeCategories" } as any,
-                  }
-                : null
-            }
+            category={selectedCategory}
           />
 
           <DeleteCategoryDialog
             open={deleteCategoryOpen}
             onOpenChange={setDeleteCategoryOpen}
-            category={
-              selectedCategory
-                ? {
-                    ...selectedCategory,
-                    _id: { __tableName: "feeCategories" } as any,
-                  }
-                : null
-            }
+            category={selectedCategory}
           />
 
           <ViewCategoryDialog
@@ -811,6 +936,18 @@ export default function FeesPage(): JSX.Element {
           <ViewPaymentDialog
             open={viewPaymentOpen}
             onOpenChange={setViewPaymentOpen}
+            payment={selectedPayment}
+          />
+
+          <EditPaymentDialog
+            open={editPaymentOpen}
+            onOpenChange={setEditPaymentOpen}
+            payment={selectedPayment}
+          />
+
+          <DeletePaymentDialog
+            open={deletePaymentOpen}
+            onOpenChange={setDeletePaymentOpen}
             payment={selectedPayment}
           />
         </>
