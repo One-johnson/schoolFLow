@@ -36,7 +36,7 @@ export const createFeeCategory = mutation({
   },
 });
 
-// Get all fee categories for a school
+// Get all categories for a school
 export const getCategoriesBySchool = query({
   args: { schoolId: v.string() },
   handler: async (ctx, args) => {
@@ -50,7 +50,7 @@ export const getCategoriesBySchool = query({
   },
 });
 
-// Get active fee categories for a school
+// Get active categories
 export const getActiveCategoriesBySchool = query({
   args: { schoolId: v.string() },
   handler: async (ctx, args) => {
@@ -95,7 +95,7 @@ export const deleteFeeCategory = mutation({
   },
 });
 
-// Get fee category stats
+// Get category statistics
 export const getCategoryStats = query({
   args: { schoolId: v.string() },
   handler: async (ctx, args) => {
@@ -105,16 +105,45 @@ export const getCategoryStats = query({
       .collect();
 
     const active = categories.filter((c) => c.status === 'active').length;
-    const inactive = categories.filter((c) => c.status === 'inactive').length;
-    const mandatory = categories.filter((c) => !c.isOptional).length;
-    const optional = categories.filter((c) => c.isOptional).length;
+    const total = categories.length;
 
-    return {
-      total: categories.length,
-      active,
-      inactive,
-      mandatory,
-      optional,
-    };
+    return { active, total };
+  },
+});
+
+// Bulk create fee categories
+export const bulkCreateCategories = mutation({
+  args: {
+    schoolId: v.string(),
+    categories: v.array(
+      v.object({
+        categoryName: v.string(),
+        description: v.optional(v.string()),
+        isOptional: v.boolean(),
+      })
+    ),
+    createdBy: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const now = new Date().toISOString();
+    const createdIds: string[] = [];
+
+    for (const category of args.categories) {
+      const categoryCode = generateCategoryCode();
+      const categoryId = await ctx.db.insert('feeCategories', {
+        schoolId: args.schoolId,
+        categoryCode,
+        categoryName: category.categoryName,
+        description: category.description,
+        isOptional: category.isOptional,
+        status: 'active',
+        createdAt: now,
+        updatedAt: now,
+        createdBy: args.createdBy,
+      });
+      createdIds.push(categoryId);
+    }
+
+    return createdIds;
   },
 });

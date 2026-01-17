@@ -13,7 +13,7 @@ function generateReceiptNumber(): string {
   return `RCP${digits}`;
 }
 
-// Bulk import payments from CSV
+// Bulk import payments from CSV (V2 format - consolidated multi-category)
 export const bulkImportPayments = mutation({
   args: {
     schoolId: v.string(),
@@ -46,18 +46,53 @@ export const bulkImportPayments = mutation({
     let failCount = 0;
     const errors: string[] = [];
 
+    // Group payments by student to create consolidated V2 payments
+    const paymentsByStudent = new Map<string, typeof args.payments>();
+    
     for (const payment of args.payments) {
+      const key = payment.studentId;
+      if (!paymentsByStudent.has(key)) {
+        paymentsByStudent.set(key, []);
+      }
+      paymentsByStudent.get(key)!.push(payment);
+    }
+
+    // Create one consolidated payment per student
+    for (const [studentId, studentPayments] of paymentsByStudent) {
       try {
         // Validate student exists
         const student = await ctx.db
           .query('students')
-          .withIndex('by_student_id', (q) => q.eq('studentId', payment.studentId))
+          .withIndex('by_student_id', (q) => q.eq('studentId', studentId))
           .first();
 
         if (!student) {
-          errors.push(`Student ${payment.studentId} not found`);
+          errors.push(`Student ${studentId} not found`);
           failCount++;
           continue;
+        }
+
+        // Use the first payment's metadata
+        const firstPayment = studentPayments[0];
+
+        // Create items array from all categories
+        const items = studentPayments.map(p => ({
+          categoryId: p.categoryId,
+          categoryName: p.categoryName,
+          amountDue: p.amountDue,
+          amountPaid: p.amountPaid,
+        }));
+
+        // Calculate totals
+        const totalAmountDue = items.reduce((sum, item) => sum + item.amountDue, 0);
+        const totalAmountPaid = items.reduce((sum, item) => sum + item.amountPaid, 0);
+        const totalBalance = totalAmountDue - totalAmountPaid;
+
+        let paymentStatus: 'paid' | 'partial' | 'pending' = 'pending';
+        if (totalAmountPaid >= totalAmountDue) {
+          paymentStatus = 'paid';
+        } else if (totalAmountPaid > 0) {
+          paymentStatus = 'partial';
         }
 
         // Generate IDs
@@ -65,35 +100,27 @@ export const bulkImportPayments = mutation({
         const receiptNumber = generateReceiptNumber();
         const now = new Date().toISOString();
 
-        const remainingBalance = payment.amountDue - payment.amountPaid;
-        let paymentStatus: 'paid' | 'partial' | 'pending' = 'pending';
-
-        if (payment.amountPaid >= payment.amountDue) {
-          paymentStatus = 'paid';
-        } else if (payment.amountPaid > 0) {
-          paymentStatus = 'partial';
-        }
-
-        // Insert payment record
+        // Insert consolidated V2 payment record
         await ctx.db.insert('feePayments', {
           schoolId: args.schoolId,
           paymentId,
           receiptNumber,
-          studentId: payment.studentId,
-          studentName: payment.studentName,
-          classId: payment.classId,
-          className: payment.className,
-          categoryId: payment.categoryId,
-          categoryName: payment.categoryName,
-          amountDue: payment.amountDue,
-          amountPaid: payment.amountPaid,
-          paymentMethod: payment.paymentMethod,
-          transactionReference: payment.transactionReference,
-          paymentDate: payment.paymentDate,
+          studentId: firstPayment.studentId,
+          studentName: firstPayment.studentName,
+          classId: firstPayment.classId,
+          className: firstPayment.className,
+          version: 2,
+          items: JSON.stringify(items),
+          totalAmountDue,
+          totalAmountPaid,
+          totalBalance,
+          paymentMethod: firstPayment.paymentMethod,
+          transactionReference: firstPayment.transactionReference,
+          paymentDate: firstPayment.paymentDate,
           paymentStatus,
-          remainingBalance,
-          notes: payment.notes,
-          paidBy: payment.paidBy,
+          remainingBalance: totalBalance,
+          notes: firstPayment.notes,
+          paidBy: firstPayment.paidBy,
           collectedBy: args.collectedBy,
           collectedByName: args.collectedByName,
           createdAt: now,
@@ -103,8 +130,8 @@ export const bulkImportPayments = mutation({
         successCount++;
       } catch (error) {
         failCount++;
-        errors.push(`Error processing payment for ${payment.studentId}: ${error}`);
-        console.error(`Failed to import payment for ${payment.studentId}:`, error);
+        errors.push(`Error processing payment for ${studentId}: ${error}`);
+        console.error(`Failed to import payment for ${studentId}:`, error);
       }
     }
 
@@ -112,7 +139,7 @@ export const bulkImportPayments = mutation({
   },
 });
 
-// Apply fee structure to multiple students
+// Apply fee structure to multiple students (V2 consolidated format)
 export const applyFeeStructureToStudents = mutation({
   args: {
     schoolId: v.string(),
@@ -159,36 +186,48 @@ export const applyFeeStructureToStudents = mutation({
           continue;
         }
 
-        // Create payment records for each fee category
-        for (const fee of fees) {
-          const paymentId = generatePaymentId();
-          const receiptNumber = generateReceiptNumber();
+        // Create items array from fee structure
+        const items = fees.map(fee => ({
+          categoryId: fee.categoryId,
+          categoryName: fee.categoryName,
+          amountDue: fee.amount,
+          amountPaid: 0,
+        }));
 
-          await ctx.db.insert('feePayments', {
-            schoolId: args.schoolId,
-            paymentId,
-            receiptNumber,
-            studentId,
-            studentName: `${student.firstName} ${student.lastName}`,
-            classId: student.classId,
-            className: student.className,
-            feeStructureId: args.feeStructureId,
-            academicYearId: args.academicYearId,
-            termId: args.termId,
-            categoryId: fee.categoryId,
-            categoryName: fee.categoryName,
-            amountDue: fee.amount,
-            amountPaid: 0,
-            paymentMethod: 'cash',
-            paymentDate: now,
-            paymentStatus: 'pending',
-            remainingBalance: fee.amount,
-            collectedBy: args.collectedBy,
-            collectedByName: args.collectedByName,
-            createdAt: now,
-            updatedAt: now,
-          });
-        }
+        // Calculate totals
+        const totalAmountDue = items.reduce((sum, item) => sum + item.amountDue, 0);
+        const totalAmountPaid = 0;
+        const totalBalance = totalAmountDue;
+
+        const paymentId = generatePaymentId();
+        const receiptNumber = generateReceiptNumber();
+
+        // Create ONE consolidated V2 payment per student with all categories
+        await ctx.db.insert('feePayments', {
+          schoolId: args.schoolId,
+          paymentId,
+          receiptNumber,
+          studentId,
+          studentName: `${student.firstName} ${student.lastName}`,
+          classId: student.classId,
+          className: student.className,
+          feeStructureId: args.feeStructureId,
+          academicYearId: args.academicYearId,
+          termId: args.termId,
+          version: 2,
+          items: JSON.stringify(items),
+          totalAmountDue,
+          totalAmountPaid,
+          totalBalance,
+          paymentMethod: 'cash',
+          paymentDate: now,
+          paymentStatus: 'pending',
+          remainingBalance: totalBalance,
+          collectedBy: args.collectedBy,
+          collectedByName: args.collectedByName,
+          createdAt: now,
+          updatedAt: now,
+        });
 
         successCount++;
       } catch (error) {

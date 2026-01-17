@@ -13,7 +13,7 @@ function generateReceiptNumber(): string {
   return `RCP${digits}`;
 }
 
-// Record fee payment
+// Record fee payment (V2 Multi-category only)
 export const recordPayment = mutation({
   args: {
     schoolId: v.string(),
@@ -24,10 +24,15 @@ export const recordPayment = mutation({
     feeStructureId: v.optional(v.string()),
     academicYearId: v.optional(v.string()),
     termId: v.optional(v.string()),
-    categoryId: v.string(),
-    categoryName: v.string(),
-    amountDue: v.number(),
-    amountPaid: v.number(),
+    // Multi-category items
+    items: v.array(
+      v.object({
+        categoryId: v.string(),
+        categoryName: v.string(),
+        amountDue: v.number(),
+        amountPaid: v.number(),
+      })
+    ),
     paymentMethod: v.union(
       v.literal('cash'),
       v.literal('bank_transfer'),
@@ -47,12 +52,15 @@ export const recordPayment = mutation({
     const receiptNumber = generateReceiptNumber();
     const now = new Date().toISOString();
 
-    const remainingBalance = args.amountDue - args.amountPaid;
-    let paymentStatus: 'paid' | 'partial' | 'pending' = 'pending';
+    // Calculate totals
+    const totalAmountDue = args.items.reduce((sum, item) => sum + item.amountDue, 0);
+    const totalAmountPaid = args.items.reduce((sum, item) => sum + item.amountPaid, 0);
+    const totalBalance = totalAmountDue - totalAmountPaid;
 
-    if (args.amountPaid >= args.amountDue) {
+    let paymentStatus: 'paid' | 'partial' | 'pending' = 'pending';
+    if (totalAmountPaid >= totalAmountDue) {
       paymentStatus = 'paid';
-    } else if (args.amountPaid > 0) {
+    } else if (totalAmountPaid > 0) {
       paymentStatus = 'partial';
     }
 
@@ -67,15 +75,18 @@ export const recordPayment = mutation({
       feeStructureId: args.feeStructureId,
       academicYearId: args.academicYearId,
       termId: args.termId,
-      categoryId: args.categoryId,
-      categoryName: args.categoryName,
-      amountDue: args.amountDue,
-      amountPaid: args.amountPaid,
+      // Version 2 fields
+      version: 2,
+      items: JSON.stringify(args.items),
+      totalAmountDue,
+      totalAmountPaid,
+      totalBalance,
+      // Common fields
       paymentMethod: args.paymentMethod,
       transactionReference: args.transactionReference,
       paymentDate: args.paymentDate,
       paymentStatus,
-      remainingBalance,
+      remainingBalance: totalBalance,
       notes: args.notes,
       paidBy: args.paidBy,
       collectedBy: args.collectedBy,
@@ -160,7 +171,7 @@ export const getOutstandingPayments = query({
   },
 });
 
-// Get payment statistics
+// Get payment statistics (V2 only)
 export const getPaymentStats = query({
   args: { schoolId: v.string() },
   handler: async (ctx, args) => {
@@ -169,9 +180,10 @@ export const getPaymentStats = query({
       .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))
       .collect();
 
-    const totalCollected = payments.reduce((sum, p) => sum + p.amountPaid, 0);
-    const totalOutstanding = payments.reduce((sum, p) => sum + p.remainingBalance, 0);
-    const totalDue = payments.reduce((sum, p) => sum + p.amountDue, 0);
+    // Use V2 fields only
+    const totalCollected = payments.reduce((sum, p) => sum + (p.totalAmountPaid || 0), 0);
+    const totalOutstanding = payments.reduce((sum, p) => sum + (p.totalBalance || 0), 0);
+    const totalDue = payments.reduce((sum, p) => sum + (p.totalAmountDue || 0), 0);
 
     const paidCount = payments.filter((p) => p.paymentStatus === 'paid').length;
     const partialCount = payments.filter((p) => p.paymentStatus === 'partial').length;
@@ -189,11 +201,18 @@ export const getPaymentStats = query({
   },
 });
 
-// Update payment
+// Update payment (V2 format)
 export const updatePayment = mutation({
   args: {
     paymentId: v.id('feePayments'),
-    amountPaid: v.optional(v.number()),
+    items: v.optional(v.array(
+      v.object({
+        categoryId: v.string(),
+        categoryName: v.string(),
+        amountDue: v.number(),
+        amountPaid: v.number(),
+      })
+    )),
     paymentMethod: v.optional(v.union(
       v.literal('cash'),
       v.literal('bank_transfer'),
@@ -205,7 +224,7 @@ export const updatePayment = mutation({
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { paymentId, ...updates } = args;
+    const { paymentId, items, ...updates } = args;
     const now = new Date().toISOString();
 
     const payment = await ctx.db.get(paymentId);
@@ -213,22 +232,33 @@ export const updatePayment = mutation({
       throw new Error('Payment not found');
     }
 
-    const amountPaid = updates.amountPaid ?? payment.amountPaid;
-    const remainingBalance = payment.amountDue - amountPaid;
+    // If items are provided, recalculate totals
+    let updateData: Record<string, unknown> = { ...updates, updatedAt: now };
+    
+    if (items) {
+      const totalAmountDue = items.reduce((sum, item) => sum + item.amountDue, 0);
+      const totalAmountPaid = items.reduce((sum, item) => sum + item.amountPaid, 0);
+      const totalBalance = totalAmountDue - totalAmountPaid;
 
-    let paymentStatus: 'paid' | 'partial' | 'pending' = 'pending';
-    if (amountPaid >= payment.amountDue) {
-      paymentStatus = 'paid';
-    } else if (amountPaid > 0) {
-      paymentStatus = 'partial';
+      let paymentStatus: 'paid' | 'partial' | 'pending' = 'pending';
+      if (totalAmountPaid >= totalAmountDue) {
+        paymentStatus = 'paid';
+      } else if (totalAmountPaid > 0) {
+        paymentStatus = 'partial';
+      }
+
+      updateData = {
+        ...updateData,
+        items: JSON.stringify(items),
+        totalAmountDue,
+        totalAmountPaid,
+        totalBalance,
+        remainingBalance: totalBalance,
+        paymentStatus,
+      };
     }
 
-    await ctx.db.patch(paymentId, {
-      ...updates,
-      remainingBalance,
-      paymentStatus,
-      updatedAt: now,
-    });
+    await ctx.db.patch(paymentId, updateData);
 
     return paymentId;
   },
@@ -239,5 +269,91 @@ export const deletePayment = mutation({
   args: { paymentId: v.id('feePayments') },
   handler: async (ctx, args) => {
     await ctx.db.delete(args.paymentId);
+  },
+});
+
+// Bulk record payments from CSV (V2 format)
+export const bulkRecordPayments = mutation({
+  args: {
+    payments: v.array(
+      v.object({
+        schoolId: v.string(),
+        studentId: v.string(),
+        studentName: v.string(),
+        classId: v.string(),
+        className: v.string(),
+        items: v.array(
+          v.object({
+            categoryId: v.string(),
+            categoryName: v.string(),
+            amountDue: v.number(),
+            amountPaid: v.number(),
+          })
+        ),
+        paymentMethod: v.union(
+          v.literal('cash'),
+          v.literal('bank_transfer'),
+          v.literal('mobile_money'),
+          v.literal('check'),
+          v.literal('other')
+        ),
+        transactionReference: v.optional(v.string()),
+        paymentDate: v.string(),
+        notes: v.optional(v.string()),
+        paidBy: v.optional(v.string()),
+        collectedBy: v.string(),
+        collectedByName: v.string(),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    const createdIds: string[] = [];
+    const now = new Date().toISOString();
+
+    for (const payment of args.payments) {
+      const paymentId = generatePaymentId();
+      const receiptNumber = generateReceiptNumber();
+
+      const totalAmountDue = payment.items.reduce((sum, item) => sum + item.amountDue, 0);
+      const totalAmountPaid = payment.items.reduce((sum, item) => sum + item.amountPaid, 0);
+      const totalBalance = totalAmountDue - totalAmountPaid;
+
+      let paymentStatus: 'paid' | 'partial' | 'pending' = 'pending';
+      if (totalAmountPaid >= totalAmountDue) {
+        paymentStatus = 'paid';
+      } else if (totalAmountPaid > 0) {
+        paymentStatus = 'partial';
+      }
+
+      const paymentDbId = await ctx.db.insert('feePayments', {
+        schoolId: payment.schoolId,
+        paymentId,
+        receiptNumber,
+        studentId: payment.studentId,
+        studentName: payment.studentName,
+        classId: payment.classId,
+        className: payment.className,
+        version: 2,
+        items: JSON.stringify(payment.items),
+        totalAmountDue,
+        totalAmountPaid,
+        totalBalance,
+        paymentMethod: payment.paymentMethod,
+        transactionReference: payment.transactionReference,
+        paymentDate: payment.paymentDate,
+        paymentStatus,
+        remainingBalance: totalBalance,
+        notes: payment.notes,
+        paidBy: payment.paidBy,
+        collectedBy: payment.collectedBy,
+        collectedByName: payment.collectedByName,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      createdIds.push(paymentDbId);
+    }
+
+    return createdIds;
   },
 });

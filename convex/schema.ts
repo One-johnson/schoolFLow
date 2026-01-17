@@ -613,7 +613,7 @@ export default defineSchema({
     .index('by_subject', ['schoolId', 'subjectId'])
     .index('by_school', ['schoolId']),
 
-    timetableTemplates: defineTable({
+  timetableTemplates: defineTable({
     schoolId: v.string(),
     templateName: v.string(),
     description: v.optional(v.string()),
@@ -626,8 +626,7 @@ export default defineSchema({
     .index('by_school', ['schoolId'])
     .index('by_status', ['status']),
 
-
-    feeCategories: defineTable({
+  feeCategories: defineTable({
     schoolId: v.string(),
     categoryCode: v.string(), // Auto-generated: FEE + 6 random digits
     categoryName: v.string(), // e.g., "Tuition", "Transport", "Library"
@@ -680,10 +679,18 @@ export default defineSchema({
     feeStructureId: v.optional(v.string()), // References feeStructures table
     academicYearId: v.optional(v.string()),
     termId: v.optional(v.string()),
-    categoryId: v.string(), // References feeCategories table
-    categoryName: v.string(), // Denormalized
-    amountDue: v.number(),
-    amountPaid: v.number(),
+    // Version 1 (Single category - backward compatible)
+    categoryId: v.optional(v.string()), // References feeCategories table
+    categoryName: v.optional(v.string()), // Denormalized
+    amountDue: v.optional(v.number()),
+    amountPaid: v.optional(v.number()),
+    // Version 2 (Multi-category)
+    version: v.optional(v.number()), // 1 = single category, 2 = multi-category
+    items: v.optional(v.string()), // JSON array of {categoryId, categoryName, amountDue, amountPaid}
+    totalAmountDue: v.optional(v.number()), // Sum of all items
+    totalAmountPaid: v.optional(v.number()), // Sum of all payments
+    totalBalance: v.optional(v.number()), // totalDue - totalPaid
+    // Common fields
     paymentMethod: v.union(
       v.literal('cash'),
       v.literal('bank_transfer'),
@@ -698,7 +705,7 @@ export default defineSchema({
       v.literal('partial'),
       v.literal('pending')
     ),
-    remainingBalance: v.number(), // amountDue - amountPaid
+    remainingBalance: v.number(), // For backward compatibility
     notes: v.optional(v.string()),
     paidBy: v.optional(v.string()), // Name of person who paid (parent/guardian)
     collectedBy: v.string(), // School Admin ID who recorded payment

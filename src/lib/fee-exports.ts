@@ -1,16 +1,28 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+interface PaymentItem {
+  categoryName: string;
+  amountDue: number;
+  amountPaid: number;
+}
+
 interface ReceiptData {
   receiptNumber: string;
   paymentDate: string;
   studentName: string;
   studentId: string;
   className: string;
-  categoryName: string;
-  amountDue: number;
-  amountPaid: number;
+  // Version 1 (backward compatible)
+  categoryName?: string;
+  amountDue?: number;
+  amountPaid?: number;
   remainingBalance: number;
+  // Version 2 (multi-category)
+  items?: PaymentItem[];
+  totalAmountDue?: number;
+  totalAmountPaid?: number;
+  // Common fields
   paymentMethod: string;
   transactionReference?: string;
   paidBy?: string;
@@ -78,13 +90,36 @@ export function generateFeeReceipt(receipt: ReceiptData): void {
   doc.text('Payment Details:', 14, currentY);
   currentY += lineHeight;
   
-  autoTable(doc, {
-    startY: currentY,
-    head: [['Description', 'Amount']],
-    body: [
-      ['Fee Category', String(receipt.categoryName)],
-      ['Amount Due', `GHS ${receipt.amountDue.toFixed(2)}`],
-      ['Amount Paid', `GHS ${receipt.amountPaid.toFixed(2)}`],
+  // Build table body based on version
+  let tableBody: any[];
+  
+  if (receipt.items && receipt.items.length > 0) {
+    // Version 2: Multi-category
+    const itemRows = receipt.items.map((item) => [
+      String(item.categoryName),
+      `GHS ${item.amountDue.toFixed(2)}`,
+      `GHS ${item.amountPaid.toFixed(2)}`,
+    ]);
+    
+    const totalDue = receipt.totalAmountDue || 0;
+    const totalPaid = receipt.totalAmountPaid || 0;
+    
+    autoTable(doc, {
+      startY: currentY,
+      head: [['Fee Category', 'Amount Due', 'Paid']],
+      body: itemRows,
+      foot: [
+        ['TOTAL', `GHS ${totalDue.toFixed(2)}`, `GHS ${totalPaid.toFixed(2)}`],
+      ],
+      theme: 'striped',
+      headStyles: { fillColor: [59, 130, 246] },
+      footStyles: { fillColor: [59, 130, 246], fontStyle: 'bold' },
+    });
+    
+    currentY = (doc as any).lastAutoTable.finalY + 10;
+    
+    // Additional details
+    tableBody = [
       ['Remaining Balance', `GHS ${receipt.remainingBalance.toFixed(2)}`],
       ['Payment Method', String(receipt.paymentMethod).replace('_', ' ').toUpperCase()],
       ...(receipt.transactionReference 
@@ -95,7 +130,30 @@ export function generateFeeReceipt(receipt: ReceiptData): void {
         ? [['Paid By', String(receipt.paidBy)]] 
         : []
       ),
-    ],
+    ];
+  } else {
+    // Version 1: Single category (backward compatible)
+    tableBody = [
+      ['Fee Category', String(receipt.categoryName)],
+      ['Amount Due', `GHS ${(receipt.amountDue || 0).toFixed(2)}`],
+      ['Amount Paid', `GHS ${(receipt.amountPaid || 0).toFixed(2)}`],
+      ['Remaining Balance', `GHS ${receipt.remainingBalance.toFixed(2)}`],
+      ['Payment Method', String(receipt.paymentMethod).replace('_', ' ').toUpperCase()],
+      ...(receipt.transactionReference 
+        ? [['Transaction Reference', String(receipt.transactionReference)]] 
+        : []
+      ),
+      ...(receipt.paidBy 
+        ? [['Paid By', String(receipt.paidBy)]] 
+        : []
+      ),
+    ];
+  }
+  
+  autoTable(doc, {
+    startY: currentY,
+    head: [['Description', 'Amount']],
+    body: tableBody,
     theme: 'striped',
     headStyles: { fillColor: [59, 130, 246] },
   });
