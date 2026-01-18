@@ -14,6 +14,7 @@ import type * as auth from "../auth.js";
 import type * as bulkPayments from "../bulkPayments.js";
 import type * as classes from "../classes.js";
 import type * as crons from "../crons.js";
+import type * as dashboard from "../dashboard.js";
 import type * as eventNotifications from "../eventNotifications.js";
 import type * as eventRSVPs from "../eventRSVPs.js";
 import type * as events from "../events.js";
@@ -64,6 +65,7 @@ declare const fullApi: ApiFromModules<{
   bulkPayments: typeof bulkPayments;
   classes: typeof classes;
   crons: typeof crons;
+  dashboard: typeof dashboard;
   eventNotifications: typeof eventNotifications;
   eventRSVPs: typeof eventRSVPs;
   events: typeof events;

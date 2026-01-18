@@ -3,7 +3,7 @@
 import { JSX, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
@@ -11,25 +11,33 @@ import {
   School, 
   CreditCard, 
   Users, 
-  CheckCircle, 
-  Clock, 
-  AlertCircle,
-  TrendingUp,
+  CheckCircle,
+  GraduationCap,
   Calendar,
   Bell,
-  ArrowUpRight,
-  DollarSign
+  AlertCircle,
+  TrendingUp,
+  CalendarDays,
+  DollarSign,
+  BarChart3
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
+import { StatsCard } from '@/components/school-admin/stats-card';
+import { FinancialOverviewCard } from '@/components/school-admin/financial-overview-card';
+import { UpcomingEventsCard } from '@/components/school-admin/upcoming-events-card';
+import { AlertsCard } from '@/components/school-admin/alerts-card';
+import { ActivityFeedCard } from '@/components/school-admin/activity-feed-card';
+import { ChartsSection } from '@/components/school-admin/charts-section';
+import { PerformanceMetricsCard } from '@/components/school-admin/performance-metrics-card';
+import { QuickActionsGrid } from '@/components/school-admin/quick-actions-grid';
 
 export default function SchoolAdminDashboard(): JSX.Element {
   const router = useRouter();
   const { user } = useAuth();
   
-  // Use getByEmail for more efficient querying
   const currentAdmin = useQuery(
     api.schoolAdmins.getByEmail,
     user?.email ? { email: user.email } : 'skip'
@@ -50,6 +58,11 @@ export default function SchoolAdminDashboard(): JSX.Element {
     currentAdmin ? {} : 'skip'
   );
 
+  const dashboardStats = useQuery(
+    api.dashboard.getDashboardStats,
+    currentAdmin?.schoolId ? { schoolId: currentAdmin.schoolId } : 'skip'
+  );
+
   const activeSubscription = subscriptionRequests?.find(
     (req) => req.status === 'approved' && !req.isTrial
   );
@@ -63,7 +76,6 @@ export default function SchoolAdminDashboard(): JSX.Element {
 
   const unreadNotifications = notifications?.filter((n) => !n.read).length || 0;
 
-  // Redirect to subscription if no active subscription
   useEffect(() => {
     if (currentAdmin && !currentAdmin.hasActiveSubscription) {
       router.push('/school-admin/subscription');
@@ -78,9 +90,7 @@ export default function SchoolAdminDashboard(): JSX.Element {
     }
   }, [currentAdmin, schoolCreationRequests, router, pendingSchoolRequest]);
 
-  // Handle case where admin record doesn't exist
   if (currentAdmin === undefined) {
-    // Still loading
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center space-y-4">
@@ -95,7 +105,6 @@ export default function SchoolAdminDashboard(): JSX.Element {
   }
 
   if (currentAdmin === null) {
-    // Admin record doesn't exist - redirect to subscription page
     router.push('/school-admin/subscription');
     return (
       <div className="flex items-center justify-center h-96">
@@ -190,280 +199,177 @@ export default function SchoolAdminDashboard(): JSX.Element {
         </Card>
       )}
 
-      {/* Stats Grid */}
+      {/* Enhanced Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Account Status</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold mb-1">{getStatusBadge(currentAdmin.status)}</div>
-            <p className="text-xs text-muted-foreground">
-              School ID: {currentAdmin.schoolId}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Subscription</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold mb-1">
-              {activeSubscription ? activeSubscription.planName : activeTrial ? 'Trial' : 'None'}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {activeTrial && activeTrial.trialEndDate
-                ? `${getDaysRemaining()} days remaining`
-                : activeSubscription
-                ? 'Active subscription'
-                : 'No active subscription'}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">School Status</CardTitle>
-            <School className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold mb-1">
-              {approvedSchool ? 'Active' : pendingSchoolRequest ? 'Pending' : 'Not Created'}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {approvedSchool 
-                ? approvedSchool.schoolName 
-                : pendingSchoolRequest 
-                ? 'Awaiting approval' 
-                : 'Create your school'}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Students</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold mb-1">
-              {approvedSchool?.studentCount || 0}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Total enrolled students
-            </p>
-          </CardContent>
-        </Card>
+        <StatsCard
+          title="Teachers"
+          value={dashboardStats?.teachersCount || 0}
+          icon={GraduationCap}
+          description="Total teaching staff"
+          loading={!dashboardStats}
+          colorClass="text-purple-600"
+        />
+        <StatsCard
+          title="Students"
+          value={dashboardStats?.studentsCount || approvedSchool?.studentCount || 0}
+          icon={Users}
+          description="Total enrolled students"
+          loading={!dashboardStats}
+          colorClass="text-blue-600"
+        />
+        <StatsCard
+          title="Classes"
+          value={dashboardStats?.classesCount || 0}
+          icon={School}
+          description="Active classes"
+          loading={!dashboardStats}
+          colorClass="text-green-600"
+        />
+        <StatsCard
+          title="Upcoming Events"
+          value={dashboardStats?.upcomingEvents || 0}
+          icon={Calendar}
+          description="Events this week"
+          loading={!dashboardStats}
+          colorClass="text-orange-600"
+        />
+        <StatsCard
+          title="Fee Collection Rate"
+          value={dashboardStats ? `${dashboardStats.feeCollectionRate}%` : '0%'}
+          icon={TrendingUp}
+          description="Payment completion"
+          loading={!dashboardStats}
+          colorClass="text-green-600"
+        />
+        <StatsCard
+          title="Outstanding Payments"
+          value={dashboardStats ? `$${dashboardStats.outstandingPayments.toLocaleString()}` : '$0'}
+          icon={DollarSign}
+          description="Pending fee payments"
+          loading={!dashboardStats}
+          colorClass="text-orange-600"
+        />
+        <StatsCard
+          title="Active Timetables"
+          value={dashboardStats?.activeTimetables || 0}
+          icon={CalendarDays}
+          description="Published schedules"
+          loading={!dashboardStats}
+          colorClass="text-pink-600"
+        />
+        <StatsCard
+          title="Account Status"
+          value={currentAdmin.status}
+          icon={CheckCircle}
+          description={`School ID: ${currentAdmin.schoolId}`}
+          colorClass="text-green-600"
+        />
       </div>
 
       {/* Trial Progress */}
       {activeTrial && (
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Trial Period Progress
-            </CardTitle>
-            <CardDescription>
-              {getDaysRemaining()} days remaining out of 30-day trial
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Progress value={calculateTrialProgress()} className="h-2" />
-            <div className="flex justify-between text-sm text-muted-foreground">
-              <span>Started: {activeTrial.trialStartDate ? new Date(activeTrial.trialStartDate).toLocaleDateString() : 'N/A'}</span>
-              <span>Ends: {activeTrial.trialEndDate ? new Date(activeTrial.trialEndDate).toLocaleDateString() : 'N/A'}</span>
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <Calendar className="h-5 w-5" />
+                    Trial Period Progress
+                  </h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {getDaysRemaining()} days remaining out of 30-day trial
+                  </p>
+                </div>
+              </div>
+              <Progress value={calculateTrialProgress()} className="h-2" />
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>Started: {activeTrial.trialStartDate ? new Date(activeTrial.trialStartDate).toLocaleDateString() : 'N/A'}</span>
+                <span>Ends: {activeTrial.trialEndDate ? new Date(activeTrial.trialEndDate).toLocaleDateString() : 'N/A'}</span>
+              </div>
             </div>
           </CardContent>
         </Card>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Quick Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Common tasks and shortcuts</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-3">
-              {!currentAdmin.hasActiveSubscription && (
-                <Button asChild className="w-full justify-start">
-                  <Link href="/school-admin/subscription">
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    Select Subscription Plan
-                    <ArrowUpRight className="ml-auto h-4 w-4" />
-                  </Link>
-                </Button>
-              )}
-              
-              {currentAdmin.hasActiveSubscription && !currentAdmin.hasCreatedSchool && !pendingSchoolRequest && (
-                <Button asChild className="w-full justify-start">
-                  <Link href="/school-admin/create-school">
-                    <School className="mr-2 h-4 w-4" />
-                    Create Your School
-                    <ArrowUpRight className="ml-auto h-4 w-4" />
-                  </Link>
-                </Button>
-              )}
+      {/* Main Dashboard Grid */}
+      <div className="grid gap-6 md:grid-cols-3">
+        {/* Left Column */}
+        <div className="space-y-6">
+          {currentAdmin.schoolId && (
+            <>
+              <FinancialOverviewCard schoolId={currentAdmin.schoolId} />
+              <PerformanceMetricsCard schoolId={currentAdmin.schoolId} />
+            </>
+          )}
+        </div>
 
-              {currentAdmin.hasCreatedSchool && (
-                <>
-                  <Button asChild variant="outline" className="w-full justify-start">
-                    <Link href="/school-admin/school">
-                      <School className="mr-2 h-4 w-4" />
-                      Manage School
-                      <ArrowUpRight className="ml-auto h-4 w-4" />
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline" className="w-full justify-start">
-                    <Link href="/school-admin/subscription">
-                      <CreditCard className="mr-2 h-4 w-4" />
-                      View Subscription
-                      <ArrowUpRight className="ml-auto h-4 w-4" />
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline" className="w-full justify-start">
-                    <Link href="/school-admin/profile">
-                      <Users className="mr-2 h-4 w-4" />
-                      Update Profile
-                      <ArrowUpRight className="ml-auto h-4 w-4" />
-                    </Link>
-                  </Button>
-                </>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        {/* Middle Column */}
+        <div className="space-y-6">
+          {currentAdmin.schoolId && (
+            <>
+              <ChartsSection schoolId={currentAdmin.schoolId} />
+              <ActivityFeedCard schoolId={currentAdmin.schoolId} />
+            </>
+          )}
+        </div>
 
-        {/* Subscription Details */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5" />
-              Subscription Details
-            </CardTitle>
-            <CardDescription>Your current plan information</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {(activeSubscription || activeTrial) ? (
-              <>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Plan Type</span>
-                  <span className="font-medium">
-                    {activeSubscription ? activeSubscription.planName : 'Free Trial'}
-                  </span>
-                </div>
-                <Separator />
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Students</span>
-                  <span className="font-medium">
-                    {(activeSubscription || activeTrial)?.studentsCount || 0}
-                  </span>
-                </div>
-                <Separator />
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Amount</span>
-                  <span className="font-medium">
-                    ${(activeSubscription || activeTrial)?.totalAmount || 0}
-                  </span>
-                </div>
-                <Separator />
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Status</span>
-                  {getStatusBadge((activeSubscription || activeTrial)?.status || 'pending')}
-                </div>
-                <Button asChild className="w-full mt-4">
-                  <Link href="/school-admin/subscription">
-                    View Full Details
-                    <ArrowUpRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
-              </>
-            ) : (
-              <div className="text-center py-6">
-                <p className="text-sm text-muted-foreground mb-4">
-                  No active subscription found
-                </p>
-                <Button asChild>
-                  <Link href="/school-admin/subscription">
-                    Choose a Plan
-                  </Link>
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* Right Column */}
+        <div className="space-y-6">
+          {currentAdmin.schoolId && (
+            <>
+              <UpcomingEventsCard schoolId={currentAdmin.schoolId} />
+              <AlertsCard schoolId={currentAdmin.schoolId} />
+            </>
+          )}
+          <QuickActionsGrid hasCreatedSchool={!!currentAdmin.hasCreatedSchool} />
+        </div>
       </div>
 
-      {/* Recent Activity */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Recent Activity</CardTitle>
-              <CardDescription>Your latest actions and updates</CardDescription>
+      {/* Subscription Details - Keep for reference */}
+      {(activeSubscription || activeTrial) && (
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Subscription Details
+              </h3>
+              <Button asChild variant="outline" size="sm">
+                <Link href="/school-admin/subscription">
+                  Manage
+                </Link>
+              </Button>
             </div>
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/school-admin/notifications">
-                View All
-                <ArrowUpRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {subscriptionRequests && subscriptionRequests.length > 0 ? (
-              subscriptionRequests.slice(0, 5).map((request) => (
-                <div key={request._id} className="flex items-start gap-4 pb-4 last:pb-0 border-b last:border-0">
-                  <div className="flex-shrink-0 mt-1">
-                    {request.status === 'approved' ? (
-                      <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
-                        <CheckCircle className="h-5 w-5 text-green-600" />
-                      </div>
-                    ) : request.status === 'pending_approval' || request.status === 'pending_payment' ? (
-                      <div className="h-8 w-8 rounded-full bg-yellow-100 flex items-center justify-center">
-                        <Clock className="h-5 w-5 text-yellow-600" />
-                      </div>
-                    ) : (
-                      <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center">
-                        <AlertCircle className="h-5 w-5 text-red-600" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm">
-                      Subscription Request: {request.planName}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {request.isTrial ? 'Free Trial' : `$${request.totalAmount}`} • {new Date(request.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <Badge variant={
-                    request.status === 'approved' ? 'default' : 
-                    request.status === 'rejected' ? 'destructive' : 
-                    'secondary'
-                  }>
-                    {request.status.replace('_', ' ')}
-                  </Badge>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-8">
-                <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                <p className="text-sm text-muted-foreground">No recent activity</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Your activity will appear here
+            <div className="grid md:grid-cols-4 gap-4">
+              <div>
+                <span className="text-sm text-muted-foreground">Plan Type</span>
+                <p className="font-medium mt-1">
+                  {activeSubscription ? activeSubscription.planName : 'Free Trial'}
                 </p>
               </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+              <div>
+                <span className="text-sm text-muted-foreground">Students</span>
+                <p className="font-medium mt-1">
+                  {(activeSubscription || activeTrial)?.studentsCount || 0}
+                </p>
+              </div>
+              <div>
+                <span className="text-sm text-muted-foreground">Amount</span>
+                <p className="font-medium mt-1">
+                  ${(activeSubscription || activeTrial)?.totalAmount || 0}
+                </p>
+              </div>
+              <div>
+                <span className="text-sm text-muted-foreground">Status</span>
+                <div className="mt-1">
+                  {getStatusBadge((activeSubscription || activeTrial)?.status || 'pending')}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
