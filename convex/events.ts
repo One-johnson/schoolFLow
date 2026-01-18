@@ -287,6 +287,87 @@ export const createEvent = mutation({
       createdBy: args.createdBy,
     });
 
+    // Send notifications if requested
+    if (args.sendNotification) {
+      console.log('[EVENT CREATE] Sending notifications for event:', eventId);
+      console.log('[EVENT CREATE] School ID:', args.schoolId);
+      
+      // First, check all admins for this school (without status filter)
+      const allSchoolAdmins = await ctx.db
+        .query('schoolAdmins')
+        .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))
+        .collect();
+      
+      console.log('[EVENT CREATE] Total admins for school:', allSchoolAdmins.length);
+      if (allSchoolAdmins.length > 0) {
+        console.log('[EVENT CREATE] Admin statuses:', allSchoolAdmins.map(a => ({ name: a.name, status: a.status })));
+      }
+      
+      // Get all school admins with active status
+      const schoolAdmins = await ctx.db
+        .query('schoolAdmins')
+        .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))
+        .filter((q) => q.eq(q.field('status'), 'active'))
+        .collect();
+
+      console.log('[EVENT CREATE] Active admins found:', schoolAdmins.length);
+
+      if (schoolAdmins.length === 0) {
+        console.warn('[EVENT CREATE] No active school admins found. Attempting to notify all admins regardless of status.');
+        // Fall back to notifying all admins if no active ones found
+        for (const admin of allSchoolAdmins) {
+          try {
+            console.log('[EVENT CREATE] Creating notification for admin (fallback):', admin.name, admin._id, 'status:', admin.status);
+            const notificationId = await ctx.db.insert('eventNotifications', {
+              schoolId: args.schoolId,
+              eventId: eventId,
+              eventCode: eventCode,
+              eventTitle: args.eventTitle,
+              recipientType: 'admin',
+              recipientId: admin._id.toString(),
+              recipientName: admin.name,
+              recipientEmail: admin.email,
+              notificationType: 'event_created',
+              deliveryMethod: 'in_app',
+              deliveryStatus: 'sent',
+              sentAt: now,
+              createdAt: now,
+            });
+            console.log('[EVENT CREATE] Notification created (fallback):', notificationId);
+          } catch (error) {
+            console.error('[EVENT CREATE] Failed to create notification for admin (fallback):', admin.name, error);
+          }
+        }
+      } else {
+        // Send notification to each active admin
+        for (const admin of schoolAdmins) {
+          try {
+            console.log('[EVENT CREATE] Creating notification for active admin:', admin.name, admin._id);
+            const notificationId = await ctx.db.insert('eventNotifications', {
+              schoolId: args.schoolId,
+              eventId: eventId,
+              eventCode: eventCode,
+              eventTitle: args.eventTitle,
+              recipientType: 'admin',
+              recipientId: admin._id.toString(),
+              recipientName: admin.name,
+              recipientEmail: admin.email,
+              notificationType: 'event_created',
+              deliveryMethod: 'in_app',
+              deliveryStatus: 'sent',
+              sentAt: now,
+              createdAt: now,
+            });
+            console.log('[EVENT CREATE] Notification created:', notificationId);
+          } catch (error) {
+            console.error('[EVENT CREATE] Failed to create notification for admin:', admin.name, error);
+          }
+        }
+      }
+    } else {
+      console.log('[EVENT CREATE] Notifications disabled for this event');
+    }
+
     return eventId;
   },
 });
@@ -348,6 +429,10 @@ export const updateEvent = mutation({
       lastModifiedBy: args.lastModifiedBy,
     };
 
+    // Get the event before updating
+    const event = await ctx.db.get(args.eventId);
+    if (!event) throw new Error('Event not found');
+
     // Only include fields that are provided
     if (args.eventTitle !== undefined) updates.eventTitle = args.eventTitle;
     if (args.eventDescription !== undefined) updates.eventDescription = args.eventDescription;
@@ -369,6 +454,39 @@ export const updateEvent = mutation({
     if (args.status !== undefined) updates.status = args.status;
 
     await ctx.db.patch(args.eventId, updates);
+
+    // Send update notifications to school admins
+    console.log('[EVENT UPDATE] Sending update notifications for event:', args.eventId);
+    const schoolAdmins = await ctx.db
+      .query('schoolAdmins')
+      .withIndex('by_school', (q) => q.eq('schoolId', event.schoolId))
+      .filter((q) => q.eq(q.field('status'), 'active'))
+      .collect();
+
+    console.log('[EVENT UPDATE] Found admins:', schoolAdmins.length);
+
+    for (const admin of schoolAdmins) {
+      try {
+        const notificationId = await ctx.db.insert('eventNotifications', {
+          schoolId: event.schoolId,
+          eventId: args.eventId,
+          eventCode: event.eventCode,
+          eventTitle: args.eventTitle || event.eventTitle,
+          recipientType: 'admin',
+          recipientId: admin._id.toString(),
+          recipientName: admin.name,
+          recipientEmail: admin.email,
+          notificationType: 'event_updated',
+          deliveryMethod: 'in_app',
+          deliveryStatus: 'sent',
+          sentAt: now,
+          createdAt: now,
+        });
+        console.log('[EVENT UPDATE] Notification created:', notificationId);
+      } catch (error) {
+        console.error('[EVENT UPDATE] Failed to create notification:', error);
+      }
+    }
   },
 });
 
@@ -410,12 +528,50 @@ export const cancelEvent = mutation({
   },
   handler: async (ctx, args): Promise<void> => {
     const now = new Date().toISOString();
+    
+    // Get the event before cancelling
+    const event = await ctx.db.get(args.eventId);
+    if (!event) throw new Error('Event not found');
+
     await ctx.db.patch(args.eventId, {
       status: 'cancelled',
       cancellationReason: args.cancellationReason,
       updatedAt: now,
       lastModifiedBy: args.lastModifiedBy,
     });
+
+    // Send cancellation notifications to school admins
+    console.log('[EVENT CANCEL] Sending cancellation notifications for event:', args.eventId);
+    const schoolAdmins = await ctx.db
+      .query('schoolAdmins')
+      .withIndex('by_school', (q) => q.eq('schoolId', event.schoolId))
+      .filter((q) => q.eq(q.field('status'), 'active'))
+      .collect();
+
+    console.log('[EVENT CANCEL] Found admins:', schoolAdmins.length);
+
+    for (const admin of schoolAdmins) {
+      try {
+        const notificationId = await ctx.db.insert('eventNotifications', {
+          schoolId: event.schoolId,
+          eventId: args.eventId,
+          eventCode: event.eventCode,
+          eventTitle: event.eventTitle,
+          recipientType: 'admin',
+          recipientId: admin._id.toString(),
+          recipientName: admin.name,
+          recipientEmail: admin.email,
+          notificationType: 'event_cancelled',
+          deliveryMethod: 'in_app',
+          deliveryStatus: 'sent',
+          sentAt: now,
+          createdAt: now,
+        });
+        console.log('[EVENT CANCEL] Notification created:', notificationId);
+      } catch (error) {
+        console.error('[EVENT CANCEL] Failed to create notification:', error);
+      }
+    }
   },
 });
 

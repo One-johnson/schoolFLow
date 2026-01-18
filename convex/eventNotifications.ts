@@ -90,6 +90,55 @@ export const sendEventNotification = mutation({
   },
 });
 
+// Mutation: Bulk send notifications to school admins
+export const sendBulkAdminNotifications = mutation({
+  args: {
+    schoolId: v.string(),
+    eventId: v.id('events'),
+    eventCode: v.string(),
+    eventTitle: v.string(),
+    notificationType: v.union(
+      v.literal('event_created'),
+      v.literal('event_updated'),
+      v.literal('event_cancelled'),
+      v.literal('rsvp_reminder'),
+      v.literal('event_reminder')
+    ),
+  },
+  handler: async (ctx, args): Promise<number> => {
+    const now = new Date().toISOString();
+
+    // Get all school admins for this school
+    const schoolAdmins = await ctx.db
+      .query('schoolAdmins')
+      .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))
+      .filter((q) => q.eq(q.field('status'), 'active'))
+      .collect();
+
+    let count = 0;
+    for (const admin of schoolAdmins) {
+      const notificationId = await ctx.db.insert('eventNotifications', {
+        schoolId: args.schoolId,
+        eventId: args.eventId,
+        eventCode: args.eventCode,
+        eventTitle: args.eventTitle,
+        recipientType: 'admin',
+        recipientId: admin._id.toString(),
+        recipientName: admin.name,
+        recipientEmail: admin.email,
+        notificationType: args.notificationType,
+        deliveryMethod: 'in_app',
+        deliveryStatus: 'sent',
+        sentAt: now,
+        createdAt: now,
+      });
+      count++;
+    }
+
+    return count;
+  },
+});
+
 // Mutation: Mark notification as read
 export const markNotificationAsRead = mutation({
   args: { notificationId: v.id('eventNotifications') },

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, JSX } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
@@ -65,7 +65,7 @@ interface EventFormData {
   maxAttendees?: number;
 }
 
-export function EditEventDialog({ open, onOpenChange, event, adminId }: EditEventDialogProps): JSX.Element {
+export function EditEventDialog({ open, onOpenChange, event, adminId }: EditEventDialogProps): React.JSX.Element {
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [rsvpDeadline, setRsvpDeadline] = useState<Date | undefined>(undefined);
@@ -125,7 +125,7 @@ export function EditEventDialog({ open, onOpenChange, event, adminId }: EditEven
         audienceType: audienceType as 'all_school' | 'specific_classes' | 'specific_departments' | 'staff_only' | 'custom',
         requiresRSVP,
         rsvpDeadline: requiresRSVP && rsvpDeadline ? rsvpDeadline.toISOString() : undefined,
-        maxAttendees: requiresRSVP ? data.maxAttendees : undefined,
+        maxAttendees: requiresRSVP && data.maxAttendees ? Number(data.maxAttendees) : undefined,
         color: colorValue,
         lastModifiedBy: adminId,
       });
