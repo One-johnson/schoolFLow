@@ -90,6 +90,11 @@ const menuItems = [
     icon: DollarSign,
     url: '/school-admin/fees',
   },
+   {
+    title: 'Events',
+    icon: Calendar,
+    url: '/school-admin/events',
+  },
   {
     title: 'Subscription',
     icon: CreditCard,
