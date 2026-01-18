@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useMemo, JSX } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Calendar as CalendarIcon, List, BarChart3, MoreHorizontal, Eye, Edit, XCircle, Trash2 } from 'lucide-react';
+import { Plus, Search, Calendar as CalendarIcon, List, BarChart3, MoreHorizontal, Eye, Edit, XCircle, Trash2, Users } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
@@ -33,11 +33,13 @@ import { ViewEventDialog } from '@/components/events/view-event-dialog';
 import { EditEventDialog } from '@/components/events/edit-event-dialog';
 import { DeleteEventDialog } from '@/components/events/delete-event-dialog';
 import { CancelEventDialog } from '@/components/events/cancel-event-dialog';
+import { RSVPManagementDialog } from '@/components/events/rsvp-management-dialog';
 import { EventCard } from '@/components/events/event-card';
 import { EventTypeBadge } from '@/components/events/event-type-badge';
 import { formatEventDate } from '@/lib/event-utils';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { Id } from '../../../../convex/_generated/dataModel';
+import React from 'react';
 
 // Setup date-fns localizer for react-big-calendar
 const locales = {
@@ -90,7 +92,7 @@ interface Event {
   lastModifiedBy?: string;
 }
 
-export default function EventsPage(): JSX.Element {
+export default function EventsPage(): React.JSX.Element {
   const { user } = useAuth();
   const schoolId = user?.schoolId;
 
@@ -100,6 +102,7 @@ export default function EventsPage(): JSX.Element {
   const [showEditDialog, setShowEditDialog] = useState<boolean>(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState<boolean>(false);
   const [showCancelDialog, setShowCancelDialog] = useState<boolean>(false);
+  const [showRSVPDialog, setShowRSVPDialog] = useState<boolean>(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
   // States for filters
@@ -241,6 +244,15 @@ export default function EventsPage(): JSX.Element {
                   <Eye className="mr-2 h-4 w-4" />
                   View Details
                 </DropdownMenuItem>
+                {event.requiresRSVP && (
+                  <DropdownMenuItem onClick={() => {
+                    setSelectedEvent(event);
+                    setShowRSVPDialog(true);
+                  }}>
+                    <Users className="mr-2 h-4 w-4" />
+                    Manage RSVPs
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={() => {
                   setSelectedEvent(event);
                   setShowEditDialog(true);
@@ -317,7 +329,7 @@ export default function EventsPage(): JSX.Element {
         <StatsCard
           title="Total Events"
           value={eventStats?.totalEvents || 0}
-       
+         
           icon={CalendarIcon}
         />
         <StatsCard
@@ -329,13 +341,13 @@ export default function EventsPage(): JSX.Element {
         <StatsCard
           title="Ongoing Events"
           value={eventStats?.ongoingEvents || 0}
-        
+         
           icon={CalendarIcon}
         />
         <StatsCard
           title="Completed Events"
           value={eventStats?.completedEvents || 0}
- 
+   
           icon={CalendarIcon}
         />
       </div>
@@ -517,6 +529,14 @@ export default function EventsPage(): JSX.Element {
         onOpenChange={setShowCancelDialog}
         event={selectedEvent}
         adminId={user.userId}
+      />
+
+      <RSVPManagementDialog
+        open={showRSVPDialog}
+        onOpenChange={setShowRSVPDialog}
+        eventId={selectedEvent?._id || null}
+        eventTitle={selectedEvent?.eventTitle}
+        requiresRSVP={selectedEvent?.requiresRSVP}
       />
     </div>
   );

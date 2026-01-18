@@ -29,6 +29,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
+import React from 'react';
 
 interface AddEventDialogProps {
   open: boolean;
@@ -102,7 +103,7 @@ export function AddEventDialog({ open, onOpenChange, schoolId, adminId }: AddEve
         sendNotification,
         requiresRSVP,
         rsvpDeadline: requiresRSVP && rsvpDeadline ? rsvpDeadline.toISOString() : undefined,
-        maxAttendees: requiresRSVP ? data.maxAttendees : undefined,
+        maxAttendees: requiresRSVP && data.maxAttendees ? Number(data.maxAttendees) : undefined,
         createdBy: adminId,
       });
 
@@ -300,7 +301,7 @@ export function AddEventDialog({ open, onOpenChange, schoolId, adminId }: AddEve
 
                 <div className="space-y-2">
                   <Label htmlFor="maxAttendees">Max Attendees</Label>
-                  <Input id="maxAttendees" type="number" {...register('maxAttendees')} placeholder="Optional" />
+                  <Input id="maxAttendees" type="number" {...register('maxAttendees', { valueAsNumber: true })} placeholder="Optional" />
                 </div>
               </div>
             )}
