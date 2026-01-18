@@ -809,4 +809,147 @@ export default defineSchema({
     .index('by_school', ['schoolId'])
     .index('by_student', ['schoolId', 'studentId'])
     .index('by_sent_date', ['sentDate']),
+
+     events: defineTable({
+    schoolId: v.string(),
+    eventCode: v.string(), // Auto-generated: EVT + 8 random digits
+    eventTitle: v.string(),
+    eventDescription: v.optional(v.string()),
+    eventType: v.union(
+      v.literal('holiday'),
+      v.literal('exam'),
+      v.literal('sports'),
+      v.literal('parent_meeting'),
+      v.literal('assembly'),
+      v.literal('cultural'),
+      v.literal('field_trip'),
+      v.literal('workshop'),
+      v.literal('other')
+    ),
+    startDate: v.string(), // ISO 8601 date
+    endDate: v.string(),
+    startTime: v.optional(v.string()), // e.g., "09:00"
+    endTime: v.optional(v.string()), // e.g., "15:00"
+    isAllDay: v.boolean(),
+    location: v.optional(v.string()),
+    venueType: v.union(v.literal('on_campus'), v.literal('off_campus'), v.literal('virtual')),
+    audienceType: v.union(
+      v.literal('all_school'),
+      v.literal('specific_classes'),
+      v.literal('specific_departments'),
+      v.literal('staff_only'),
+      v.literal('custom')
+    ),
+    targetClasses: v.optional(v.array(v.string())), // Class IDs
+    targetDepartments: v.optional(v.array(v.union(
+      v.literal('creche'),
+      v.literal('kindergarten'),
+      v.literal('primary'),
+      v.literal('junior_high')
+    ))),
+    isRecurring: v.boolean(),
+    recurrencePattern: v.optional(v.union(
+      v.literal('daily'),
+      v.literal('weekly'),
+      v.literal('monthly'),
+      v.literal('termly'),
+      v.literal('yearly')
+    )),
+    recurrenceEndDate: v.optional(v.string()),
+    recurrenceDays: v.optional(v.array(v.union(
+      v.literal('monday'),
+      v.literal('tuesday'),
+      v.literal('wednesday'),
+      v.literal('thursday'),
+      v.literal('friday'),
+      v.literal('saturday'),
+      v.literal('sunday')
+    ))),
+    parentEventId: v.optional(v.string()), // For recurring event series
+    sendNotification: v.boolean(),
+    requiresRSVP: v.boolean(),
+    rsvpDeadline: v.optional(v.string()),
+    maxAttendees: v.optional(v.number()),
+    color: v.optional(v.string()), // Hex color for calendar
+    academicYearId: v.optional(v.string()),
+    termId: v.optional(v.string()),
+    status: v.union(
+      v.literal('upcoming'),
+      v.literal('ongoing'),
+      v.literal('completed'),
+      v.literal('cancelled')
+    ),
+    cancellationReason: v.optional(v.string()),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+    createdBy: v.string(), // School Admin ID
+    lastModifiedBy: v.optional(v.string()),
+  })
+    .index('by_school', ['schoolId'])
+    .index('by_event_code', ['eventCode'])
+    .index('by_status', ['status'])
+    .index('by_date', ['schoolId', 'startDate'])
+    .index('by_type', ['schoolId', 'eventType'])
+    .index('by_academic_year', ['schoolId', 'academicYearId'])
+    .index('by_term', ['schoolId', 'termId']),
+
+  eventRSVPs: defineTable({
+    schoolId: v.string(),
+    eventId: v.id('events'),
+    eventCode: v.string(), // Denormalized
+    eventTitle: v.string(), // Denormalized
+    respondentType: v.union(v.literal('student'), v.literal('parent'), v.literal('teacher')),
+    respondentId: v.string(),
+    respondentName: v.string(),
+    respondentEmail: v.optional(v.string()),
+    rsvpStatus: v.union(
+      v.literal('attending'),
+      v.literal('not_attending'),
+      v.literal('maybe'),
+      v.literal('pending')
+    ),
+    numberOfGuests: v.optional(v.number()),
+    notes: v.optional(v.string()),
+    respondedAt: v.optional(v.string()),
+    createdAt: v.string(),
+  })
+    .index('by_event', ['eventId'])
+    .index('by_respondent', ['schoolId', 'respondentId'])
+    .index('by_status', ['eventId', 'rsvpStatus']),
+
+  eventNotifications: defineTable({
+    schoolId: v.string(),
+    eventId: v.id('events'),
+    eventCode: v.string(), // Denormalized
+    eventTitle: v.string(), // Denormalized
+    recipientType: v.union(v.literal('student'), v.literal('parent'), v.literal('teacher'), v.literal('admin')),
+    recipientId: v.string(),
+    recipientName: v.string(),
+    recipientEmail: v.optional(v.string()),
+    recipientPhone: v.optional(v.string()),
+    notificationType: v.union(
+      v.literal('event_created'),
+      v.literal('event_updated'),
+      v.literal('event_cancelled'),
+      v.literal('rsvp_reminder'),
+      v.literal('event_reminder')
+    ),
+    reminderType: v.optional(v.union(
+      v.literal('1_day_before'),
+      v.literal('3_hours_before'),
+      v.literal('1_hour_before'),
+      v.literal('start_time')
+    )),
+    deliveryMethod: v.union(v.literal('in_app'), v.literal('email'), v.literal('sms')),
+    deliveryStatus: v.union(v.literal('pending'), v.literal('sent'), v.literal('failed')),
+    sentAt: v.optional(v.string()),
+    readAt: v.optional(v.string()),
+    errorMessage: v.optional(v.string()),
+    createdAt: v.string(),
+  })
+    .index('by_event', ['eventId'])
+    .index('by_recipient', ['schoolId', 'recipientId'])
+    .index('by_status', ['deliveryStatus'])
+    .index('by_sent_date', ['sentAt']),
+
 });

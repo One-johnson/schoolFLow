@@ -315,16 +315,7 @@ export const deleteClass = mutation({
     const now = new Date().toISOString();
 
     // Create audit log
-    await ctx.db.insert('auditLogs', {
-      timestamp: now,
-      userId: args.deletedBy,
-      userName: 'School Admin',
-      action: 'DELETE',
-      entity: 'Class',
-      entityId: args.classId,
-      details: `Deleted class: ${classData.className} (${classData.classCode})`,
-      ipAddress: '0.0.0.0',
-    });
+
 
     return { success: true };
   },
