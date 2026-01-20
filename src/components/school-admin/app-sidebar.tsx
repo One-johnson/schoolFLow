@@ -27,6 +27,7 @@ import {
   Calendar,
   Clock,
   DollarSign,
+  FileText,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -94,6 +95,11 @@ const menuItems = [
     title: 'Events',
     icon: Calendar,
     url: '/school-admin/events',
+  },
+   {
+    title: 'Exams',
+    icon: FileText,
+    url: '/school-admin/exams',
   },
   {
     title: 'Subscription',

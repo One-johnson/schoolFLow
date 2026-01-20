@@ -352,3 +352,40 @@ export const bulkDeleteAcademicYears = mutation({
     return { successCount, failCount, errors };
   },
 });
+
+// Query: Get active academic years with terms
+export const getActiveAcademicYears = query({
+  args: { schoolId: v.string() },
+  handler: async (ctx, args) => {
+    // Get all active academic years for this school
+    const years = await ctx.db
+      .query('academicYears')
+      .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))
+      .filter((q) => q.eq(q.field('status'), 'active'))
+      .collect();
+
+    // For each year, fetch its terms
+    const yearsWithTerms = await Promise.all(
+      years.map(async (year) => {
+        const terms = await ctx.db
+          .query('terms')
+          .withIndex('by_academic_year', (q) => q.eq('academicYearId', year._id))
+          .collect();
+
+        return {
+          ...year,
+          terms: terms.map((term) => ({
+            termId: term._id,
+            termName: term.termName,
+            termNumber: term.termNumber,
+            startDate: term.startDate,
+            endDate: term.endDate,
+            status: term.status,
+          })),
+        };
+      })
+    );
+
+    return yearsWithTerms.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+  },
+});
