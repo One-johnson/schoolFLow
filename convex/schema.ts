@@ -952,4 +952,243 @@ export default defineSchema({
     .index('by_status', ['deliveryStatus'])
     .index('by_sent_date', ['sentAt']),
 
+
+    exams: defineTable({
+    schoolId: v.string(),
+    examCode: v.string(), // Auto-generated: EXM + 8 digits
+    examName: v.string(), // e.g., "Mid-Term Exam", "Final Exam"
+    examType: v.union(
+      v.literal('mid_term'),
+      v.literal('end_of_term'),
+      v.literal('mock'),
+      v.literal('quiz'),
+      v.literal('assessment'),
+      v.literal('final')
+    ),
+    academicYearId: v.optional(v.string()),
+    termId: v.optional(v.string()),
+    startDate: v.string(),
+    endDate: v.string(),
+    department: v.optional(v.union(
+      v.literal('creche'),
+      v.literal('kindergarten'),
+      v.literal('primary'),
+      v.literal('junior_high')
+    )),
+    targetClasses: v.optional(v.array(v.string())), // Class IDs
+    subjects: v.string(), // JSON array of {subjectId, subjectName, maxMarks, date, time}
+    totalMarks: v.number(), // Total marks across all subjects
+    weightage: v.number(), // Percentage weight (e.g., 40 for class, 60 for exams)
+    instructions: v.optional(v.string()),
+    status: v.union(
+      v.literal('draft'),
+      v.literal('scheduled'),
+      v.literal('ongoing'),
+      v.literal('completed'),
+      v.literal('published')
+    ),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+    createdBy: v.string(), // School Admin ID
+  })
+    .index('by_school', ['schoolId'])
+    .index('by_exam_code', ['examCode'])
+    .index('by_status', ['status'])
+    .index('by_academic_year', ['schoolId', 'academicYearId'])
+    .index('by_term', ['schoolId', 'termId']),
+
+  studentMarks: defineTable({
+    schoolId: v.string(),
+    examId: v.id('exams'),
+    examCode: v.string(), // Denormalized
+    examName: v.string(), // Denormalized
+    studentId: v.string(), // References students table
+    studentName: v.string(), // Denormalized
+    classId: v.string(),
+    className: v.string(), // Denormalized
+    subjectId: v.string(),
+    subjectName: v.string(), // Denormalized
+    classScore: v.number(), // Class work/continuous assessment score
+    examScore: v.number(), // Exam score
+    totalScore: v.number(), // classScore + examScore
+    maxMarks: v.number(),
+    percentage: v.number(),
+    grade: v.string(), // A+, A, B+, etc. based on grading scale
+    gradeNumber: v.number(), // 1-9
+    remarks: v.string(), // Excellent, Very Good, etc.
+    position: v.optional(v.number()), // Student's position in that subject
+    isAbsent: v.boolean(),
+    enteredBy: v.string(), // User ID (teacher/admin)
+    enteredByRole: v.union(
+      v.literal('subject_teacher'),
+      v.literal('class_teacher'),
+      v.literal('admin')
+    ),
+    enteredByName: v.string(),
+    verifiedBy: v.optional(v.string()),
+    verifiedAt: v.optional(v.string()),
+    submissionStatus: v.union(
+      v.literal('draft'),
+      v.literal('submitted_to_class_teacher'),
+      v.literal('verified_by_class_teacher'),
+      v.literal('verified_by_admin'),
+      v.literal('published')
+    ),
+    entryReason: v.optional(v.string()), // For admin/class teacher overrides
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index('by_exam', ['examId'])
+    .index('by_student', ['schoolId', 'studentId'])
+    .index('by_class', ['schoolId', 'classId'])
+    .index('by_subject', ['examId', 'subjectId'])
+    .index('by_status', ['submissionStatus']),
+
+  gradingScales: defineTable({
+    schoolId: v.string(),
+    scaleCode: v.string(), // Auto-generated: GRD + 6 digits
+    scaleName: v.string(), // e.g., "Primary Grading", "JHS Grading"
+    department: v.optional(v.union(
+      v.literal('creche'),
+      v.literal('kindergarten'),
+      v.literal('primary'),
+      v.literal('junior_high')
+    )),
+    grades: v.string(), // JSON: [{grade: 1, minPercent: 80, maxPercent: 100, remark: "Excellent"}]
+    isDefault: v.boolean(),
+    status: v.union(v.literal('active'), v.literal('inactive')),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+    createdBy: v.string(), // School Admin ID
+  })
+    .index('by_school', ['schoolId'])
+    .index('by_scale_code', ['scaleCode'])
+    .index('by_status', ['status'])
+    .index('by_default', ['schoolId', 'isDefault']),
+
+  reportCards: defineTable({
+    schoolId: v.string(),
+    reportCode: v.string(), // Auto-generated: RPT + 8 digits
+    studentId: v.string(), // References students table
+    studentName: v.string(), // Denormalized
+    classId: v.string(),
+    className: v.string(), // Denormalized
+    academicYearId: v.optional(v.string()),
+    termId: v.optional(v.string()),
+    termName: v.optional(v.string()), // e.g., "2nd Term"
+    year: v.optional(v.string()), // e.g., "2025"
+    house: v.optional(v.string()), // Student's house (Jubilee, Ambassadors, etc.)
+    subjects: v.string(), // JSON array of subject results
+    rawScore: v.number(), // Total possible marks
+    totalScore: v.number(), // Total marks obtained
+    percentage: v.number(),
+    overallGrade: v.string(),
+    position: v.optional(v.number()), // Class rank
+    totalStudents: v.optional(v.number()),
+    attendance: v.optional(v.string()), // JSON: {present: 64, total: 68}
+    conduct: v.optional(v.string()), // e.g., "Good", "Needs Improvement"
+    attitude: v.optional(v.string()), // e.g., "Confident", "Respectful"
+    interest: v.optional(v.string()), // e.g., "Mathematics", "Science"
+    classTeacherComment: v.optional(v.string()),
+    headmasterComment: v.optional(v.string()),
+    classTeacherSign: v.optional(v.string()),
+    headmasterSign: v.optional(v.string()),
+    promotionStatus: v.optional(v.union(
+      v.literal('promoted'),
+      v.literal('repeated'),
+      v.literal('pending')
+    )),
+    promotedTo: v.optional(v.string()),
+    vacationDate: v.optional(v.string()),
+    reopeningDate: v.optional(v.string()),
+    termlyPerformance: v.optional(v.string()), // JSON: {term1: 497, term2: 562, term3: null}
+    status: v.union(
+      v.literal('draft'),
+      v.literal('generated'),
+      v.literal('published'),
+      v.literal('archived')
+    ),
+    version: v.number(), // For republish tracking
+    previousVersionId: v.optional(v.id('reportCards')),
+    generatedAt: v.string(),
+    publishedAt: v.optional(v.string()),
+    publishedBy: v.optional(v.string()),
+    publishedByRole: v.optional(v.union(
+      v.literal('class_teacher'),
+      v.literal('admin')
+    )),
+    unpublishedBy: v.optional(v.string()),
+    unpublishedAt: v.optional(v.string()),
+    unpublishReason: v.optional(v.string()),
+    createdBy: v.string(), // School Admin ID
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index('by_school', ['schoolId'])
+    .index('by_report_code', ['reportCode'])
+    .index('by_student', ['schoolId', 'studentId'])
+    .index('by_class', ['schoolId', 'classId'])
+    .index('by_status', ['status'])
+    .index('by_term', ['schoolId', 'termId']),
+
+  continuousAssessments: defineTable({
+    schoolId: v.string(),
+    assessmentCode: v.string(), // Auto-generated: ASS + 8 digits
+    assessmentName: v.string(), // "Assignment 1", "Project", "Class Test"
+    assessmentType: v.union(
+      v.literal('class_work'),
+      v.literal('homework'),
+      v.literal('project'),
+      v.literal('quiz'),
+      v.literal('practical'),
+      v.literal('presentation')
+    ),
+    subjectId: v.string(),
+    subjectName: v.string(), // Denormalized
+    classId: v.string(),
+    className: v.string(), // Denormalized
+    academicYearId: v.optional(v.string()),
+    termId: v.optional(v.string()),
+    maxMarks: v.number(),
+    weightage: v.number(), // Percentage contribution to class score
+    dueDate: v.optional(v.string()),
+    description: v.optional(v.string()),
+    status: v.union(
+      v.literal('active'),
+      v.literal('completed'),
+      v.literal('archived')
+    ),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+    createdBy: v.string(), // Teacher/Admin ID
+  })
+    .index('by_school', ['schoolId'])
+    .index('by_assessment_code', ['assessmentCode'])
+    .index('by_class', ['schoolId', 'classId'])
+    .index('by_subject', ['schoolId', 'subjectId'])
+    .index('by_status', ['status']),
+
+  assessmentMarks: defineTable({
+    schoolId: v.string(),
+    assessmentId: v.id('continuousAssessments'),
+    assessmentCode: v.string(), // Denormalized
+    assessmentName: v.string(), // Denormalized
+    studentId: v.string(),
+    studentName: v.string(), // Denormalized
+    classId: v.string(),
+    className: v.string(),
+    marksObtained: v.number(),
+    maxMarks: v.number(),
+    percentage: v.number(),
+    submittedAt: v.optional(v.string()),
+    isLate: v.boolean(),
+    feedback: v.optional(v.string()),
+    enteredBy: v.string(), // Teacher/Admin ID
+    enteredByName: v.string(),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index('by_assessment', ['assessmentId'])
+    .index('by_student', ['schoolId', 'studentId'])
+    .index('by_class', ['schoolId', 'classId']),
 });

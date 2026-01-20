@@ -1,0 +1,407 @@
+import { v } from 'convex/values';
+import { mutation, query } from './_generated/server';
+import type { Id } from './_generated/dataModel';
+
+// Helper function to generate report code
+function generateReportCode(): string {
+  const digits: string = Math.random().toString().slice(2, 10);
+  return `RPT${digits}`;
+}
+
+// Generate report card for a student
+export const generateReportCard = mutation({
+  args: {
+    schoolId: v.string(),
+    studentId: v.string(),
+    classId: v.string(),
+    examId: v.id('exams'),
+    academicYearId: v.optional(v.string()),
+    termId: v.optional(v.string()),
+    termName: v.optional(v.string()),
+    year: v.optional(v.string()),
+    house: v.optional(v.string()),
+    attendance: v.optional(v.string()), // JSON: {present: 64, total: 68}
+    conduct: v.optional(v.string()),
+    attitude: v.optional(v.string()),
+    interest: v.optional(v.string()),
+    classTeacherComment: v.optional(v.string()),
+    headmasterComment: v.optional(v.string()),
+    classTeacherSign: v.optional(v.string()),
+    headmasterSign: v.optional(v.string()),
+    promotedTo: v.optional(v.string()),
+    vacationDate: v.optional(v.string()),
+    reopeningDate: v.optional(v.string()),
+    termlyPerformance: v.optional(v.string()), // JSON: {term1: 497, term2: 562, term3: null}
+    createdBy: v.string(),
+  },
+  handler: async (ctx, args): Promise<Id<'reportCards'>> => {
+    const reportCode: string = generateReportCode();
+    const now: string = new Date().toISOString();
+
+    // Get student details
+    const student = await ctx.db
+      .query('students')
+      .filter((q) => q.eq(q.field('studentId'), args.studentId))
+      .first();
+
+    if (!student) throw new Error('Student not found');
+
+    // Get class details
+    const classDoc = await ctx.db
+      .query('classes')
+      .filter((q) => q.eq(q.field('_id'), args.classId))
+      .first();
+
+    if (!classDoc) throw new Error('Class not found');
+
+    // Get all marks for this student in this exam
+    const marks = await ctx.db
+      .query('studentMarks')
+      .withIndex('by_exam', (q) => q.eq('examId', args.examId))
+      .filter((q) => q.eq(q.field('studentId'), args.studentId))
+      .collect();
+
+    if (marks.length === 0) throw new Error('No marks found for student');
+
+    // Calculate total scores
+    let totalScore: number = 0;
+    let rawScore: number = 0;
+
+    const subjects = marks.map((mark) => {
+      totalScore += mark.totalScore;
+      rawScore += mark.maxMarks;
+
+      return {
+        subjectName: mark.subjectName,
+        classScore: mark.classScore,
+        examScore: mark.examScore,
+        totalScore: mark.totalScore,
+        maxMarks: mark.maxMarks,
+        percentage: mark.percentage,
+        position: mark.position || 0,
+        grade: mark.gradeNumber,
+        remarks: mark.remarks,
+      };
+    });
+
+    // Calculate overall percentage
+    const percentage: number = (totalScore / rawScore) * 100;
+
+    // Calculate overall grade
+    let overallGrade: string = '9';
+    if (percentage >= 80) overallGrade = '1';
+    else if (percentage >= 70) overallGrade = '2';
+    else if (percentage >= 65) overallGrade = '3';
+    else if (percentage >= 60) overallGrade = '4';
+    else if (percentage >= 55) overallGrade = '5';
+    else if (percentage >= 50) overallGrade = '6';
+    else if (percentage >= 45) overallGrade = '7';
+    else if (percentage >= 40) overallGrade = '8';
+
+    // Calculate class position
+    const allStudentsInClass = await ctx.db
+      .query('students')
+      .withIndex('by_class', (q) => q.eq('classId', args.classId))
+      .collect();
+
+    // Get marks for all students to calculate positions
+    const allMarks = await ctx.db
+      .query('studentMarks')
+      .withIndex('by_exam', (q) => q.eq('examId', args.examId))
+      .filter((q) => q.eq(q.field('classId'), args.classId))
+      .collect();
+
+    // Group marks by student and calculate totals
+    const studentTotals = new Map<string, number>();
+    for (const mark of allMarks) {
+      const current: number = studentTotals.get(mark.studentId) || 0;
+      studentTotals.set(mark.studentId, current + mark.totalScore);
+    }
+
+    // Sort students by total score
+    const sortedStudents = Array.from(studentTotals.entries()).sort(
+      (a, b) => b[1] - a[1]
+    );
+
+    let position: number = 0;
+    for (let i: number = 0; i < sortedStudents.length; i++) {
+      if (sortedStudents[i][0] === args.studentId) {
+        position = i + 1;
+        break;
+      }
+    }
+
+    // Check if report already exists
+    const existing = await ctx.db
+      .query('reportCards')
+      .withIndex('by_student', (q) =>
+        q.eq('schoolId', args.schoolId).eq('studentId', args.studentId)
+      )
+      .filter((q) =>
+        q.and(
+          q.eq(q.field('academicYearId'), args.academicYearId),
+          q.eq(q.field('termId'), args.termId)
+        )
+      )
+      .first();
+
+    if (existing) {
+      // Update existing report
+      await ctx.db.patch(existing._id, {
+        subjects: JSON.stringify(subjects),
+        rawScore,
+        totalScore,
+        percentage,
+        overallGrade,
+        position,
+        totalStudents: allStudentsInClass.length,
+        attendance: args.attendance,
+        conduct: args.conduct,
+        attitude: args.attitude,
+        interest: args.interest,
+        classTeacherComment: args.classTeacherComment,
+        headmasterComment: args.headmasterComment,
+        classTeacherSign: args.classTeacherSign,
+        headmasterSign: args.headmasterSign,
+        promotedTo: args.promotedTo,
+        vacationDate: args.vacationDate,
+        reopeningDate: args.reopeningDate,
+        termlyPerformance: args.termlyPerformance,
+        version: (existing.version || 1) + 1,
+        previousVersionId: existing._id,
+        generatedAt: now,
+        updatedAt: now,
+      });
+
+      return existing._id;
+    } else {
+      // Create new report
+      const reportId: Id<'reportCards'> = await ctx.db.insert('reportCards', {
+        schoolId: args.schoolId,
+        reportCode,
+        studentId: args.studentId,
+        studentName: `${student.firstName} ${student.lastName}`,
+        classId: args.classId,
+        className: classDoc.className,
+        academicYearId: args.academicYearId,
+        termId: args.termId,
+        termName: args.termName,
+        year: args.year,
+        house: args.house,
+        subjects: JSON.stringify(subjects),
+        rawScore,
+        totalScore,
+        percentage,
+        overallGrade,
+        position,
+        totalStudents: allStudentsInClass.length,
+        attendance: args.attendance,
+        conduct: args.conduct,
+        attitude: args.attitude,
+        interest: args.interest,
+        classTeacherComment: args.classTeacherComment,
+        headmasterComment: args.headmasterComment,
+        classTeacherSign: args.classTeacherSign,
+        headmasterSign: args.headmasterSign,
+        promotionStatus: undefined,
+        promotedTo: args.promotedTo,
+        vacationDate: args.vacationDate,
+        reopeningDate: args.reopeningDate,
+        termlyPerformance: args.termlyPerformance,
+        status: 'draft',
+        version: 1,
+        generatedAt: now,
+        createdBy: args.createdBy,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      return reportId;
+    }
+  },
+});
+
+// Bulk generate report cards for a class
+export const bulkGenerateReportCards = mutation({
+  args: {
+    schoolId: v.string(),
+    classId: v.string(),
+    examId: v.id('exams'),
+    academicYearId: v.optional(v.string()),
+    termId: v.optional(v.string()),
+    termName: v.optional(v.string()),
+    year: v.optional(v.string()),
+    vacationDate: v.optional(v.string()),
+    reopeningDate: v.optional(v.string()),
+    createdBy: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Get all students in class
+    const students = await ctx.db
+      .query('students')
+      .withIndex('by_class', (q) => q.eq('classId', args.classId))
+      .filter((q) => q.eq(q.field('status'), 'active'))
+      .collect();
+
+    const reportIds: Id<'reportCards'>[] = [];
+
+    for (const student of students) {
+      // Check if student has marks
+      const hasMarks = await ctx.db
+        .query('studentMarks')
+        .withIndex('by_exam', (q) => q.eq('examId', args.examId))
+        .filter((q) => q.eq(q.field('studentId'), student.studentId))
+        .first();
+
+      if (hasMarks) {
+        const reportId: Id<'reportCards'> = await ctx.db.insert('reportCards', {
+          schoolId: args.schoolId,
+          reportCode: generateReportCode(),
+          studentId: student.studentId,
+          studentName: `${student.firstName} ${student.lastName}`,
+          classId: args.classId,
+          className: student.className,
+          academicYearId: args.academicYearId,
+          termId: args.termId,
+          termName: args.termName,
+          year: args.year,
+          subjects: '[]', // Will be filled in individual generation
+          rawScore: 0,
+          totalScore: 0,
+          percentage: 0,
+          overallGrade: '9',
+          vacationDate: args.vacationDate,
+          reopeningDate: args.reopeningDate,
+          status: 'draft',
+          version: 1,
+          generatedAt: new Date().toISOString(),
+          createdBy: args.createdBy,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+
+        reportIds.push(reportId);
+      }
+    }
+
+    return { success: true, count: reportIds.length };
+  },
+});
+
+// Get report cards for a class
+export const getClassReportCards = query({
+  args: {
+    schoolId: v.string(),
+    classId: v.string(),
+    termId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    let query = ctx.db
+      .query('reportCards')
+      .withIndex('by_class', (q) =>
+        q.eq('schoolId', args.schoolId).eq('classId', args.classId)
+      );
+
+    if (args.termId) {
+      query = query.filter((q) => q.eq(q.field('termId'), args.termId));
+    }
+
+    const reports = await query.collect();
+    return reports;
+  },
+});
+
+// Get report cards by school
+export const getReportCardsBySchool = query({
+  args: { schoolId: v.string() },
+  handler: async (ctx, args) => {
+    const reports = await ctx.db
+      .query('reportCards')
+      .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))
+      .order('desc')
+      .collect();
+    return reports;
+  },
+});
+
+// Get report card by ID
+export const getReportCardById = query({
+  args: { reportId: v.id('reportCards') },
+  handler: async (ctx, args) => {
+    const report = await ctx.db.get(args.reportId);
+    return report;
+  },
+});
+
+// Publish report cards
+export const publishReportCards = mutation({
+  args: {
+    reportIds: v.array(v.id('reportCards')),
+    publishedBy: v.string(),
+    publishedByRole: v.union(v.literal('class_teacher'), v.literal('admin')),
+  },
+  handler: async (ctx, args) => {
+    const now: string = new Date().toISOString();
+
+    for (const reportId of args.reportIds) {
+      await ctx.db.patch(reportId, {
+        status: 'published',
+        publishedAt: now,
+        publishedBy: args.publishedBy,
+        publishedByRole: args.publishedByRole,
+        updatedAt: now,
+      });
+    }
+
+    return { success: true };
+  },
+});
+
+// Unpublish report card
+export const unpublishReportCard = mutation({
+  args: {
+    reportId: v.id('reportCards'),
+    unpublishedBy: v.string(),
+    unpublishReason: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const now: string = new Date().toISOString();
+
+    await ctx.db.patch(args.reportId, {
+      status: 'draft',
+      unpublishedBy: args.unpublishedBy,
+      unpublishedAt: now,
+      unpublishReason: args.unpublishReason,
+      updatedAt: now,
+    });
+
+    return { success: true };
+  },
+});
+
+// Update report card details
+export const updateReportCard = mutation({
+  args: {
+    reportId: v.id('reportCards'),
+    attendance: v.optional(v.string()),
+    conduct: v.optional(v.string()),
+    attitude: v.optional(v.string()),
+    interest: v.optional(v.string()),
+    classTeacherComment: v.optional(v.string()),
+    headmasterComment: v.optional(v.string()),
+    classTeacherSign: v.optional(v.string()),
+    headmasterSign: v.optional(v.string()),
+    promotedTo: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { reportId, ...updates } = args;
+    const now: string = new Date().toISOString();
+
+    await ctx.db.patch(reportId, {
+      ...updates,
+      updatedAt: now,
+    });
+
+    return reportId;
+  },
+});

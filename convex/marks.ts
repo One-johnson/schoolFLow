@@ -1,0 +1,253 @@
+import { v } from 'convex/values';
+import { mutation, query } from './_generated/server';
+import type { Id } from './_generated/dataModel';
+
+// Helper function to calculate grade
+function calculateGrade(percentage: number): { grade: string; gradeNumber: number; remarks: string } {
+  if (percentage >= 80) return { grade: '1', gradeNumber: 1, remarks: 'Excellent' };
+  if (percentage >= 70) return { grade: '2', gradeNumber: 2, remarks: 'Very Good' };
+  if (percentage >= 65) return { grade: '3', gradeNumber: 3, remarks: 'Good' };
+  if (percentage >= 60) return { grade: '4', gradeNumber: 4, remarks: 'High Average' };
+  if (percentage >= 55) return { grade: '5', gradeNumber: 5, remarks: 'Average' };
+  if (percentage >= 50) return { grade: '6', gradeNumber: 6, remarks: 'Low Average' };
+  if (percentage >= 45) return { grade: '7', gradeNumber: 7, remarks: 'Pass' };
+  if (percentage >= 40) return { grade: '8', gradeNumber: 8, remarks: 'Pass' };
+  return { grade: '9', gradeNumber: 9, remarks: 'Fail' };
+}
+
+// Enter marks for a student
+export const enterMarks = mutation({
+  args: {
+    schoolId: v.string(),
+    examId: v.id('exams'),
+    examCode: v.string(),
+    examName: v.string(),
+    studentId: v.string(),
+    studentName: v.string(),
+    classId: v.string(),
+    className: v.string(),
+    subjectId: v.string(),
+    subjectName: v.string(),
+    classScore: v.number(),
+    examScore: v.number(),
+    maxMarks: v.number(),
+    isAbsent: v.boolean(),
+    enteredBy: v.string(),
+    enteredByRole: v.union(
+      v.literal('subject_teacher'),
+      v.literal('class_teacher'),
+      v.literal('admin')
+    ),
+    enteredByName: v.string(),
+    entryReason: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<Id<'studentMarks'>> => {
+    const now: string = new Date().toISOString();
+
+    // Calculate total score and percentage
+    const totalScore: number = args.classScore + args.examScore;
+    const percentage: number = (totalScore / args.maxMarks) * 100;
+
+    // Calculate grade
+    const gradeInfo = calculateGrade(percentage);
+
+    // Check if mark already exists
+    const existing = await ctx.db
+      .query('studentMarks')
+      .withIndex('by_exam', (q) => q.eq('examId', args.examId))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field('studentId'), args.studentId),
+          q.eq(q.field('subjectId'), args.subjectId)
+        )
+      )
+      .first();
+
+    if (existing) {
+      // Update existing
+      await ctx.db.patch(existing._id, {
+        classScore: args.classScore,
+        examScore: args.examScore,
+        totalScore,
+        percentage,
+        grade: gradeInfo.grade,
+        gradeNumber: gradeInfo.gradeNumber,
+        remarks: gradeInfo.remarks,
+        isAbsent: args.isAbsent,
+        enteredBy: args.enteredBy,
+        enteredByRole: args.enteredByRole,
+        enteredByName: args.enteredByName,
+        entryReason: args.entryReason,
+        updatedAt: now,
+      });
+
+      return existing._id;
+    } else {
+      // Create new
+      const markId: Id<'studentMarks'> = await ctx.db.insert('studentMarks', {
+        schoolId: args.schoolId,
+        examId: args.examId,
+        examCode: args.examCode,
+        examName: args.examName,
+        studentId: args.studentId,
+        studentName: args.studentName,
+        classId: args.classId,
+        className: args.className,
+        subjectId: args.subjectId,
+        subjectName: args.subjectName,
+        classScore: args.classScore,
+        examScore: args.examScore,
+        totalScore,
+        maxMarks: args.maxMarks,
+        percentage,
+        grade: gradeInfo.grade,
+        gradeNumber: gradeInfo.gradeNumber,
+        remarks: gradeInfo.remarks,
+        isAbsent: args.isAbsent,
+        enteredBy: args.enteredBy,
+        enteredByRole: args.enteredByRole,
+        enteredByName: args.enteredByName,
+        verifiedBy: undefined,
+        verifiedAt: undefined,
+        submissionStatus: 'draft',
+        entryReason: args.entryReason,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      return markId;
+    }
+  },
+});
+
+// Get marks for an exam
+export const getExamMarks = query({
+  args: { examId: v.id('exams') },
+  handler: async (ctx, args) => {
+    const marks = await ctx.db
+      .query('studentMarks')
+      .withIndex('by_exam', (q) => q.eq('examId', args.examId))
+      .collect();
+
+    return marks;
+  },
+});
+
+// Get marks for a student in an exam
+export const getStudentExamMarks = query({
+  args: {
+    schoolId: v.string(),
+    examId: v.id('exams'),
+    studentId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const marks = await ctx.db
+      .query('studentMarks')
+      .withIndex('by_exam', (q) => q.eq('examId', args.examId))
+      .filter((q) => q.eq(q.field('studentId'), args.studentId))
+      .collect();
+
+    return marks;
+  },
+});
+
+// Get marks for a class and subject
+export const getClassSubjectMarks = query({
+  args: {
+    examId: v.id('exams'),
+    classId: v.string(),
+    subjectId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const marks = await ctx.db
+      .query('studentMarks')
+      .withIndex('by_exam', (q) => q.eq('examId', args.examId))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field('classId'), args.classId),
+          q.eq(q.field('subjectId'), args.subjectId)
+        )
+      )
+      .collect();
+
+    return marks;
+  },
+});
+
+// Submit marks to class teacher
+export const submitMarksToClassTeacher = mutation({
+  args: {
+    markIds: v.array(v.id('studentMarks')),
+  },
+  handler: async (ctx, args) => {
+    const now: string = new Date().toISOString();
+
+    for (const markId of args.markIds) {
+      await ctx.db.patch(markId, {
+        submissionStatus: 'submitted_to_class_teacher',
+        updatedAt: now,
+      });
+    }
+
+    return { success: true };
+  },
+});
+
+// Verify marks (class teacher or admin)
+export const verifyMarks = mutation({
+  args: {
+    markIds: v.array(v.id('studentMarks')),
+    verifiedBy: v.string(),
+    role: v.union(v.literal('class_teacher'), v.literal('admin')),
+  },
+  handler: async (ctx, args) => {
+    const now: string = new Date().toISOString();
+
+    for (const markId of args.markIds) {
+      const status: 'verified_by_class_teacher' | 'verified_by_admin' =
+        args.role === 'class_teacher'
+          ? 'verified_by_class_teacher'
+          : 'verified_by_admin';
+
+      await ctx.db.patch(markId, {
+        verifiedBy: args.verifiedBy,
+        verifiedAt: now,
+        submissionStatus: status,
+        updatedAt: now,
+      });
+    }
+
+    return { success: true };
+  },
+});
+
+// Calculate positions for a subject
+export const calculatePositions = mutation({
+  args: {
+    examId: v.id('exams'),
+    subjectId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const marks = await ctx.db
+      .query('studentMarks')
+      .withIndex('by_subject', (q) =>
+        q.eq('examId', args.examId).eq('subjectId', args.subjectId)
+      )
+      .filter((q) => q.eq(q.field('isAbsent'), false))
+      .collect();
+
+    // Sort by total score descending
+    const sorted = marks.sort((a, b) => b.totalScore - a.totalScore);
+
+    // Assign positions
+    const now: string = new Date().toISOString();
+    for (let i: number = 0; i < sorted.length; i++) {
+      await ctx.db.patch(sorted[i]._id, {
+        position: i + 1,
+        updatedAt: now,
+      });
+    }
+
+    return { success: true };
+  },
+});
