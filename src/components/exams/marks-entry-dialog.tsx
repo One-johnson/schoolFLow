@@ -38,10 +38,17 @@ interface StudentMark {
   examScore: number;
 }
 
+const departmentNames: Record<string, string> = {
+  creche: 'Creche',
+  kindergarten: 'Kindergarten',
+  primary: 'Primary',
+  junior_high: 'Junior High',
+};
+
 export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: MarksEntryDialogProps) {
   const { toast } = useToast();
   const exam = useQuery(api.exams.getExamById, { examId });
-  const classes = useQuery(api.classes.getClassesBySchool, { schoolId });
+  const allClasses = useQuery(api.classes.getClassesBySchool, { schoolId });
   const enterMarks = useMutation(api.marks.enterMarks);
 
   const [selectedClassId, setSelectedClassId] = useState<string>('');
@@ -50,10 +57,19 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [loadStudents, setLoadStudents] = useState<boolean>(false);
 
-  // Query students from the selected class using Convex
+  // Filter classes by exam department
+  const classes = allClasses?.filter((cls) => {
+    if (!exam?.department) return true; // Show all if exam has no department
+    return cls.department === exam.department;
+  });
+
+  // Get the selected class to find its classCode
+  const selectedClass = classes?.find((c) => c._id === selectedClassId);
+  
+  // Query students from the selected class using classCode (not _id)
   const studentsData = useQuery(
     api.students.getStudentsByClass,
-    loadStudents && selectedClassId ? { classId: selectedClassId} : 'skip'
+    loadStudents && selectedClass ? { classId: selectedClass.classCode } : 'skip'
   );
 
   const subjects = exam?.subjects ? JSON.parse(exam.subjects) : [];
@@ -69,6 +85,7 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
           examScore: 0,
         }))
       );
+      setLoadStudents(false); // Reset load flag after successful load
     } else if (studentsData && studentsData.length === 0) {
       toast({
         title: 'No Students Found',
@@ -76,8 +93,9 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
         variant: 'destructive',
       });
       setStudents([]);
+      setLoadStudents(false); // Reset load flag
     }
-       // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentsData]);
 
   const handleLoadStudents = (): void => {
@@ -113,8 +131,11 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
 
     setIsSubmitting(true);
     try {
-      const selectedClass = classes?.find((c) => c._id === selectedClassId);
       const subjectData = subjects.find((s: { name: string; id?: string }) => s.name === selectedSubject);
+
+      if (!selectedClass) {
+        throw new Error('Selected class not found');
+      }
 
       // Enter marks for each student individually
       for (const student of students) {
@@ -125,8 +146,8 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
           examName: exam?.examName || '',
           studentId: student.studentId as Id<'students'>,
           studentName: student.studentName,
-          classId: selectedClassId as Id<'classes'>,
-          className: selectedClass?.className || '',
+          classId: selectedClass.classCode,
+          className: selectedClass.className,
           subjectId: (subjectData?.id || selectedSubject) as Id<'subjects'>,
           subjectName: selectedSubject,
           classScore: student.classScore,
@@ -165,9 +186,16 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Enter Marks - {exam?.examName}</DialogTitle>
+          <DialogTitle>
+            Enter Marks - {exam?.examName}
+            {exam?.department && (
+              <span className="text-sm font-normal text-muted-foreground ml-2">
+                ({departmentNames[exam.department as keyof typeof departmentNames]})
+              </span>
+            )}
+          </DialogTitle>
           <DialogDescription>
-            Record class scores and exam scores for students
+            Exam ID: {exam?.examCode} • Record class scores and exam scores for students
           </DialogDescription>
         </DialogHeader>
 
@@ -187,6 +215,11 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
                   ))}
                 </SelectContent>
               </Select>
+              {exam?.department && classes && classes.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No {departmentNames[exam.department as keyof typeof departmentNames]} classes found
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
