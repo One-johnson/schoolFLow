@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useMutation, useQuery } from 'convex/react';
-import { api } from '../../../convex/_generated/api';
+import { api } from '@/../convex/_generated/api';
 import {
   Dialog,
   DialogContent,
@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Plus, X } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import type { Id } from '../../../convex/_generated/dataModel';
 
 interface EditExamDialogProps {
@@ -36,6 +36,7 @@ interface EditExamDialogProps {
 interface Subject {
   name: string;
   maxMarks: number;
+  id?: string;
 }
 
 export function EditExamDialog({ open, onOpenChange, examId, schoolId }: EditExamDialogProps) {
@@ -55,35 +56,50 @@ export function EditExamDialog({ open, onOpenChange, examId, schoolId }: EditExa
   const [weightage, setWeightage] = useState<string>('50');
   const [instructions, setInstructions] = useState<string>('');
   const [subjects, setSubjects] = useState<Subject[]>([{ name: '', maxMarks: 100 }]);
+  // Query subjects by department - always load for the exam's department
+  const departmentSubjects = useQuery(
+    api.subjects.getSubjectsByDepartment,
+    department ? { 
+      schoolId, 
+      department: department as 'creche' | 'kindergarten' | 'primary' | 'junior_high' 
+    } : 'skip'
+  );
 
+  // Initialize form with exam data
   useEffect(() => {
     if (exam && open) {
       setExamName(exam.examName);
       setExamType(exam.examType);
-      setAcademicYearId(exam.academicYearId!);
-      setTermId(exam.termId!);
+      setAcademicYearId(exam.academicYearId ?? "");
+      setTermId(exam.termId ?? "");
       setStartDate(exam.startDate);
       setEndDate(exam.endDate);
       setDepartment(exam.department || 'primary');
       setWeightage(String(exam.weightage));
       setInstructions(exam.instructions || '');
-      setSubjects(exam.subjects ? JSON.parse(exam.subjects) : [{ name: '', maxMarks: 100 }]);
     }
   }, [exam, open]);
 
-  const handleAddSubject = (): void => {
-    setSubjects([...subjects, { name: '', maxMarks: 100 }]);
-  };
+  // Auto-populate subjects from database when department subjects load
+  useEffect(() => {
+    if (departmentSubjects && departmentSubjects.length > 0) {
+      setSubjects(
+        departmentSubjects.map((subj) => ({
+          name: subj.subjectName,
+          maxMarks: 100,
+          id: subj._id,
+        }))
+      );
+    }
+  }, [departmentSubjects]);
 
-  const handleRemoveSubject = (index: number): void => {
-    setSubjects(subjects.filter((_, i) => i !== index));
-  };
+
 
   const handleSubjectChange = (index: number, field: keyof Subject, value: string | number): void => {
     const updated = [...subjects];
     if (field === 'maxMarks') {
       updated[index][field] = Number(value);
-    } else {
+    } else if (field === 'name') {
       updated[index][field] = value as string;
     }
     setSubjects(updated);
@@ -241,8 +257,8 @@ export function EditExamDialog({ open, onOpenChange, examId, schoolId }: EditExa
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="department">Department *</Label>
-              <Select value={department} onValueChange={setDepartment} required>
-                <SelectTrigger id="department">
+              <Select value={department} onValueChange={setDepartment} required disabled>
+                <SelectTrigger id="department" className="opacity-60">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -252,6 +268,7 @@ export function EditExamDialog({ open, onOpenChange, examId, schoolId }: EditExa
                   <SelectItem value="junior_high">Junior High</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">Department cannot be changed after exam creation</p>
             </div>
 
             <div className="space-y-2">
@@ -269,40 +286,33 @@ export function EditExamDialog({ open, onOpenChange, examId, schoolId }: EditExa
           </div>
 
           <div className="space-y-2">
-            <Label>Subjects *</Label>
-            <div className="space-y-2">
-              {subjects.map((subject, index) => (
-                <div key={index} className="flex gap-2">
-                  <Input
-                    placeholder="Subject name"
-                    value={subject.name}
-                    onChange={(e) => handleSubjectChange(index, 'name', e.target.value)}
-                    className="flex-1"
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Max marks"
-                    value={subject.maxMarks}
-                    onChange={(e) => handleSubjectChange(index, 'maxMarks', e.target.value)}
-                    className="w-32"
-                  />
-                  {subjects.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleRemoveSubject(index)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
-              <Button type="button" variant="outline" size="sm" onClick={handleAddSubject}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Subject
-              </Button>
-            </div>
+            <Label>Subjects * <span className="text-sm text-muted-foreground">(Loaded from {department})</span></Label>
+            {subjects.length > 0 && subjects[0].name !== '' ? (
+              <div className="space-y-2">
+                {subjects.map((subject, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Input
+                      placeholder="Subject name"
+                      value={subject.name}
+                      onChange={(e) => handleSubjectChange(index, 'name', e.target.value)}
+                      className="flex-1"
+                      disabled
+                    />
+                    <Input
+                      type="number"
+                      placeholder="Max marks"
+                      value={subject.maxMarks}
+                      onChange={(e) => handleSubjectChange(index, 'maxMarks', e.target.value)}
+                      className="w-32"
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground p-4 border rounded-md bg-muted/50">
+                No subjects found for {department}. Cannot edit this exam.
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
