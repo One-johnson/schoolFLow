@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQuery } from 'convex/react';
-import { api } from '../../../convex/_generated/api';
+import { api } from '@/../convex/_generated/api';
 import {
   Dialog,
   DialogContent,
@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Plus, X } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 interface AddExamDialogProps {
   open: boolean;
@@ -34,13 +34,13 @@ interface AddExamDialogProps {
 interface Subject {
   name: string;
   maxMarks: number;
+  id?: string;
 }
 
 export function AddExamDialog({ open, onOpenChange, schoolId }: AddExamDialogProps) {
   const { toast } = useToast();
   const createExam = useMutation(api.exams.createExam);
   const academicYears = useQuery(api.academicYears.getActiveAcademicYears, { schoolId });
-  const classes = useQuery(api.classes.getClassesBySchool, { schoolId });
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [examName, setExamName] = useState<string>('');
@@ -54,19 +54,42 @@ export function AddExamDialog({ open, onOpenChange, schoolId }: AddExamDialogPro
   const [instructions, setInstructions] = useState<string>('');
   const [subjects, setSubjects] = useState<Subject[]>([{ name: '', maxMarks: 100 }]);
 
-  const handleAddSubject = (): void => {
-    setSubjects([...subjects, { name: '', maxMarks: 100 }]);
-  };
+  // Query subjects by department
+  const departmentSubjects = useQuery(
+    api.subjects.getSubjectsByDepartment,
+    department ? { 
+      schoolId, 
+      department: department as 'creche' | 'kindergarten' | 'primary' | 'junior_high' 
+    } : 'skip'
+  );
 
-  const handleRemoveSubject = (index: number): void => {
-    setSubjects(subjects.filter((_, i) => i !== index));
-  };
+  // Auto-populate subjects when department changes
+  useEffect(() => {
+    if (departmentSubjects && departmentSubjects.length > 0) {
+      setSubjects(
+        departmentSubjects.map((subj) => ({
+          name: subj.subjectName,
+          maxMarks: 100,
+          id: subj._id,
+        }))
+      );
+      toast({
+        title: 'Subjects Loaded',
+        description: `Loaded ${departmentSubjects.length} subject(s) for ${department}`,
+      });
+    } else if (departmentSubjects && departmentSubjects.length === 0) {
+      setSubjects([{ name: '', maxMarks: 100 }]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [departmentSubjects, department]);
+
+
 
   const handleSubjectChange = (index: number, field: keyof Subject, value: string | number): void => {
     const updated = [...subjects];
     if (field === 'maxMarks') {
       updated[index][field] = Number(value);
-    } else {
+    } else if (field === 'name') {
       updated[index][field] = value as string;
     }
     setSubjects(updated);
@@ -267,40 +290,33 @@ export function AddExamDialog({ open, onOpenChange, schoolId }: AddExamDialogPro
           </div>
 
           <div className="space-y-2">
-            <Label>Subjects *</Label>
-            <div className="space-y-2">
-              {subjects.map((subject, index) => (
-                <div key={index} className="flex gap-2">
-                  <Input
-                    placeholder="Subject name"
-                    value={subject.name}
-                    onChange={(e) => handleSubjectChange(index, 'name', e.target.value)}
-                    className="flex-1"
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Max marks"
-                    value={subject.maxMarks}
-                    onChange={(e) => handleSubjectChange(index, 'maxMarks', e.target.value)}
-                    className="w-32"
-                  />
-                  {subjects.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleRemoveSubject(index)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
-              <Button type="button" variant="outline" size="sm" onClick={handleAddSubject}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Subject
-              </Button>
-            </div>
+            <Label>Subjects * {departmentSubjects && departmentSubjects.length > 0 && <span className="text-sm text-muted-foreground">(Auto-loaded from {department})</span>}</Label>
+            {subjects.length > 0 && subjects[0].name !== '' ? (
+              <div className="space-y-2">
+                {subjects.map((subject, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Input
+                      placeholder="Subject name"
+                      value={subject.name}
+                      onChange={(e) => handleSubjectChange(index, 'name', e.target.value)}
+                      className="flex-1"
+                      disabled
+                    />
+                    <Input
+                      type="number"
+                      placeholder="Max marks"
+                      value={subject.maxMarks}
+                      onChange={(e) => handleSubjectChange(index, 'maxMarks', e.target.value)}
+                      className="w-32"
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground p-4 border rounded-md bg-muted/50">
+                No subjects found for {department}. Please add subjects in the Subjects section first.
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">

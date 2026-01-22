@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from 'convex/react';
-import { api } from '../../../convex/_generated/api';
+import { api } from '@/../convex/_generated/api';
 import {
   Dialog,
   DialogContent,
@@ -48,11 +48,39 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
   const [selectedSubject, setSelectedSubject] = useState<string>('');
   const [students, setStudents] = useState<StudentMark[]>([]);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [loadStudents, setLoadStudents] = useState<boolean>(false);
+
+  // Query students from the selected class using Convex
+  const studentsData = useQuery(
+    api.students.getStudentsByClass,
+    loadStudents && selectedClassId ? { classId: selectedClassId} : 'skip'
+  );
 
   const subjects = exam?.subjects ? JSON.parse(exam.subjects) : [];
 
-  const handleLoadStudents = async (): Promise<void> => {
+  // Handle loaded students data
+  useEffect(() => {
+    if (studentsData && studentsData.length > 0) {
+      setStudents(
+        studentsData.map((s) => ({
+          studentId: s._id,
+          studentName: `${s.firstName} ${s.lastName}`,
+          classScore: 0,
+          examScore: 0,
+        }))
+      );
+    } else if (studentsData && studentsData.length === 0) {
+      toast({
+        title: 'No Students Found',
+        description: 'No students found in the selected class',
+        variant: 'destructive',
+      });
+      setStudents([]);
+    }
+       // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studentsData]);
+
+  const handleLoadStudents = (): void => {
     if (!selectedClassId) {
       toast({
         title: 'Validation Error',
@@ -61,45 +89,8 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
       });
       return;
     }
-
-    setIsLoading(true);
-    try {
-      // Fetch students from the selected class
-      const response = await fetch('/api/proxy', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          protocol: 'https',
-          origin: window.location.origin,
-          path: '/api/students',
-          method: 'GET',
-          headers: {},
-          body: JSON.stringify({ classId: selectedClassId }),
-        }),
-      });
-
-      if (!response.ok) throw new Error('Failed to load students');
-
-      const data = await response.json();
-      setStudents(
-        data.students?.map((s: { _id: string; firstName: string; lastName: string }) => ({
-          studentId: s._id,
-          studentName: `${s.firstName} ${s.lastName}`,
-          classScore: 0,
-          examScore: 0,
-        })) || []
-      );
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to load students',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    
+    setLoadStudents(true);
   };
 
   const handleMarkChange = (studentId: string, field: 'classScore' | 'examScore', value: string): void => {
@@ -123,7 +114,7 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
     setIsSubmitting(true);
     try {
       const selectedClass = classes?.find((c) => c._id === selectedClassId);
-      const subjectData = subjects.find((s: { name: string; id: string }) => s.name === selectedSubject);
+      const subjectData = subjects.find((s: { name: string; id?: string }) => s.name === selectedSubject);
 
       // Enter marks for each student individually
       for (const student of students) {
@@ -132,11 +123,11 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
           examId,
           examCode: exam?.examCode || '',
           examName: exam?.examName || '',
-          studentId: student.studentId,
+          studentId: student.studentId as Id<'students'>,
           studentName: student.studentName,
-          classId: selectedClassId,
+          classId: selectedClassId as Id<'classes'>,
           className: selectedClass?.className || '',
-          subjectId: subjectData?.id || selectedSubject,
+          subjectId: (subjectData?.id || selectedSubject) as Id<'subjects'>,
           subjectName: selectedSubject,
           classScore: student.classScore,
           examScore: student.examScore,
@@ -154,6 +145,11 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
       });
 
       onOpenChange(false);
+      // Reset state
+      setSelectedClassId('');
+      setSelectedSubject('');
+      setStudents([]);
+      setLoadStudents(false);
     } catch (error) {
       toast({
         title: 'Error',
@@ -212,8 +208,8 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
 
           {students.length === 0 ? (
             <div className="text-center py-8">
-              <Button onClick={handleLoadStudents} disabled={isLoading || !selectedClassId}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button onClick={handleLoadStudents} disabled={!selectedClassId || loadStudents}>
+                {loadStudents && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Load Students
               </Button>
             </div>

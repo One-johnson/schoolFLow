@@ -28,6 +28,9 @@ export const getSubjectsBySchool = query({
   },
 });
 
+// Alias for simpler access
+export const getSubjects = getSubjectsBySchool;
+
 // Query: Get subject by ID
 export const getSubjectById = query({
   args: { subjectId: v.id('subjects') },
@@ -36,6 +39,29 @@ export const getSubjectById = query({
     return subject;
   },
 });
+
+// Query: Get subjects by department
+export const getSubjectsByDepartment = query({
+  args: { 
+    schoolId: v.string(),
+    department: v.union(
+      v.literal('creche'), 
+      v.literal('kindergarten'), 
+      v.literal('primary'), 
+      v.literal('junior_high')
+    )
+  },
+  handler: async (ctx, args) => {
+    const subjects = await ctx.db
+      .query('subjects')
+      .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))
+      .filter((q) => q.eq(q.field('department'), args.department))
+      .collect();
+
+    return subjects.filter((s) => s.status === 'active');
+  },
+});
+
 
 // Query: Get subject statistics for a school
 export const getSubjectStats = query({
