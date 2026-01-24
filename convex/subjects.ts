@@ -62,7 +62,6 @@ export const getSubjectsByDepartment = query({
   },
 });
 
-
 // Query: Get subject statistics for a school
 export const getSubjectStats = query({
   args: { schoolId: v.string() },
@@ -105,18 +104,24 @@ export const addSubject = mutation({
     description: v.optional(v.string()),
     category: v.union(v.literal('core'), v.literal('elective'), v.literal('extracurricular')),
     department: v.union(v.literal('creche'), v.literal('kindergarten'), v.literal('primary'), v.literal('junior_high')),
+    color: v.optional(v.string()),
     createdBy: v.string(),
   },
   handler: async (ctx, args) => {
-    // Check if subject name already exists for this school
+    // Check if subject name already exists for this school AND department
     const existingSubject = await ctx.db
       .query('subjects')
       .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))
-      .filter((q) => q.eq(q.field('subjectName'), args.subjectName))
+      .filter((q) => 
+        q.and(
+          q.eq(q.field('subjectName'), args.subjectName),
+          q.eq(q.field('department'), args.department)
+        )
+      )
       .first();
 
     if (existingSubject) {
-      throw new Error('A subject with this name already exists in your school');
+      throw new Error('A subject with this name already exists in this department');
     }
 
     // Generate unique subject code
@@ -144,6 +149,7 @@ export const addSubject = mutation({
       description: args.description,
       category: args.category,
       department: args.department,
+      color: args.color,
       status: 'active',
       createdAt: now,
       updatedAt: now,
@@ -175,6 +181,7 @@ export const addBulkSubjects = mutation({
       description: v.optional(v.string()),
       category: v.union(v.literal('core'), v.literal('elective'), v.literal('extracurricular')),
       department: v.union(v.literal('creche'), v.literal('kindergarten'), v.literal('primary'), v.literal('junior_high')),
+      color: v.optional(v.string()),
     })),
     createdBy: v.string(),
   },
@@ -183,18 +190,23 @@ export const addBulkSubjects = mutation({
     const now = new Date().toISOString();
 
     for (const subjectData of args.subjects) {
-      // Check if subject name already exists
+      // Check if subject name already exists in the same department
       const existingSubject = await ctx.db
         .query('subjects')
         .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))
-        .filter((q) => q.eq(q.field('subjectName'), subjectData.subjectName))
+        .filter((q) => 
+          q.and(
+            q.eq(q.field('subjectName'), subjectData.subjectName),
+            q.eq(q.field('department'), subjectData.department)
+          )
+        )
         .first();
 
       if (existingSubject) {
         results.push({
           subjectName: subjectData.subjectName,
           success: false,
-          error: 'Subject name already exists',
+          error: 'Subject name already exists in this department',
         });
         continue;
       }
@@ -221,6 +233,7 @@ export const addBulkSubjects = mutation({
         description: subjectData.description,
         category: subjectData.category,
         department: subjectData.department,
+        color: subjectData.color,
         status: 'active',
         createdAt: now,
         updatedAt: now,
@@ -259,6 +272,7 @@ export const updateSubject = mutation({
     description: v.optional(v.string()),
     category: v.optional(v.union(v.literal('core'), v.literal('elective'), v.literal('extracurricular'))),
     department: v.optional(v.union(v.literal('creche'), v.literal('kindergarten'), v.literal('primary'), v.literal('junior_high'))),
+    color: v.optional(v.string()),
     status: v.optional(v.union(v.literal('active'), v.literal('inactive'))),
     updatedBy: v.string(),
   },
@@ -269,16 +283,39 @@ export const updateSubject = mutation({
       throw new Error('Subject not found');
     }
 
-    // If subject name is being updated, check for duplicates
+    // If subject name is being updated, check for duplicates in the same department
     if (args.subjectName && args.subjectName !== subject.subjectName) {
+      const targetDepartment = args.department || subject.department;
       const existingSubject = await ctx.db
         .query('subjects')
         .withIndex('by_school', (q) => q.eq('schoolId', subject.schoolId))
-        .filter((q) => q.eq(q.field('subjectName'), args.subjectName))
+        .filter((q) => 
+          q.and(
+            q.eq(q.field('subjectName'), args.subjectName),
+            q.eq(q.field('department'), targetDepartment)
+          )
+        )
         .first();
 
       if (existingSubject && existingSubject._id !== args.subjectId) {
-        throw new Error('A subject with this name already exists in your school');
+        throw new Error('A subject with this name already exists in this department');
+      }
+    }
+    // If only department is being updated, check for duplicates with existing name
+    else if (args.department && args.department !== subject.department) {
+      const existingSubject = await ctx.db
+        .query('subjects')
+        .withIndex('by_school', (q) => q.eq('schoolId', subject.schoolId))
+        .filter((q) => 
+          q.and(
+            q.eq(q.field('subjectName'), subject.subjectName),
+            q.eq(q.field('department'), args.department)
+          )
+        )
+        .first();
+
+      if (existingSubject && existingSubject._id !== args.subjectId) {
+        throw new Error('A subject with this name already exists in this department');
       }
     }
 
@@ -291,6 +328,7 @@ export const updateSubject = mutation({
     if (args.subjectName !== undefined) updateData.subjectName = args.subjectName;
     if (args.description !== undefined) updateData.description = args.description;
     if (args.category !== undefined) updateData.category = args.category;
+    if (args.color !== undefined) updateData.color = args.color;
     if (args.department !== undefined) {
       updateData.department = args.department;
       // Regenerate subject code if department changes

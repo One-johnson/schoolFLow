@@ -38,11 +38,8 @@ export const generateReportCard = mutation({
     const reportCode: string = generateReportCode();
     const now: string = new Date().toISOString();
 
-    // Get student details
-    const student = await ctx.db
-      .query('students')
-      .filter((q) => q.eq(q.field('studentId'), args.studentId))
-      .first();
+    // Get student details by _id
+    const student = await ctx.db.get(args.studentId as Id<'students'>);
 
     if (!student) throw new Error('Student not found');
 
@@ -218,6 +215,189 @@ export const generateReportCard = mutation({
 
       return reportId;
     }
+  },
+});
+
+// Generate report cards (wrapper for dialog)
+export const generateReportCards = mutation({
+  args: {
+    examId: v.id('exams'),
+    classId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Get exam details
+    const exam = await ctx.db.get(args.examId);
+    if (!exam) throw new Error('Exam not found');
+
+    // Get class details by _id
+    const classDoc = await ctx.db.get(args.classId as Id<'classes'>);
+    if (!classDoc) throw new Error('Class not found');
+
+    // Get all students in the class using classCode
+    const students = await ctx.db
+      .query('students')
+      .withIndex('by_class', (q) => q.eq('classId', classDoc.classCode))
+      .filter((q) => q.eq(q.field('status'), 'active'))
+      .collect();
+
+    if (students.length === 0) {
+      throw new Error('No active students found in the selected class');
+    }
+
+    const reportIds: Id<'reportCards'>[] = [];
+    const errors: string[] = [];
+    const now: string = new Date().toISOString();
+
+    for (const student of students) {
+      try {
+        // Get all marks for this student in this exam
+        const marks = await ctx.db
+          .query('studentMarks')
+          .withIndex('by_exam', (q) => q.eq('examId', args.examId))
+          .filter((q) => q.eq(q.field('studentId'), student._id))
+          .collect();
+
+        if (marks.length === 0) {
+          errors.push(`${student.firstName} ${student.lastName}: No marks found`);
+          continue;
+        }
+
+        // Calculate total scores
+        let totalScore: number = 0;
+        let rawScore: number = 0;
+
+        const subjects = marks.map((mark) => {
+          totalScore += mark.totalScore;
+          rawScore += mark.maxMarks;
+
+          return {
+            subjectName: mark.subjectName,
+            classScore: mark.classScore,
+            examScore: mark.examScore,
+            totalScore: mark.totalScore,
+            maxMarks: mark.maxMarks,
+            percentage: mark.percentage,
+            position: mark.position || 0,
+            grade: mark.gradeNumber,
+            remarks: mark.remarks,
+          };
+        });
+
+        // Calculate overall percentage
+        const percentage: number = (totalScore / rawScore) * 100;
+
+        // Calculate overall grade
+        let overallGrade: string = '9';
+        if (percentage >= 80) overallGrade = '1';
+        else if (percentage >= 70) overallGrade = '2';
+        else if (percentage >= 65) overallGrade = '3';
+        else if (percentage >= 60) overallGrade = '4';
+        else if (percentage >= 55) overallGrade = '5';
+        else if (percentage >= 50) overallGrade = '6';
+        else if (percentage >= 45) overallGrade = '7';
+        else if (percentage >= 40) overallGrade = '8';
+
+        // Get marks for all students in class to calculate position
+        const allMarks = await ctx.db
+          .query('studentMarks')
+          .withIndex('by_exam', (q) => q.eq('examId', args.examId))
+          .filter((q) => q.eq(q.field('classId'), classDoc.classCode))
+          .collect();
+
+        // Group marks by student and calculate totals
+        const studentTotals = new Map<string, number>();
+        for (const mark of allMarks) {
+          const current: number = studentTotals.get(mark.studentId) || 0;
+          studentTotals.set(mark.studentId, current + mark.totalScore);
+        }
+
+        // Sort students by total score
+        const sortedStudents = Array.from(studentTotals.entries()).sort(
+          (a, b) => b[1] - a[1]
+        );
+
+        let position: number = 0;
+        for (let i: number = 0; i < sortedStudents.length; i++) {
+          if (sortedStudents[i][0] === student._id) {
+            position = i + 1;
+            break;
+          }
+        }
+
+        // Check if report already exists
+        const existing = await ctx.db
+          .query('reportCards')
+          .withIndex('by_student', (q) =>
+            q.eq('schoolId', exam.schoolId).eq('studentId', student._id)
+          )
+          .filter((q) =>
+            q.and(
+              q.eq(q.field('academicYearId'), exam.academicYearId),
+              q.eq(q.field('termId'), exam.termId)
+            )
+          )
+          .first();
+
+        if (existing) {
+          // Update existing report
+          await ctx.db.patch(existing._id, {
+            subjects: JSON.stringify(subjects),
+            rawScore,
+            totalScore,
+            percentage,
+            overallGrade,
+            position,
+            totalStudents: students.length,
+            version: (existing.version || 1) + 1,
+            previousVersionId: existing._id,
+            generatedAt: now,
+            updatedAt: now,
+          });
+
+          reportIds.push(existing._id);
+        } else {
+          // Create new report
+          const reportId: Id<'reportCards'> = await ctx.db.insert('reportCards', {
+            schoolId: exam.schoolId,
+            reportCode: generateReportCode(),
+            studentId: student._id,
+            studentName: `${student.firstName} ${student.lastName}`,
+            classId: classDoc.classCode,
+            className: classDoc.className,
+            academicYearId: exam.academicYearId,
+            termId: exam.termId,
+            subjects: JSON.stringify(subjects),
+            rawScore,
+            totalScore,
+            percentage,
+            overallGrade,
+            position,
+            totalStudents: students.length,
+            promotionStatus: undefined,
+            status: 'draft',
+            version: 1,
+            generatedAt: now,
+            createdBy: exam.createdBy,
+            createdAt: now,
+            updatedAt: now,
+          });
+
+          reportIds.push(reportId);
+        }
+      } catch (error) {
+        errors.push(`${student.firstName} ${student.lastName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+
+    if (reportIds.length === 0) {
+      throw new Error(`Failed to generate any report cards. Errors: ${errors.join('; ')}`);
+    }
+
+    return {
+      success: true,
+      count: reportIds.length,
+      errors: errors.length > 0 ? errors : undefined,
+    };
   },
 });
 
