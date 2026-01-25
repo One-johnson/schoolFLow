@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import { Badge } from '@/components/ui/badge';
 import {
   Table,
@@ -402,32 +402,75 @@ export function ViewMarksDialog({ open, onOpenChange, examId, schoolId }: ViewMa
                     </div>
                   </div>
 
-                  <Card>
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h3 className="text-2xl font-bold">{selectedStudent.studentName}</h3>
-                          <p className="text-sm text-muted-foreground">Student ID: {selectedStudent.customStudentId}</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Student Info Card */}
+                    <Card>
+                      <CardContent className="p-3">
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <GraduationCap className="h-4 w-4 text-primary flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-muted-foreground">Name</p>
+                              <p className="text-sm font-bold truncate">{selectedStudent.studentName}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <FileText className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-muted-foreground">ID</p>
+                              <p className="text-sm font-semibold truncate">{selectedStudent.customStudentId}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <BookOpen className="h-4 w-4 text-orange-600 flex-shrink-0" />
+                            <div>
+                              <p className="text-xs text-muted-foreground">Subjects</p>
+                              <p className="text-sm font-semibold">{selectedStudent.totalSubjects}</p>
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-3xl font-bold text-primary">{selectedStudent.averagePercentage.toFixed(1)}%</div>
-                          <p className="text-sm text-muted-foreground">Average</p>
-                        </div>
-                      </div>
-                      <div className="mt-4 grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-sm text-muted-foreground">Subjects</p>
-                          <p className="text-lg font-semibold">{selectedStudent.totalSubjects}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Average Score</p>
-                          <p className="text-lg font-semibold">{selectedStudent.averageScore.toFixed(1)}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
 
-                  <ScrollArea className="flex-1 border rounded-lg h-[400px]">
+                    {/* Performance Metrics Card */}
+                    <Card>
+                      <CardContent className="p-3">
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2 flex-1">
+                            <div className="h-4 w-4 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                              <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Avg %</p>
+                              <p className="text-sm font-bold text-primary">{selectedStudent.averagePercentage.toFixed(1)}%</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 flex-1">
+                            <div className="h-4 w-4 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                              <div className="h-1.5 w-1.5 rounded-full bg-green-600" />
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Avg Score</p>
+                              <p className="text-sm font-semibold">{selectedStudent.averageScore.toFixed(1)}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 flex-1">
+                            <div className="h-4 w-4 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                              <div className="h-1.5 w-1.5 rounded-full bg-purple-600" />
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Raw Score</p>
+                              <p className="text-sm font-semibold whitespace-nowrap">
+                                {selectedStudent.marks.reduce((sum, m) => sum + m.totalScore, 0)} / {selectedStudent.totalSubjects * 100}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <div className="border rounded-lg overflow-y-auto max-h-[400px]">
                     <Table>
                       <TableHeader className="bg-muted sticky top-0 z-10">
                         <TableRow>
@@ -460,7 +503,7 @@ export function ViewMarksDialog({ open, onOpenChange, examId, schoolId }: ViewMa
                         ))}
                       </TableBody>
                     </Table>
-                  </ScrollArea>
+                  </div>
                 </>
               ) : (
                 /* Students List View */
@@ -536,7 +579,7 @@ export function ViewMarksDialog({ open, onOpenChange, examId, schoolId }: ViewMa
                   </div>
 
                   {/* Students Table */}
-                  <ScrollArea className="flex-1 border rounded-lg h-[400px]">
+                  <div className="border rounded-lg overflow-y-auto max-h-[400px]">
                     <Table>
                       <TableHeader className="bg-muted sticky top-0 z-10">
                         <TableRow>
@@ -597,7 +640,7 @@ export function ViewMarksDialog({ open, onOpenChange, examId, schoolId }: ViewMa
                         )}
                       </TableBody>
                     </Table>
-                  </ScrollArea>
+                  </div>
 
                   {/* Footer */}
                   <div className="flex justify-between items-center pt-2 border-t">
