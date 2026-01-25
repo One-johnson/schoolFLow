@@ -87,6 +87,12 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
     api.students.getStudentsByClass,
     loadStudents && selectedClass ? { classId: selectedClass.classCode } : 'skip'
   );
+  
+  // Query existing marks for the selected class
+  const existingMarks = useQuery(
+    api.marks.getClassMarks,
+    selectedClassId && selectedClass ? { examId, classId: selectedClass.classCode } : 'skip'
+  );
 
   const subjects: Subject[] = exam?.subjects ? JSON.parse(exam.subjects) : [];
 
@@ -124,22 +130,40 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
     setLoadStudents(false);
   }, [selectedClassId]);
 
-  // Handle loaded students data
+  // Handle loaded students data and merge with existing marks
   useEffect(() => {
     if (studentsData && studentsData.length > 0) {
       const initialMarks: StudentMark[] = studentsData.map((s) => {
         const subjectsMap: Record<string, { classScore: number; examScore: number }> = {};
+        
         subjects.forEach((subject) => {
-          subjectsMap[subject.name] = { classScore: 0, examScore: 0 };
+          // Check if existing marks exist for this student and subject
+          const existingMark = existingMarks?.find(
+            (m) => m.studentId === s._id && m.subjectName === subject.name
+          );
+          
+          subjectsMap[subject.name] = existingMark 
+            ? { classScore: existingMark.classScore, examScore: existingMark.examScore }
+            : { classScore: 0, examScore: 0 };
         });
+        
         return {
           studentId: s._id,
           studentName: `${s.firstName} ${s.lastName}`,
           subjects: subjectsMap,
         };
       });
+      
       setStudents(initialMarks);
       setLoadStudents(false);
+      
+      // Show toast if existing marks were loaded
+      if (existingMarks && existingMarks.length > 0) {
+        toast({
+          title: 'Existing Marks Loaded',
+          description: `${existingMarks.length} existing mark entries pre-filled`,
+        });
+      }
     } else if (studentsData && studentsData.length === 0) {
       toast({
         title: 'No Students Found',
@@ -150,7 +174,7 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
       setLoadStudents(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [studentsData]);
+  }, [studentsData, existingMarks]);
 
   const handleLoadStudents = (): void => {
     if (!selectedClassId) {
@@ -378,7 +402,7 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
       <DialogContent className="min-w-[95vw] max-w-[95vw] w-[95vw] max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>
-            Enter Marks - {exam?.examName}
+            {existingMarks && existingMarks.length > 0 ? 'View & Edit Marks' : 'Enter Marks'} - {exam?.examName}
             {exam?.department && (
               <span className="text-sm font-normal text-muted-foreground ml-2">
                 ({departmentNames[exam.department as keyof typeof departmentNames]})
@@ -386,7 +410,7 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
             )}
           </DialogTitle>
           <DialogDescription>
-            Exam ID: {exam?.examCode} • Grid view - Enter marks for all subjects at once
+            Exam ID: {exam?.examCode} • Grid view - {existingMarks && existingMarks.length > 0 ? 'Edit existing marks or add new ones' : 'Enter marks for all subjects at once'}
           </DialogDescription>
         </DialogHeader>
 
@@ -580,7 +604,7 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
                   <Button onClick={handleSubmit} disabled={isSubmitting}>
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     <Save className="mr-2 h-4 w-4" />
-                    Save All Marks
+                    {existingMarks && existingMarks.length > 0 ? 'Update Marks' : 'Save All Marks'}
                   </Button>
                 </div>
               </div>

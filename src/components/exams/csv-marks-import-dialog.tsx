@@ -259,7 +259,7 @@ export function CSVMarksImportDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Import Marks from CSV</DialogTitle>
           <DialogDescription>
@@ -267,7 +267,8 @@ export function CSVMarksImportDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+        <ScrollArea className="flex-1 pr-4">
+          <div className="space-y-4">
           {/* Step 1: Download Template */}
           <div className="space-y-2">
             <h3 className="text-sm font-medium flex items-center gap-2">
@@ -331,7 +332,7 @@ export function CSVMarksImportDialog({
 
           {/* Step 3: Review and Import */}
           {parsedData.length > 0 && (
-            <div className="space-y-2 flex-1 overflow-hidden flex flex-col">
+            <div className="space-y-2">
               <h3 className="text-sm font-medium flex items-center gap-2">
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs">
                   3
@@ -359,7 +360,7 @@ export function CSVMarksImportDialog({
               </div>
 
               {validationErrors.length > 0 && (
-                <ScrollArea className="flex-1 rounded-lg border bg-destructive/5 p-4">
+                <ScrollArea className="h-[300px] rounded-lg border bg-destructive/5 p-4">
                   <div className="space-y-3">
                     {validationErrors.map((error, index) => (
                       <div key={index} className="rounded-lg border border-destructive/50 bg-background p-3">
@@ -392,7 +393,8 @@ export function CSVMarksImportDialog({
               )}
             </div>
           )}
-        </div>
+          </div>
+        </ScrollArea>
 
         <div className="flex justify-between items-center pt-4 border-t">
           <Button
