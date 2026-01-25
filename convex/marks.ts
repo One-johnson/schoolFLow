@@ -221,6 +221,55 @@ export const verifyMarks = mutation({
   },
 });
 
+// Get marks for a class in an exam (all subjects)
+export const getClassMarks = query({
+  args: {
+    examId: v.id('exams'),
+    classId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const marks = await ctx.db
+      .query('studentMarks')
+      .withIndex('by_exam', (q) => q.eq('examId', args.examId))
+      .filter((q) => q.eq(q.field('classId'), args.classId))
+      .collect();
+
+    return marks;
+  },
+});
+
+// Get marks statistics for an exam
+export const getExamMarksStats = query({
+  args: { examId: v.id('exams') },
+  handler: async (ctx, args) => {
+    const marks = await ctx.db
+      .query('studentMarks')
+      .withIndex('by_exam', (q) => q.eq('examId', args.examId))
+      .collect();
+
+    // Group by class and count unique students
+    const byClass: Record<string, Set<string>> = {};
+    marks.forEach((mark) => {
+      if (!byClass[mark.classId]) {
+        byClass[mark.classId] = new Set();
+      }
+      byClass[mark.classId].add(mark.studentId);
+    });
+
+    const classStats = Object.entries(byClass).map(([classId, studentIds]) => ({
+      classId,
+      studentCount: studentIds.size,
+      className: marks.find((m) => m.classId === classId)?.className || classId,
+    }));
+
+    return {
+      totalMarksEntries: marks.length,
+      uniqueStudents: new Set(marks.map((m) => m.studentId)).size,
+      classesCovered: classStats,
+    };
+  },
+});
+
 // Calculate positions for a subject
 export const calculatePositions = mutation({
   args: {

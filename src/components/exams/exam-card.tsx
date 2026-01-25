@@ -1,5 +1,7 @@
 'use client';
 
+import { useQuery } from 'convex/react';
+import { api } from '@/../convex/_generated/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -30,15 +32,41 @@ interface ExamCardProps {
   onEdit: (examId: Id<'exams'>) => void;
   onDelete: (examId: Id<'exams'>) => void;
   onEnterMarks: (examId: Id<'exams'>) => void;
+  onViewMarks: (examId: Id<'exams'>) => void;
 }
 
-export function ExamCard({ exam, onView, onEdit, onDelete, onEnterMarks }: ExamCardProps) {
+export function ExamCard({ exam, onView, onEdit, onDelete, onEnterMarks, onViewMarks }: ExamCardProps) {
   const subjects = exam.subjects ? JSON.parse(exam.subjects) : [];
+  
+  // Get marks statistics for this exam
+  const marksStats = useQuery(api.marks.getExamMarksStats, { examId: exam._id });
   
   const formatDepartment = (dept?: string): string => {
     if (!dept) return 'N/A';
     return dept.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   };
+  
+  // Calculate progress percentage
+  const getMarksProgress = (): { percentage: number; text: string } => {
+    if (!marksStats || marksStats.totalMarksEntries === 0) {
+      return { percentage: 0, text: 'No marks entered' };
+    }
+    
+    const totalEntries = marksStats.totalMarksEntries;
+    const students = marksStats.uniqueStudents;
+    const subjectsCount = subjects.length;
+    const expectedEntries = students * subjectsCount;
+    
+    if (expectedEntries === 0) return { percentage: 0, text: 'No marks entered' };
+    
+    const percentage = Math.round((totalEntries / expectedEntries) * 100);
+    return {
+      percentage,
+      text: `${students} student${students !== 1 ? 's' : ''} • ${totalEntries} entries`,
+    };
+  };
+  
+  const progress = getMarksProgress();
 
   return (
     <Card className="hover:shadow-lg hover:scale-[1.02] transition-all duration-300 border-l-4 border-l-gray-800 hover:border-l-black dark:border-l-gray-300 dark:hover:border-l-white">
@@ -68,8 +96,14 @@ export function ExamCard({ exam, onView, onEdit, onDelete, onEnterMarks }: ExamC
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => onEnterMarks(exam._id)} className="cursor-pointer">
                   <ClipboardEdit className="h-4 w-4 mr-2 text-green-600" />
-                  <span className="text-black dark:text-white">Enter Marks</span>
+                  <span className="text-black dark:text-white">{marksStats && marksStats.totalMarksEntries > 0 ? 'Edit Marks' : 'Enter Marks'}</span>
                 </DropdownMenuItem>
+                {marksStats && marksStats.totalMarksEntries > 0 && (
+                  <DropdownMenuItem onClick={() => onViewMarks(exam._id)} className="cursor-pointer">
+                    <Eye className="h-4 w-4 mr-2 text-blue-600" />
+                    <span className="text-black dark:text-white">View All Marks</span>
+                  </DropdownMenuItem>
+                )}
                 {exam.status !== 'published' && (
                   <>
                     <DropdownMenuSeparator />
@@ -121,6 +155,22 @@ export function ExamCard({ exam, onView, onEdit, onDelete, onEnterMarks }: ExamC
           <span className="text-black dark:text-gray-300">Weightage:</span>
           <span className="font-semibold text-black dark:text-white">{exam.weightage}%</span>
         </div>
+
+        {marksStats && marksStats.totalMarksEntries > 0 && (
+          <div className="space-y-2 p-3 bg-muted/30 rounded-lg">
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-muted-foreground">Marks Progress</span>
+              <span className="font-semibold text-black dark:text-white">{progress.percentage}%</span>
+            </div>
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+              <div
+                className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${progress.percentage}%` }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">{progress.text}</p>
+          </div>
+        )}
 
         <div className="pt-2 border-t grid grid-cols-2 gap-4">
           <div className="text-xs text-black dark:text-gray-400">

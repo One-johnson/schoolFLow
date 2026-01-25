@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery } from 'convex/react';
-import { api } from '../../../../convex/_generated/api';
+import { api } from '@/../convex/_generated/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -20,6 +20,7 @@ import { GenerateReportCardsDialog } from '@/components/exams/generate-report-ca
 import { ReportCardPreview } from '@/components/exams/report-card-preview';
 import { BulkMarksUploadDialog } from '@/components/exams/bulk-marks-upload-dialog';
 import { ExamCard } from '@/components/exams/exam-card';
+import { ViewMarksDialog } from '@/components/exams/view-marks-dialog';
 import type { Id } from '../../../../convex/_generated/dataModel';
 
 export default function ExamsPage() {
@@ -45,6 +46,7 @@ export default function ExamsPage() {
   const [showGradingScale, setShowGradingScale] = useState<boolean>(false);
   const [showGenerateReports, setShowGenerateReports] = useState<boolean>(false);
   const [showBulkUpload, setShowBulkUpload] = useState<boolean>(false);
+  const [showViewMarks, setShowViewMarks] = useState<boolean>(false);
   const [selectedExamId, setSelectedExamId] = useState<Id<'exams'> | null>(null);
   const [selectedExamName, setSelectedExamName] = useState<string>('');
   const [selectedReportCardId, setSelectedReportCardId] = useState<Id<'reportCards'> | null>(null);
@@ -81,6 +83,11 @@ export default function ExamsPage() {
   const handleEnterMarks = (examId: Id<'exams'>): void => {
     setSelectedExamId(examId);
     setShowMarksEntry(true);
+  };
+
+  const handleViewMarks = (examId: Id<'exams'>): void => {
+    setSelectedExamId(examId);
+    setShowViewMarks(true);
   };
 
   if (!schoolId) {
@@ -183,6 +190,7 @@ export default function ExamsPage() {
                   onEdit={handleEditExam}
                   onDelete={handleDeleteExam}
                   onEnterMarks={handleEnterMarks}
+                  onViewMarks={handleViewMarks}
                 />
               ))}
             </div>
@@ -363,6 +371,13 @@ export default function ExamsPage() {
                 open={showBulkUpload}
                 onOpenChange={setShowBulkUpload}
                 examId={selectedExamId}
+              />
+
+              <ViewMarksDialog
+                open={showViewMarks}
+                onOpenChange={setShowViewMarks}
+                examId={selectedExamId}
+                schoolId={schoolId}
               />
             </>
           )}
