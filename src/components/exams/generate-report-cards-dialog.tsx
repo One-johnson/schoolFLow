@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, FileText } from 'lucide-react';
-import type { Id } from '../../../convex/_generated/dataModel';;
+import type { Id } from '../../../convex/_generated/dataModel';
 
 interface GenerateReportCardsDialogProps {
   open: boolean;
@@ -36,13 +36,21 @@ export function GenerateReportCardsDialog({
   schoolId,
 }: GenerateReportCardsDialogProps) {
   const { toast } = useToast();
-  const generateReportCards = useMutation(api.reportCards.generateReportCard);
+  const generateReportCards = useMutation(api.reportCards.generateReportCards);
   const exams = useQuery(api.exams.getExamsBySchool, { schoolId });
   const classes = useQuery(api.classes.getClassesBySchool, { schoolId });
+  const students = useQuery(api.students.getStudentsBySchool, { schoolId });
 
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [selectedExamId, setSelectedExamId] = useState<string>('');
   const [selectedClassId, setSelectedClassId] = useState<string>('');
+
+  // Get class details and student count for selected class
+  const selectedClass = classes?.find((cls) => cls.classCode === selectedClassId);
+  const classStudents = students?.filter(
+    (s) => s.classId === selectedClass?.classCode && s.status !== 'graduated'
+  );
+  const studentCount = classStudents?.length || 0;
 
   const handleGenerate = async (): Promise<void> => {
     if (!selectedExamId || !selectedClassId) {
@@ -56,23 +64,34 @@ export function GenerateReportCardsDialog({
 
     setIsGenerating(true);
     try {
-      await generateReportCards({
+      const result = await generateReportCards({
         examId: selectedExamId as Id<'exams'>,
         classId: selectedClassId,
-        schoolId: '',
-        createdBy: '',
-        studentId: ''
       });
 
+      // Show success message with count
       toast({
-        title: 'Success',
-        description: 'Report cards generated successfully',
+        title: '✅ Report Cards Generated',
+        description: `Successfully generated ${result.count} report card${result.count > 1 ? 's' : ''}${result.errors && result.errors.length > 0 ? ` (${result.errors.length} error${result.errors.length > 1 ? 's' : ''})` : ''}`,
       });
+
+      // Show errors if any
+      if (result.errors && result.errors.length > 0) {
+        result.errors.forEach((error: string) => {
+          toast({
+            title: '⚠️ Partial Error',
+            description: error,
+            variant: 'destructive',
+          });
+        });
+      }
 
       onOpenChange(false);
+      setSelectedExamId('');
+      setSelectedClassId('');
     } catch (error) {
       toast({
-        title: 'Error',
+        title: '❌ Generation Failed',
         description: error instanceof Error ? error.message : 'Failed to generate report cards',
         variant: 'destructive',
       });
@@ -115,13 +134,23 @@ export function GenerateReportCardsDialog({
                 <SelectValue placeholder="Choose class" />
               </SelectTrigger>
               <SelectContent>
-                {classes?.map((cls) => (
-                  <SelectItem key={cls._id} value={cls._id}>
-                    {cls.className}
-                  </SelectItem>
-                ))}
+                {classes?.map((cls) => {
+                  const classStudentCount = students?.filter(
+                    (s) => s.classId === cls.classCode && s.status !== 'graduated'
+                  ).length || 0;
+                  return (
+                    <SelectItem key={cls._id} value={cls.classCode}>
+                      {cls.className} ({classStudentCount} student{classStudentCount !== 1 ? 's' : ''})
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
+            {selectedClassId && (
+              <p className="text-sm text-muted-foreground">
+                📊 {studentCount} student{studentCount !== 1 ? 's' : ''} will receive report cards
+              </p>
+            )}
           </div>
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900">

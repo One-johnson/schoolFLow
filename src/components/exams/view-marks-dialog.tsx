@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import {
   Table,
@@ -30,11 +30,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Download, Search, Eye, EyeOff, FileText, Users, BookOpen, ChevronRight, GraduationCap, ChevronLeft } from 'lucide-react';
+import { Download, Search, Eye, EyeOff, FileText, Users, BookOpen, ChevronRight, GraduationCap, ChevronLeft, Trash2, Trash } from 'lucide-react';
 import type { Id } from '../../../convex/_generated/dataModel';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DeleteMarkDialog } from './delete-marks-dialog';
+import { BulkDeleteMarksDialog } from './bulk-delete-marks-dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface ViewMarksDialogProps {
   open: boolean;
@@ -72,6 +75,10 @@ export function ViewMarksDialog({ open, onOpenChange, examId, schoolId }: ViewMa
   const [viewAllMode, setViewAllMode] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedStudent, setSelectedStudent] = useState<StudentMarksSummary | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
+  const [markToDelete, setMarkToDelete] = useState<{ id: Id<'studentMarks'>; studentName: string; subjectName: string } | null>(null);
+  const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState<boolean>(false);
 
   // Get the selected class object to access classCode
   const selectedClassObj = allClasses?.find((c) => c._id === selectedClass);
@@ -233,6 +240,7 @@ export function ViewMarksDialog({ open, onOpenChange, examId, schoolId }: ViewMa
     setViewAllMode(!viewAllMode);
     setSearchQuery('');
     setSelectedStudent(null);
+    setSelectedStudents(new Set());
   };
 
   const handleStudentClick = (student: StudentMarksSummary): void => {
@@ -262,6 +270,69 @@ export function ViewMarksDialog({ open, onOpenChange, examId, schoolId }: ViewMa
       setSelectedStudent(filteredStudents[currentIndex - 1]);
     }
   };
+
+  const handleDeleteClick = (markId: Id<'studentMarks'>, studentName: string, subjectName: string): void => {
+    setMarkToDelete({ id: markId, studentName, subjectName });
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteSuccess = (): void => {
+    // The marks will automatically refresh due to the query
+    setMarkToDelete(null);
+  };
+
+  const handleBulkDeleteSuccess = (): void => {
+    // The marks will automatically refresh due to the query
+    setSelectedStudents(new Set());
+  };
+
+  const handleSelectStudent = (studentId: string, checked: boolean): void => {
+    const newSelected = new Set(selectedStudents);
+    if (checked) {
+      newSelected.add(studentId);
+    } else {
+      newSelected.delete(studentId);
+    }
+    setSelectedStudents(newSelected);
+  };
+
+  const handleSelectAll = (checked: boolean): void => {
+    if (checked) {
+      const allIds = new Set(filteredStudents.map((s) => s.studentConvexId));
+      setSelectedStudents(allIds);
+    } else {
+      setSelectedStudents(new Set());
+    }
+  };
+
+  const handleDeleteStudent = (studentId: string): void => {
+    const student = filteredStudents.find((s) => s.studentConvexId === studentId);
+    if (student) {
+      const markIds = student.marks.map((m) => m._id);
+      setSelectedStudents(new Set([studentId]));
+      setBulkDeleteDialogOpen(true);
+    }
+  };
+
+  const handleBulkDelete = (): void => {
+    if (selectedStudents.size === 0) return;
+    setBulkDeleteDialogOpen(true);
+  };
+
+  // Get mark IDs for selected students
+  const selectedMarkIds = useMemo(() => {
+    const markIds: Array<Id<'studentMarks'>> = [];
+    selectedStudents.forEach((studentId) => {
+      const student = filteredStudents.find((s) => s.studentConvexId === studentId);
+      if (student) {
+        markIds.push(...student.marks.map((m) => m._id));
+      }
+    });
+    return markIds;
+  }, [selectedStudents, filteredStudents]);
+
+  const isAllSelected = filteredStudents.length > 0 && selectedStudents.size === filteredStudents.length;
+  const isSomeSelected = selectedStudents.size > 0 && selectedStudents.size < filteredStudents.length;
 
   const currentStudentIndex = selectedStudent
     ? filteredStudents.findIndex((s) => s.studentConvexId === selectedStudent.studentConvexId) + 1
@@ -481,6 +552,7 @@ export function ViewMarksDialog({ open, onOpenChange, examId, schoolId }: ViewMa
                           <TableHead className="text-center">Percentage</TableHead>
                           <TableHead className="text-center">Grade</TableHead>
                           <TableHead className="min-w-[100px]">Status</TableHead>
+                          <TableHead className="text-right">Action</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -498,6 +570,16 @@ export function ViewMarksDialog({ open, onOpenChange, examId, schoolId }: ViewMa
                               <Badge variant={mark.isAbsent ? 'destructive' : 'default'}>
                                 {mark.isAbsent ? 'Absent' : mark.remarks}
                               </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteClick(mark._id, selectedStudent.studentName, mark.subjectName)}
+                                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -556,8 +638,18 @@ export function ViewMarksDialog({ open, onOpenChange, examId, schoolId }: ViewMa
                     </Card>
                   </div>
 
-                  {/* Search and Export */}
+                  {/* Search, Bulk Actions, and Export */}
                   <div className="flex gap-3 items-end">
+                    {selectedStudents.size > 0 && (
+                      <Button
+                        variant="destructive"
+                        onClick={handleBulkDelete}
+                        size="default"
+                      >
+                        <Trash className="h-4 w-4 mr-2" />
+                        Delete {selectedStudents.size} Student(s)
+                      </Button>
+                    )}
                     <div className="flex-1 space-y-2">
                       <Label htmlFor="search">Search Students</Label>
                       <div className="relative">
@@ -583,12 +675,20 @@ export function ViewMarksDialog({ open, onOpenChange, examId, schoolId }: ViewMa
                     <Table>
                       <TableHeader className="bg-muted sticky top-0 z-10">
                         <TableRow>
+                          <TableHead className="w-[50px]">
+                            <Checkbox
+                              checked={isAllSelected}
+                              onCheckedChange={handleSelectAll}
+                              aria-label="Select all students"
+                              className={isSomeSelected ? 'data-[state=checked]:bg-primary/50' : ''}
+                            />
+                          </TableHead>
                           <TableHead className="min-w-[200px]">Student Name</TableHead>
                           <TableHead className="min-w-[150px]">Student ID</TableHead>
                           <TableHead className="text-center">Subjects</TableHead>
                           <TableHead className="text-center">Average Score</TableHead>
                           <TableHead className="text-center">Average %</TableHead>
-                          <TableHead className="text-right">Action</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -596,18 +696,43 @@ export function ViewMarksDialog({ open, onOpenChange, examId, schoolId }: ViewMa
                           filteredStudents.map((student) => (
                             <TableRow 
                               key={student.studentConvexId} 
-                              className="cursor-pointer hover:bg-muted/50"
-                              onClick={() => handleStudentClick(student)}
+                              className="hover:bg-muted/50"
                             >
-                              <TableCell className="font-medium">{student.studentName}</TableCell>
-                              <TableCell className="text-muted-foreground">{student.customStudentId}</TableCell>
-                              <TableCell className="text-center">
+                              <TableCell onClick={(e) => e.stopPropagation()}>
+                                <Checkbox
+                                  checked={selectedStudents.has(student.studentConvexId)}
+                                  onCheckedChange={(checked) => handleSelectStudent(student.studentConvexId, checked as boolean)}
+                                  aria-label={`Select ${student.studentName}`}
+                                />
+                              </TableCell>
+                              <TableCell 
+                                className="font-medium cursor-pointer"
+                                onClick={() => handleStudentClick(student)}
+                              >
+                                {student.studentName}
+                              </TableCell>
+                              <TableCell 
+                                className="text-muted-foreground cursor-pointer"
+                                onClick={() => handleStudentClick(student)}
+                              >
+                                {student.customStudentId}
+                              </TableCell>
+                              <TableCell 
+                                className="text-center cursor-pointer"
+                                onClick={() => handleStudentClick(student)}
+                              >
                                 <Badge variant="secondary">{student.totalSubjects}</Badge>
                               </TableCell>
-                              <TableCell className="text-center font-medium">
+                              <TableCell 
+                                className="text-center font-medium cursor-pointer"
+                                onClick={() => handleStudentClick(student)}
+                              >
                                 {student.averageScore.toFixed(1)}
                               </TableCell>
-                              <TableCell className="text-center">
+                              <TableCell 
+                                className="text-center cursor-pointer"
+                                onClick={() => handleStudentClick(student)}
+                              >
                                 <Badge 
                                   variant={
                                     student.averagePercentage >= 75 ? 'default' :
@@ -618,17 +743,31 @@ export function ViewMarksDialog({ open, onOpenChange, examId, schoolId }: ViewMa
                                   {student.averagePercentage.toFixed(1)}%
                                 </Badge>
                               </TableCell>
-                              <TableCell className="text-right">
-                                <Button variant="ghost" size="sm">
-                                  View Details
-                                  <ChevronRight className="h-4 w-4 ml-1" />
-                                </Button>
+                              <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex items-center justify-end gap-1">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    onClick={() => handleStudentClick(student)}
+                                  >
+                                    View Details
+                                    <ChevronRight className="h-4 w-4 ml-1" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteStudent(student.studentConvexId)}
+                                    className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
                               </TableCell>
                             </TableRow>
                           ))
                         ) : (
                           <TableRow>
-                            <TableCell colSpan={6} className="h-32">
+                            <TableCell colSpan={7} className="h-32">
                               <div className="flex flex-col items-center justify-center text-center">
                                 <Users className="h-10 w-10 text-muted-foreground/50 mb-2" />
                                 <p className="text-sm font-medium text-muted-foreground">
@@ -691,6 +830,25 @@ export function ViewMarksDialog({ open, onOpenChange, examId, schoolId }: ViewMa
           )}
         </div>
       </DialogContent>
+
+      {markToDelete && (
+        <DeleteMarkDialog
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          markId={markToDelete.id}
+          studentName={markToDelete.studentName}
+          subjectName={markToDelete.subjectName}
+          onSuccess={handleDeleteSuccess}
+        />
+      )}
+
+      <BulkDeleteMarksDialog
+        open={bulkDeleteDialogOpen}
+        onOpenChange={setBulkDeleteDialogOpen}
+        markIds={selectedMarkIds}
+        studentCount={selectedStudents.size}
+        onSuccess={handleBulkDeleteSuccess}
+      />
     </Dialog>
   );
 }

@@ -1,11 +1,48 @@
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
 import type { Id } from './_generated/dataModel';
+import { calculateGradeFromScale } from './gradeCalculator';
 
 // Helper function to generate report code
 function generateReportCode(): string {
   const digits: string = Math.random().toString().slice(2, 10);
   return `RPT${digits}`;
+}
+
+// Helper function to get grading scale for a class/department
+async function getGradingScaleForDepartment(
+  ctx: { db: any },
+  schoolId: string,
+  department: string | undefined
+): Promise<{ _id: Id<'gradingScales'>; scaleName: string; grades: string } | null> {
+  // Try to find scale for specific department
+  if (department) {
+    const departmentScale = await ctx.db
+      .query('gradingScales')
+      .withIndex('by_school', (q: any) => q.eq('schoolId', schoolId))
+      .filter((q: any) =>
+        q.and(
+          q.eq(q.field('department'), department),
+          q.eq(q.field('status'), 'active')
+        )
+      )
+      .first();
+
+    if (departmentScale) {
+      return departmentScale;
+    }
+  }
+
+  // Fall back to default scale for the school
+  const defaultScale = await ctx.db
+    .query('gradingScales')
+    .withIndex('by_default', (q: any) =>
+      q.eq('schoolId', schoolId).eq('isDefault', true)
+    )
+    .filter((q: any) => q.eq(q.field('status'), 'active'))
+    .first();
+
+  return defaultScale;
 }
 
 // Generate report card for a student
@@ -38,15 +75,18 @@ export const generateReportCard = mutation({
     const reportCode: string = generateReportCode();
     const now: string = new Date().toISOString();
 
-    // Get student details by _id
-    const student = await ctx.db.get(args.studentId as Id<'students'>);
+    // Get student details by studentId field
+    const student = await ctx.db
+      .query('students')
+      .filter((q) => q.eq(q.field('studentId'), args.studentId))
+      .first();
 
     if (!student) throw new Error('Student not found');
 
     // Get class details
     const classDoc = await ctx.db
       .query('classes')
-      .filter((q) => q.eq(q.field('_id'), args.classId))
+      .filter((q) => q.eq(q.field('classCode'), args.classId))
       .first();
 
     if (!classDoc) throw new Error('Class not found');
@@ -84,16 +124,33 @@ export const generateReportCard = mutation({
     // Calculate overall percentage
     const percentage: number = (totalScore / rawScore) * 100;
 
-    // Calculate overall grade
+    // Get grading scale and calculate overall grade
+    const gradingScale = await getGradingScaleForDepartment(
+      ctx,
+      args.schoolId,
+      classDoc.department
+    );
+
     let overallGrade: string = '9';
-    if (percentage >= 80) overallGrade = '1';
-    else if (percentage >= 70) overallGrade = '2';
-    else if (percentage >= 65) overallGrade = '3';
-    else if (percentage >= 60) overallGrade = '4';
-    else if (percentage >= 55) overallGrade = '5';
-    else if (percentage >= 50) overallGrade = '6';
-    else if (percentage >= 45) overallGrade = '7';
-    else if (percentage >= 40) overallGrade = '8';
+    let gradingScaleId: Id<'gradingScales'> | undefined;
+    let gradingScaleName: string | undefined;
+
+    if (gradingScale) {
+      const gradeResult = calculateGradeFromScale(percentage, gradingScale);
+      overallGrade = gradeResult.grade;
+      gradingScaleId = gradingScale._id;
+      gradingScaleName = gradingScale.scaleName;
+    } else {
+      // Fallback to hardcoded grading
+      if (percentage >= 80) overallGrade = '1';
+      else if (percentage >= 70) overallGrade = '2';
+      else if (percentage >= 65) overallGrade = '3';
+      else if (percentage >= 60) overallGrade = '4';
+      else if (percentage >= 55) overallGrade = '5';
+      else if (percentage >= 50) overallGrade = '6';
+      else if (percentage >= 45) overallGrade = '7';
+      else if (percentage >= 40) overallGrade = '8';
+    }
 
     // Calculate class position
     const allStudentsInClass = await ctx.db
@@ -152,6 +209,8 @@ export const generateReportCard = mutation({
         overallGrade,
         position,
         totalStudents: allStudentsInClass.length,
+        gradingScaleId,
+        gradingScaleName,
         attendance: args.attendance,
         conduct: args.conduct,
         attitude: args.attitude,
@@ -192,6 +251,8 @@ export const generateReportCard = mutation({
         overallGrade,
         position,
         totalStudents: allStudentsInClass.length,
+        gradingScaleId,
+        gradingScaleName,
         attendance: args.attendance,
         conduct: args.conduct,
         attitude: args.attitude,
@@ -229,19 +290,51 @@ export const generateReportCards = mutation({
     const exam = await ctx.db.get(args.examId);
     if (!exam) throw new Error('Exam not found');
 
-    // Get class details by _id
-    const classDoc = await ctx.db.get(args.classId as Id<'classes'>);
+    // Get class details by classCode field
+    const classDoc = await ctx.db
+      .query('classes')
+      .filter((q) => q.eq(q.field('classCode'), args.classId))
+      .first();
     if (!classDoc) throw new Error('Class not found');
 
-    // Get all students in the class using classCode
+    // Fetch academic year details
+    let academicYearName: string | undefined;
+    if (exam.academicYearId) {
+      const academicYear = await ctx.db
+        .query('academicYears')
+        .filter((q) => q.eq(q.field('yearCode'), exam.academicYearId))
+        .first();
+      academicYearName = academicYear?.yearName;
+    }
+
+    // Fetch term details
+    let termName: string | undefined;
+    if (exam.termId) {
+      const term = await ctx.db
+        .query('terms')
+        .filter((q) => q.eq(q.field('termCode'), exam.termId))
+        .first();
+      termName = term?.termName;
+    }
+
+    // Fetch school details
+    const school = await ctx.db
+      .query('schools')
+      .withIndex('by_school_id', (q) => q.eq('schoolId', exam.schoolId))
+      .first();
+    const schoolName = school?.name;
+    const schoolAddress = school?.address;
+    const schoolPhone = school?.phone;
+
+    // Get all students in the class using class code (exclude graduated students)
     const students = await ctx.db
       .query('students')
       .withIndex('by_class', (q) => q.eq('classId', classDoc.classCode))
-      .filter((q) => q.eq(q.field('status'), 'active'))
+      .filter((q) => q.neq(q.field('status'), 'graduated'))
       .collect();
 
     if (students.length === 0) {
-      throw new Error('No active students found in the selected class');
+      throw new Error('No students found in the selected class (excluding graduated students)');
     }
 
     const reportIds: Id<'reportCards'>[] = [];
@@ -254,7 +347,7 @@ export const generateReportCards = mutation({
         const marks = await ctx.db
           .query('studentMarks')
           .withIndex('by_exam', (q) => q.eq('examId', args.examId))
-          .filter((q) => q.eq(q.field('studentId'), student._id))
+          .filter((q) => q.eq(q.field('studentId'), student.studentId))
           .collect();
 
         if (marks.length === 0) {
@@ -286,16 +379,33 @@ export const generateReportCards = mutation({
         // Calculate overall percentage
         const percentage: number = (totalScore / rawScore) * 100;
 
-        // Calculate overall grade
+        // Get grading scale and calculate overall grade
+        const gradingScale = await getGradingScaleForDepartment(
+          ctx,
+          exam.schoolId,
+          classDoc.department
+        );
+
         let overallGrade: string = '9';
-        if (percentage >= 80) overallGrade = '1';
-        else if (percentage >= 70) overallGrade = '2';
-        else if (percentage >= 65) overallGrade = '3';
-        else if (percentage >= 60) overallGrade = '4';
-        else if (percentage >= 55) overallGrade = '5';
-        else if (percentage >= 50) overallGrade = '6';
-        else if (percentage >= 45) overallGrade = '7';
-        else if (percentage >= 40) overallGrade = '8';
+        let gradingScaleId: Id<'gradingScales'> | undefined;
+        let gradingScaleName: string | undefined;
+
+        if (gradingScale) {
+          const gradeResult = calculateGradeFromScale(percentage, gradingScale);
+          overallGrade = gradeResult.grade;
+          gradingScaleId = gradingScale._id;
+          gradingScaleName = gradingScale.scaleName;
+        } else {
+          // Fallback to hardcoded grading
+          if (percentage >= 80) overallGrade = '1';
+          else if (percentage >= 70) overallGrade = '2';
+          else if (percentage >= 65) overallGrade = '3';
+          else if (percentage >= 60) overallGrade = '4';
+          else if (percentage >= 55) overallGrade = '5';
+          else if (percentage >= 50) overallGrade = '6';
+          else if (percentage >= 45) overallGrade = '7';
+          else if (percentage >= 40) overallGrade = '8';
+        }
 
         // Get marks for all students in class to calculate position
         const allMarks = await ctx.db
@@ -318,7 +428,7 @@ export const generateReportCards = mutation({
 
         let position: number = 0;
         for (let i: number = 0; i < sortedStudents.length; i++) {
-          if (sortedStudents[i][0] === student._id) {
+          if (sortedStudents[i][0] === student.studentId) {
             position = i + 1;
             break;
           }
@@ -328,7 +438,7 @@ export const generateReportCards = mutation({
         const existing = await ctx.db
           .query('reportCards')
           .withIndex('by_student', (q) =>
-            q.eq('schoolId', exam.schoolId).eq('studentId', student._id)
+            q.eq('schoolId', exam.schoolId).eq('studentId', student.studentId)
           )
           .filter((q) =>
             q.and(
@@ -348,6 +458,13 @@ export const generateReportCards = mutation({
             overallGrade,
             position,
             totalStudents: students.length,
+            gradingScaleId,
+            gradingScaleName,
+            academicYearName,
+            termName,
+            schoolName,
+            schoolAddress,
+            schoolPhone,
             version: (existing.version || 1) + 1,
             previousVersionId: existing._id,
             generatedAt: now,
@@ -360,12 +477,17 @@ export const generateReportCards = mutation({
           const reportId: Id<'reportCards'> = await ctx.db.insert('reportCards', {
             schoolId: exam.schoolId,
             reportCode: generateReportCode(),
-            studentId: student._id,
+            studentId: student.studentId,
             studentName: `${student.firstName} ${student.lastName}`,
             classId: classDoc.classCode,
             className: classDoc.className,
             academicYearId: exam.academicYearId,
+            academicYearName,
             termId: exam.termId,
+            termName,
+            schoolName,
+            schoolAddress,
+            schoolPhone,
             subjects: JSON.stringify(subjects),
             rawScore,
             totalScore,
@@ -373,6 +495,8 @@ export const generateReportCards = mutation({
             overallGrade,
             position,
             totalStudents: students.length,
+            gradingScaleId,
+            gradingScaleName,
             promotionStatus: undefined,
             status: 'draft',
             version: 1,
@@ -416,11 +540,11 @@ export const bulkGenerateReportCards = mutation({
     createdBy: v.string(),
   },
   handler: async (ctx, args) => {
-    // Get all students in class
+    // Get all students in class using class code (exclude graduated students)
     const students = await ctx.db
       .query('students')
       .withIndex('by_class', (q) => q.eq('classId', args.classId))
-      .filter((q) => q.eq(q.field('status'), 'active'))
+      .filter((q) => q.neq(q.field('status'), 'graduated'))
       .collect();
 
     const reportIds: Id<'reportCards'>[] = [];
@@ -583,5 +707,29 @@ export const updateReportCard = mutation({
     });
 
     return reportId;
+  },
+});
+
+// Delete a single report card
+export const deleteReportCard = mutation({
+  args: {
+    reportCardId: v.id('reportCards'),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.delete(args.reportCardId);
+    return { success: true };
+  },
+});
+
+// Bulk delete report cards
+export const bulkDeleteReportCards = mutation({
+  args: {
+    reportCardIds: v.array(v.id('reportCards')),
+  },
+  handler: async (ctx, args) => {
+    for (const reportCardId of args.reportCardIds) {
+      await ctx.db.delete(reportCardId);
+    }
+    return { success: true, count: args.reportCardIds.length };
   },
 });
