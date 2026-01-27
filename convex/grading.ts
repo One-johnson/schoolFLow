@@ -176,3 +176,12 @@ export const deleteGradingScale = mutation({
     return { success: true };
   },
 });
+
+
+export const getGradingScaleById = query({
+  args: { scaleId: v.id('gradingScales') },
+  handler: async (ctx, args) => {
+    const scale = await ctx.db.get(args.scaleId);
+    return scale;
+  },
+});

@@ -23,7 +23,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, Download, Upload, CheckCircle2, AlertCircle, Info } from 'lucide-react';
 import type { Id } from '../../../convex/_generated/dataModel';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import { Badge } from '@/components/ui/badge';
 import { CSVMarksImportDialog } from './csv-marks-import-dialog';
 import {
@@ -139,7 +139,7 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
         subjects.forEach((subject) => {
           // Check if existing marks exist for this student and subject
           const existingMark = existingMarks?.find(
-            (m) => m.studentId === s._id && m.subjectName === subject.name
+            (m) => m.studentId === s.studentId && m.subjectName === subject.name
           );
           
           subjectsMap[subject.name] = existingMark 
@@ -148,7 +148,7 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
         });
         
         return {
-          studentId: s._id,
+          studentId: s.studentId,
           studentName: `${s.firstName} ${s.lastName}`,
           subjects: subjectsMap,
         };
@@ -284,7 +284,7 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
               examId,
               examCode: exam?.examCode || '',
               examName: exam?.examName || '',
-              studentId: student.studentId as Id<'students'>,
+              studentId: student.studentId,
               studentName: student.studentName,
               classId: selectedClass.classCode,
               className: selectedClass.className,

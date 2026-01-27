@@ -300,3 +300,23 @@ export const calculatePositions = mutation({
     return { success: true };
   },
 });
+
+// Delete a mark entry
+export const deleteMark = mutation({
+  args: {
+    markId: v.id('studentMarks'),
+  },
+  handler: async (ctx, args): Promise<{ success: boolean }> => {
+    // Check if mark exists
+    const mark = await ctx.db.get(args.markId);
+    
+    if (!mark) {
+      throw new Error('Mark not found');
+    }
+
+    // Delete the mark
+    await ctx.db.delete(args.markId);
+
+    return { success: true };
+  },
+});

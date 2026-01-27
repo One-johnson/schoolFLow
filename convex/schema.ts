@@ -810,7 +810,7 @@ export default defineSchema({
     .index('by_student', ['schoolId', 'studentId'])
     .index('by_sent_date', ['sentDate']),
 
-     events: defineTable({
+  events: defineTable({
     schoolId: v.string(),
     eventCode: v.string(), // Auto-generated: EVT + 8 random digits
     eventTitle: v.string(),
@@ -952,8 +952,7 @@ export default defineSchema({
     .index('by_status', ['deliveryStatus'])
     .index('by_sent_date', ['sentAt']),
 
-
-    exams: defineTable({
+  exams: defineTable({
     schoolId: v.string(),
     examCode: v.string(), // Auto-generated: EXM + 8 digits
     examName: v.string(), // e.g., "Mid-Term Exam", "Final Exam"
@@ -1066,7 +1065,7 @@ export default defineSchema({
     .index('by_status', ['status'])
     .index('by_default', ['schoolId', 'isDefault']),
 
-  reportCards: defineTable({
+ reportCards: defineTable({
     schoolId: v.string(),
     reportCode: v.string(), // Auto-generated: RPT + 8 digits
     studentId: v.string(), // References students table
@@ -1074,8 +1073,12 @@ export default defineSchema({
     classId: v.string(),
     className: v.string(), // Denormalized
     academicYearId: v.optional(v.string()),
+    academicYearName: v.optional(v.string()), // e.g., "2024/2025"
     termId: v.optional(v.string()),
     termName: v.optional(v.string()), // e.g., "2nd Term"
+    schoolName: v.optional(v.string()), // Denormalized from schools table
+    schoolAddress: v.optional(v.string()), // Denormalized from schools table
+    schoolPhone: v.optional(v.string()), // Denormalized from schools table
     year: v.optional(v.string()), // e.g., "2025"
     house: v.optional(v.string()), // Student's house (Jubilee, Ambassadors, etc.)
     subjects: v.string(), // JSON array of subject results
@@ -1102,6 +1105,15 @@ export default defineSchema({
     vacationDate: v.optional(v.string()),
     reopeningDate: v.optional(v.string()),
     termlyPerformance: v.optional(v.string()), // JSON: {term1: 497, term2: 562, term3: null}
+    // Grading scale references
+    gradingScaleId: v.optional(v.id('gradingScales')),
+    gradingScaleName: v.optional(v.string()),
+    // Review workflow fields
+    reviewedBy: v.optional(v.string()), // Teacher ID who reviewed
+    reviewedByName: v.optional(v.string()), // Teacher name
+    reviewedAt: v.optional(v.string()), // ISO timestamp
+    verifiedByClassTeacher: v.optional(v.boolean()), // Approval flag
+    reviewNotes: v.optional(v.string()), // Internal notes
     status: v.union(
       v.literal('draft'),
       v.literal('generated'),
