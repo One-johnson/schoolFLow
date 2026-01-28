@@ -952,7 +952,7 @@ export default defineSchema({
     .index('by_status', ['deliveryStatus'])
     .index('by_sent_date', ['sentAt']),
 
-  exams: defineTable({
+ exams: defineTable({
     schoolId: v.string(),
     examCode: v.string(), // Auto-generated: EXM + 8 digits
     examName: v.string(), // e.g., "Mid-Term Exam", "Final Exam"
@@ -986,6 +986,12 @@ export default defineSchema({
       v.literal('completed'),
       v.literal('published')
     ),
+    // Unlock mechanism for published exams
+    unlocked: v.optional(v.boolean()), // Whether exam is temporarily unlocked for corrections
+    unlockedBy: v.optional(v.string()), // Admin ID who unlocked
+    unlockedByName: v.optional(v.string()), // Admin name
+    unlockedAt: v.optional(v.string()), // When it was unlocked
+    unlockReason: v.optional(v.string()), // Reason for unlocking
     createdAt: v.string(),
     updatedAt: v.string(),
     createdBy: v.string(), // School Admin ID

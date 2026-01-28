@@ -91,7 +91,7 @@ export const getExamById = query({
   },
 });
 
-// Update exam
+// Update exam (with status validation)
 export const updateExam = mutation({
   args: {
     examId: v.id('exams'),
@@ -121,10 +121,22 @@ export const updateExam = mutation({
         v.literal('published')
       )
     ),
+    adminOverride: v.optional(v.boolean()), // Allow admin to override lock
   },
   handler: async (ctx, args) => {
-    const { examId, ...updates } = args;
+    const { examId, adminOverride, ...updates } = args;
     const now: string = new Date().toISOString();
+
+    // Check current exam status
+    const exam = await ctx.db.get(examId);
+    if (!exam) {
+      throw new Error('Exam not found');
+    }
+
+    // Block editing published exams unless unlocked or admin override
+    if (exam.status === 'published' && !exam.unlocked && !adminOverride) {
+      throw new Error('Cannot edit published exam. Please unlock it first to make corrections.');
+    }
 
     await ctx.db.patch(examId, {
       ...updates,
@@ -164,6 +176,88 @@ export const publishExam = mutation({
     await ctx.db.patch(args.examId, {
       status: 'published',
       updatedAt: now,
+    });
+
+    return { success: true };
+  },
+});
+
+// Unlock exam for corrections
+export const unlockExam = mutation({
+  args: {
+    examId: v.id('exams'),
+    adminId: v.string(),
+    adminName: v.string(),
+    reason: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const now: string = new Date().toISOString();
+    const exam = await ctx.db.get(args.examId);
+
+    if (!exam) {
+      throw new Error('Exam not found');
+    }
+
+    // Only allow unlocking completed or published exams
+    if (exam.status !== 'completed' && exam.status !== 'published') {
+      throw new Error('Only completed or published exams can be unlocked');
+    }
+
+    await ctx.db.patch(args.examId, {
+      unlocked: true,
+      unlockedBy: args.adminId,
+      unlockedByName: args.adminName,
+      unlockedAt: now,
+      unlockReason: args.reason,
+      updatedAt: now,
+    });
+
+    // Create audit log
+    await ctx.db.insert('auditLogs', {
+      timestamp: now,
+      userId: args.adminId,
+      userName: args.adminName,
+      action: 'unlock_exam',
+      entity: 'exams',
+      entityId: args.examId,
+      details: `Unlocked exam "${exam.examName}" for corrections. Reason: ${args.reason}`,
+      ipAddress: '0.0.0.0', // Will be updated from client if needed
+    });
+
+    return { success: true };
+  },
+});
+
+// Lock exam after corrections
+export const lockExam = mutation({
+  args: {
+    examId: v.id('exams'),
+    adminId: v.string(),
+    adminName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const now: string = new Date().toISOString();
+    const exam = await ctx.db.get(args.examId);
+
+    if (!exam) {
+      throw new Error('Exam not found');
+    }
+
+    await ctx.db.patch(args.examId, {
+      unlocked: false,
+      updatedAt: now,
+    });
+
+    // Create audit log
+    await ctx.db.insert('auditLogs', {
+      timestamp: now,
+      userId: args.adminId,
+      userName: args.adminName,
+      action: 'lock_exam',
+      entity: 'exams',
+      entityId: args.examId,
+      details: `Locked exam "${exam.examName}" after corrections`,
+      ipAddress: '0.0.0.0',
     });
 
     return { success: true };

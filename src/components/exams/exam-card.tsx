@@ -12,7 +12,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ExamStatusBadge } from './exam-status-badge';
-import { Calendar, FileText, Edit, Trash2, Eye, Users, MoreVertical, ClipboardEdit, RefreshCw } from 'lucide-react';
+import { Calendar, FileText, Edit, Trash2, Eye, Users, MoreVertical, ClipboardEdit, RefreshCw, Lock, Unlock } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import type { Id } from '../../../convex/_generated/dataModel';
 
 interface ExamCardProps {
@@ -27,6 +28,10 @@ interface ExamCardProps {
     weightage: number;
     subjects?: string;
     department?: 'creche' | 'kindergarten' | 'primary' | 'junior_high';
+    unlocked?: boolean;
+    unlockedBy?: string;
+    unlockedByName?: string;
+    unlockReason?: string;
   };
   onView: (examId: Id<'exams'>) => void;
   onEdit: (examId: Id<'exams'>) => void;
@@ -34,9 +39,10 @@ interface ExamCardProps {
   onEnterMarks: (examId: Id<'exams'>) => void;
   onViewMarks: (examId: Id<'exams'>) => void;
   onChangeStatus: (examId: Id<'exams'>) => void;
+  onUnlock?: (examId: Id<'exams'>) => void;
 }
 
-export function ExamCard({ exam, onView, onEdit, onDelete, onEnterMarks, onViewMarks, onChangeStatus }: ExamCardProps) {
+export function ExamCard({ exam, onView, onEdit, onDelete, onEnterMarks, onViewMarks, onChangeStatus, onUnlock }: ExamCardProps) {
   const subjects = exam.subjects ? JSON.parse(exam.subjects) : [];
   
   // Get marks statistics for this exam
@@ -72,13 +78,24 @@ export function ExamCard({ exam, onView, onEdit, onDelete, onEnterMarks, onViewM
   return (
     <Card className="hover:shadow-lg hover:scale-[1.02] transition-all duration-300 border-l-4 border-l-gray-800 hover:border-l-black dark:border-l-gray-300 dark:hover:border-l-white">
       <CardHeader>
-        <div className="flex items-start justify-between">
-          <div className="space-y-1 flex-1">
-            <CardTitle className="text-lg text-black dark:text-white font-semibold">{exam.examName}</CardTitle>
-            <CardDescription className="text-sm text-black dark:text-gray-400 font-medium">{exam.examCode}</CardDescription>
-          </div>
-          <div className="flex items-center gap-2">
-            <ExamStatusBadge status={exam.status} />
+        <div className="space-y-3">
+          {/* Status Labels Row */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {exam.unlocked && (exam.status === 'completed' || exam.status === 'published') && (
+                <Badge variant="outline" className="flex items-center gap-1 border-yellow-500 text-yellow-700 dark:text-yellow-400">
+                  <Unlock className="h-3 w-3" />
+                  Unlocked
+                </Badge>
+              )}
+              {!exam.unlocked && (exam.status === 'completed' || exam.status === 'published') && (
+                <Badge variant="outline" className="flex items-center gap-1 border-gray-500 text-gray-700 dark:text-gray-400">
+                  <Lock className="h-3 w-3" />
+                  Locked
+                </Badge>
+              )}
+              <ExamStatusBadge status={exam.status} />
+            </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button 
@@ -110,6 +127,21 @@ export function ExamCard({ exam, onView, onEdit, onDelete, onEnterMarks, onViewM
                   <RefreshCw className="h-4 w-4 mr-2 text-purple-600" />
                   <span className="text-black dark:text-white">Change Status</span>
                 </DropdownMenuItem>
+                {(exam.status === 'completed' || exam.status === 'published') && onUnlock && (
+                  <DropdownMenuItem onClick={() => onUnlock(exam._id)} className="cursor-pointer">
+                    {exam.unlocked ? (
+                      <>
+                        <Lock className="h-4 w-4 mr-2 text-gray-600" />
+                        <span className="text-black dark:text-white">Lock Exam</span>
+                      </>
+                    ) : (
+                      <>
+                        <Unlock className="h-4 w-4 mr-2 text-yellow-600" />
+                        <span className="text-black dark:text-white">Unlock for Corrections</span>
+                      </>
+                    )}
+                  </DropdownMenuItem>
+                )}
                 {exam.status !== 'published' && (
                   <>
                     <DropdownMenuSeparator />
@@ -133,6 +165,16 @@ export function ExamCard({ exam, onView, onEdit, onDelete, onEnterMarks, onViewM
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
+          </div>
+          
+          {/* Exam Name */}
+          <div>
+            <CardTitle className="text-lg text-black dark:text-white font-semibold">{exam.examName}</CardTitle>
+          </div>
+          
+          {/* Exam Code */}
+          <div>
+            <CardDescription className="text-sm text-black dark:text-gray-400 font-medium">{exam.examCode}</CardDescription>
           </div>
         </div>
       </CardHeader>

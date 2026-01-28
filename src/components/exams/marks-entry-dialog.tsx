@@ -114,7 +114,7 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
         }
       }
     }
-  }, [open, selectedClassId, examId]);
+  }, [open, selectedClassId, examId, toast]);
 
   // Auto-save draft to localStorage
   useEffect(() => {
@@ -318,11 +318,22 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
       setStudents([]);
       setLoadStudents(false);
     } catch (error) {
+      // Enhanced error handling with prominent toast notification
+      const errorMessage = error instanceof Error ? error.message : 'Failed to enter marks';
+      
+      // Determine if this is a lock-related error
+      const isLockError = errorMessage.toLowerCase().includes('locked') || 
+                         errorMessage.toLowerCase().includes('cannot edit');
+      
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to enter marks',
+        title: isLockError ? '🔒 Exam Locked' : 'Error Saving Marks',
+        description: errorMessage,
         variant: 'destructive',
+        // Removed invalid 'duration' property to fix type error
       });
+      
+      // Dialog stays open so user can see the error and take action
+      // Do not close the dialog or reset state on error
     } finally {
       setIsSubmitting(false);
     }
