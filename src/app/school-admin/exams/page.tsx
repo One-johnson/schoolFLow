@@ -28,6 +28,7 @@ import { ExamCard } from '@/components/exams/exam-card';
 import { ViewMarksDialog } from '@/components/exams/view-marks-dialog';
 import { PerformanceAnalyticsDashboard } from '@/components/exams/performance-analytics-dashboard';
 import { ReportCardReviewDialog } from '@/components/exams/report-card-review-dialog';
+import { UpdateExamStatusDialog } from '@/components/exams/update-exam-status-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { BarChart3, CheckCircle, Eye, Trash2, Download } from 'lucide-react';
@@ -68,8 +69,10 @@ export default function ExamsPage() {
   const [showBulkUpload, setShowBulkUpload] = useState<boolean>(false);
   const [showViewMarks, setShowViewMarks] = useState<boolean>(false);
   const [showReviewDialog, setShowReviewDialog] = useState<boolean>(false);
+  const [showUpdateStatus, setShowUpdateStatus] = useState<boolean>(false);
   const [selectedExamId, setSelectedExamId] = useState<Id<'exams'> | null>(null);
   const [selectedExamName, setSelectedExamName] = useState<string>('');
+  const [selectedExamStatus, setSelectedExamStatus] = useState<'draft' | 'scheduled' | 'ongoing' | 'completed' | 'published'>('draft');
   const [selectedReportCardId, setSelectedReportCardId] = useState<Id<'reportCards'> | null>(null);
   const [reviewFilterClass, setReviewFilterClass] = useState<string>('');
   const [reviewFilterTerm, setReviewFilterTerm] = useState<string>('');
@@ -118,6 +121,14 @@ export default function ExamsPage() {
   const handleViewMarks = (examId: Id<'exams'>): void => {
     setSelectedExamId(examId);
     setShowViewMarks(true);
+  };
+
+  const handleChangeStatus = (examId: Id<'exams'>): void => {
+    const exam = exams?.find((e) => e._id === examId);
+    setSelectedExamId(examId);
+    setSelectedExamName(exam?.examName || '');
+    setSelectedExamStatus(exam?.status || 'draft');
+    setShowUpdateStatus(true);
   };
 
   // Helper function to enrich report card with academic year, term names, and grading scale data
@@ -260,6 +271,7 @@ export default function ExamsPage() {
                   onDelete={handleDeleteExam}
                   onEnterMarks={handleEnterMarks}
                   onViewMarks={handleViewMarks}
+                  onChangeStatus={handleChangeStatus}
                 />
               ))}
             </div>
@@ -755,6 +767,14 @@ export default function ExamsPage() {
                 onOpenChange={setShowViewMarks}
                 examId={selectedExamId}
                 schoolId={schoolId}
+              />
+
+              <UpdateExamStatusDialog
+                open={showUpdateStatus}
+                onOpenChange={setShowUpdateStatus}
+                examId={selectedExamId}
+                examName={selectedExamName}
+                currentStatus={selectedExamStatus}
               />
             </>
           )}

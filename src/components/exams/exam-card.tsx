@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ExamStatusBadge } from './exam-status-badge';
-import { Calendar, FileText, Edit, Trash2, Eye, Users, MoreVertical, ClipboardEdit } from 'lucide-react';
+import { Calendar, FileText, Edit, Trash2, Eye, Users, MoreVertical, ClipboardEdit, RefreshCw } from 'lucide-react';
 import type { Id } from '../../../convex/_generated/dataModel';
 
 interface ExamCardProps {
@@ -33,9 +33,10 @@ interface ExamCardProps {
   onDelete: (examId: Id<'exams'>) => void;
   onEnterMarks: (examId: Id<'exams'>) => void;
   onViewMarks: (examId: Id<'exams'>) => void;
+  onChangeStatus: (examId: Id<'exams'>) => void;
 }
 
-export function ExamCard({ exam, onView, onEdit, onDelete, onEnterMarks, onViewMarks }: ExamCardProps) {
+export function ExamCard({ exam, onView, onEdit, onDelete, onEnterMarks, onViewMarks, onChangeStatus }: ExamCardProps) {
   const subjects = exam.subjects ? JSON.parse(exam.subjects) : [];
   
   // Get marks statistics for this exam
@@ -104,6 +105,11 @@ export function ExamCard({ exam, onView, onEdit, onDelete, onEnterMarks, onViewM
                     <span className="text-black dark:text-white">View All Marks</span>
                   </DropdownMenuItem>
                 )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => onChangeStatus(exam._id)} className="cursor-pointer">
+                  <RefreshCw className="h-4 w-4 mr-2 text-purple-600" />
+                  <span className="text-black dark:text-white">Change Status</span>
+                </DropdownMenuItem>
                 {exam.status !== 'published' && (
                   <>
                     <DropdownMenuSeparator />
