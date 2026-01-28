@@ -21,7 +21,8 @@ import { GenerateReportCardsDialog } from '@/components/exams/generate-report-ca
 import { ReportCardSheet } from '@/components/exams/report-card-sheet';
 import { DeleteReportCardDialog } from '@/components/exams/delete-report-card-dialog';
 import { BulkDeleteReportCardsDialog } from '@/components/exams/bulk-delete-report-cards-dialog';
-import { exportReportCardToPDF, bulkExportReportCardsToPDF } from '@/lib/pdf.utils';
+import { exportReportCardToPDF, bulkExportReportCardsToPDF, type PrintLayoutOptions } from '@/lib/pdf-utils';
+import { useConvex } from 'convex/react';
 import { BulkMarksUploadDialog } from '@/components/exams/bulk-marks-upload-dialog';
 import { ExamCard } from '@/components/exams/exam-card';
 import { ViewMarksDialog } from '@/components/exams/view-marks-dialog';
@@ -34,6 +35,7 @@ import type { Id } from '../../../../convex/_generated/dataModel';
 
 export default function ExamsPage() {
   const { user } = useAuth();
+  const convex = useConvex();
   
   const currentAdmin = useQuery(
     api.schoolAdmins.getByEmail,
@@ -47,6 +49,7 @@ export default function ExamsPage() {
   const reportCards = useQuery(api.reportCards.getReportCardsBySchool, schoolId ? { schoolId } : 'skip');
   const classes = useQuery(api.classes.getClassesBySchool, schoolId ? { schoolId } : 'skip');
   const terms = useQuery(api.terms.getTermsBySchool, schoolId ? { schoolId } : 'skip');
+  const academicYears = useQuery(api.academicYears.getYearsBySchool, schoolId ? { schoolId } : 'skip');
   
   const [selectedAnalyticsExamId, setSelectedAnalyticsExamId] = useState<Id<'exams'> | null>(null);
   const analyticsData = useQuery(
@@ -115,6 +118,37 @@ export default function ExamsPage() {
   const handleViewMarks = (examId: Id<'exams'>): void => {
     setSelectedExamId(examId);
     setShowViewMarks(true);
+  };
+
+  // Helper function to enrich report card with academic year, term names, and grading scale data
+  const enrichReportCard = async (report: any): Promise<any> => {
+    let enrichedReport = { ...report };
+
+    // Fetch academic year name if not present (match by _id, not yearCode)
+    if (!report.academicYearName && report.academicYearId) {
+      const academicYear = academicYears?.find(y => y._id === report.academicYearId);
+      if (academicYear) {
+        enrichedReport.academicYearName = academicYear.yearName;
+      }
+    }
+
+    // Fetch term name if not present (match by _id, not termCode)
+    if (!report.termName && report.termId) {
+      const term = terms?.find(t => t._id === report.termId);
+      if (term) {
+        enrichedReport.termName = term.termName;
+      }
+    }
+
+    // Fetch grading scale data if report has a grading scale ID
+    if (report.gradingScaleId && !report.gradingScaleData) {
+      const gradingScale = gradingScales?.find(g => g._id === report.gradingScaleId);
+      if (gradingScale && gradingScale.grades) {
+        enrichedReport.gradingScaleData = gradingScale.grades; // Store the JSON string of grades
+      }
+    }
+
+    return enrichedReport;
   };
 
   if (!schoolId) {
@@ -297,10 +331,27 @@ export default function ExamsPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => {
+                    onClick={async () => {
                       const selectedReports = reportCards?.filter(r => selectedReportCards.includes(r._id));
                       if (selectedReports) {
-                        bulkExportReportCardsToPDF(selectedReports);
+                        // Fetch photo URLs for selected students
+                        const enrichedReports = await Promise.all(
+                          selectedReports.map(async (report) => {
+                            const enriched = await enrichReportCard(report);
+                            // Fetch student photo if available
+                            try {
+                              const studentData = await convex.query(api.students.getStudentByStudentId, { studentId: report.studentId });
+                              if (studentData?.photoStorageId) {
+                                const photoUrl = await convex.query(api.students.getStudentPhotoUrl, { storageId: studentData.photoStorageId });
+                                enriched.photoUrl = photoUrl || undefined;
+                              }
+                            } catch (error) {
+                              console.error('Error fetching photo:', error);
+                            }
+                            return enriched;
+                          })
+                        );
+                        bulkExportReportCardsToPDF(enrichedReports);
                       }
                     }}
                   >
@@ -413,7 +464,10 @@ export default function ExamsPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => exportReportCardToPDF(report)}
+                        onClick={async () => {
+                          const enriched = await enrichReportCard(report);
+                          exportReportCardToPDF(enriched);
+                        }}
                       >
                         <Download className="h-3 w-3" />
                       </Button>
