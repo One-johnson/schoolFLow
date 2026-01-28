@@ -20,8 +20,7 @@ import {
   Bar, 
   XAxis, 
   YAxis, 
-  CartesianGrid, 
-  ResponsiveContainer,
+  CartesianGrid,
   PieChart,
   Pie,
   Cell,
@@ -204,27 +203,25 @@ export function PerformanceAnalyticsDashboard({ data }: PerformanceAnalyticsDash
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={data.subjectStats}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis 
-                      dataKey="subjectName" 
-                      angle={-45}
-                      textAnchor="end"
-                      height={100}
-                      fontSize={12}
-                    />
-                    <YAxis domain={[0, 100]} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar 
-                      dataKey="averagePercentage" 
-                      fill="#3b82f6" 
-                      radius={[8, 8, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              <ChartContainer config={chartConfig} className="h-80">
+                <BarChart data={data.subjectStats}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis 
+                    dataKey="subjectName" 
+                    angle={-45}
+                    textAnchor="end"
+                    height={100}
+                    fontSize={12}
+                  />
+                  <YAxis domain={[0, 100]} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar 
+                    dataKey="averagePercentage" 
+                    fill="#3b82f6" 
+                    radius={[8, 8, 0, 0]}
+                  />
+                </BarChart>
+              </ChartContainer>
             </CardContent>
           </Card>
 
@@ -286,21 +283,19 @@ export function PerformanceAnalyticsDashboard({ data }: PerformanceAnalyticsDash
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={data.classStats}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="className" />
-                    <YAxis domain={[0, 100]} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar 
-                      dataKey="averagePercentage" 
-                      fill="#10b981" 
-                      radius={[8, 8, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              <ChartContainer config={chartConfig} className="h-80">
+                <BarChart data={data.classStats}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="className" />
+                  <YAxis domain={[0, 100]} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar 
+                    dataKey="averagePercentage" 
+                    fill="#10b981" 
+                    radius={[8, 8, 0, 0]}
+                  />
+                </BarChart>
+              </ChartContainer>
             </CardContent>
           </Card>
 
@@ -360,29 +355,27 @@ export function PerformanceAnalyticsDashboard({ data }: PerformanceAnalyticsDash
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={data.gradeDistribution}
-                        dataKey="count"
-                        nameKey="grade"
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={100}
-                        label={(entry) => `Grade ${entry.grade}: ${entry.count}`}
-                      >
-                        {data.gradeDistribution.map((entry, index) => (
-                          <Cell 
-                            key={`cell-${index}`} 
-                            fill={GRADE_COLORS[entry.grade - 1]} 
-                          />
-                        ))}
-                      </Pie>
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
+                <ChartContainer config={chartConfig} className="h-80">
+                  <PieChart>
+                    <Pie
+                      data={data.gradeDistribution}
+                      dataKey="count"
+                      nameKey="grade"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={100}
+                      label={(entry) => `Grade ${entry.grade}: ${entry.count}`}
+                    >
+                      {data.gradeDistribution.map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={GRADE_COLORS[entry.grade - 1]} 
+                        />
+                      ))}
+                    </Pie>
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                  </PieChart>
+                </ChartContainer>
               </CardContent>
             </Card>
 
