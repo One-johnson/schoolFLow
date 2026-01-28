@@ -17,6 +17,7 @@ async function generateAdmissionNumber(ctx: any, schoolId: string): Promise<stri
     .query('students')
     .withIndex('by_school', (q: any) => q.eq('schoolId', schoolId))
     .collect();
+
   
   const sequence = students.length + 1;
   return `ADM${year}${sequence.toString().padStart(3, '0')}`;
@@ -40,6 +41,19 @@ export const getStudentById = query({
   args: { studentId: v.id('students') },
   handler: async (ctx, args) => {
     const student = await ctx.db.get(args.studentId);
+    return student;
+  },
+});
+
+
+
+export const getStudentByStudentId = query({
+  args: { studentId: v.string() },
+  handler: async (ctx, args) => {
+    const student = await ctx.db
+      .query('students')
+      .withIndex('by_student_id', (q) => q.eq('studentId', args.studentId))
+      .first();
     return student;
   },
 });
@@ -783,5 +797,15 @@ export const bulkUpdateStudentStatus = mutation({
     }
 
     return { success: true, successCount, failCount };
+  },
+});
+
+
+// Get student photo URL from storage
+export const getStudentPhotoUrl = query({
+  args: { storageId: v.string() },
+  handler: async (ctx, args) => {
+    const url = await ctx.storage.getUrl(args.storageId as Id<'_storage'>);
+    return url;
   },
 });
