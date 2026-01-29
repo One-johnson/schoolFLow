@@ -40,9 +40,47 @@ export const enterMarks = mutation({
     ),
     enteredByName: v.string(),
     entryReason: v.optional(v.string()),
+    adminOverride: v.optional(v.boolean()), // Allow admin to override lock
   },
   handler: async (ctx, args): Promise<Id<'studentMarks'>> => {
     const now: string = new Date().toISOString();
+
+    // Check exam status and lock state
+    const exam = await ctx.db.get(args.examId);
+    if (!exam) {
+      throw new Error('Exam not found');
+    }
+
+    // Phase 1 & 3 Restrictions:
+    // - Teachers blocked from editing completed/published exams
+    // - Admins can edit completed exams (with warning in UI)
+    // - Published exams require unlock first (unless admin override)
+    
+    const isTeacher = args.enteredByRole === 'subject_teacher' || args.enteredByRole === 'class_teacher';
+    const isAdmin = args.enteredByRole === 'admin';
+
+    if (isTeacher && (exam.status === 'completed' || exam.status === 'published')) {
+      throw new Error('Teachers cannot edit marks for completed or published exams. Please contact an administrator.');
+    }
+
+    // Block editing for any locked exam (completed or published)
+    if ((exam.status === 'completed' || exam.status === 'published') && !exam.unlocked && !args.adminOverride) {
+      throw new Error(`Cannot edit marks for ${exam.status} exam. Please unlock the exam first to make corrections.`);
+    }
+
+    // Log admin edits to locked exams for audit trail
+    if (isAdmin && (exam.status === 'completed' || exam.status === 'published')) {
+      await ctx.db.insert('auditLogs', {
+        timestamp: now,
+        userId: args.enteredBy,
+        userName: args.enteredByName,
+        action: exam.unlocked ? 'edit_marks_unlocked_exam' : 'edit_marks_completed_exam',
+        entity: 'studentMarks',
+        entityId: args.studentId,
+        details: `Admin edited marks for ${args.studentName} in ${args.subjectName} (${exam.examName}). Reason: ${args.entryReason || 'Not provided'}`,
+        ipAddress: '0.0.0.0',
+      });
+    }
 
     // Calculate total score and percentage
     const totalScore: number = args.classScore + args.examScore;
