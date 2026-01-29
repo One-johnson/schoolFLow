@@ -1209,4 +1209,97 @@ export default defineSchema({
     .index('by_assessment', ['assessmentId'])
     .index('by_student', ['schoolId', 'studentId'])
     .index('by_class', ['schoolId', 'classId']),
+
+      attendance: defineTable({
+    schoolId: v.string(),
+    attendanceCode: v.string(), // Auto-generated: ATT + 8 digits
+    classId: v.string(),
+    className: v.string(), // Denormalized
+    date: v.string(), // ISO date (YYYY-MM-DD)
+    session: v.union(
+      v.literal('morning'),
+      v.literal('afternoon'),
+      v.literal('full_day')
+    ),
+    academicYearId: v.optional(v.string()),
+    termId: v.optional(v.string()),
+    totalStudents: v.number(),
+    presentCount: v.number(),
+    absentCount: v.number(),
+    lateCount: v.number(),
+    excusedCount: v.number(),
+    status: v.union(
+      v.literal('pending'),
+      v.literal('completed'),
+      v.literal('locked')
+    ),
+    markedBy: v.string(), // Admin ID
+    markedByName: v.string(),
+    markedAt: v.string(),
+    notes: v.optional(v.string()),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index('by_school', ['schoolId'])
+    .index('by_class', ['schoolId', 'classId'])
+    .index('by_date', ['schoolId', 'date'])
+    .index('by_status', ['status'])
+    .index('by_attendance_code', ['attendanceCode']),
+
+  attendanceRecords: defineTable({
+    schoolId: v.string(),
+    attendanceId: v.id('attendance'),
+    attendanceCode: v.string(), // Denormalized
+    studentId: v.string(),
+    studentName: v.string(), // Denormalized
+    classId: v.string(),
+    className: v.string(),
+    date: v.string(),
+    session: v.union(
+      v.literal('morning'),
+      v.literal('afternoon'),
+      v.literal('full_day')
+    ),
+    status: v.union(
+      v.literal('present'),
+      v.literal('absent'),
+      v.literal('late'),
+      v.literal('excused')
+    ),
+    arrivalTime: v.optional(v.string()),
+    remarks: v.optional(v.string()),
+    markedBy: v.string(),
+    markedByName: v.string(),
+    // Admin override tracking
+    overriddenBy: v.optional(v.string()),
+    overriddenByName: v.optional(v.string()),
+    overriddenAt: v.optional(v.string()),
+    overrideReason: v.optional(v.string()),
+    previousStatus: v.optional(v.string()),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index('by_attendance', ['attendanceId'])
+    .index('by_student', ['schoolId', 'studentId'])
+    .index('by_class', ['schoolId', 'classId'])
+    .index('by_date', ['schoolId', 'date'])
+    .index('by_status', ['status']),
+
+  attendanceSettings: defineTable({
+    schoolId: v.string(),
+    enableMorningSession: v.boolean(),
+    enableAfternoonSession: v.boolean(),
+    morningStartTime: v.optional(v.string()), // e.g., "08:00"
+    morningEndTime: v.optional(v.string()), // e.g., "12:00"
+    afternoonStartTime: v.optional(v.string()), // e.g., "13:00"
+    afternoonEndTime: v.optional(v.string()), // e.g., "17:00"
+    lateThresholdMinutes: v.optional(v.number()), // Minutes after start time
+    autoLockAttendance: v.boolean(),
+    lockAfterHours: v.optional(v.number()), // Hours after marking
+    requireAdminApproval: v.boolean(),
+    notifyParentsOnAbsence: v.boolean(),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index('by_school', ['schoolId']),
 });

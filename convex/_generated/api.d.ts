@@ -9,6 +9,7 @@
  */
 
 import type * as academicYears from "../academicYears.js";
+import type * as attendance from "../attendance.js";
 import type * as auditLogs from "../auditLogs.js";
 import type * as auth from "../auth.js";
 import type * as bulkPayments from "../bulkPayments.js";
@@ -67,6 +68,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   academicYears: typeof academicYears;
+  attendance: typeof attendance;
   auditLogs: typeof auditLogs;
   auth: typeof auth;
   bulkPayments: typeof bulkPayments;
