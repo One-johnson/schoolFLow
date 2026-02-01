@@ -952,6 +952,27 @@ export default defineSchema({
     .index('by_status', ['deliveryStatus'])
     .index('by_sent_date', ['sentAt']),
 
+  announcements: defineTable({
+    schoolId: v.string(),
+    title: v.string(),
+    content: v.string(),
+    targetType: v.union(
+      v.literal('school'),
+      v.literal('class'),
+      v.literal('department'),
+      v.literal('teachers'),
+    ),
+    targetId: v.optional(v.string()),
+    targetName: v.optional(v.string()),
+    status: v.union(v.literal('draft'), v.literal('published'), v.literal('archived')),
+    createdBy: v.string(),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+    publishedAt: v.optional(v.string()),
+  })
+    .index('by_school', ['schoolId'])
+    .index('by_school_status', ['schoolId', 'status']),
+
  exams: defineTable({
     schoolId: v.string(),
     examCode: v.string(), // Auto-generated: EXM + 8 digits
