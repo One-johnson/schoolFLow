@@ -291,14 +291,14 @@ export default function SubscriptionsPage(): JSX.Element {
       createSelectColumn<SubscriptionTableRow>(),
       {
         accessorKey: 'schoolAdminEmail',
-        header: createSortableHeader('School Admin'),
+        header: createSortableHeader('School Admin', 'schoolAdminEmail'),
         cell: ({ row }) => (
           <span className="font-medium text-sm">{row.original.schoolAdminEmail}</span>
         ),
       },
       {
         accessorKey: 'type',
-        header: createSortableHeader('Type'),
+        header: createSortableHeader('Type', 'type'),
         cell: ({ row }) => (
           row.original.type === 'Trial' ? (
             <Badge variant="outline" className="gap-1">
@@ -315,22 +315,22 @@ export default function SubscriptionsPage(): JSX.Element {
       },
       {
         accessorKey: 'planName',
-        header: createSortableHeader('Plan'),
+        header: createSortableHeader('Plan', 'planName'),
         cell: ({ row }) => <span className="text-sm">{row.original.planName}</span>,
       },
       {
         accessorKey: 'price',
-        header: createSortableHeader('Price'),
+        header: createSortableHeader('Price', 'price'),
         cell: ({ row }) => <span className="text-sm font-medium">{row.original.price}</span>,
       },
       {
         accessorKey: 'studentCapacity',
-        header: createSortableHeader('Student Capacity'),
+        header: createSortableHeader('Student Capacity', 'studentCapacity'),
         cell: ({ row }) => <span className="text-sm">{row.original.studentCapacity}</span>,
       },
       {
         accessorKey: 'trialEndDate',
-        header: createSortableHeader('Trial End Date'),
+        header: createSortableHeader('Trial End Date', 'trialEndDate'),
         cell: ({ row }) => (
           row.original.trialEndDate !== 'N/A' ? (
             <div className="flex items-center gap-1">
@@ -344,12 +344,12 @@ export default function SubscriptionsPage(): JSX.Element {
       },
       {
         accessorKey: 'status',
-        header: createSortableHeader('Status'),
+        header: createSortableHeader('Status', 'status'),
         cell: ({ row }) => getStatusBadge(row.original.status),
       },
       {
         accessorKey: 'requestedDate',
-        header: createSortableHeader('Requested'),
+        header: createSortableHeader('Requested', 'requestedDate'),
         cell: ({ row }) => <span className="text-sm text-gray-600">{row.original.requestedDate}</span>,
       },
     ],

@@ -278,6 +278,7 @@ export default function AttendancePage(): JSX.Element {
       {showSettingsDialog && (
         <AttendanceSettingsDialog
           schoolId={currentAdmin.schoolId}
+          adminId={currentAdmin._id}
           open={showSettingsDialog}
           onOpenChange={setShowSettingsDialog}
         />

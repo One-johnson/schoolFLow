@@ -20,12 +20,14 @@ interface UnlockAttendanceDialogProps {
   attendanceId: Id<'attendance'>;
   attendanceCode: string;
   open: boolean;
+  adminId: string;
   onOpenChange: (open: boolean) => void;
 }
 
 export function UnlockAttendanceDialog({
   attendanceId,
   attendanceCode,
+  adminId,
   open,
   onOpenChange,
 }: UnlockAttendanceDialogProps): JSX.Element {
@@ -36,7 +38,7 @@ export function UnlockAttendanceDialog({
     setIsUnlocking(true);
 
     try {
-      await unlockAttendance({ attendanceId });
+      await unlockAttendance({ attendanceId, updatedBy: adminId });
       toast.success('Attendance unlocked successfully');
       onOpenChange(false);
     } catch (error) {

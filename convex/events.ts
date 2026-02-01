@@ -1,6 +1,16 @@
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
+import type { MutationCtx } from './_generated/server';
 import type { Id } from './_generated/dataModel';
+
+// Verify the caller is a school admin and return their schoolId
+async function getVerifiedSchoolId(ctx: MutationCtx, adminId: string): Promise<string> {
+  const admin = await ctx.db.get(adminId as Id<'schoolAdmins'>);
+  if (!admin) {
+    throw new Error('Unauthorized: Admin not found');
+  }
+  return admin.schoolId;
+}
 
 // Generate random event code
 function generateEventCode(): string {
@@ -250,6 +260,11 @@ export const createEvent = mutation({
     createdBy: v.string(),
   },
   handler: async (ctx, args): Promise<Id<'events'>> => {
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.createdBy);
+    if (callerSchoolId !== args.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     const eventCode = generateEventCode();
     const now = new Date().toISOString();
     const color = args.color || getDefaultColor(args.eventType);
@@ -433,6 +448,11 @@ export const updateEvent = mutation({
     const event = await ctx.db.get(args.eventId);
     if (!event) throw new Error('Event not found');
 
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.lastModifiedBy);
+    if (callerSchoolId !== event.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     // Only include fields that are provided
     if (args.eventTitle !== undefined) updates.eventTitle = args.eventTitle;
     if (args.eventDescription !== undefined) updates.eventDescription = args.eventDescription;
@@ -492,8 +512,19 @@ export const updateEvent = mutation({
 
 // Mutation: Delete event
 export const deleteEvent = mutation({
-  args: { eventId: v.id('events') },
+  args: {
+    eventId: v.id('events'),
+    deletedBy: v.string(),
+  },
   handler: async (ctx, args): Promise<void> => {
+    const event = await ctx.db.get(args.eventId);
+    if (!event) throw new Error('Event not found');
+
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.deletedBy);
+    if (callerSchoolId !== event.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     // Delete associated RSVPs
     const rsvps = await ctx.db
       .query('eventRSVPs')
@@ -532,6 +563,11 @@ export const cancelEvent = mutation({
     // Get the event before cancelling
     const event = await ctx.db.get(args.eventId);
     if (!event) throw new Error('Event not found');
+
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.lastModifiedBy);
+    if (callerSchoolId !== event.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
 
     await ctx.db.patch(args.eventId, {
       status: 'cancelled',
@@ -587,6 +623,11 @@ export const duplicateEvent = mutation({
     const originalEvent = await ctx.db.get(args.eventId);
     if (!originalEvent) {
       throw new Error('Event not found');
+    }
+
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.createdBy);
+    if (callerSchoolId !== originalEvent.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
     }
 
     const eventCode = generateEventCode();

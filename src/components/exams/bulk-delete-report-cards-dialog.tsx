@@ -22,6 +22,7 @@ interface BulkDeleteReportCardsDialogProps {
   onOpenChange: (open: boolean) => void;
   reportCardIds: Id<'reportCards'>[];
   onDeleteComplete: () => void;
+  adminId: string;
 }
 
 export function BulkDeleteReportCardsDialog({
@@ -29,6 +30,7 @@ export function BulkDeleteReportCardsDialog({
   onOpenChange,
   reportCardIds,
   onDeleteComplete,
+  adminId,
 }: BulkDeleteReportCardsDialogProps) {
   const { toast } = useToast();
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
@@ -38,7 +40,7 @@ export function BulkDeleteReportCardsDialog({
   const handleDelete = async (): Promise<void> => {
     try {
       setIsDeleting(true);
-      await bulkDeleteReportCards({ reportCardIds });
+      await bulkDeleteReportCards({ reportCardIds, deletedBy: adminId });
       toast({
         title: 'Success',
         description: `${reportCardIds.length} report card(s) deleted successfully`,

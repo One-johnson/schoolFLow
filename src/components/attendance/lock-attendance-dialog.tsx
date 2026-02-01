@@ -20,12 +20,14 @@ interface LockAttendanceDialogProps {
   attendanceId: Id<'attendance'>;
   attendanceCode: string;
   open: boolean;
+  adminId: string;
   onOpenChange: (open: boolean) => void;
 }
 
 export function LockAttendanceDialog({
   attendanceId,
   attendanceCode,
+  adminId,
   open,
   onOpenChange,
 }: LockAttendanceDialogProps): JSX.Element {
@@ -36,7 +38,7 @@ export function LockAttendanceDialog({
     setIsLocking(true);
 
     try {
-      await lockAttendance({ attendanceId });
+      await lockAttendance({ attendanceId, updatedBy: adminId });
       toast.success('Attendance locked successfully');
       onOpenChange(false);
     } catch (error) {

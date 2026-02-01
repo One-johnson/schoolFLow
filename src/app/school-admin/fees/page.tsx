@@ -943,12 +943,14 @@ export default function FeesPage(): JSX.Element {
             open={editPaymentOpen}
             onOpenChange={setEditPaymentOpen}
             payment={selectedPayment}
+            adminId={schoolAdmin._id}
           />
 
           <DeletePaymentDialog
             open={deletePaymentOpen}
             onOpenChange={setDeletePaymentOpen}
             payment={selectedPayment}
+            adminId={schoolAdmin._id}
           />
         </>
       )}

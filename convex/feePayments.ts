@@ -1,5 +1,16 @@
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
+import type { MutationCtx } from './_generated/server';
+import type { Id } from './_generated/dataModel';
+
+// Verify the caller is a school admin and return their schoolId
+async function getVerifiedSchoolId(ctx: MutationCtx, adminId: string): Promise<string> {
+  const admin = await ctx.db.get(adminId as Id<'schoolAdmins'>);
+  if (!admin) {
+    throw new Error('Unauthorized: Admin not found');
+  }
+  return admin.schoolId;
+}
 
 // Generate unique payment ID
 function generatePaymentId(): string {
@@ -48,6 +59,11 @@ export const recordPayment = mutation({
     collectedByName: v.string(),
   },
   handler: async (ctx, args) => {
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.collectedBy);
+    if (callerSchoolId !== args.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     const paymentId = generatePaymentId();
     const receiptNumber = generateReceiptNumber();
     const now = new Date().toISOString();
@@ -205,6 +221,7 @@ export const getPaymentStats = query({
 export const updatePayment = mutation({
   args: {
     paymentId: v.id('feePayments'),
+    updatedBy: v.string(),
     items: v.optional(v.array(
       v.object({
         categoryId: v.string(),
@@ -224,12 +241,17 @@ export const updatePayment = mutation({
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { paymentId, items, ...updates } = args;
+    const { paymentId, updatedBy, items, ...updates } = args;
     const now = new Date().toISOString();
 
     const payment = await ctx.db.get(paymentId);
     if (!payment) {
       throw new Error('Payment not found');
+    }
+
+    const callerSchoolId = await getVerifiedSchoolId(ctx, updatedBy);
+    if (callerSchoolId !== payment.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
     }
 
     // If items are provided, recalculate totals
@@ -266,8 +288,19 @@ export const updatePayment = mutation({
 
 // Delete payment
 export const deletePayment = mutation({
-  args: { paymentId: v.id('feePayments') },
+  args: {
+    paymentId: v.id('feePayments'),
+    deletedBy: v.string(),
+  },
   handler: async (ctx, args) => {
+    const payment = await ctx.db.get(args.paymentId);
+    if (!payment) throw new Error('Payment not found');
+
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.deletedBy);
+    if (callerSchoolId !== payment.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     await ctx.db.delete(args.paymentId);
   },
 });
@@ -275,6 +308,7 @@ export const deletePayment = mutation({
 // Bulk record payments from CSV (V2 format)
 export const bulkRecordPayments = mutation({
   args: {
+    collectedBy: v.string(),
     payments: v.array(
       v.object({
         schoolId: v.string(),
@@ -307,10 +341,15 @@ export const bulkRecordPayments = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.collectedBy);
+
     const createdIds: string[] = [];
     const now = new Date().toISOString();
 
     for (const payment of args.payments) {
+      if (payment.schoolId !== callerSchoolId) {
+        throw new Error('Unauthorized: You do not belong to this school');
+      }
       const paymentId = generatePaymentId();
       const receiptNumber = generateReceiptNumber();
 

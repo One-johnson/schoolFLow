@@ -19,12 +19,14 @@ import { toast } from 'sonner';
 
 interface AttendanceSettingsDialogProps {
   schoolId: string;
+  adminId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 export function AttendanceSettingsDialog({
   schoolId,
+  adminId,
   open,
   onOpenChange,
 }: AttendanceSettingsDialogProps): JSX.Element {
@@ -66,6 +68,7 @@ export function AttendanceSettingsDialog({
     try {
       await saveSettings({
         schoolId,
+        updatedBy: adminId,
         enableMorningSession,
         enableAfternoonSession,
         morningStartTime,

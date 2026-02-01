@@ -23,9 +23,10 @@ interface DeleteEventDialogProps {
     _id: Id<'events'>;
     eventTitle: string;
   } | null;
+  adminId: string;
 }
 
-export function DeleteEventDialog({ open, onOpenChange, event }: DeleteEventDialogProps): JSX.Element {
+export function DeleteEventDialog({ open, onOpenChange, event, adminId }: DeleteEventDialogProps): JSX.Element {
   const deleteEvent = useMutation(api.events.deleteEvent);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
@@ -35,7 +36,7 @@ export function DeleteEventDialog({ open, onOpenChange, event }: DeleteEventDial
     setIsDeleting(true);
 
     try {
-      await deleteEvent({ eventId: event._id });
+      await deleteEvent({ eventId: event._id, deletedBy: adminId });
       toast.success('Event deleted successfully');
       onOpenChange(false);
     } catch (error) {

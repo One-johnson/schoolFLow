@@ -20,6 +20,7 @@ interface DeleteAttendanceDialogProps {
   attendanceId: Id<'attendance'>;
   attendanceCode: string;
   className: string;
+  adminId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -28,6 +29,7 @@ export function DeleteAttendanceDialog({
   attendanceId,
   attendanceCode,
   className,
+  adminId,
   open,
   onOpenChange,
 }: DeleteAttendanceDialogProps): JSX.Element {
@@ -38,7 +40,7 @@ export function DeleteAttendanceDialog({
     setIsDeleting(true);
 
     try {
-      await deleteAttendance({ attendanceId });
+      await deleteAttendance({ attendanceId, deletedBy: adminId });
       toast.success('Attendance deleted successfully');
       onOpenChange(false);
     } catch (error) {

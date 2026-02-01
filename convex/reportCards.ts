@@ -1,6 +1,16 @@
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
+import type { MutationCtx } from './_generated/server';
 import type { Id } from './_generated/dataModel';
+
+// Verify the caller is a school admin and return their schoolId
+async function getVerifiedSchoolId(ctx: MutationCtx, adminId: string): Promise<string> {
+  const admin = await ctx.db.get(adminId as Id<'schoolAdmins'>);
+  if (!admin) {
+    throw new Error('Unauthorized: Admin not found');
+  }
+  return admin.schoolId;
+}
 import { calculateGradeFromScale } from './gradeCalculator';
 
 // Helper function to generate report code
@@ -72,6 +82,11 @@ export const generateReportCard = mutation({
     createdBy: v.string(),
   },
   handler: async (ctx, args): Promise<Id<'reportCards'>> => {
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.createdBy);
+    if (callerSchoolId !== args.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     const reportCode: string = generateReportCode();
     const now: string = new Date().toISOString();
 
@@ -284,11 +299,17 @@ export const generateReportCards = mutation({
   args: {
     examId: v.id('exams'),
     classId: v.string(),
+    createdBy: v.string(),
   },
   handler: async (ctx, args) => {
     // Get exam details
     const exam = await ctx.db.get(args.examId);
     if (!exam) throw new Error('Exam not found');
+
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.createdBy);
+    if (callerSchoolId !== exam.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
 
     // Get class details by classCode field
     const classDoc = await ctx.db
@@ -540,6 +561,11 @@ export const bulkGenerateReportCards = mutation({
     createdBy: v.string(),
   },
   handler: async (ctx, args) => {
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.createdBy);
+    if (callerSchoolId !== args.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     // Get all students in class using class code (exclude graduated students)
     const students = await ctx.db
       .query('students')
@@ -645,9 +671,17 @@ export const publishReportCards = mutation({
     publishedByRole: v.union(v.literal('class_teacher'), v.literal('admin')),
   },
   handler: async (ctx, args) => {
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.publishedBy);
+
     const now: string = new Date().toISOString();
 
     for (const reportId of args.reportIds) {
+      const report = await ctx.db.get(reportId);
+      if (!report) throw new Error('Report card not found');
+      if (report.schoolId !== callerSchoolId) {
+        throw new Error('Unauthorized: You do not belong to this school');
+      }
+
       await ctx.db.patch(reportId, {
         status: 'published',
         publishedAt: now,
@@ -669,6 +703,14 @@ export const unpublishReportCard = mutation({
     unpublishReason: v.string(),
   },
   handler: async (ctx, args) => {
+    const report = await ctx.db.get(args.reportId);
+    if (!report) throw new Error('Report card not found');
+
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.unpublishedBy);
+    if (callerSchoolId !== report.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     const now: string = new Date().toISOString();
 
     await ctx.db.patch(args.reportId, {
@@ -687,6 +729,7 @@ export const unpublishReportCard = mutation({
 export const updateReportCard = mutation({
   args: {
     reportId: v.id('reportCards'),
+    updatedBy: v.string(),
     attendance: v.optional(v.string()),
     conduct: v.optional(v.string()),
     attitude: v.optional(v.string()),
@@ -698,7 +741,16 @@ export const updateReportCard = mutation({
     promotedTo: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { reportId, ...updates } = args;
+    const { reportId, updatedBy, ...updates } = args;
+
+    const report = await ctx.db.get(reportId);
+    if (!report) throw new Error('Report card not found');
+
+    const callerSchoolId = await getVerifiedSchoolId(ctx, updatedBy);
+    if (callerSchoolId !== report.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     const now: string = new Date().toISOString();
 
     await ctx.db.patch(reportId, {
@@ -714,8 +766,17 @@ export const updateReportCard = mutation({
 export const deleteReportCard = mutation({
   args: {
     reportCardId: v.id('reportCards'),
+    deletedBy: v.string(),
   },
   handler: async (ctx, args) => {
+    const report = await ctx.db.get(args.reportCardId);
+    if (!report) throw new Error('Report card not found');
+
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.deletedBy);
+    if (callerSchoolId !== report.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     await ctx.db.delete(args.reportCardId);
     return { success: true };
   },
@@ -725,9 +786,18 @@ export const deleteReportCard = mutation({
 export const bulkDeleteReportCards = mutation({
   args: {
     reportCardIds: v.array(v.id('reportCards')),
+    deletedBy: v.string(),
   },
   handler: async (ctx, args) => {
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.deletedBy);
+
     for (const reportCardId of args.reportCardIds) {
+      const report = await ctx.db.get(reportCardId);
+      if (!report) throw new Error('Report card not found');
+      if (report.schoolId !== callerSchoolId) {
+        throw new Error('Unauthorized: You do not belong to this school');
+      }
+
       await ctx.db.delete(reportCardId);
     }
     return { success: true, count: args.reportCardIds.length };

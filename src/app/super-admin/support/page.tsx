@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 'use client';
 
 import { useState, useMemo, JSX } from 'react';
@@ -12,7 +13,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { HelpCircle, BookOpen, MessageSquare, Mail, AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
+import { HelpCircle, BookOpen, MessageSquare,  AlertTriangle, Clock } from 'lucide-react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import type { Id } from '../../../../convex/_generated/dataModel';
@@ -130,19 +131,19 @@ export default function SupportPage(): JSX.Element {
       createSelectColumn<SupportTicket>(),
       {
         accessorKey: 'ticketNumber',
-        header: createSortableHeader('Ticket #'),
+        header: createSortableHeader('Ticket #', 'ticket'),
         cell: ({ row }) => <span className="font-mono text-sm">{row.original.ticketNumber}</span>,
       },
       {
         accessorKey: 'schoolName',
-        header: createSortableHeader('School'),
+        header: createSortableHeader('School', 'school'),
         cell: ({ row }) => (
           <span className="font-medium">{row.original.schoolName || 'No School'}</span>
         ),
       },
       {
         accessorKey: 'subject',
-        header: createSortableHeader('Subject'),
+        header: createSortableHeader('Subject', 'subject'),
         cell: ({ row }) => (
           <div className="max-w-xs">
             <p className="truncate">{row.original.subject}</p>
@@ -151,29 +152,29 @@ export default function SupportPage(): JSX.Element {
       },
       {
         accessorKey: 'category',
-        header: createSortableHeader('Category'),
+        header: createSortableHeader('Category', 'category'),
         cell: ({ row }) => <TicketCategoryBadge category={row.original.category} />,
       },
       {
         accessorKey: 'priority',
-        header: createSortableHeader('Priority'),
+        header: createSortableHeader('Priority', 'priority'),
         cell: ({ row }) => <TicketPriorityBadge priority={row.original.priority} />,
       },
       {
         accessorKey: 'status',
-        header: createSortableHeader('Status'),
+        header: createSortableHeader('Status', 'status'),
         cell: ({ row }) => <TicketStatusBadge status={row.original.status} />,
       },
       {
         accessorKey: 'assignedToName',
-        header: createSortableHeader('Assigned To'),
+        header: createSortableHeader('Assigned To', 'assignedTo'),
         cell: ({ row }) => (
           <span className="text-sm">{row.original.assignedToName || 'Unassigned'}</span>
         ),
       },
       {
         accessorKey: 'updatedAt',
-        header: createSortableHeader('Last Updated'),
+        header: createSortableHeader('Last Updated', 'updatedAt'),
         cell: ({ row }) => (
           <span className="text-sm">
             {formatDistanceToNow(new Date(row.original.updatedAt), { addSuffix: true })}
@@ -316,7 +317,7 @@ export default function SupportPage(): JSX.Element {
                 <CardTitle>Support Requests ({filteredTickets.length})</CardTitle>
                 <div className="flex gap-2">
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-[160px]">
+                    <SelectTrigger className="w-40">
                       <SelectValue placeholder="Filter by status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -330,7 +331,7 @@ export default function SupportPage(): JSX.Element {
                   </Select>
 
                   <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                    <SelectTrigger className="w-[160px]">
+                    <SelectTrigger className="w-40">
                       <SelectValue placeholder="Filter by priority" />
                     </SelectTrigger>
                     <SelectContent>

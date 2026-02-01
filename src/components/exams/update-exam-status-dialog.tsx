@@ -30,6 +30,7 @@ interface UpdateExamStatusDialogProps {
   examId: Id<'exams'>;
   examName: string;
   currentStatus: 'draft' | 'scheduled' | 'ongoing' | 'completed' | 'published';
+  adminId: string;
 }
 
 export function UpdateExamStatusDialog({
@@ -38,6 +39,7 @@ export function UpdateExamStatusDialog({
   examId,
   examName,
   currentStatus,
+  adminId,
 }: UpdateExamStatusDialogProps) {
   const { toast } = useToast();
   const updateExam = useMutation(api.exams.updateExam);
@@ -52,6 +54,7 @@ export function UpdateExamStatusDialog({
     try {
       await updateExam({
         examId,
+        updatedBy: adminId,
         status: newStatus as 'draft' | 'scheduled' | 'ongoing' | 'completed' | 'published',
       });
 
