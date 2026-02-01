@@ -31,7 +31,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import type { Id } from '@/../convex/_generated/dataModel';
-import { Badge } from '@/components/ui/badge';
+
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface MarkAttendanceDialogProps {

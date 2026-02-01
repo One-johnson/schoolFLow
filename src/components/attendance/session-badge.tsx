@@ -1,5 +1,6 @@
 import { Badge } from '@/components/ui/badge';
 import { Sun, Moon, Clock } from 'lucide-react';
+import { JSX } from 'react';
 
 interface SessionBadgeProps {
   session: 'morning' | 'afternoon' | 'full_day';
