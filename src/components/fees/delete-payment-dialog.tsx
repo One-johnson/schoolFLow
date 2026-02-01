@@ -24,12 +24,14 @@ interface DeletePaymentDialogProps {
     receiptNumber: string;
     studentName: string;
   } | null;
+  adminId: string;
 }
 
 export function DeletePaymentDialog({
   open,
   onOpenChange,
   payment,
+  adminId,
 }: DeletePaymentDialogProps): JSX.Element {
   const [loading, setLoading] = useState<boolean>(false);
   const deletePayment = useMutation(api.feePayments.deletePayment);
@@ -42,6 +44,7 @@ export function DeletePaymentDialog({
     try {
       await deletePayment({
         paymentId: payment._id as Id<'feePayments'>,
+        deletedBy: adminId,
       });
 
       toast.success('Payment deleted successfully');

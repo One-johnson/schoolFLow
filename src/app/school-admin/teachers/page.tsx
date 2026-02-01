@@ -47,6 +47,7 @@ import { BulkAddTeachersDialog } from '@/components/teachers/bulk-add-teachers-d
 import { DataTable, createSortableHeader, createSelectColumn } from '../../../components/ui/data-table';
 import type { ColumnDef } from '@tanstack/react-table';
 import { exportToCSV, exportToPDF } from '../../../lib/exports';
+import Image from 'next/image';
 
 export default function TeachersPage(): JSX.Element {
   const { user } = useAuth();
@@ -240,7 +241,7 @@ export default function TeachersPage(): JSX.Element {
         return (
           <div className="flex items-center justify-center">
             {photoUrl ? (
-              <img
+              <Image
                 src={photoUrl}
                 alt={`${row.original.firstName} ${row.original.lastName}`}
                 className="h-10 w-10 rounded-full object-cover"
@@ -256,22 +257,22 @@ export default function TeachersPage(): JSX.Element {
     },
     {
       accessorKey: 'teacherId',
-      header: createSortableHeader('Teacher ID'),
+      header: ({ column }) => createSortableHeader(column, 'Teacher ID'),
       cell: ({ row }) => (
         <span className="font-medium">{row.getValue('teacherId')}</span>
       ),
     },
     {
       accessorKey: 'firstName',
-      header: createSortableHeader('First Name'),
+      header: ({ column }) => createSortableHeader(column, 'First Name'),
     },
     {
       accessorKey: 'lastName',
-      header: createSortableHeader('Last Name'),
+      header: ({ column }) => createSortableHeader(column, 'Last Name'),
     },
     {
       accessorKey: 'email',
-      header: createSortableHeader('Email'),
+      header: ({ column }) => createSortableHeader(column, 'Email'),
     },
     {
       accessorKey: 'phone',
@@ -305,7 +306,7 @@ export default function TeachersPage(): JSX.Element {
     },
     {
       accessorKey: 'status',
-      header: createSortableHeader('Status'),
+      header: ({ column }) => createSortableHeader(column, 'Status'),
       cell: ({ row }) => getStatusBadge(row.getValue('status')),
     },
     {
@@ -523,7 +524,7 @@ export default function TeachersPage(): JSX.Element {
             <div className="space-y-4">
               {/* Filters Row */}
               <div className="flex flex-wrap gap-2">
-                <div className="flex-1 min-w-[180px]">
+                <div className="flex-1 min-w-45">
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
                     <SelectTrigger className="h-9">
                       <SelectValue placeholder="Filter by Status" />
@@ -537,7 +538,7 @@ export default function TeachersPage(): JSX.Element {
                   </Select>
                 </div>
                 
-                <div className="flex-1 min-w-[180px]">
+                <div className="flex-1 min-w-45">
                   <Select value={employmentFilter} onValueChange={setEmploymentFilter}>
                     <SelectTrigger className="h-9">
                       <SelectValue placeholder="Filter by Employment Type" />

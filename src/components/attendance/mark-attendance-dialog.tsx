@@ -160,10 +160,10 @@ export function MarkAttendanceDialog({
       }
 
       // Update counts
-      await updateAttendanceCounts({ attendanceId: newAttendanceId });
+      await updateAttendanceCounts({ attendanceId: newAttendanceId, updatedBy: adminId });
 
       // Complete attendance
-      await completeAttendance({ attendanceId: newAttendanceId });
+      await completeAttendance({ attendanceId: newAttendanceId, updatedBy: adminId });
 
       toast.success('Attendance marked successfully');
       onOpenChange(false);

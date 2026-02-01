@@ -1,6 +1,16 @@
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
+import type { MutationCtx } from './_generated/server';
 import type { Id } from './_generated/dataModel';
+
+// Verify the caller is a school admin and return their schoolId
+async function getVerifiedSchoolId(ctx: MutationCtx, adminId: string): Promise<string> {
+  const admin = await ctx.db.get(adminId as Id<'schoolAdmins'>);
+  if (!admin) {
+    throw new Error('Unauthorized: Admin not found');
+  }
+  return admin.schoolId;
+}
 
 // Helper function to generate attendance code
 function generateAttendanceCode(): string {
@@ -26,6 +36,11 @@ export const createAttendance = mutation({
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.markedBy);
+    if (callerSchoolId !== args.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     const now = new Date().toISOString();
     const attendanceCode = generateAttendanceCode();
 
@@ -74,8 +89,13 @@ export const markStudentAttendance = mutation({
     markedByName: v.string(),
   },
   handler: async (ctx, args) => {
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.markedBy);
+    if (callerSchoolId !== args.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     const now = new Date().toISOString();
-    
+
     // Get attendance code
     const attendance = await ctx.db.get(args.attendanceId);
     if (!attendance) throw new Error('Attendance session not found');
@@ -126,8 +146,17 @@ export const markStudentAttendance = mutation({
 export const updateAttendanceCounts = mutation({
   args: {
     attendanceId: v.id('attendance'),
+    updatedBy: v.string(),
   },
   handler: async (ctx, args) => {
+    const attendance = await ctx.db.get(args.attendanceId);
+    if (!attendance) throw new Error('Attendance session not found');
+
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.updatedBy);
+    if (callerSchoolId !== attendance.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     const records = await ctx.db
       .query('attendanceRecords')
       .withIndex('by_attendance', (q) => q.eq('attendanceId', args.attendanceId))
@@ -152,8 +181,17 @@ export const updateAttendanceCounts = mutation({
 export const completeAttendance = mutation({
   args: {
     attendanceId: v.id('attendance'),
+    updatedBy: v.string(),
   },
   handler: async (ctx, args) => {
+    const attendance = await ctx.db.get(args.attendanceId);
+    if (!attendance) throw new Error('Attendance session not found');
+
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.updatedBy);
+    if (callerSchoolId !== attendance.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     await ctx.db.patch(args.attendanceId, {
       status: 'completed',
       updatedAt: new Date().toISOString(),
@@ -165,8 +203,17 @@ export const completeAttendance = mutation({
 export const lockAttendance = mutation({
   args: {
     attendanceId: v.id('attendance'),
+    updatedBy: v.string(),
   },
   handler: async (ctx, args) => {
+    const attendance = await ctx.db.get(args.attendanceId);
+    if (!attendance) throw new Error('Attendance session not found');
+
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.updatedBy);
+    if (callerSchoolId !== attendance.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     await ctx.db.patch(args.attendanceId, {
       status: 'locked',
       updatedAt: new Date().toISOString(),
@@ -178,8 +225,17 @@ export const lockAttendance = mutation({
 export const unlockAttendance = mutation({
   args: {
     attendanceId: v.id('attendance'),
+    updatedBy: v.string(),
   },
   handler: async (ctx, args) => {
+    const attendance = await ctx.db.get(args.attendanceId);
+    if (!attendance) throw new Error('Attendance session not found');
+
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.updatedBy);
+    if (callerSchoolId !== attendance.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     await ctx.db.patch(args.attendanceId, {
       status: 'completed',
       updatedAt: new Date().toISOString(),
@@ -199,6 +255,11 @@ export const adminOverrideAttendance = mutation({
   handler: async (ctx, args) => {
     const record = await ctx.db.get(args.recordId);
     if (!record) throw new Error('Attendance record not found');
+
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.overriddenBy);
+    if (callerSchoolId !== record.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
 
     const now = new Date().toISOString();
 
@@ -248,8 +309,17 @@ export const adminOverrideAttendance = mutation({
 export const deleteAttendance = mutation({
   args: {
     attendanceId: v.id('attendance'),
+    deletedBy: v.string(),
   },
   handler: async (ctx, args) => {
+    const attendance = await ctx.db.get(args.attendanceId);
+    if (!attendance) throw new Error('Attendance session not found');
+
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.deletedBy);
+    if (callerSchoolId !== attendance.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     // Delete all records first
     const records = await ctx.db
       .query('attendanceRecords')
@@ -279,6 +349,11 @@ export const bulkMarkAttendance = mutation({
     markedByName: v.string(),
   },
   handler: async (ctx, args) => {
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.markedBy);
+    if (callerSchoolId !== args.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     const now = new Date().toISOString();
     const results: { classId: string; className: string; success: boolean; attendanceId?: Id<'attendance'>; error?: string; }[] = [];
 
@@ -307,6 +382,7 @@ export const bulkMarkAttendance = mutation({
         if (existingAttendance) {
           results.push({
             classId,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             className: (classData as any).name ?? 'Unknown',
             success: false,
             error: 'Attendance already exists',
@@ -328,6 +404,7 @@ export const bulkMarkAttendance = mutation({
           schoolId: args.schoolId,
           attendanceCode,
           classId,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           className: (classData as any).name ?? 'Unknown',
           date: args.date,
           session: args.session,
@@ -355,6 +432,7 @@ export const bulkMarkAttendance = mutation({
             studentId: student._id,
             studentName: `${student.firstName} ${student.lastName}`,
             classId,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             className: (classData as any).name ?? 'Unknown',
             date: args.date,
             session: args.session,
@@ -368,6 +446,7 @@ export const bulkMarkAttendance = mutation({
 
         results.push({
           classId,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             className: (classData as any).name ?? 'Unknown',
           success: true,
           attendanceId,
@@ -636,6 +715,7 @@ export const getAttendanceSettings = query({
 export const saveAttendanceSettings = mutation({
   args: {
     schoolId: v.string(),
+    updatedBy: v.string(),
     enableMorningSession: v.boolean(),
     enableAfternoonSession: v.boolean(),
     morningStartTime: v.optional(v.string()),
@@ -649,6 +729,11 @@ export const saveAttendanceSettings = mutation({
     notifyParentsOnAbsence: v.boolean(),
   },
   handler: async (ctx, args) => {
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.updatedBy);
+    if (callerSchoolId !== args.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     const existingSettings = await ctx.db
       .query('attendanceSettings')
       .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))

@@ -31,6 +31,7 @@ interface EditExamDialogProps {
   onOpenChange: (open: boolean) => void;
   examId: Id<'exams'>;
   schoolId: string;
+  adminId: string;
 }
 
 interface Subject {
@@ -39,7 +40,7 @@ interface Subject {
   id?: string;
 }
 
-export function EditExamDialog({ open, onOpenChange, examId, schoolId }: EditExamDialogProps) {
+export function EditExamDialog({ open, onOpenChange, examId, schoolId, adminId }: EditExamDialogProps) {
   const { toast } = useToast();
   const updateExam = useMutation(api.exams.updateExam);
   const exam = useQuery(api.exams.getExamById, { examId });
@@ -126,6 +127,7 @@ export function EditExamDialog({ open, onOpenChange, examId, schoolId }: EditExa
 
       await updateExam({
         examId,
+        updatedBy: adminId,
         examName,
         examType: examType as 'mid_term' | 'end_of_term' | 'mock' | 'quiz' | 'assessment' | 'final',
         startDate,

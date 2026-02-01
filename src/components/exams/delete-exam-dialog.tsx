@@ -21,9 +21,10 @@ interface DeleteExamDialogProps {
   onOpenChange: (open: boolean) => void;
   examId: Id<'exams'>;
   examName: string;
+  adminId: string;
 }
 
-export function DeleteExamDialog({ open, onOpenChange, examId, examName }: DeleteExamDialogProps) {
+export function DeleteExamDialog({ open, onOpenChange, examId, examName, adminId }: DeleteExamDialogProps) {
   const { toast } = useToast();
   const deleteExam = useMutation(api.exams.deleteExam);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
@@ -31,7 +32,7 @@ export function DeleteExamDialog({ open, onOpenChange, examId, examName }: Delet
   const handleDelete = async (): Promise<void> => {
     setIsDeleting(true);
     try {
-      await deleteExam({ examId });
+      await deleteExam({ examId, deletedBy: adminId });
 
       toast({
         title: 'Success',

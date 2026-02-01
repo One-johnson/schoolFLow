@@ -1,11 +1,21 @@
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
+import type { MutationCtx } from './_generated/server';
 import type { Id } from './_generated/dataModel';
 
 // Helper function to generate academic year code
 function generateYearCode(): string {
   const digits = Math.floor(100000 + Math.random() * 900000);
   return `AY${digits}`;
+}
+
+// Verify the caller is a school admin and return their schoolId
+async function getVerifiedSchoolId(ctx: MutationCtx, adminId: string): Promise<string> {
+  const admin = await ctx.db.get(adminId as Id<'schoolAdmins'>);
+  if (!admin) {
+    throw new Error('Unauthorized: Admin not found');
+  }
+  return admin.schoolId;
 }
 
 // Query: Get all academic years for a school
@@ -77,6 +87,11 @@ export const addAcademicYear = mutation({
     createdBy: v.string(),
   },
   handler: async (ctx, args) => {
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.createdBy);
+    if (callerSchoolId !== args.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     // If setting as current, unset all other current years for this school
     if (args.setAsCurrent) {
       const currentYears = await ctx.db
@@ -154,6 +169,11 @@ export const updateAcademicYear = mutation({
       throw new Error('Academic year not found');
     }
 
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.updatedBy);
+    if (callerSchoolId !== year.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     const now = new Date().toISOString();
 
     await ctx.db.patch(args.yearId, {
@@ -188,6 +208,11 @@ export const setCurrentYear = mutation({
     updatedBy: v.string(),
   },
   handler: async (ctx, args) => {
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.updatedBy);
+    if (callerSchoolId !== args.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     // Unset all current years for this school
     const currentYears = await ctx.db
       .query('academicYears')
@@ -236,14 +261,22 @@ export const updateYearStatus = mutation({
     updatedBy: v.string(),
   },
   handler: async (ctx, args) => {
+    const year = await ctx.db.get(args.yearId);
+    if (!year) {
+      throw new Error('Academic year not found');
+    }
+
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.updatedBy);
+    if (callerSchoolId !== year.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     const now = new Date().toISOString();
 
     await ctx.db.patch(args.yearId, {
       status: args.status,
       updatedAt: now,
     });
-
-    const year = await ctx.db.get(args.yearId);
 
     // Create audit log
     await ctx.db.insert('auditLogs', {
@@ -253,7 +286,7 @@ export const updateYearStatus = mutation({
       action: 'UPDATE',
       entity: 'academic_year',
       entityId: args.yearId,
-      details: `Updated status to ${args.status} for: ${year?.yearName}`,
+      details: `Updated status to ${args.status} for: ${year.yearName}`,
       ipAddress: 'system',
     });
   },
@@ -269,6 +302,11 @@ export const deleteAcademicYear = mutation({
     const year = await ctx.db.get(args.yearId);
     if (!year) {
       throw new Error('Academic year not found');
+    }
+
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.deletedBy);
+    if (callerSchoolId !== year.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
     }
 
     // Check if there are any terms associated with this year
@@ -304,6 +342,8 @@ export const bulkDeleteAcademicYears = mutation({
     deletedBy: v.string(),
   },
   handler: async (ctx, args) => {
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.deletedBy);
+
     let successCount = 0;
     let failCount = 0;
     const errors: string[] = [];
@@ -314,6 +354,12 @@ export const bulkDeleteAcademicYears = mutation({
         if (!year) {
           failCount++;
           errors.push(`Year not found`);
+          continue;
+        }
+
+        if (year.schoolId !== callerSchoolId) {
+          failCount++;
+          errors.push('Unauthorized: Year belongs to a different school');
           continue;
         }
 
@@ -343,6 +389,7 @@ export const bulkDeleteAcademicYears = mutation({
           details: `Bulk deleted academic year: ${year.yearName}`,
           ipAddress: 'system',
         });
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (error) {
         failCount++;
         errors.push(`Failed to delete year`);

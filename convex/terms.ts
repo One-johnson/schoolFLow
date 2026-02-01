@@ -1,11 +1,21 @@
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
+import type { MutationCtx } from './_generated/server';
 import type { Id } from './_generated/dataModel';
 
 // Helper function to generate term code
 function generateTermCode(): string {
   const digits = Math.floor(100000 + Math.random() * 900000);
   return `TRM${digits}`;
+}
+
+// Verify the caller is a school admin and return their schoolId
+async function getVerifiedSchoolId(ctx: MutationCtx, adminId: string): Promise<string> {
+  const admin = await ctx.db.get(adminId as Id<'schoolAdmins'>);
+  if (!admin) {
+    throw new Error('Unauthorized: Admin not found');
+  }
+  return admin.schoolId;
 }
 
 // Query: Get all terms for a school
@@ -123,6 +133,11 @@ export const addTerm = mutation({
     createdBy: v.string(),
   },
   handler: async (ctx, args) => {
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.createdBy);
+    if (callerSchoolId !== args.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     // Verify academic year exists
     const academicYear = await ctx.db.get(args.academicYearId);
     if (!academicYear) {
@@ -213,6 +228,11 @@ export const updateTerm = mutation({
       throw new Error('Term not found');
     }
 
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.updatedBy);
+    if (callerSchoolId !== term.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     const now = new Date().toISOString();
 
     await ctx.db.patch(args.termId, {
@@ -250,6 +270,11 @@ export const setCurrentTerm = mutation({
     updatedBy: v.string(),
   },
   handler: async (ctx, args) => {
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.updatedBy);
+    if (callerSchoolId !== args.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     // Unset all current terms for this school
     const currentTerms = await ctx.db
       .query('terms')
@@ -297,14 +322,22 @@ export const updateTermStatus = mutation({
     updatedBy: v.string(),
   },
   handler: async (ctx, args) => {
+    const term = await ctx.db.get(args.termId);
+    if (!term) {
+      throw new Error('Term not found');
+    }
+
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.updatedBy);
+    if (callerSchoolId !== term.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     const now = new Date().toISOString();
 
     await ctx.db.patch(args.termId, {
       status: args.status,
       updatedAt: now,
     });
-
-    const term = await ctx.db.get(args.termId);
 
     // Create audit log
     await ctx.db.insert('auditLogs', {
@@ -314,7 +347,7 @@ export const updateTermStatus = mutation({
       action: 'UPDATE',
       entity: 'term',
       entityId: args.termId,
-      details: `Updated status to ${args.status} for: ${term?.termName}`,
+      details: `Updated status to ${args.status} for: ${term.termName}`,
       ipAddress: 'system',
     });
   },
@@ -330,6 +363,11 @@ export const deleteTerm = mutation({
     const term = await ctx.db.get(args.termId);
     if (!term) {
       throw new Error('Term not found');
+    }
+
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.deletedBy);
+    if (callerSchoolId !== term.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
     }
 
     await ctx.db.delete(args.termId);
@@ -355,6 +393,8 @@ export const bulkDeleteTerms = mutation({
     deletedBy: v.string(),
   },
   handler: async (ctx, args) => {
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.deletedBy);
+
     let successCount = 0;
     let failCount = 0;
     const errors: string[] = [];
@@ -365,6 +405,12 @@ export const bulkDeleteTerms = mutation({
         if (!term) {
           failCount++;
           errors.push(`Term not found`);
+          continue;
+        }
+
+        if (term.schoolId !== callerSchoolId) {
+          failCount++;
+          errors.push('Unauthorized: Term belongs to a different school');
           continue;
         }
 
@@ -382,6 +428,7 @@ export const bulkDeleteTerms = mutation({
           details: `Bulk deleted term: ${term.termName}`,
           ipAddress: 'system',
         });
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (error) {
         failCount++;
         errors.push(`Failed to delete term`);

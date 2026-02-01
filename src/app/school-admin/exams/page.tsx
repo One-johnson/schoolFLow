@@ -747,6 +747,7 @@ export default function ExamsPage() {
                 onOpenChange={setShowEditExam}
                 examId={selectedExamId}
                 schoolId={schoolId}
+                adminId={currentAdmin._id}
               />
 
               <ViewExamDialog
@@ -760,6 +761,7 @@ export default function ExamsPage() {
                 onOpenChange={setShowDeleteExam}
                 examId={selectedExamId}
                 examName={selectedExamName}
+                adminId={currentAdmin._id}
               />
 
               <MarksEntryDialog
@@ -788,6 +790,7 @@ export default function ExamsPage() {
                 examId={selectedExamId}
                 examName={selectedExamName}
                 currentStatus={selectedExamStatus}
+                adminId={currentAdmin._id}
               />
 
               {currentAdmin && (
@@ -815,6 +818,7 @@ export default function ExamsPage() {
             open={showGenerateReports}
             onOpenChange={setShowGenerateReports}
             schoolId={schoolId}
+            adminId={currentAdmin._id}
           />
 
           {selectedReportCardId && showReviewDialog && currentAdmin && (
@@ -844,6 +848,7 @@ export default function ExamsPage() {
                 onOpenChange={setShowDeleteReport}
                 reportCardId={selectedReportCardId}
                 studentName={deleteReportName}
+                adminId={currentAdmin._id}
               />
             </>
           )}
@@ -855,6 +860,7 @@ export default function ExamsPage() {
             onDeleteComplete={() => {
               setSelectedReportCards([]);
             }}
+            adminId={currentAdmin._id}
           />
         </>
       )}

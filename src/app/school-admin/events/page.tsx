@@ -522,6 +522,7 @@ export default function EventsPage(): React.JSX.Element {
         open={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
         event={selectedEvent}
+        adminId={user.userId}
       />
 
       <CancelEventDialog

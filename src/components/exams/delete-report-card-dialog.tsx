@@ -22,6 +22,7 @@ interface DeleteReportCardDialogProps {
   onOpenChange: (open: boolean) => void;
   reportCardId: Id<'reportCards'>;
   studentName: string;
+  adminId: string;
 }
 
 export function DeleteReportCardDialog({
@@ -29,6 +30,7 @@ export function DeleteReportCardDialog({
   onOpenChange,
   reportCardId,
   studentName,
+  adminId,
 }: DeleteReportCardDialogProps) {
   const { toast } = useToast();
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
@@ -38,7 +40,7 @@ export function DeleteReportCardDialog({
   const handleDelete = async (): Promise<void> => {
     try {
       setIsDeleting(true);
-      await deleteReportCard({ reportCardId });
+      await deleteReportCard({ reportCardId, deletedBy: adminId });
       toast({
         title: 'Success',
         description: 'Report card deleted successfully',

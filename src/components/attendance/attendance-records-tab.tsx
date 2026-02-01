@@ -296,18 +296,21 @@ export function AttendanceRecordsTab({ schoolId, adminId, adminName }: Attendanc
             attendanceId={selectedRecord._id}
             attendanceCode={selectedRecord.attendanceCode}
             className={selectedRecord.className}
+            adminId={adminId}
             open={showDeleteDialog}
             onOpenChange={setShowDeleteDialog}
           />
           <LockAttendanceDialog
             attendanceId={selectedRecord._id}
             attendanceCode={selectedRecord.attendanceCode}
+            adminId={adminId}
             open={showLockDialog}
             onOpenChange={setShowLockDialog}
           />
           <UnlockAttendanceDialog
             attendanceId={selectedRecord._id}
             attendanceCode={selectedRecord.attendanceCode}
+            adminId={adminId}
             open={showUnlockDialog}
             onOpenChange={setShowUnlockDialog}
           />

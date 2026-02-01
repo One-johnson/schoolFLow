@@ -36,12 +36,14 @@ interface EditPaymentDialogProps {
     transactionReference?: string;
     notes?: string;
   } | null;
+  adminId: string;
 }
 
 export function EditPaymentDialog({
   open,
   onOpenChange,
   payment,
+  adminId,
 }: EditPaymentDialogProps): JSX.Element {
   const [items, setItems] = useState<FeePaymentItem[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<string>('cash');
@@ -78,6 +80,7 @@ export function EditPaymentDialog({
     try {
       await updatePayment({
         paymentId: payment._id as Id<'feePayments'>,
+        updatedBy: adminId,
         items: items,
         paymentMethod: paymentMethod as 'cash' | 'bank_transfer' | 'mobile_money' | 'check' | 'other',
         transactionReference: transactionRef || undefined,

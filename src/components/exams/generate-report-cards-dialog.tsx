@@ -28,12 +28,14 @@ interface GenerateReportCardsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   schoolId: string;
+  adminId: string;
 }
 
 export function GenerateReportCardsDialog({
   open,
   onOpenChange,
   schoolId,
+  adminId,
 }: GenerateReportCardsDialogProps) {
   const { toast } = useToast();
   const generateReportCards = useMutation(api.reportCards.generateReportCards);
@@ -67,6 +69,7 @@ export function GenerateReportCardsDialog({
       const result = await generateReportCards({
         examId: selectedExamId as Id<'exams'>,
         classId: selectedClassId,
+        createdBy: adminId,
       });
 
       // Show success message with count

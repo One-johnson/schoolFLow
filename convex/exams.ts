@@ -1,6 +1,16 @@
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
+import type { MutationCtx } from './_generated/server';
 import type { Id } from './_generated/dataModel';
+
+// Verify the caller is a school admin and return their schoolId
+async function getVerifiedSchoolId(ctx: MutationCtx, adminId: string): Promise<string> {
+  const admin = await ctx.db.get(adminId as Id<'schoolAdmins'>);
+  if (!admin) {
+    throw new Error('Unauthorized: Admin not found');
+  }
+  return admin.schoolId;
+}
 
 // Helper function to generate exam code
 function generateExamCode(): string {
@@ -41,6 +51,11 @@ export const createExam = mutation({
     createdBy: v.string(),
   },
   handler: async (ctx, args): Promise<Id<'exams'>> => {
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.createdBy);
+    if (callerSchoolId !== args.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     const examCode: string = generateExamCode();
     const now: string = new Date().toISOString();
 
@@ -122,15 +137,21 @@ export const updateExam = mutation({
       )
     ),
     adminOverride: v.optional(v.boolean()), // Allow admin to override lock
+    updatedBy: v.string(),
   },
   handler: async (ctx, args) => {
-    const { examId, adminOverride, ...updates } = args;
+    const { examId, adminOverride, updatedBy, ...updates } = args;
     const now: string = new Date().toISOString();
 
     // Check current exam status
     const exam = await ctx.db.get(examId);
     if (!exam) {
       throw new Error('Exam not found');
+    }
+
+    const callerSchoolId = await getVerifiedSchoolId(ctx, updatedBy);
+    if (callerSchoolId !== exam.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
     }
 
     // Block editing published exams unless unlocked or admin override
@@ -149,8 +170,19 @@ export const updateExam = mutation({
 
 // Delete exam
 export const deleteExam = mutation({
-  args: { examId: v.id('exams') },
+  args: {
+    examId: v.id('exams'),
+    deletedBy: v.string(),
+  },
   handler: async (ctx, args) => {
+    const exam = await ctx.db.get(args.examId);
+    if (!exam) throw new Error('Exam not found');
+
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.deletedBy);
+    if (callerSchoolId !== exam.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     // Delete associated marks first
     const marks = await ctx.db
       .query('studentMarks')
@@ -169,8 +201,19 @@ export const deleteExam = mutation({
 
 // Publish exam
 export const publishExam = mutation({
-  args: { examId: v.id('exams') },
+  args: {
+    examId: v.id('exams'),
+    updatedBy: v.string(),
+  },
   handler: async (ctx, args) => {
+    const exam = await ctx.db.get(args.examId);
+    if (!exam) throw new Error('Exam not found');
+
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.updatedBy);
+    if (callerSchoolId !== exam.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     const now: string = new Date().toISOString();
 
     await ctx.db.patch(args.examId, {
@@ -196,6 +239,11 @@ export const unlockExam = mutation({
 
     if (!exam) {
       throw new Error('Exam not found');
+    }
+
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.adminId);
+    if (callerSchoolId !== exam.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
     }
 
     // Only allow unlocking completed or published exams
@@ -241,6 +289,11 @@ export const lockExam = mutation({
 
     if (!exam) {
       throw new Error('Exam not found');
+    }
+
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.adminId);
+    if (callerSchoolId !== exam.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
     }
 
     await ctx.db.patch(args.examId, {

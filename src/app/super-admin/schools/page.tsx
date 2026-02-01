@@ -8,7 +8,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { DataTable, createSortableHeader, createSelectColumn } from '../../../components/ui/data-table';
 import type { SchoolStatus } from '@/types';
 import { toast } from 'sonner';
-import { CheckCircle, XCircle, Trash2, Ban, Loader2 } from 'lucide-react';
+import { CheckCircle,  Ban, Loader2, Trash2 } from 'lucide-react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import type { Id } from '../../../../convex/_generated/dataModel';
@@ -78,6 +78,7 @@ export default function SchoolsPage(): JSX.Element {
   const [actionReason, setActionReason] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const handleApprove = async (id: Id<'schools'>): Promise<void> => {
     try {
       await updateSchoolStatus({
@@ -95,6 +96,7 @@ export default function SchoolsPage(): JSX.Element {
         ipAddress: '192.168.1.1',
       });
       toast.success('School approved successfully');
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error('Failed to approve school');
     }
@@ -179,6 +181,7 @@ export default function SchoolsPage(): JSX.Element {
       setShowActionDialog(false);
       setTargetSchool(null);
       setActionReason('');
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error(`Failed to ${actionType === 'suspend' || actionType === 'bulk-suspend' ? 'suspend' : 'delete'} school(s)`);
     } finally {
@@ -203,7 +206,7 @@ export default function SchoolsPage(): JSX.Element {
       createSelectColumn<School>(),
       {
         accessorKey: 'name',
-        header: createSortableHeader('School Name'),
+        header: ({ column }) => createSortableHeader(column, 'School Name'),
         cell: ({ row }) => (
           <div>
             <p className="font-medium">{row.original.name}</p>
@@ -213,15 +216,15 @@ export default function SchoolsPage(): JSX.Element {
       },
       {
         accessorKey: 'adminName',
-        header: createSortableHeader('Admin'),
+        header: ({ column }) => createSortableHeader(column, 'Admin'),
       },
       {
         accessorKey: 'studentCount',
-        header: createSortableHeader('Students'),
+        header: ({ column }) => createSortableHeader(column, 'Students'),
       },
       {
         accessorKey: 'status',
-        header: createSortableHeader('Status'),
+        header: ({ column }) => createSortableHeader(column, 'Status'),
         cell: ({ row }) => (
           <Badge variant={getStatusBadgeVariant(row.original.status)}>
             {row.original.status.replace('_', ' ')}
@@ -233,12 +236,12 @@ export default function SchoolsPage(): JSX.Element {
       },
       {
         accessorKey: 'monthlyFee',
-        header: createSortableHeader('Monthly Fee'),
+        header: ({ column }) => createSortableHeader(column, 'Monthly Fee'),
         cell: ({ row }) => `$${row.original.monthlyFee.toLocaleString()}`,
       },
       {
         accessorKey: 'registrationDate',
-        header: createSortableHeader('Registration Date'),
+        header: ({ column }) => createSortableHeader(column, 'Registration Date'),
         cell: ({ row }) => new Date(row.original.registrationDate).toLocaleDateString(),
       },
       {
@@ -278,7 +281,7 @@ export default function SchoolsPage(): JSX.Element {
         ),
       },
     ],
-    []
+    [handleApprove]
   );
 
   const filteredData = useMemo(() => {
@@ -400,7 +403,7 @@ This action cannot be undone. All data will be lost.`,
 
       <div className="flex gap-4">
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[200px]">
+          <SelectTrigger className="w-50">
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
           <SelectContent>
