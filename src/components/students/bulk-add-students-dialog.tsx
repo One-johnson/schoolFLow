@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { useState } from 'react';
@@ -264,7 +265,7 @@ John,Doe,,2015-05-15,male,john.doe@example.com,+1234567890,123 Main St,CLS123456
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col overflow-y-auto">
-          <DialogHeader className="flex-shrink-0">
+          <DialogHeader className="shrink-0">
             <DialogTitle>Bulk Add Students</DialogTitle>
             <DialogDescription>
               Add multiple students at once via manual entry or CSV upload
@@ -272,7 +273,7 @@ John,Doe,,2015-05-15,male,john.doe@example.com,+1234567890,123 Main St,CLS123456
           </DialogHeader>
 
           <Tabs defaultValue="manual" className="flex-1 flex flex-col overflow-hidden">
-            <TabsList className="grid w-full grid-cols-2 flex-shrink-0">
+            <TabsList className="grid w-full grid-cols-2 shrink-0">
               <TabsTrigger value="manual">Manual Entry</TabsTrigger>
               <TabsTrigger value="csv">CSV Upload</TabsTrigger>
             </TabsList>

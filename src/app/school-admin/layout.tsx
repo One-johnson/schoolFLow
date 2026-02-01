@@ -1,7 +1,7 @@
 'use client';
 
 import { JSX, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from 'convex/react';
 import { api } from '@/../convex/_generated/api';
@@ -16,8 +16,18 @@ export default function SchoolAdminLayout({
   children: React.ReactNode;
 }): JSX.Element {
   const router = useRouter();
+  const pathname = usePathname();
   const { authenticated, loading, user } = useAuth();
   const [checkingStatus, setCheckingStatus] = useState(true);
+
+  // Pages a suspended/inactive admin is still allowed to visit
+  const ALLOWED_WHEN_SUSPENDED = [
+    '/school-admin/access-blocked',
+    '/school-admin/school-suspended',
+    '/school-admin/school-deleted',
+    '/school-admin/subscription',
+    '/school-admin/payment',
+  ];
 
   // Get school admin data using more efficient query
   const schoolAdmin = useQuery(
@@ -31,6 +41,7 @@ export default function SchoolAdminLayout({
 
   useEffect(() => {
     if (!loading && schoolAdmin !== undefined) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCheckingStatus(false);
     }
   }, [loading, schoolAdmin]);
@@ -65,12 +76,33 @@ export default function SchoolAdminLayout({
         return;
       }
       // Check if school is marked as deleted (also handles legacy "deleted" property)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if ((school as any).deleted === true) {
         router.push('/school-admin/school-deleted');
         return;
       }
     }
   }, [school, router, checkingStatus]);
+
+  // Block suspended or inactive admins from accessing protected pages.
+  // This is the primary guard — it catches trial expiry even when no school has been created yet.
+  useEffect(() => {
+    if (checkingStatus || !schoolAdmin) return;
+
+    if (
+      (schoolAdmin.status === 'suspended' || schoolAdmin.status === 'inactive') &&
+      !ALLOWED_WHEN_SUSPENDED.includes(pathname)
+    ) {
+      const reason =
+        schoolAdmin.status === 'suspended'
+          ? 'Your trial has expired and your account has been suspended. Please subscribe to continue.'
+          : 'Your account has been deactivated.';
+      router.push(
+        `/school-admin/access-blocked?status=${schoolAdmin.status}&reason=${encodeURIComponent(reason)}`
+      );
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schoolAdmin, checkingStatus, pathname, router]);
 
   if (loading || checkingStatus || !authenticated || user?.role !== 'school_admin') {
     return (

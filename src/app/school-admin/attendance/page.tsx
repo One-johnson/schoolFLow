@@ -1,6 +1,6 @@
 'use client';
 
-import { JSX, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from 'convex/react';
@@ -14,7 +14,8 @@ import {
   Calendar,
   TrendingUp,
   Users,
-  AlertCircle 
+  AlertCircle,
+  Download
 } from 'lucide-react';
 import { StatsCard } from '@/components/school-admin/stats-card';
 import { MarkAttendanceDialog } from '@/components/attendance/mark-attendance-dialog';
@@ -23,6 +24,11 @@ import { AttendanceRecordsTab } from '@/components/attendance/attendance-records
 import { StudentReportsTab } from '@/components/attendance/student-reports-tab';
 import { ClassAnalyticsTab } from '@/components/attendance/class-analytics-tab';
 import { AttendanceSettingsDialog } from '@/components/attendance/attendance-settings-dialog';
+import { ExportAttendanceDialog } from '@/components/attendance/export-attendance-dialog';
+import { DailyRegisterExportDialog } from '@/components/attendance/daily-register-export-dialog';
+import { StudentCertificateDialog } from '@/components/attendance/student-certificate-dialog';
+import { ClassPerformanceDialog } from '@/components/attendance/class-performance-dialog';
+import { AbsenteeReportDialog } from '@/components/attendance/absentee-report-dialog';
 
 export default function AttendancePage(): JSX.Element {
   const router = useRouter();
@@ -30,6 +36,28 @@ export default function AttendancePage(): JSX.Element {
   const [showMarkDialog, setShowMarkDialog] = useState<boolean>(false);
   const [showBulkMarkDialog, setShowBulkMarkDialog] = useState<boolean>(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState<boolean>(false);
+  const [showExportDialog, setShowExportDialog] = useState<boolean>(false);
+  const [showDailyRegisterDialog, setShowDailyRegisterDialog] = useState<boolean>(false);
+  const [showStudentCertificateDialog, setShowStudentCertificateDialog] = useState<boolean>(false);
+  const [showClassPerformanceDialog, setShowClassPerformanceDialog] = useState<boolean>(false);
+  const [showAbsenteeReportDialog, setShowAbsenteeReportDialog] = useState<boolean>(false);
+
+  const handleSelectReportType = (type: 'daily' | 'summary' | 'certificate' | 'performance' | 'absentee'): void => {
+    switch (type) {
+      case 'daily':
+        setShowDailyRegisterDialog(true);
+        break;
+      case 'certificate':
+        setShowStudentCertificateDialog(true);
+        break;
+      case 'performance':
+        setShowClassPerformanceDialog(true);
+        break;
+      case 'absentee':
+        setShowAbsenteeReportDialog(true);
+        break;
+    }
+  };
   
   const currentAdmin = useQuery(
     api.schoolAdmins.getByEmail,
@@ -110,6 +138,10 @@ export default function AttendancePage(): JSX.Element {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={() => setShowExportDialog(true)}>
+            <Download className="mr-2 h-4 w-4" />
+            Export
+          </Button>
           <Button variant="outline" onClick={() => setShowSettingsDialog(true)}>
             Settings
           </Button>
@@ -248,6 +280,51 @@ export default function AttendancePage(): JSX.Element {
           schoolId={currentAdmin.schoolId}
           open={showSettingsDialog}
           onOpenChange={setShowSettingsDialog}
+        />
+      )}
+
+      {/* Export Dialogs */}
+      {showExportDialog && (
+        <ExportAttendanceDialog
+          open={showExportDialog}
+          onOpenChange={setShowExportDialog}
+          onSelectReportType={handleSelectReportType}
+        />
+      )}
+
+      {showDailyRegisterDialog && (
+        <DailyRegisterExportDialog
+          open={showDailyRegisterDialog}
+          onOpenChange={setShowDailyRegisterDialog}
+          schoolId={currentAdmin.schoolId}
+          schoolName={currentAdmin.schoolName}
+        />
+      )}
+
+      {showStudentCertificateDialog && (
+        <StudentCertificateDialog
+          open={showStudentCertificateDialog}
+          onOpenChange={setShowStudentCertificateDialog}
+          schoolId={currentAdmin.schoolId}
+          schoolName={currentAdmin.schoolName}
+        />
+      )}
+
+      {showClassPerformanceDialog && (
+        <ClassPerformanceDialog
+          open={showClassPerformanceDialog}
+          onOpenChange={setShowClassPerformanceDialog}
+          schoolId={currentAdmin.schoolId}
+          schoolName={currentAdmin.schoolName}
+        />
+      )}
+
+      {showAbsenteeReportDialog && (
+        <AbsenteeReportDialog
+          open={showAbsenteeReportDialog}
+          onOpenChange={setShowAbsenteeReportDialog}
+          schoolId={currentAdmin.schoolId}
+          schoolName={currentAdmin.schoolName}
         />
       )}
     </div>
