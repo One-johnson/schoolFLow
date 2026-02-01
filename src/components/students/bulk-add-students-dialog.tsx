@@ -382,7 +382,7 @@ John,Doe,,2015-05-15,male,john.doe@example.com,+1234567890,123 Main St,CLS123456
                               key={index}
                               className="flex items-start gap-3 p-3 border rounded-lg hover:bg-accent"
                             >
-                              <CheckCircle className="h-4 w-4 text-green-500 mt-1 flex-shrink-0" />
+                              <CheckCircle className="h-4 w-4 text-green-500 mt-1 shrink-0" />
                               <div className="flex-1 min-w-0">
                                 <div className="font-medium">
                                   {student.firstName} {student.lastName}

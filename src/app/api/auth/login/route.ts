@@ -135,16 +135,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         isValidPassword = await PasswordManager.verify(password, schoolAdmin.password);
       }
 
-      // Fallback to tempPassword (plain text for backward compatibility)
-      if (!isValidPassword && schoolAdmin.tempPassword === password) {
-        isValidPassword = true;
-        
-        // Hash the temp password and save it as the permanent password
-        const hashedPassword = await PasswordManager.hash(password);
-        await convex.mutation(api.schoolAdmins.updatePassword, {
-          email: schoolAdmin.email,
-          password: hashedPassword,
-        });
+      // Verify against hashed tempPassword if set
+      if (!isValidPassword && schoolAdmin.tempPassword) {
+        isValidPassword = await PasswordManager.verify(password, schoolAdmin.tempPassword);
+        if (isValidPassword) {
+          // Promote to permanent hashed password and clear tempPassword
+          const hashedPassword = await PasswordManager.hash(password);
+          await convex.mutation(api.schoolAdmins.updatePassword, {
+            email: schoolAdmin.email,
+            password: hashedPassword,
+          });
+        }
       }
 
       if (isValidPassword) {

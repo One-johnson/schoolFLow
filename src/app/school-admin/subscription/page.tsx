@@ -17,7 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 export default function SubscriptionPage(): JSX.Element {
   const router = useRouter();
   const { user } = useAuth();
-  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [, setSelectedPlan] = useState<string | null>(null);
   const [studentCount, setStudentCount] = useState<number>(100);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [selectedPlanDetails, setSelectedPlanDetails] = useState<{
@@ -125,7 +125,7 @@ export default function SubscriptionPage(): JSX.Element {
 
         {/* Active Subscription Banner */}
         {activeSubscription && (
-          <Card className="border-green-500 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 shadow-lg hover:shadow-xl transition-all duration-300">
+          <Card className="border-green-500 bg-linear-to-r from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 shadow-lg hover:shadow-xl transition-all duration-300">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
@@ -402,7 +402,7 @@ export default function SubscriptionPage(): JSX.Element {
                   <div className="flex items-start gap-3">
                     <Clock className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
                     <p className="text-sm text-blue-800 dark:text-blue-200">
-                      <strong>Important:</strong> Your trial will automatically expire after 30 days. You'll need to
+                      <strong>Important:</strong> Your trial will automatically expire after 30 days. You&apos;ll need to
                       upgrade to a paid plan to continue using SchoolFlow.
                     </p>
                   </div>

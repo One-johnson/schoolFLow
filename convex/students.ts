@@ -1,5 +1,6 @@
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
+import type { MutationCtx } from './_generated/server';
 import type { Id } from './_generated/dataModel';
 
 // Generate student ID: initials + 6 random digits
@@ -11,16 +12,27 @@ function generateStudentId(firstName: string, lastName: string): string {
 }
 
 // Generate admission number: ADM + year + sequence
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function generateAdmissionNumber(ctx: any, schoolId: string): Promise<string> {
   const year = new Date().getFullYear();
   const students = await ctx.db
     .query('students')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .withIndex('by_school', (q: any) => q.eq('schoolId', schoolId))
     .collect();
 
   
   const sequence = students.length + 1;
   return `ADM${year}${sequence.toString().padStart(3, '0')}`;
+}
+
+// Verify the caller is a school admin and return their schoolId
+async function getVerifiedSchoolId(ctx: MutationCtx, adminId: string): Promise<string> {
+  const admin = await ctx.db.get(adminId as Id<'schoolAdmins'>);
+  if (!admin) {
+    throw new Error('Unauthorized: Admin not found');
+  }
+  return admin.schoolId;
 }
 
 // Query: Get all students for a school
@@ -205,6 +217,11 @@ export const addStudent = mutation({
     createdBy: v.string(),
   },
   handler: async (ctx, args) => {
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.createdBy);
+    if (callerSchoolId !== args.schoolId) {
+      throw new Error('Unauthorized: You do not have access to this school');
+    }
+
     // Check if email already exists (if provided)
     if (args.email) {
       const existingStudent = await ctx.db
@@ -359,6 +376,11 @@ export const updateStudent = mutation({
       throw new Error('Student not found');
     }
 
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.updatedBy);
+    if (student.schoolId !== callerSchoolId) {
+      throw new Error('Unauthorized: You do not have access to this student');
+    }
+
     // If email is being updated, check for duplicates
     if (args.email && args.email !== student.email) {
       const existingStudent = await ctx.db
@@ -441,6 +463,11 @@ export const deleteStudent = mutation({
       throw new Error('Student not found');
     }
 
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.deletedBy);
+    if (student.schoolId !== callerSchoolId) {
+      throw new Error('Unauthorized: You do not have access to this student');
+    }
+
     // Delete photo from storage if exists
     if (student.photoStorageId) {
       try {
@@ -499,6 +526,7 @@ export const bulkDeleteStudents = mutation({
     deletedBy: v.string(),
   },
   handler: async (ctx, args) => {
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.deletedBy);
     const now = new Date().toISOString();
     let successCount = 0;
     let failCount = 0;
@@ -507,7 +535,7 @@ export const bulkDeleteStudents = mutation({
       try {
         const student = await ctx.db.get(studentId);
 
-        if (!student) {
+        if (!student || student.schoolId !== callerSchoolId) {
           failCount++;
           continue;
         }
@@ -571,6 +599,11 @@ export const updateStudentStatus = mutation({
       throw new Error('Student not found');
     }
 
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.updatedBy);
+    if (student.schoolId !== callerSchoolId) {
+      throw new Error('Unauthorized: You do not have access to this student');
+    }
+
     const now = new Date().toISOString();
 
     await ctx.db.patch(args.studentId, {
@@ -608,6 +641,11 @@ export const transferStudent = mutation({
 
     if (!student) {
       throw new Error('Student not found');
+    }
+
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.updatedBy);
+    if (student.schoolId !== callerSchoolId) {
+      throw new Error('Unauthorized: You do not have access to this student');
     }
 
     const now = new Date().toISOString();
@@ -672,6 +710,7 @@ export const promoteStudents = mutation({
     updatedBy: v.string(),
   },
   handler: async (ctx, args) => {
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.updatedBy);
     const now = new Date().toISOString();
     let successCount = 0;
     let failCount = 0;
@@ -680,7 +719,7 @@ export const promoteStudents = mutation({
       try {
         const student = await ctx.db.get(studentId);
 
-        if (!student) {
+        if (!student || student.schoolId !== callerSchoolId) {
           failCount++;
           continue;
         }
@@ -758,6 +797,7 @@ export const bulkUpdateStudentStatus = mutation({
     updatedBy: v.string(),
   },
   handler: async (ctx, args) => {
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.updatedBy);
     const now = new Date().toISOString();
     let successCount = 0;
     let failCount = 0;
@@ -766,7 +806,7 @@ export const bulkUpdateStudentStatus = mutation({
       try {
         const student = await ctx.db.get(studentId);
 
-        if (!student) {
+        if (!student || student.schoolId !== callerSchoolId) {
           failCount++;
           continue;
         }
