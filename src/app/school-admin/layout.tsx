@@ -41,7 +41,7 @@ export default function SchoolAdminLayout({
 
   useEffect(() => {
     if (!loading && schoolAdmin !== undefined) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setCheckingStatus(false);
     }
   }, [loading, schoolAdmin]);

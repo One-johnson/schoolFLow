@@ -359,6 +359,7 @@ export default function SubscriptionsPage(): JSX.Element {
   // Export handlers
   const handleExportAll = (format: 'json' | 'csv' | 'pdf'): void => {
     if (filteredTableData.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const exportData = filteredTableData.map(({ _id, ...rest }) => rest);
       if (format === 'json') {
         exportToJSON(exportData, 'school_subscriptions');
@@ -372,6 +373,7 @@ export default function SubscriptionsPage(): JSX.Element {
   };
 
   const handleExportSelected = (selected: SubscriptionTableRow[], format: 'json' | 'csv' | 'pdf'): void => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const exportData = selected.map(({ _id, ...rest }) => rest);
     if (format === 'json') {
       exportToJSON(exportData, 'school_subscriptions_selected');
@@ -713,7 +715,7 @@ export default function SubscriptionsPage(): JSX.Element {
                 </div>
                 <div className="flex items-center gap-2">
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-45">
                       <SelectValue placeholder="Filter by status" />
                     </SelectTrigger>
                     <SelectContent>

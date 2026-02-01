@@ -146,6 +146,7 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps):
         }
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   // Auto-save draft (excluding photos)
@@ -371,6 +372,7 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps):
           photoStorageId = await uploadFileToConvex(photoFile);
           // Create photo record in photos table
           if (photoStorageId) {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             photoRecordId = await createPhotoRecord({
               storageId: photoStorageId,
               fileName: photoFile.name,
@@ -400,6 +402,7 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps):
           birthCertificateStorageId = await uploadFileToConvex(documentFile);
           // Create document record in photos table
           if (birthCertificateStorageId) {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             documentRecordId = await createPhotoRecord({
               storageId: birthCertificateStorageId,
               fileName: documentFile.name,
@@ -494,7 +497,7 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps):
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="min-w-2xl max-h-[90vh] flex flex-col overflow-y-auto">
-        <DialogHeader className="flex-shrink-0">
+        <DialogHeader className="shrink-0">
           <DialogTitle>Add New Student</DialogTitle>
           <DialogDescription>
             Enter student information. Fields marked with * are required.
@@ -965,7 +968,7 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps):
           </div>
         </ScrollArea>
 
-        <DialogFooter className="flex-shrink-0 mt-4 border-t pt-4">
+        <DialogFooter className="shrink-0 mt-4 border-t pt-4">
           <div className="flex justify-between w-full">
             <div className="flex gap-2">
               <Button type="button" variant="outline" size="sm" onClick={handleClearAll}>

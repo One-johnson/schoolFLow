@@ -1,5 +1,7 @@
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
+import type { MutationCtx } from './_generated/server';
+import type { Id } from './_generated/dataModel';
 
 // Generate teacher ID: teacher initials + 6 random digits
 function generateTeacherId(firstName: string, lastName: string): string {
@@ -7,6 +9,15 @@ function generateTeacherId(firstName: string, lastName: string): string {
   const lastInitial = lastName.charAt(0).toUpperCase();
   const randomDigits = Math.floor(100000 + Math.random() * 900000);
   return `${firstInitial}${lastInitial}${randomDigits}`;
+}
+
+// Verify the caller is a school admin and return their schoolId
+async function getVerifiedSchoolId(ctx: MutationCtx, adminId: string): Promise<string> {
+  const admin = await ctx.db.get(adminId as Id<'schoolAdmins'>);
+  if (!admin) {
+    throw new Error('Unauthorized: Admin not found');
+  }
+  return admin.schoolId;
 }
 
 // Query: Get all teachers for a school
@@ -105,6 +116,11 @@ export const addTeacher = mutation({
     createdBy: v.string(),
   },
   handler: async (ctx, args) => {
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.createdBy);
+    if (callerSchoolId !== args.schoolId) {
+      throw new Error('Unauthorized: You do not have access to this school');
+    }
+
     // Check if email already exists for this school
     const existingTeacher = await ctx.db
       .query('teachers')
@@ -202,6 +218,11 @@ export const addBulkTeachers = mutation({
     createdBy: v.string(),
   },
   handler: async (ctx, args) => {
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.createdBy);
+    if (callerSchoolId !== args.schoolId) {
+      throw new Error('Unauthorized: You do not have access to this school');
+    }
+
     const now = new Date().toISOString();
     const results = [];
     const errors = [];
@@ -340,6 +361,11 @@ export const updateTeacher = mutation({
       throw new Error('Teacher not found');
     }
 
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.updatedBy);
+    if (teacher.schoolId !== callerSchoolId) {
+      throw new Error('Unauthorized: You do not have access to this teacher');
+    }
+
     // If email is being updated, check for duplicates
     if (args.email && args.email !== teacher.email) {
       const existingTeacher = await ctx.db
@@ -408,6 +434,11 @@ export const deleteTeacher = mutation({
       throw new Error('Teacher not found');
     }
 
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.deletedBy);
+    if (teacher.schoolId !== callerSchoolId) {
+      throw new Error('Unauthorized: You do not have access to this teacher');
+    }
+
     await ctx.db.delete(args.teacherId);
 
     const now = new Date().toISOString();
@@ -435,6 +466,7 @@ export const deleteBulkTeachers = mutation({
     deletedBy: v.string(),
   },
   handler: async (ctx, args) => {
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.deletedBy);
     const now = new Date().toISOString();
     const results = [];
     const errors = [];
@@ -445,10 +477,10 @@ export const deleteBulkTeachers = mutation({
       try {
         const teacher = await ctx.db.get(teacherId);
 
-        if (!teacher) {
+        if (!teacher || teacher.schoolId !== callerSchoolId) {
           errors.push({
             teacherId,
-            error: 'Teacher not found',
+            error: !teacher ? 'Teacher not found' : 'Unauthorized',
           });
           continue;
         }
@@ -501,6 +533,11 @@ export const updateTeacherStatus = mutation({
 
     if (!teacher) {
       throw new Error('Teacher not found');
+    }
+
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.updatedBy);
+    if (teacher.schoolId !== callerSchoolId) {
+      throw new Error('Unauthorized: You do not have access to this teacher');
     }
 
     const now = new Date().toISOString();

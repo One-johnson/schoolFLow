@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ConvexHttpClient } from 'convex/browser';
 import { api } from '../../../../../convex/_generated/api';
 import { SessionManager } from '@/lib/session';
+import { PasswordManager } from '@/lib/password';
 import type { Id } from '../../../../../convex/_generated/dataModel';
 
 function getConvexClient(): ConvexHttpClient {
@@ -76,13 +77,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Generate new temporary password
+    // Generate new temporary password and hash it before storing
     const tempPassword = generateTempPassword();
+    const hashedTempPassword = await PasswordManager.hash(tempPassword);
 
-    // Reset the password (this will set tempPassword and clear password)
+    // Reset the password (stores the hash, clears the permanent password)
     await convex.mutation(api.schoolAdmins.resetPassword, {
       id: adminId as Id<'schoolAdmins'>,
-      tempPassword,
+      tempPassword: hashedTempPassword,
     });
 
     // Create audit log
@@ -99,7 +101,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({
       success: true,
       message: 'Password reset successfully',
-      tempPassword,
       adminName: schoolAdmin.name,
       adminEmail: schoolAdmin.email,
     });

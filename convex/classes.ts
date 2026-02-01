@@ -1,10 +1,21 @@
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
+import type { MutationCtx } from './_generated/server';
+import type { Id } from './_generated/dataModel';
 
 // Generate class code: CLS + 6 random digits
 function generateClassCode(): string {
   const randomDigits = Math.floor(100000 + Math.random() * 900000);
   return `CLS${randomDigits}`;
+}
+
+// Verify the caller is a school admin and return their schoolId
+async function getVerifiedSchoolId(ctx: MutationCtx, adminId: string): Promise<string> {
+  const admin = await ctx.db.get(adminId as Id<'schoolAdmins'>);
+  if (!admin) {
+    throw new Error('Unauthorized: Admin not found');
+  }
+  return admin.schoolId;
 }
 
 // Query: Get all classes for a school
@@ -74,6 +85,12 @@ export const addClass = mutation({
     createdBy: v.string(),
   },
   handler: async (ctx, args) => {
+    // Verify caller belongs to the target school
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.createdBy);
+    if (callerSchoolId !== args.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     // Check if class name already exists for this school
     const existingClass = await ctx.db
       .query('classes')
@@ -150,6 +167,12 @@ export const addBulkClasses = mutation({
     createdBy: v.string(),
   },
   handler: async (ctx, args) => {
+    // Verify caller belongs to the target school
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.createdBy);
+    if (callerSchoolId !== args.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     const results = [];
     const now = new Date().toISOString();
 
@@ -246,6 +269,12 @@ export const updateClass = mutation({
       throw new Error('Class not found');
     }
 
+    // Verify caller belongs to this class's school
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.updatedBy);
+    if (classData.schoolId !== callerSchoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     // If class name is being updated, check for duplicates
     if (args.className && args.className !== classData.className) {
       const existingClass = await ctx.db
@@ -305,6 +334,12 @@ export const deleteClass = mutation({
       throw new Error('Class not found');
     }
 
+    // Verify caller belongs to this class's school
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.deletedBy);
+    if (classData.schoolId !== callerSchoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
     // Check if class has students
     if (classData.currentStudentCount > 0) {
       throw new Error('Cannot delete a class with students. Please reassign students first.');
@@ -328,17 +363,20 @@ export const deleteBulkClasses = mutation({
     deletedBy: v.string(),
   },
   handler: async (ctx, args) => {
+    // Verify caller is a valid school admin
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.deletedBy);
+
     const results = [];
     const now = new Date().toISOString();
 
     for (const classId of args.classIds) {
       const classData = await ctx.db.get(classId);
 
-      if (!classData) {
+      if (!classData || classData.schoolId !== callerSchoolId) {
         results.push({
           classId,
           success: false,
-          error: 'Class not found',
+          error: !classData ? 'Class not found' : 'Unauthorized',
         });
         continue;
       }
@@ -390,6 +428,12 @@ export const updateClassStatus = mutation({
 
     if (!classData) {
       throw new Error('Class not found');
+    }
+
+    // Verify caller belongs to this class's school
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.updatedBy);
+    if (classData.schoolId !== callerSchoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
     }
 
     const now = new Date().toISOString();
