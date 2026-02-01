@@ -285,7 +285,8 @@ export function DataTable<TData, TValue>({
   );
 }
 
-export function createSortableHeader(label: string) {
+export function createSortableHeader(column: unknown, label: string) {
+  // eslint-disable-next-line react/display-name
   return ({ column }: { column: { toggleSorting: (desc?: boolean) => void; getIsSorted: () => string | boolean } }) => {
     return (
       <Button

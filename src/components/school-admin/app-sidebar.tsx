@@ -29,6 +29,8 @@ import {
   DollarSign,
   FileText,
   ClipboardCheck,
+  Megaphone,
+  BarChart3,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -106,6 +108,16 @@ const menuItems = [
     title: 'Exams',
     icon: FileText,
     url: '/school-admin/exams',
+  },
+  {
+    title: 'Reports',
+    icon: BarChart3,
+    url: '/school-admin/reports',
+  },
+  {
+    title: 'Announcements',
+    icon: Megaphone,
+    url: '/school-admin/announcements',
   },
   {
     title: 'Subscription',
