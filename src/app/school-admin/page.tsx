@@ -1,16 +1,15 @@
-'use client';
+"use client";
 
-import { JSX, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { useQuery } from 'convex/react';
-import { api } from '../../../convex/_generated/api';
-import { 
-  School, 
-  CreditCard, 
-  Users, 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
+import {
+  School,
+  Users,
   CheckCircle,
   GraduationCap,
   Calendar,
@@ -19,73 +18,80 @@ import {
   TrendingUp,
   CalendarDays,
   DollarSign,
-  BarChart3
-} from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import Link from 'next/link';
-import { Progress } from '@/components/ui/progress';
-import { Separator } from '@/components/ui/separator';
-import { StatsCard } from '@/components/school-admin/stats-card';
-import { FinancialOverviewCard } from '@/components/school-admin/financial-overview-card';
-import { UpcomingEventsCard } from '@/components/school-admin/upcoming-events-card';
-import { AlertsCard } from '@/components/school-admin/alerts-card';
-import { ActivityFeedCard } from '@/components/school-admin/activity-feed-card';
-import { ChartsSection } from '@/components/school-admin/charts-section';
-import { PerformanceMetricsCard } from '@/components/school-admin/performance-metrics-card';
-import { QuickActionsGrid } from '@/components/school-admin/quick-actions-grid';
+  BarChart3,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
+import { Progress } from "@/components/ui/progress";
+import { StatsCard } from "@/components/school-admin/stats-card";
+import { FinancialOverviewCard } from "@/components/school-admin/financial-overview-card";
+import { UpcomingEventsCard } from "@/components/school-admin/upcoming-events-card";
+import { AlertsCard } from "@/components/school-admin/alerts-card";
+import { ActivityFeedCard } from "@/components/school-admin/activity-feed-card";
+import { ChartsSection } from "@/components/school-admin/charts-section";
+import { PerformanceMetricsCard } from "@/components/school-admin/performance-metrics-card";
+import { QuickActionsGrid } from "@/components/school-admin/quick-actions-grid";
 
 export default function SchoolAdminDashboard(): React.JSX.Element {
   const router = useRouter();
   const { user } = useAuth();
-  
+
   const currentAdmin = useQuery(
     api.schoolAdmins.getByEmail,
-    user?.email ? { email: user.email } : 'skip'
+    user?.email ? { email: user.email } : "skip",
   );
 
   const subscriptionRequests = useQuery(
     api.subscriptionRequests.getByAdmin,
-    currentAdmin ? { schoolAdminId: currentAdmin._id } : 'skip'
+    currentAdmin ? { schoolAdminId: currentAdmin._id } : "skip",
   );
 
   const schoolCreationRequests = useQuery(
     api.schoolCreationRequests.getByAdmin,
-    currentAdmin ? { schoolAdminId: currentAdmin._id } : 'skip'
+    currentAdmin ? { schoolAdminId: currentAdmin._id } : "skip",
   );
 
   const notifications = useQuery(
     api.notifications.list,
-    currentAdmin ? {} : 'skip'
+    currentAdmin ? {} : "skip",
   );
 
   const dashboardStats = useQuery(
     api.dashboard.getDashboardStats,
-    currentAdmin?.schoolId ? { schoolId: currentAdmin.schoolId } : 'skip'
+    currentAdmin?.schoolId ? { schoolId: currentAdmin.schoolId } : "skip",
   );
 
   const activeSubscription = subscriptionRequests?.find(
-    (req) => req.status === 'approved' && !req.isTrial
-  );
-  
-  const activeTrial = subscriptionRequests?.find(
-    (req) => req.status === 'approved' && req.isTrial
+    (req) => req.status === "approved" && !req.isTrial,
   );
 
-  const approvedSchool = schoolCreationRequests?.find((req) => req.status === 'approved');
-  const pendingSchoolRequest = schoolCreationRequests?.find((req) => req.status === 'pending');
+  const activeTrial = subscriptionRequests?.find(
+    (req) => req.status === "approved" && req.isTrial,
+  );
+
+  const approvedSchool = schoolCreationRequests?.find(
+    (req) => req.status === "approved",
+  );
+  const pendingSchoolRequest = schoolCreationRequests?.find(
+    (req) => req.status === "pending",
+  );
 
   const unreadNotifications = notifications?.filter((n) => !n.read).length || 0;
 
   useEffect(() => {
     if (currentAdmin && !currentAdmin.hasActiveSubscription) {
-      router.push('/school-admin/subscription');
+      router.push("/school-admin/subscription");
     }
   }, [currentAdmin, router]);
 
   useEffect(() => {
-    if (currentAdmin && currentAdmin.hasActiveSubscription && !currentAdmin.hasCreatedSchool) {
+    if (
+      currentAdmin &&
+      currentAdmin.hasActiveSubscription &&
+      !currentAdmin.hasCreatedSchool
+    ) {
       if (!pendingSchoolRequest) {
-        router.push('/school-admin/create-school');
+        router.push("/school-admin/create-school");
       }
     }
   }, [currentAdmin, schoolCreationRequests, router, pendingSchoolRequest]);
@@ -97,7 +103,9 @@ export default function SchoolAdminDashboard(): React.JSX.Element {
           <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
           <div>
             <h2 className="text-2xl font-bold mb-2">Loading Dashboard</h2>
-            <p className="text-muted-foreground">Please wait while we load your data</p>
+            <p className="text-muted-foreground">
+              Please wait while we load your data
+            </p>
           </div>
         </div>
       </div>
@@ -105,14 +113,16 @@ export default function SchoolAdminDashboard(): React.JSX.Element {
   }
 
   if (currentAdmin === null) {
-    router.push('/school-admin/subscription');
+    router.push("/school-admin/subscription");
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center space-y-4">
           <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
           <div>
             <h2 className="text-2xl font-bold mb-2">Setting Up Your Account</h2>
-            <p className="text-muted-foreground">Redirecting you to get started...</p>
+            <p className="text-muted-foreground">
+              Redirecting you to get started...
+            </p>
           </div>
         </div>
       </div>
@@ -120,37 +130,51 @@ export default function SchoolAdminDashboard(): React.JSX.Element {
   }
 
   const getStatusBadge = (status: string): React.JSX.Element => {
-    const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-      active: { label: 'Active', variant: 'default' },
-      pending: { label: 'Pending', variant: 'secondary' },
-      suspended: { label: 'Suspended', variant: 'destructive' },
-      inactive: { label: 'Inactive', variant: 'outline' },
+    const statusConfig: Record<
+      string,
+      {
+        label: string;
+        variant: "default" | "secondary" | "destructive" | "outline";
+      }
+    > = {
+      active: { label: "Active", variant: "default" },
+      pending: { label: "Pending", variant: "secondary" },
+      suspended: { label: "Suspended", variant: "destructive" },
+      inactive: { label: "Inactive", variant: "outline" },
     };
 
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
+    const config =
+      statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
   const calculateTrialProgress = (): number => {
-    if (!activeTrial || !activeTrial.trialStartDate || !activeTrial.trialEndDate) return 0;
-    
+    if (
+      !activeTrial ||
+      !activeTrial.trialStartDate ||
+      !activeTrial.trialEndDate
+    )
+      return 0;
+
     const start = new Date(activeTrial.trialStartDate).getTime();
     const end = new Date(activeTrial.trialEndDate).getTime();
+    // eslint-disable-next-line react-hooks/purity
     const now = Date.now();
-    
+
     const totalDuration = end - start;
     const elapsed = now - start;
-    
+
     return Math.min(Math.max((elapsed / totalDuration) * 100, 0), 100);
   };
 
   const getDaysRemaining = (): number => {
     if (!activeTrial || !activeTrial.trialEndDate) return 0;
-    
+
     const end = new Date(activeTrial.trialEndDate).getTime();
+    // eslint-disable-next-line react-hooks/purity
     const now = Date.now();
     const diff = end - now;
-    
+
     return Math.max(Math.ceil(diff / (1000 * 60 * 60 * 24)), 0);
   };
 
@@ -159,9 +183,11 @@ export default function SchoolAdminDashboard(): React.JSX.Element {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Welcome back, {currentAdmin.name}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Welcome back, {currentAdmin.name}
+          </h1>
           <p className="text-muted-foreground mt-1">
-            Here's what's happening with your school today
+            Here&apos;s what&apos;s happening with your school today
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -189,10 +215,15 @@ export default function SchoolAdminDashboard(): React.JSX.Element {
                 Trial ending soon: {getDaysRemaining()} days remaining
               </p>
               <p className="text-sm text-yellow-700">
-                Upgrade to a paid plan to continue using SchoolFlow without interruption
+                Upgrade to a paid plan to continue using SchoolFlow without
+                interruption
               </p>
             </div>
-            <Button asChild size="sm" className="bg-yellow-600 hover:bg-yellow-700">
+            <Button
+              asChild
+              size="sm"
+              className="bg-yellow-600 hover:bg-yellow-700"
+            >
               <Link href="/school-admin/subscription">Upgrade Now</Link>
             </Button>
           </CardContent>
@@ -211,7 +242,7 @@ export default function SchoolAdminDashboard(): React.JSX.Element {
         />
         <StatsCard
           title="Students"
-          value={dashboardStats?.studentsCount || approvedSchool?.studentCount || 0}
+          value={dashboardStats?.studentsCount ?? 0}
           icon={Users}
           description="Total enrolled students"
           loading={!dashboardStats}
@@ -235,7 +266,7 @@ export default function SchoolAdminDashboard(): React.JSX.Element {
         />
         <StatsCard
           title="Fee Collection Rate"
-          value={dashboardStats ? `${dashboardStats.feeCollectionRate}%` : '0%'}
+          value={dashboardStats ? `${dashboardStats.feeCollectionRate}%` : "0%"}
           icon={TrendingUp}
           description="Payment completion"
           loading={!dashboardStats}
@@ -243,7 +274,11 @@ export default function SchoolAdminDashboard(): React.JSX.Element {
         />
         <StatsCard
           title="Outstanding Payments"
-          value={dashboardStats ? `$${dashboardStats.outstandingPayments.toLocaleString()}` : '$0'}
+          value={
+            dashboardStats
+              ? `$${dashboardStats.outstandingPayments.toLocaleString()}`
+              : "$0"
+          }
           icon={DollarSign}
           description="Pending fee payments"
           loading={!dashboardStats}
@@ -284,8 +319,18 @@ export default function SchoolAdminDashboard(): React.JSX.Element {
               </div>
               <Progress value={calculateTrialProgress()} className="h-2" />
               <div className="flex justify-between text-sm text-muted-foreground">
-                <span>Started: {activeTrial.trialStartDate ? new Date(activeTrial.trialStartDate).toLocaleDateString() : 'N/A'}</span>
-                <span>Ends: {activeTrial.trialEndDate ? new Date(activeTrial.trialEndDate).toLocaleDateString() : 'N/A'}</span>
+                <span>
+                  Started:{" "}
+                  {activeTrial.trialStartDate
+                    ? new Date(activeTrial.trialStartDate).toLocaleDateString()
+                    : "N/A"}
+                </span>
+                <span>
+                  Ends:{" "}
+                  {activeTrial.trialEndDate
+                    ? new Date(activeTrial.trialEndDate).toLocaleDateString()
+                    : "N/A"}
+                </span>
               </div>
             </div>
           </CardContent>
@@ -322,7 +367,9 @@ export default function SchoolAdminDashboard(): React.JSX.Element {
               <AlertsCard schoolId={currentAdmin.schoolId} />
             </>
           )}
-          <QuickActionsGrid hasCreatedSchool={!!currentAdmin.hasCreatedSchool} />
+          <QuickActionsGrid
+            hasCreatedSchool={!!currentAdmin.hasCreatedSchool}
+          />
         </div>
       </div>
 
@@ -336,16 +383,16 @@ export default function SchoolAdminDashboard(): React.JSX.Element {
                 Subscription Details
               </h3>
               <Button asChild variant="outline" size="sm">
-                <Link href="/school-admin/subscription">
-                  Manage
-                </Link>
+                <Link href="/school-admin/subscription">Manage</Link>
               </Button>
             </div>
             <div className="grid md:grid-cols-4 gap-4">
               <div>
                 <span className="text-sm text-muted-foreground">Plan Type</span>
                 <p className="font-medium mt-1">
-                  {activeSubscription ? activeSubscription.planName : 'Free Trial'}
+                  {activeSubscription
+                    ? activeSubscription.planName
+                    : "Free Trial"}
                 </p>
               </div>
               <div>
@@ -363,7 +410,9 @@ export default function SchoolAdminDashboard(): React.JSX.Element {
               <div>
                 <span className="text-sm text-muted-foreground">Status</span>
                 <div className="mt-1">
-                  {getStatusBadge((activeSubscription || activeTrial)?.status || 'pending')}
+                  {getStatusBadge(
+                    (activeSubscription || activeTrial)?.status || "pending",
+                  )}
                 </div>
               </div>
             </div>
