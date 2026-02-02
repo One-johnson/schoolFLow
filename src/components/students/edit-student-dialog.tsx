@@ -367,7 +367,7 @@ export function EditStudentDialog({ student, open, onOpenChange }: EditStudentDi
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-y-auto">
-        <DialogHeader className="flex-shrink-0">
+        <DialogHeader className="shrink-0">
           <DialogTitle>Edit Student</DialogTitle>
           <DialogDescription>Update student information</DialogDescription>
         </DialogHeader>
@@ -835,7 +835,7 @@ export function EditStudentDialog({ student, open, onOpenChange }: EditStudentDi
           </div>
         </ScrollArea>
 
-        <DialogFooter className="flex-shrink-0 mt-4 border-t pt-4">
+        <DialogFooter className="shrink-0 mt-4 border-t pt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>

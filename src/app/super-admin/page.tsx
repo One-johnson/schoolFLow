@@ -1,6 +1,6 @@
 'use client';
 
-import { JSX, useMemo } from 'react';
+import {  useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatsCard } from '@/components/dashboard/stats-card';
 import { School, Users, DollarSign, AlertCircle, TrendingUp, GraduationCap, BarChart as BarChartIcon } from 'lucide-react';
@@ -142,10 +142,10 @@ export default function SuperAdminDashboardPage(): React.JSX.Element {
           </CardHeader>
           <CardContent>
             {revenueData.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-[300px] space-y-4">
+              <div className="flex flex-col items-center justify-center h-75 space-y-4">
                 <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-br from-green-100 to-blue-100 dark:from-green-900/20 dark:to-blue-900/20 rounded-full blur-xl animate-pulse" />
-                  <div className="relative bg-gradient-to-br from-green-50 to-blue-50 dark:from-green-900/30 dark:to-blue-900/30 p-6 rounded-full shadow-lg">
+                  <div className="absolute inset-0 bg-linear-to-br from-green-100 to-blue-100 dark:from-green-900/20 dark:to-blue-900/20 rounded-full blur-xl animate-pulse" />
+                  <div className="relative bg-linear-to-br from-green-50 to-blue-50 dark:from-green-900/30 dark:to-blue-900/30 p-6 rounded-full shadow-lg">
                     <DollarSign className="h-12 w-12 text-green-600 dark:text-green-400 animate-bounce" />
                   </div>
                 </div>
@@ -203,10 +203,10 @@ export default function SuperAdminDashboardPage(): React.JSX.Element {
           </CardHeader>
           <CardContent>
             {schoolGrowthData.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-[300px] space-y-4">
+              <div className="flex flex-col items-center justify-center h-75 space-y-4">
                 <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/20 dark:to-purple-900/20 rounded-full blur-xl animate-pulse" />
-                  <div className="relative bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/30 dark:to-purple-900/30 p-6 rounded-full shadow-lg">
+                  <div className="absolute inset-0 bg-linear-to-br from-blue-100 to-purple-100 dark:from-blue-900/20 dark:to-purple-900/20 rounded-full blur-xl animate-pulse" />
+                  <div className="relative bg-linear-to-br from-blue-50 to-purple-50 dark:from-blue-900/30 dark:to-purple-900/30 p-6 rounded-full shadow-lg">
                     <BarChartIcon className="h-12 w-12 text-blue-600 dark:text-blue-400 animate-bounce" />
                   </div>
                 </div>
@@ -267,10 +267,10 @@ export default function SuperAdminDashboardPage(): React.JSX.Element {
           </CardHeader>
           <CardContent>
             {enrollmentData.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-[300px] space-y-4">
+              <div className="flex flex-col items-center justify-center h-75 space-y-4">
                 <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/20 dark:to-pink-900/20 rounded-full blur-xl animate-pulse" />
-                  <div className="relative bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/30 dark:to-pink-900/30 p-6 rounded-full shadow-lg">
+                  <div className="absolute inset-0 bg-linear-to-br from-purple-100 to-pink-100 dark:from-purple-900/20 dark:to-pink-900/20 rounded-full blur-xl animate-pulse" />
+                  <div className="relative bg-linear-to-br from-purple-50 to-pink-50 dark:from-purple-900/30 dark:to-pink-900/30 p-6 rounded-full shadow-lg">
                     <GraduationCap className="h-12 w-12 text-purple-600 dark:text-purple-400 animate-bounce" />
                   </div>
                 </div>

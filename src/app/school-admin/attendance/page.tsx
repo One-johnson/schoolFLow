@@ -65,8 +65,8 @@ export default function AttendancePage(): React.JSX.Element {
   );
 
   const school = useQuery(
-    api.schools.getById,
-    currentAdmin?.schoolId ? { id: currentAdmin.schoolId } : 'skip'
+    api.schools.getBySchoolId,
+    currentAdmin?.schoolId ? { schoolId: currentAdmin.schoolId } : 'skip'
   );
 
   const attendanceStats = useQuery(
