@@ -22,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useTeacherAuth } from '@/hooks/useTeacherAuth';
@@ -82,13 +82,23 @@ export function TeacherDesktopHeader() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="gap-2 cursor-pointer hover:bg-accent">
                 <Avatar className="h-8 w-8 cursor-pointer">
+                  {teacher?.photoUrl && (
+                    <AvatarImage src={teacher.photoUrl} alt={`${teacher.firstName} ${teacher.lastName}`} />
+                  )}
                   <AvatarFallback className="cursor-pointer">
                     {teacher ? getInitials(teacher.firstName, teacher.lastName) : 'T'}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-sm font-medium cursor-pointer">
-                  {teacher?.firstName} {teacher?.lastName}
-                </span>
+                <div className="flex flex-col items-start">
+                  <span className="text-sm font-medium cursor-pointer">
+                    {teacher?.firstName} {teacher?.lastName}
+                  </span>
+                  {teacher?.classNames && teacher.classNames.length > 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      {teacher.classNames.join(', ')}
+                    </span>
+                  )}
+                </div>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">

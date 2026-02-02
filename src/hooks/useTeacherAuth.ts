@@ -10,6 +10,8 @@ export interface Teacher {
   firstName: string;
   lastName: string;
   classIds: string[];
+  classNames: string[];
+  photoUrl?: string;
   role: 'teacher';
 }
 
@@ -92,6 +94,8 @@ export function useTeacherAuth() {
             firstName: data.teacher.firstName,
             lastName: data.teacher.lastName,
             classIds: data.teacher.classIds,
+            classNames: data.teacher.classNames || [],
+            photoUrl: data.teacher.photoUrl,
             role: 'teacher',
           },
           loading: false,

@@ -62,6 +62,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Get teacher's classes
     const classes = await convex.query(api.teachers.getTeacherClasses, { teacherId: teacher._id });
     const classIds = classes.map((c) => c._id);
+    const classNames = classes.map((c) => c.className);
 
     // Create session token
     const sessionData = {
@@ -72,6 +73,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       firstName: teacher.firstName,
       lastName: teacher.lastName,
       classIds,
+      classNames,
+      photoUrl: teacher.photoUrl,
     };
 
     const token = jwt.sign(
@@ -100,6 +103,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         lastName: teacher.lastName,
         schoolId: teacher.schoolId,
         classIds,
+        classNames,
+        photoUrl: teacher.photoUrl,
       },
       redirectTo: '/teacher',
     });

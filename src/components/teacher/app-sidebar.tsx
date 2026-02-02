@@ -131,6 +131,11 @@ export function TeacherAppSidebar() {
               {teacher?.firstName} {teacher?.lastName}
             </p>
             <p className="text-xs text-muted-foreground truncate">{teacher?.email}</p>
+            {teacher?.classNames && teacher.classNames.length > 0 && (
+              <p className="text-xs text-primary truncate mt-1">
+                Class: {teacher.classNames.join(', ')}
+              </p>
+            )}
           </div>
           <SidebarMenu>
             <SidebarMenuItem>

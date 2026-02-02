@@ -79,7 +79,7 @@ function TeacherLayoutContent({ children }: { children: React.ReactNode }) {
         <OfflineBanner />
 
         {/* Main content - different padding for mobile vs desktop */}
-        <main className="pt-14 pb-20 px-4 max-w-lg mx-auto md:pt-0 md:pb-0 md:px-8 md:max-w-none md:py-8">
+        <main className="pt-14 pb-20 px-4 md:pt-0 md:pb-0 md:px-8 md:py-8">
           {children}
         </main>
 

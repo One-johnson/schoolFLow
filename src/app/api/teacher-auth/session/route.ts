@@ -13,6 +13,8 @@ interface TeacherSessionData {
   firstName: string;
   lastName: string;
   classIds: string[];
+  classNames?: string[];
+  photoUrl?: string;
 }
 
 interface SessionToken {
@@ -44,6 +46,8 @@ export async function GET(): Promise<NextResponse> {
         firstName: decoded.data.firstName,
         lastName: decoded.data.lastName,
         classIds: decoded.data.classIds,
+        classNames: decoded.data.classNames || [],
+        photoUrl: decoded.data.photoUrl,
         role: decoded.data.role,
       },
     });

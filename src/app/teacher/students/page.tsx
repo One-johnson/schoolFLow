@@ -42,7 +42,12 @@ export default function TeacherStudentsPage() {
 
   return (
     <div className="space-y-4 py-4">
-      <h1 className="text-xl font-bold">Students</h1>
+      <div>
+        <h1 className="text-xl font-bold">Students</h1>
+        {teacher.classNames && teacher.classNames.length > 0 && (
+          <p className="text-sm text-muted-foreground">{teacher.classNames[0]}</p>
+        )}
+      </div>
 
       {/* Search */}
       <div className="relative">
