@@ -360,12 +360,12 @@ export function CSVMarksImportDialog({
               </div>
 
               {validationErrors.length > 0 && (
-                <ScrollArea className="h-[300px] rounded-lg border bg-destructive/5 p-4">
+                <ScrollArea className="h-75 rounded-lg border bg-destructive/5 p-4">
                   <div className="space-y-3">
                     {validationErrors.map((error, index) => (
                       <div key={index} className="rounded-lg border border-destructive/50 bg-background p-3">
                         <div className="flex items-start gap-2">
-                          <AlertCircle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
+                          <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
                           <div className="flex-1">
                             <div className="font-medium text-sm">
                               Row {error.row}: {error.studentName}
@@ -387,7 +387,7 @@ export function CSVMarksImportDialog({
                 <Alert>
                   <CheckCircle2 className="h-4 w-4" />
                   <AlertDescription>
-                    All data validated successfully! Click "Import Marks" to apply the data to the marks entry grid.
+                    All data validated successfully! Click &quot;Import Marks&quot; to apply the data to the marks entry grid.
                   </AlertDescription>
                 </Alert>
               )}

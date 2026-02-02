@@ -3,13 +3,19 @@ import { mutation, query } from './_generated/server';
 import type { MutationCtx } from './_generated/server';
 import type { Id } from './_generated/dataModel';
 
-// Verify the caller is a school admin and return their schoolId
-async function getVerifiedSchoolId(ctx: MutationCtx, adminId: string): Promise<string> {
-  const admin = await ctx.db.get(adminId as Id<'schoolAdmins'>);
-  if (!admin) {
-    throw new Error('Unauthorized: Admin not found');
+// Verify the caller is a school admin or teacher and return their schoolId
+async function getVerifiedSchoolId(ctx: MutationCtx, callerId: string): Promise<string> {
+  // Try schoolAdmins first
+  const admin = await ctx.db.get(callerId as Id<'schoolAdmins'>);
+  if (admin) {
+    return admin.schoolId;
   }
-  return admin.schoolId;
+  // Fall back to teachers table
+  const teacher = await ctx.db.get(callerId as Id<'teachers'>);
+  if (teacher) {
+    return teacher.schoolId;
+  }
+  throw new Error('Unauthorized: Caller not found');
 }
 import { calculateGradeFromScale } from './gradeCalculator';
 

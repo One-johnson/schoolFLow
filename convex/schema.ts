@@ -133,7 +133,7 @@ export default defineSchema({
     read: v.boolean(),
     actionUrl: v.optional(v.string()),
     recipientId: v.optional(v.string()),
-    recipientRole: v.optional(v.union(v.literal('super_admin'), v.literal('school_admin'))),
+    recipientRole: v.optional(v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher'))),
   }).index('by_read', ['read']).index('by_recipient', ['recipientId']),
 
   subscriptionPlans: defineTable({
@@ -329,6 +329,7 @@ export default defineSchema({
     createdAt: v.string(),
     updatedAt: v.string(),
     createdBy: v.string(), // School Admin ID
+    password: v.string(), // Hashed; initial value = hash of teacherId
   })
     .index('by_school', ['schoolId'])
     .index('by_teacher_id', ['teacherId'])

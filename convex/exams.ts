@@ -316,3 +316,20 @@ export const lockExam = mutation({
     return { success: true };
   },
 });
+
+// Get exams that target a specific class (for teacher portal)
+export const getExamsByClass = query({
+  args: { schoolId: v.string(), classId: v.string() },
+  handler: async (ctx, args) => {
+    const exams = await ctx.db
+      .query('exams')
+      .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))
+      .collect();
+    
+    // Filter exams that include this class in targetClasses
+    return exams.filter((exam) => {
+      if (!exam.targetClasses) return false;
+      return exam.targetClasses.includes(args.classId);
+    });
+  },
+});
