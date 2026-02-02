@@ -5,8 +5,11 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useTeacherAuth } from '@/hooks/useTeacherAuth';
 import { TopHeader } from '@/components/teacher/top-header';
 import { BottomNav } from '@/components/teacher/bottom-nav';
+import { TeacherAppSidebar } from '@/components/teacher/app-sidebar';
+import { TeacherDesktopHeader } from '@/components/teacher/desktop-header';
 import { OfflineBanner } from '@/components/teacher/offline-banner';
 import { SwRegister } from '@/components/teacher/sw-register';
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { ConvexProvider, ConvexReactClient } from 'convex/react';
 
 const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
@@ -38,7 +41,10 @@ function TeacherLayoutContent({ children }: { children: React.ReactNode }) {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
       </div>
     );
   }
@@ -53,17 +59,38 @@ function TeacherLayoutContent({ children }: { children: React.ReactNode }) {
     return null;
   }
 
-  // Authenticated - render full shell
+  // Authenticated - render responsive shell
   return (
-    <div className="min-h-screen bg-background">
-      <TopHeader teacherId={teacher.id} />
-      <OfflineBanner />
-      <main className="pt-14 pb-20 px-4 max-w-lg mx-auto">
-        {children}
-      </main>
-      <BottomNav />
+    <SidebarProvider>
+      {/* Desktop Sidebar - hidden on mobile */}
+      <div className="hidden md:block">
+        <TeacherAppSidebar />
+      </div>
+
+      <SidebarInset className="w-full">
+        {/* Desktop Header - hidden on mobile */}
+        <TeacherDesktopHeader />
+
+        {/* Mobile Header - hidden on desktop */}
+        <div className="md:hidden">
+          <TopHeader teacherId={teacher.id} />
+        </div>
+
+        <OfflineBanner />
+
+        {/* Main content - different padding for mobile vs desktop */}
+        <main className="pt-14 pb-20 px-4 max-w-lg mx-auto md:pt-0 md:pb-0 md:px-8 md:max-w-none md:py-8">
+          {children}
+        </main>
+
+        {/* Mobile Bottom Nav - hidden on desktop */}
+        <div className="md:hidden">
+          <BottomNav />
+        </div>
+      </SidebarInset>
+
       <SwRegister />
-    </div>
+    </SidebarProvider>
   );
 }
 
