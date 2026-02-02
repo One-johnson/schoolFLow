@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Users, ClipboardCheck, FileText, User } from 'lucide-react';
+import { Home, Users, ClipboardCheck, BookOpen, FileText, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/teacher', icon: Home, label: 'Home' },
   { href: '/teacher/students', icon: Users, label: 'Students' },
-  { href: '/teacher/attendance', icon: ClipboardCheck, label: 'Attendance' },
+  { href: '/teacher/attendance', icon: ClipboardCheck, label: 'Attend' },
+  { href: '/teacher/exams', icon: BookOpen, label: 'Exams' },
   { href: '/teacher/reports', icon: FileText, label: 'Reports' },
   { href: '/teacher/profile', icon: User, label: 'Profile' },
 ];
