@@ -850,12 +850,23 @@ export const getStudentPhotoUrl = query({
   },
 });
 // Query: Get students by class ID (for teacher portal)
+// classId here is the Convex document _id of the class
 export const getStudentsByClassId = query({
   args: { classId: v.string() },
   handler: async (ctx, args) => {
+    // First, get the class to find its classCode
+    const classDoc = await ctx.db.get(args.classId as Id<'classes'>);
+
+    if (!classDoc) {
+      return [];
+    }
+
+    // Students store classCode as their classId field
     const students = await ctx.db
       .query('students')
+      .withIndex('by_class', (q) => q.eq('classId', classDoc.classCode))
       .collect();
-    return students.filter((student) => student.classId === args.classId);
+
+    return students;
   },
 });

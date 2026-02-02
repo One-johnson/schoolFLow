@@ -61,6 +61,11 @@ export default function TeacherHomePage() {
           {greeting()}, {teacher.firstName}
         </h1>
         <p className="text-muted-foreground text-sm">{today}</p>
+        {teacher.classNames && teacher.classNames.length > 0 && (
+          <p className="text-sm text-primary font-medium mt-1">
+            Class Teacher: {teacher.classNames.join(', ')}
+          </p>
+        )}
       </div>
 
       {/* Quick Stats */}
