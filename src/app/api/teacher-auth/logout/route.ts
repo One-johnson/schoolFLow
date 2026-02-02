@@ -1,17 +1,24 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 
 const SESSION_COOKIE_NAME = 'schoolflow_teacher_session';
 
 export async function POST(): Promise<NextResponse> {
   try {
-    const cookieStore = await cookies();
-    cookieStore.delete(SESSION_COOKIE_NAME);
-
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       message: 'Logged out successfully',
     });
+
+    // Delete the session cookie by setting it with an expired date
+    response.cookies.set(SESSION_COOKIE_NAME, '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 0,
+      path: '/',
+    });
+
+    return response;
   } catch (error) {
     console.error('Teacher logout error:', error);
     return NextResponse.json(

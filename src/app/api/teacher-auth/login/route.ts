@@ -3,7 +3,6 @@ import { ConvexHttpClient } from 'convex/browser';
 import { api } from '../../../../../convex/_generated/api';
 import { PasswordManager } from '@/lib/password';
 import jwt from 'jsonwebtoken';
-import { cookies } from 'next/headers';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 const SESSION_COOKIE_NAME = 'schoolflow_teacher_session';
@@ -83,17 +82,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { expiresIn: SESSION_DURATION }
     );
 
-    // Set session cookie
-    const cookieStore = await cookies();
-    cookieStore.set(SESSION_COOKIE_NAME, token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: SESSION_DURATION,
-      path: '/',
-    });
-
-    return NextResponse.json({
+    // Create response with teacher data
+    const response = NextResponse.json({
       success: true,
       message: 'Login successful',
       teacher: {
@@ -108,6 +98,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       },
       redirectTo: '/teacher',
     });
+
+    // Set session cookie on the response
+    response.cookies.set(SESSION_COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: SESSION_DURATION,
+      path: '/',
+    });
+
+    return response;
   } catch (error) {
     console.error('Teacher login error:', error);
     return NextResponse.json(
