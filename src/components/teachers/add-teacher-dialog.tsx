@@ -1,6 +1,6 @@
 'use client';
 
-import { JSX, useState, useEffect } from 'react';
+import {  useState, useEffect } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/../convex/_generated/api';
 import {
@@ -57,6 +57,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import Image from 'next/image';
 
 interface AddTeacherDialogProps {
   open: boolean;
@@ -409,7 +410,8 @@ export function AddTeacherDialog({
               </TooltipProvider>
             </DialogTitle>
             <DialogDescription>
-              Fill in the details to add a new teacher. Required fields are marked with an asterisk (*).
+              Fill in the details to add a new teacher. Required fields are
+              marked with an asterisk (*).
             </DialogDescription>
           </DialogHeader>
 
@@ -430,13 +432,23 @@ export function AddTeacherDialog({
                   <User className="h-4 w-4" />
                   Profile Photo
                 </h3>
-                {personalOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                {personalOpen ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
               </CollapsibleTrigger>
               <CollapsibleContent className="pt-4 space-y-4">
                 <div className="flex items-center gap-4">
                   <div className="h-24 w-24 rounded-full bg-muted flex items-center justify-center overflow-hidden border-2">
                     {photoPreview ? (
-                      <img src={photoPreview} alt="Preview" className="h-full w-full object-cover" />
+                      <Image
+                        src={photoUrl}
+                        alt="Teacher photo"
+                        width={100} 
+                        height={100}
+                        className="h-10 w-10 rounded-full object-cover"
+                      />
                     ) : (
                       <User className="h-12 w-12 text-muted-foreground" />
                     )}
@@ -456,12 +468,19 @@ export function AddTeacherDialog({
                       />
                     </Label>
                     {photoPreview && (
-                      <Button type="button" variant="outline" size="sm" onClick={removeImage}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={removeImage}
+                      >
                         <X className="h-4 w-4 mr-1" />
                         Remove
                       </Button>
                     )}
-                    <p className="text-xs text-muted-foreground">Max file size: 5MB. Formats: JPG, PNG</p>
+                    <p className="text-xs text-muted-foreground">
+                      Max file size: 5MB. Formats: JPG, PNG
+                    </p>
                   </div>
                 </div>
               </CollapsibleContent>
@@ -471,13 +490,20 @@ export function AddTeacherDialog({
             <Collapsible open={personalOpen} onOpenChange={setPersonalOpen}>
               <CollapsibleTrigger className="flex items-center justify-between w-full p-3 bg-muted rounded-lg hover:bg-muted/80">
                 <h3 className="text-sm font-semibold">Personal Information</h3>
-                {personalOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                {personalOpen ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
               </CollapsibleTrigger>
               <CollapsibleContent className="pt-4 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   {/* First Name */}
                   <div className="space-y-2">
-                    <Label htmlFor="firstName" className="flex items-center gap-1">
+                    <Label
+                      htmlFor="firstName"
+                      className="flex items-center gap-1"
+                    >
                       First Name <span className="text-red-500">*</span>
                       <TooltipProvider>
                         <Tooltip>
@@ -493,10 +519,16 @@ export function AddTeacherDialog({
                     <Input
                       id="firstName"
                       value={formData.firstName}
-                      onChange={(e) => handleInputChange('firstName', e.target.value)}
-                      className={errors.firstName && touchedFields.has('firstName') ? 'border-red-500' : ''}
+                      onChange={(e) =>
+                        handleInputChange("firstName", e.target.value)
+                      }
+                      className={
+                        errors.firstName && touchedFields.has("firstName")
+                          ? "border-red-500"
+                          : ""
+                      }
                     />
-                    {errors.firstName && touchedFields.has('firstName') && (
+                    {errors.firstName && touchedFields.has("firstName") && (
                       <p className="text-xs text-red-500 flex items-center gap-1">
                         <AlertCircle className="h-3 w-3" />
                         {errors.firstName}
@@ -512,10 +544,16 @@ export function AddTeacherDialog({
                     <Input
                       id="lastName"
                       value={formData.lastName}
-                      onChange={(e) => handleInputChange('lastName', e.target.value)}
-                      className={errors.lastName && touchedFields.has('lastName') ? 'border-red-500' : ''}
+                      onChange={(e) =>
+                        handleInputChange("lastName", e.target.value)
+                      }
+                      className={
+                        errors.lastName && touchedFields.has("lastName")
+                          ? "border-red-500"
+                          : ""
+                      }
                     />
-                    {errors.lastName && touchedFields.has('lastName') && (
+                    {errors.lastName && touchedFields.has("lastName") && (
                       <p className="text-xs text-red-500 flex items-center gap-1">
                         <AlertCircle className="h-3 w-3" />
                         {errors.lastName}
@@ -532,11 +570,17 @@ export function AddTeacherDialog({
                       id="email"
                       type="email"
                       value={formData.email}
-                      onChange={(e) => handleInputChange('email', e.target.value)}
-                      className={errors.email && touchedFields.has('email') ? 'border-red-500' : ''}
+                      onChange={(e) =>
+                        handleInputChange("email", e.target.value)
+                      }
+                      className={
+                        errors.email && touchedFields.has("email")
+                          ? "border-red-500"
+                          : ""
+                      }
                       placeholder="teacher@example.com"
                     />
-                    {errors.email && touchedFields.has('email') && (
+                    {errors.email && touchedFields.has("email") && (
                       <p className="text-xs text-red-500 flex items-center gap-1">
                         <AlertCircle className="h-3 w-3" />
                         {errors.email}
@@ -552,11 +596,17 @@ export function AddTeacherDialog({
                     <Input
                       id="phone"
                       value={formData.phone}
-                      onChange={(e) => handleInputChange('phone', e.target.value)}
-                      className={errors.phone && touchedFields.has('phone') ? 'border-red-500' : ''}
+                      onChange={(e) =>
+                        handleInputChange("phone", e.target.value)
+                      }
+                      className={
+                        errors.phone && touchedFields.has("phone")
+                          ? "border-red-500"
+                          : ""
+                      }
                       placeholder="+1 234 567 8900"
                     />
-                    {errors.phone && touchedFields.has('phone') && (
+                    {errors.phone && touchedFields.has("phone") && (
                       <p className="text-xs text-red-500 flex items-center gap-1">
                         <AlertCircle className="h-3 w-3" />
                         {errors.phone}
@@ -573,10 +623,16 @@ export function AddTeacherDialog({
                       id="dateOfBirth"
                       type="date"
                       value={formData.dateOfBirth}
-                      onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
-                      className={errors.dateOfBirth && touchedFields.has('dateOfBirth') ? 'border-red-500' : ''}
+                      onChange={(e) =>
+                        handleInputChange("dateOfBirth", e.target.value)
+                      }
+                      className={
+                        errors.dateOfBirth && touchedFields.has("dateOfBirth")
+                          ? "border-red-500"
+                          : ""
+                      }
                     />
-                    {errors.dateOfBirth && touchedFields.has('dateOfBirth') && (
+                    {errors.dateOfBirth && touchedFields.has("dateOfBirth") && (
                       <p className="text-xs text-red-500 flex items-center gap-1">
                         <AlertCircle className="h-3 w-3" />
                         {errors.dateOfBirth}
@@ -587,7 +643,12 @@ export function AddTeacherDialog({
                   {/* Gender */}
                   <div className="space-y-2">
                     <Label htmlFor="gender">Gender</Label>
-                    <Select value={formData.gender} onValueChange={(value) => handleInputChange('gender', value)}>
+                    <Select
+                      value={formData.gender}
+                      onValueChange={(value) =>
+                        handleInputChange("gender", value)
+                      }
+                    >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -605,7 +666,9 @@ export function AddTeacherDialog({
                     <Textarea
                       id="address"
                       value={formData.address}
-                      onChange={(e) => handleInputChange('address', e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("address", e.target.value)
+                      }
                       rows={3}
                       placeholder="Enter full address"
                     />
@@ -615,17 +678,31 @@ export function AddTeacherDialog({
             </Collapsible>
 
             {/* Professional Information Section */}
-            <Collapsible open={professionalOpen} onOpenChange={setProfessionalOpen}>
+            <Collapsible
+              open={professionalOpen}
+              onOpenChange={setProfessionalOpen}
+            >
               <CollapsibleTrigger className="flex items-center justify-between w-full p-3 bg-muted rounded-lg hover:bg-muted/80">
-                <h3 className="text-sm font-semibold">Professional Information</h3>
-                {professionalOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                <h3 className="text-sm font-semibold">
+                  Professional Information
+                </h3>
+                {professionalOpen ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
               </CollapsibleTrigger>
               <CollapsibleContent className="pt-4 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   {/* Employment Type */}
                   <div className="space-y-2">
                     <Label htmlFor="employmentType">Employment Type</Label>
-                    <Select value={formData.employmentType} onValueChange={(value) => handleInputChange('employmentType', value)}>
+                    <Select
+                      value={formData.employmentType}
+                      onValueChange={(value) =>
+                        handleInputChange("employmentType", value)
+                      }
+                    >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -646,15 +723,23 @@ export function AddTeacherDialog({
                       id="employmentDate"
                       type="date"
                       value={formData.employmentDate}
-                      onChange={(e) => handleInputChange('employmentDate', e.target.value)}
-                      className={errors.employmentDate && touchedFields.has('employmentDate') ? 'border-red-500' : ''}
+                      onChange={(e) =>
+                        handleInputChange("employmentDate", e.target.value)
+                      }
+                      className={
+                        errors.employmentDate &&
+                        touchedFields.has("employmentDate")
+                          ? "border-red-500"
+                          : ""
+                      }
                     />
-                    {errors.employmentDate && touchedFields.has('employmentDate') && (
-                      <p className="text-xs text-red-500 flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        {errors.employmentDate}
-                      </p>
-                    )}
+                    {errors.employmentDate &&
+                      touchedFields.has("employmentDate") && (
+                        <p className="text-xs text-red-500 flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          {errors.employmentDate}
+                        </p>
+                      )}
                   </div>
 
                   {/* Salary */}
@@ -664,11 +749,17 @@ export function AddTeacherDialog({
                       id="salary"
                       type="number"
                       value={formData.salary}
-                      onChange={(e) => handleInputChange('salary', e.target.value)}
-                      className={errors.salary && touchedFields.has('salary') ? 'border-red-500' : ''}
+                      onChange={(e) =>
+                        handleInputChange("salary", e.target.value)
+                      }
+                      className={
+                        errors.salary && touchedFields.has("salary")
+                          ? "border-red-500"
+                          : ""
+                      }
                       placeholder="Enter annual salary"
                     />
-                    {errors.salary && touchedFields.has('salary') && (
+                    {errors.salary && touchedFields.has("salary") && (
                       <p className="text-xs text-red-500 flex items-center gap-1">
                         <AlertCircle className="h-3 w-3" />
                         {errors.salary}
@@ -687,7 +778,7 @@ export function AddTeacherDialog({
                         onChange={(e) => setQualificationInput(e.target.value)}
                         placeholder="Enter qualification (e.g., M.Ed, Ph.D)"
                         onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
+                          if (e.key === "Enter") {
                             e.preventDefault();
                             addQualification();
                           }
@@ -704,7 +795,11 @@ export function AddTeacherDialog({
                     </div>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {qualifications.map((qual) => (
-                        <Badge key={qual} variant="secondary" className="text-sm">
+                        <Badge
+                          key={qual}
+                          variant="secondary"
+                          className="text-sm"
+                        >
                           {qual}
                           <X
                             className="h-3 w-3 ml-1 cursor-pointer hover:text-destructive"
@@ -732,7 +827,7 @@ export function AddTeacherDialog({
                         onChange={(e) => setSubjectInput(e.target.value)}
                         placeholder="Enter subject (e.g., Mathematics, Physics)"
                         onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
+                          if (e.key === "Enter") {
                             e.preventDefault();
                             addSubject();
                           }
@@ -749,7 +844,11 @@ export function AddTeacherDialog({
                     </div>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {subjects.map((subject) => (
-                        <Badge key={subject} variant="secondary" className="text-sm">
+                        <Badge
+                          key={subject}
+                          variant="secondary"
+                          className="text-sm"
+                        >
                           {subject}
                           <X
                             className="h-3 w-3 ml-1 cursor-pointer hover:text-destructive"
@@ -772,8 +871,14 @@ export function AddTeacherDialog({
             {/* Emergency Contact Section */}
             <Collapsible open={emergencyOpen} onOpenChange={setEmergencyOpen}>
               <CollapsibleTrigger className="flex items-center justify-between w-full p-3 bg-muted rounded-lg hover:bg-muted/80">
-                <h3 className="text-sm font-semibold">Emergency Contact (Optional)</h3>
-                {emergencyOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                <h3 className="text-sm font-semibold">
+                  Emergency Contact (Optional)
+                </h3>
+                {emergencyOpen ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
               </CollapsibleTrigger>
               <CollapsibleContent className="pt-4 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -782,7 +887,12 @@ export function AddTeacherDialog({
                     <Input
                       id="emergencyContactName"
                       value={formData.emergencyContactName}
-                      onChange={(e) => handleInputChange('emergencyContactName', e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange(
+                          "emergencyContactName",
+                          e.target.value,
+                        )
+                      }
                       placeholder="Full name"
                     />
                   </div>
@@ -791,16 +901,25 @@ export function AddTeacherDialog({
                     <Input
                       id="emergencyContact"
                       value={formData.emergencyContact}
-                      onChange={(e) => handleInputChange('emergencyContact', e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("emergencyContact", e.target.value)
+                      }
                       placeholder="+1 234 567 8900"
                     />
                   </div>
                   <div className="space-y-2 col-span-2">
-                    <Label htmlFor="emergencyContactRelationship">Relationship</Label>
+                    <Label htmlFor="emergencyContactRelationship">
+                      Relationship
+                    </Label>
                     <Input
                       id="emergencyContactRelationship"
                       value={formData.emergencyContactRelationship}
-                      onChange={(e) => handleInputChange('emergencyContactRelationship', e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange(
+                          "emergencyContactRelationship",
+                          e.target.value,
+                        )
+                      }
                       placeholder="e.g., Spouse, Parent, Sibling"
                     />
                   </div>
@@ -829,7 +948,7 @@ export function AddTeacherDialog({
                         variant="ghost"
                         onClick={() => {
                           clearDraft();
-                          toast.success('Draft saved');
+                          toast.success("Draft saved");
                         }}
                       >
                         <Save className="h-4 w-4 mr-2" />
@@ -843,7 +962,7 @@ export function AddTeacherDialog({
                 </TooltipProvider>
 
                 <Button type="submit" disabled={isSubmitting || progress < 100}>
-                  {isSubmitting ? 'Adding...' : 'Add Teacher'}
+                  {isSubmitting ? "Adding..." : "Add Teacher"}
                 </Button>
               </div>
             </div>
@@ -859,17 +978,30 @@ export function AddTeacherDialog({
             <AlertDialogDescription className="space-y-2">
               <p>Please review the teacher details:</p>
               <div className="bg-muted p-4 rounded-lg space-y-1 text-sm">
-                <p><strong>Name:</strong> {formData.firstName} {formData.lastName}</p>
-                <p><strong>Email:</strong> {formData.email}</p>
-                <p><strong>Phone:</strong> {formData.phone}</p>
-                <p><strong>Qualifications:</strong> {qualifications.join(', ')}</p>
-                <p><strong>Subjects:</strong> {subjects.join(', ')}</p>
+                <p>
+                  <strong>Name:</strong> {formData.firstName}{" "}
+                  {formData.lastName}
+                </p>
+                <p>
+                  <strong>Email:</strong> {formData.email}
+                </p>
+                <p>
+                  <strong>Phone:</strong> {formData.phone}
+                </p>
+                <p>
+                  <strong>Qualifications:</strong> {qualifications.join(", ")}
+                </p>
+                <p>
+                  <strong>Subjects:</strong> {subjects.join(", ")}
+                </p>
               </div>
               <p>Are you sure you want to add this teacher?</p>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isSubmitting}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();

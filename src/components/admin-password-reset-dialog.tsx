@@ -1,6 +1,6 @@
 'use client';
 
-import { JSX, useState } from 'react';
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -55,6 +55,7 @@ export function AdminPasswordResetDialog({
       } else {
         toast.error(data.message || 'Failed to reset password');
       }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error('An error occurred while resetting password');
     } finally {
@@ -70,6 +71,7 @@ export function AdminPasswordResetDialog({
       setCopied(true);
       toast.success('Password copied to clipboard');
       setTimeout(() => setCopied(false), 2000);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error('Failed to copy password');
     }
@@ -108,7 +110,7 @@ export function AdminPasswordResetDialog({
             </div>
 
             <div className="p-3 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg flex gap-2">
-              <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
               <div className="text-sm text-amber-900 dark:text-amber-100">
                 <p className="font-medium mb-1">This will:</p>
                 <ul className="list-disc list-inside space-y-1 text-xs">
@@ -146,7 +148,7 @@ export function AdminPasswordResetDialog({
                       variant="outline"
                       size="sm"
                       onClick={handleCopy}
-                      className="flex-shrink-0"
+                      className="shrink-0"
                     >
                       {copied ? (
                         <CheckCircle2 className="h-4 w-4 text-green-600" />

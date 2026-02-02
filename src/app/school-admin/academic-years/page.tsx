@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, JSX } from 'react';
+import { useState, useCallback, useMemo} from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/../convex/_generated/api';
 import type { Id } from '@/../convex/_generated/dataModel';
@@ -34,7 +34,6 @@ import {
   Calendar,
   Grid3x3,
   List,
-  FileDown,
   CheckCircle,
   Clock,
   Archive,
@@ -678,7 +677,7 @@ export default function AcademicYearsPage(): React.JSX.Element {
               ) : (
                 <div className="space-y-4">
                   <div className="flex flex-wrap gap-2">
-                    <div className="flex-1 min-w-[180px]">
+                    <div className="flex-1 min-w-45">
                       <Select value={yearStatusFilter} onValueChange={setYearStatusFilter}>
                         <SelectTrigger className="h-9">
                           <SelectValue placeholder="Filter by Status" />
@@ -877,7 +876,7 @@ export default function AcademicYearsPage(): React.JSX.Element {
               ) : (
                 <div className="space-y-4">
                   <div className="flex flex-wrap gap-2">
-                    <div className="flex-1 min-w-[180px]">
+                    <div className="flex-1 min-w-45">
                       <Select value={termStatusFilter} onValueChange={setTermStatusFilter}>
                         <SelectTrigger className="h-9">
                           <SelectValue placeholder="Filter by Status" />
@@ -890,7 +889,7 @@ export default function AcademicYearsPage(): React.JSX.Element {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="flex-1 min-w-[180px]">
+                    <div className="flex-1 min-w-45">
                       <Select value={termYearFilter} onValueChange={setTermYearFilter}>
                         <SelectTrigger className="h-9">
                           <SelectValue placeholder="Filter by Year" />

@@ -149,7 +149,7 @@ export const addTeacher = mutation({
         .first();
     }
 
-    const hashedPassword = await bcrypt.hash(teacherId, 12);
+    const hashedPassword = await bcrypt.hashSync(teacherId, 12);
     const now = new Date().toISOString();
 
     const teacherDbId = await ctx.db.insert('teachers', {
