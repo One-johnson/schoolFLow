@@ -15,7 +15,7 @@ function AnimatedStat({
   label,
   suffix = "",
   delay,
-}: StatProps): JSX.Element {
+}: StatProps): React.JSX.Element {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
@@ -54,7 +54,7 @@ function AnimatedStat({
   );
 }
 
-export function Stats(): JSX.Element {
+export function Stats(): React.JSX.Element {
   return (
     <section className="py-16 md:py-24 border-y border-border bg-muted/20">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">

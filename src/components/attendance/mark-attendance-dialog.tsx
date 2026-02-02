@@ -48,7 +48,7 @@ export function MarkAttendanceDialog({
   adminName,
   open,
   onOpenChange,
-}: MarkAttendanceDialogProps): JSX.Element {
+}: MarkAttendanceDialogProps): React.JSX.Element {
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().split('T')[0]

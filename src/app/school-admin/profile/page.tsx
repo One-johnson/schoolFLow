@@ -13,7 +13,7 @@ import { User, Mail, Building2, Calendar, Shield } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 
-export default function ProfilePage(): JSX.Element {
+export default function ProfilePage(): React.JSX.Element {
   const router = useRouter();
   const { user } = useAuth();
   const [formData, setFormData] = useState({

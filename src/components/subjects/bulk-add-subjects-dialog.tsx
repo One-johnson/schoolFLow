@@ -46,7 +46,7 @@ export function BulkAddSubjectsDialog({
   onOpenChange,
   schoolId,
   createdBy,
-}: BulkAddSubjectsDialogProps): JSX.Element {
+}: BulkAddSubjectsDialogProps): React.JSX.Element {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [subjects, setSubjects] = useState<SubjectInput[]>([
     { id: '1', subjectName: '', description: '', category: 'core', department: 'primary' },

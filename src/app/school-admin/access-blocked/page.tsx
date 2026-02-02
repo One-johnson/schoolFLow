@@ -13,7 +13,7 @@ interface AccessBlockedPageProps {
   };
 }
 
-export default function AccessBlockedPage({ searchParams }: AccessBlockedPageProps): JSX.Element {
+export default function AccessBlockedPage({ searchParams }: AccessBlockedPageProps): React.JSX.Element {
   const router = useRouter();
   const [reason, setReason] = useState<string>('');
   const [status, setStatus] = useState<string>('');
@@ -33,7 +33,7 @@ export default function AccessBlockedPage({ searchParams }: AccessBlockedPagePro
     }
   };
 
-  const getIcon = (): JSX.Element => {
+  const getIcon = (): React.JSX.Element => {
     switch (status) {
       case 'deleted':
         return <XCircle className="h-16 w-16 text-red-500" />;

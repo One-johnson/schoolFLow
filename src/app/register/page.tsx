@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from 'sonner';
 import { Eye, EyeOff, Mail, Lock, User, GraduationCap } from 'lucide-react';
 
-export default function RegisterPage(): JSX.Element {
+export default function RegisterPage(): React.JSX.Element {
   const router = useRouter();
   const [formData, setFormData] = useState({
     name: '',

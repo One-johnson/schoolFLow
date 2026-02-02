@@ -28,7 +28,7 @@ interface RSVPAnalyticsProps {
   stats?: RSVPStats;
 }
 
-export function RSVPAnalytics({ rsvps, stats }: RSVPAnalyticsProps): JSX.Element {
+export function RSVPAnalytics({ rsvps, stats }: RSVPAnalyticsProps): React.JSX.Element {
   // Prepare data for pie chart
   const pieData = useMemo(() => {
     if (!stats) return [];

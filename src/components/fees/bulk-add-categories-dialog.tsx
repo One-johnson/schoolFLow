@@ -38,7 +38,7 @@ export function BulkAddCategoriesDialog({
   open,
   onOpenChange,
   schoolId,
-}: AddCategoryDialogProps): JSX.Element {
+}: AddCategoryDialogProps): React.JSX.Element {
   const { user } = useAuth();
   const [categories, setCategories] = useState<Category[]>([
     { id: '1', categoryName: '', description: '', isOptional: false },

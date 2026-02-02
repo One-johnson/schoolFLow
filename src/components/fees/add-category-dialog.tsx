@@ -29,7 +29,7 @@ export function AddCategoryDialog({
   open,
   onOpenChange,
   schoolId,
-}: AddCategoryDialogProps): JSX.Element {
+}: AddCategoryDialogProps): React.JSX.Element {
   const { user } = useAuth();
   const [categoryName, setCategoryName] = useState<string>('');
   const [description, setDescription] = useState<string>('');

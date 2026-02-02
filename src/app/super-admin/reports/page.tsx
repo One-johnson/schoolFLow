@@ -19,7 +19,7 @@ import { api } from '../../../../convex/_generated/api';
 import { Skeleton } from '@/components/ui/skeleton';
 import { JSX } from 'react';
 
-export default function ReportsPage(): JSX.Element {
+export default function ReportsPage(): React.JSX.Element {
   const reportData = useQuery(api.reports.getData);
   const stats = useQuery(api.schools.getDashboardStats);
 

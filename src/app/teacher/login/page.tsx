@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { Eye, EyeOff, Mail, Lock, GraduationCap } from 'lucide-react';
 import { useTeacherAuth } from '@/hooks/useTeacherAuth';
 
-export default function TeacherLoginPage(): JSX.Element {
+export default function TeacherLoginPage(): React.JSX.Element {
   const { login } = useTeacherAuth();
   const [formData, setFormData] = useState({
     email: '',

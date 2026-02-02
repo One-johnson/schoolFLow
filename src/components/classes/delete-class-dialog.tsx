@@ -37,7 +37,7 @@ export function DeleteClassDialog({
   classData,
   deletedBy,
   onDeleted,
-}: DeleteClassDialogProps): JSX.Element {
+}: DeleteClassDialogProps): React.JSX.Element {
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   const deleteClass = useMutation(api.classes.deleteClass);

@@ -158,7 +158,7 @@ const milestones = [
   },
 ];
 
-export default function AboutPage(): JSX.Element {
+export default function AboutPage(): React.JSX.Element {
   return (
     <div className="min-h-screen bg-background">
       <LandingHeader />

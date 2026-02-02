@@ -39,7 +39,7 @@ export function AddTermDialog({
   onOpenChange,
   schoolId,
   createdBy,
-}: AddTermDialogProps): JSX.Element {
+}: AddTermDialogProps): React.JSX.Element {
   const [academicYearId, setAcademicYearId] = useState<string>('');
   const [termName, setTermName] = useState<string>('');
   const [termNumber, setTermNumber] = useState<string>('1');

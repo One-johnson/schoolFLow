@@ -38,8 +38,8 @@ export function ViewTermDialog({
   open,
   onOpenChange,
   term,
-}: ViewTermDialogProps): JSX.Element {
-  const getStatusBadge = (status: string): JSX.Element => {
+}: ViewTermDialogProps): React.JSX.Element {
+  const getStatusBadge = (status: string): React.JSX.Element => {
     switch (status) {
       case 'active':
         return <Badge className="bg-green-500">Active</Badge>;

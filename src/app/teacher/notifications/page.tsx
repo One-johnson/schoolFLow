@@ -6,15 +6,15 @@ import { useTeacherAuth } from '@/hooks/useTeacherAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Bell, CheckCheck, Info, AlertTriangle, Calendar, Megaphone } from 'lucide-react';
+import { Bell, CheckCheck, Info, AlertTriangle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import type { Id } from '../../../../convex/_generated/dataModel';
 
 const iconMap: Record<string, React.ElementType> = {
   info: Info,
   warning: AlertTriangle,
-  event: Calendar,
-  announcement: Megaphone,
+  success: Info,
+  error: AlertTriangle,
 };
 
 export default function TeacherNotificationsPage() {
@@ -29,7 +29,7 @@ export default function TeacherNotificationsPage() {
 
   const handleMarkAsRead = async (notificationId: Id<'notifications'>) => {
     try {
-      await markAsRead({ notificationId });
+      await markAsRead({ id: notificationId });
     } catch (error) {
       console.error('Failed to mark notification as read:', error);
     }
@@ -39,7 +39,7 @@ export default function TeacherNotificationsPage() {
     if (!notifications) return;
     const unread = notifications.filter((n) => !n.read);
     for (const notification of unread) {
-      await markAsRead({ notificationId: notification._id });
+      await markAsRead({ id: notification._id });
     }
   };
 
@@ -82,7 +82,7 @@ export default function TeacherNotificationsPage() {
         <div className="space-y-3">
           {notifications.map((notification) => {
             const Icon = iconMap[notification.type] || Bell;
-            const timeAgo = formatDistanceToNow(new Date(notification.createdAt), {
+            const timeAgo = formatDistanceToNow(new Date(notification.timestamp), {
               addSuffix: true,
             });
 
@@ -97,12 +97,10 @@ export default function TeacherNotificationsPage() {
                   <div className="flex gap-3">
                     <div
                       className={`p-2 rounded-lg shrink-0 ${
-                        notification.type === 'warning'
+                        notification.type === 'warning' || notification.type === 'error'
                           ? 'bg-yellow-100 text-yellow-600'
-                          : notification.type === 'event'
-                          ? 'bg-blue-100 text-blue-600'
-                          : notification.type === 'announcement'
-                          ? 'bg-purple-100 text-purple-600'
+                          : notification.type === 'success'
+                          ? 'bg-green-100 text-green-600'
                           : 'bg-gray-100 text-gray-600'
                       }`}
                     >

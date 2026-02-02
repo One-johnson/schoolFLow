@@ -97,7 +97,7 @@ function safeParseItems(items: string | undefined): Array<{ categoryName: string
   }
 }
 
-export default function FeesPage(): JSX.Element {
+export default function FeesPage(): React.JSX.Element {
   const { user } = useAuth();
   const [addCategoryOpen, setAddCategoryOpen] = useState<boolean>(false);
   const [recordPaymentOpen, setRecordPaymentOpen] = useState<boolean>(false);

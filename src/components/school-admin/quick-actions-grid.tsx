@@ -18,7 +18,7 @@ interface QuickActionsGridProps {
   hasCreatedSchool: boolean;
 }
 
-export function QuickActionsGrid({ hasCreatedSchool }: QuickActionsGridProps): JSX.Element {
+export function QuickActionsGrid({ hasCreatedSchool }: QuickActionsGridProps): React.JSX.Element {
   if (!hasCreatedSchool) {
     return (
       <Card>

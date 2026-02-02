@@ -53,7 +53,7 @@ export function CloneTimetableDialog({
   availableClasses,
   schoolId,
   createdBy,
-}: CloneTimetableDialogProps): JSX.Element {
+}: CloneTimetableDialogProps): React.JSX.Element {
   const cloneTimetable = useMutation(api.timetableTemplates.cloneTimetable);
 
   const [sourceTimetableId, setSourceTimetableId] = useState<string>('');

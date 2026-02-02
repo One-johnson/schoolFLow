@@ -26,7 +26,7 @@ interface DeleteEventDialogProps {
   adminId: string;
 }
 
-export function DeleteEventDialog({ open, onOpenChange, event, adminId }: DeleteEventDialogProps): JSX.Element {
+export function DeleteEventDialog({ open, onOpenChange, event, adminId }: DeleteEventDialogProps): React.JSX.Element {
   const deleteEvent = useMutation(api.events.deleteEvent);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
 

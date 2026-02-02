@@ -13,7 +13,7 @@ export default function SuperAdminLayout({
   children,
 }: {
   children: React.ReactNode;
-}): JSX.Element {
+}): React.JSX.Element {
   const router = useRouter();
   const { authenticated, loading, user } = useAuth();
 

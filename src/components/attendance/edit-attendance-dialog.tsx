@@ -41,7 +41,7 @@ export function EditAttendanceDialog({
   adminName,
   open,
   onOpenChange,
-}: EditAttendanceDialogProps): JSX.Element {
+}: EditAttendanceDialogProps): React.JSX.Element {
   const [overrideReason, setOverrideReason] = useState<string>('');
   const [studentChanges, setStudentChanges] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);

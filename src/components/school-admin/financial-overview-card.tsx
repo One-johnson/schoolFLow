@@ -15,7 +15,7 @@ interface FinancialOverviewCardProps {
   schoolId: string;
 }
 
-export function FinancialOverviewCard({ schoolId }: FinancialOverviewCardProps): JSX.Element {
+export function FinancialOverviewCard({ schoolId }: FinancialOverviewCardProps): React.JSX.Element {
   const financialData = useQuery(api.dashboard.getFinancialSummary, { schoolId });
 
   if (!financialData) {

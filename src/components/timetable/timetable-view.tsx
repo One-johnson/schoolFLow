@@ -100,7 +100,7 @@ export function TimetableView({
   schoolId,
   teachers,
   onDelete,
-}: TimetableViewProps): JSX.Element {
+}: TimetableViewProps): React.JSX.Element {
   const updatePeriod = useMutation(api.timetables.updatePeriod);
   const removeAssignment = useMutation(api.timetables.removeAssignment);
   const swapPeriods = useMutation(api.timetables.swapPeriodAssignments);

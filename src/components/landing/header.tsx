@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { GraduationCap, Menu, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-export function LandingHeader(): JSX.Element {
+export function LandingHeader(): React.JSX.Element {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 

@@ -61,7 +61,7 @@ interface School {
 
 type ActionType = 'suspend' | 'delete' | 'bulk-suspend' | 'bulk-delete';
 
-export default function SchoolsPage(): JSX.Element {
+export default function SchoolsPage(): React.JSX.Element {
   const schools = useQuery(api.schools.list);
   const updateSchoolStatus = useMutation(api.schools.updateStatus);
   const suspendSchool = useMutation(api.schools.suspendSchool);
@@ -206,7 +206,7 @@ export default function SchoolsPage(): JSX.Element {
       createSelectColumn<School>(),
       {
         accessorKey: 'name',
-        header: ({ column }) => createSortableHeader(column, 'School Name'),
+        header: createSortableHeader('School Name'),
         cell: ({ row }) => (
           <div>
             <p className="font-medium">{row.original.name}</p>
@@ -216,15 +216,15 @@ export default function SchoolsPage(): JSX.Element {
       },
       {
         accessorKey: 'adminName',
-        header: ({ column }) => createSortableHeader(column, 'Admin'),
+        header: createSortableHeader('Admin'),
       },
       {
         accessorKey: 'studentCount',
-        header: ({ column }) => createSortableHeader(column, 'Students'),
+        header: createSortableHeader('Students'),
       },
       {
         accessorKey: 'status',
-        header: ({ column }) => createSortableHeader(column, 'Status'),
+        header: createSortableHeader('Status'),
         cell: ({ row }) => (
           <Badge variant={getStatusBadgeVariant(row.original.status)}>
             {row.original.status.replace('_', ' ')}
@@ -236,12 +236,12 @@ export default function SchoolsPage(): JSX.Element {
       },
       {
         accessorKey: 'monthlyFee',
-        header: ({ column }) => createSortableHeader(column, 'Monthly Fee'),
+        header: createSortableHeader('Monthly Fee'),
         cell: ({ row }) => `$${row.original.monthlyFee.toLocaleString()}`,
       },
       {
         accessorKey: 'registrationDate',
-        header: ({ column }) => createSortableHeader(column, 'Registration Date'),
+        header: createSortableHeader('Registration Date'),
         cell: ({ row }) => new Date(row.original.registrationDate).toLocaleDateString(),
       },
       {

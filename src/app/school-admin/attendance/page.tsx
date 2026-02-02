@@ -30,7 +30,7 @@ import { StudentCertificateDialog } from '@/components/attendance/student-certif
 import { ClassPerformanceDialog } from '@/components/attendance/class-performance-dialog';
 import { AbsenteeReportDialog } from '@/components/attendance/absentee-report-dialog';
 
-export default function AttendancePage(): JSX.Element {
+export default function AttendancePage(): React.JSX.Element {
   const router = useRouter();
   const { user } = useAuth();
   const [showMarkDialog, setShowMarkDialog] = useState<boolean>(false);
@@ -62,6 +62,11 @@ export default function AttendancePage(): JSX.Element {
   const currentAdmin = useQuery(
     api.schoolAdmins.getByEmail,
     user?.email ? { email: user.email } : 'skip'
+  );
+
+  const school = useQuery(
+    api.schools.getById,
+    currentAdmin?.schoolId ? { id: currentAdmin.schoolId } : 'skip'
   );
 
   const attendanceStats = useQuery(
@@ -298,7 +303,7 @@ export default function AttendancePage(): JSX.Element {
           open={showDailyRegisterDialog}
           onOpenChange={setShowDailyRegisterDialog}
           schoolId={currentAdmin.schoolId}
-          schoolName={currentAdmin.schoolName}
+          schoolName={school?.name || ''}
         />
       )}
 
@@ -307,7 +312,7 @@ export default function AttendancePage(): JSX.Element {
           open={showStudentCertificateDialog}
           onOpenChange={setShowStudentCertificateDialog}
           schoolId={currentAdmin.schoolId}
-          schoolName={currentAdmin.schoolName}
+          schoolName={school?.name || ''}
         />
       )}
 
@@ -316,7 +321,7 @@ export default function AttendancePage(): JSX.Element {
           open={showClassPerformanceDialog}
           onOpenChange={setShowClassPerformanceDialog}
           schoolId={currentAdmin.schoolId}
-          schoolName={currentAdmin.schoolName}
+          schoolName={school?.name || ''}
         />
       )}
 
@@ -325,7 +330,7 @@ export default function AttendancePage(): JSX.Element {
           open={showAbsenteeReportDialog}
           onOpenChange={setShowAbsenteeReportDialog}
           schoolId={currentAdmin.schoolId}
-          schoolName={currentAdmin.schoolName}
+          schoolName={school?.name || ''}
         />
       )}
     </div>

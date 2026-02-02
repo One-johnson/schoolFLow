@@ -33,7 +33,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/useAuth';
 
-export default function PaymentPage(): JSX.Element {
+export default function PaymentPage(): React.JSX.Element {
   const router = useRouter();
     const { user } = useAuth();
   const [paymentMethod, setPaymentMethod] = useState<'mobile_money' | 'bank_transfer'>('mobile_money');

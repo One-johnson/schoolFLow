@@ -27,7 +27,7 @@ export function DeleteTimetableDialog({
   open,
   onOpenChange,
   timetableId,
-}: DeleteTimetableDialogProps): JSX.Element {
+}: DeleteTimetableDialogProps): React.JSX.Element {
   const deleteTimetable = useMutation(api.timetables.deleteTimetable);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 

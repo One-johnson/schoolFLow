@@ -15,7 +15,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 
-export default function CreateSchoolPage(): JSX.Element {
+export default function CreateSchoolPage(): React.JSX.Element {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [formData, setFormData] = useState({

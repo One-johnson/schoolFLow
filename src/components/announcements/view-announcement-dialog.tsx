@@ -16,7 +16,7 @@ interface ViewAnnouncementDialogProps {
   announcement: Announcement;
 }
 
-export function ViewAnnouncementDialog({ open, onOpenChange, announcement }: ViewAnnouncementDialogProps): JSX.Element {
+export function ViewAnnouncementDialog({ open, onOpenChange, announcement }: ViewAnnouncementDialogProps): React.JSX.Element {
   const getTargetDisplay = (): string => {
     switch (announcement.targetType) {
       case 'school':

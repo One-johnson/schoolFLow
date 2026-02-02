@@ -5,7 +5,7 @@ interface AttendanceStatusBadgeProps {
   status: 'present' | 'absent' | 'late' | 'excused';
 }
 
-export function AttendanceStatusBadge({ status }: AttendanceStatusBadgeProps): JSX.Element {
+export function AttendanceStatusBadge({ status }: AttendanceStatusBadgeProps): React.JSX.Element {
   const config: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
     present: { label: 'Present', variant: 'default' },
     absent: { label: 'Absent', variant: 'destructive' },

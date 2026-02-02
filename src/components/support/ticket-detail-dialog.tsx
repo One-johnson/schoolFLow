@@ -46,7 +46,7 @@ export function TicketDetailDialog({
   userRole,
   userId,
   userName,
-}: TicketDetailDialogProps): JSX.Element {
+}: TicketDetailDialogProps): React.JSX.Element {
   const [message, setMessage] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [newStatus, setNewStatus] = useState<string>('');

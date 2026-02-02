@@ -82,7 +82,7 @@ function generateSchoolId(): string {
   return result;
 }
 
-export default function SchoolAdminsPage(): JSX.Element {
+export default function SchoolAdminsPage(): React.JSX.Element {
   const admins = useQuery(api.schoolAdmins.list);
   const createAdmin = useMutation(api.schoolAdmins.create);
   const bulkCreateAdmins = useMutation(api.schoolAdmins.bulkCreate);
@@ -142,20 +142,31 @@ export default function SchoolAdminsPage(): JSX.Element {
     return admins.filter((admin) => admin.status === statusFilter);
   }, [admins, statusFilter]);
 
-  // Single create
+  // Single create - using API route to properly hash password
   const handleCreate = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     const schoolId = generateSchoolId();
     const password = schoolId;
 
     try {
-      await createAdmin({
-        ...createForm,
-        schoolId,
-        status: 'pending',
-        invitedBy: 'super_admin',
-        tempPassword: password,
+      const response = await fetch('/api/auth/create-school-admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: createForm.name,
+          email: createForm.email,
+          schoolId,
+          tempPassword: password,
+        }),
       });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        toast.error(data.message || 'Failed to create school admin');
+        return;
+      }
+
       await createAuditLog({
         userId: 'super_admin',
         userName: 'Super Admin',
@@ -174,7 +185,7 @@ export default function SchoolAdminsPage(): JSX.Element {
     }
   };
 
-  // Bulk create
+  // Bulk create - using API route to properly hash passwords
   const handleBulkCreate = async (): Promise<void> => {
     if (!bulkCreateText.trim()) {
       toast.error('Please enter admin details');
@@ -186,7 +197,7 @@ export default function SchoolAdminsPage(): JSX.Element {
       name: string;
       email: string;
       schoolId: string;
-      password: string;
+      tempPassword: string;
     }> = [];
 
     for (const line of lines) {
@@ -195,7 +206,7 @@ export default function SchoolAdminsPage(): JSX.Element {
         const [name, email] = parts;
         const schoolId = generateSchoolId();
         const password = schoolId;
-        adminsToCreate.push({ name, email, schoolId, password });
+        adminsToCreate.push({ name, email, schoolId, tempPassword: password });
       }
     }
 
@@ -205,16 +216,18 @@ export default function SchoolAdminsPage(): JSX.Element {
     }
 
     try {
-      await bulkCreateAdmins({
-        admins: adminsToCreate.map((admin) => ({
-          name: admin.name,
-          email: admin.email,
-          schoolId: admin.schoolId,
-          status: 'pending',
-          invitedBy: 'super_admin',
-          tempPassword: admin.password,
-        })),
+      const response = await fetch('/api/auth/bulk-create-school-admins', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ admins: adminsToCreate }),
       });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        toast.error(data.message || 'Failed to create school admins');
+        return;
+      }
 
       await createAuditLog({
         userId: 'super_admin',
@@ -226,7 +239,7 @@ export default function SchoolAdminsPage(): JSX.Element {
         ipAddress: '192.168.1.1',
       });
 
-      setBulkGeneratedCredentials(adminsToCreate);
+      setBulkGeneratedCredentials(data.admins);
       toast.success(`${adminsToCreate.length} School Admins created successfully!`);
       setBulkCreateText('');
     } catch (error) {
@@ -234,7 +247,7 @@ export default function SchoolAdminsPage(): JSX.Element {
     }
   };
 
-  // CSV Import
+  // CSV Import - using API route to properly hash passwords
   const handleCSVImport = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -246,7 +259,7 @@ export default function SchoolAdminsPage(): JSX.Element {
           name: string;
           email: string;
           schoolId: string;
-          password: string;
+          tempPassword: string;
         }> = [];
 
         for (const row of results.data as Array<Record<string, string>>) {
@@ -257,7 +270,7 @@ export default function SchoolAdminsPage(): JSX.Element {
               name: row.name,
               email: row.email,
               schoolId,
-              password,
+              tempPassword: password,
             });
           }
         }
@@ -268,16 +281,18 @@ export default function SchoolAdminsPage(): JSX.Element {
         }
 
         try {
-          await bulkCreateAdmins({
-            admins: adminsToCreate.map((admin) => ({
-              name: admin.name,
-              email: admin.email,
-              schoolId: admin.schoolId,
-              status: 'pending',
-              invitedBy: 'super_admin',
-              tempPassword: admin.password,
-            })),
+          const response = await fetch('/api/auth/bulk-create-school-admins', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ admins: adminsToCreate }),
           });
+
+          const data = await response.json();
+
+          if (!data.success) {
+            toast.error(data.message || 'Failed to import school admins');
+            return;
+          }
 
           await createAuditLog({
             userId: 'super_admin',
@@ -289,7 +304,7 @@ export default function SchoolAdminsPage(): JSX.Element {
             ipAddress: '192.168.1.1',
           });
 
-          setBulkGeneratedCredentials(adminsToCreate);
+          setBulkGeneratedCredentials(data.admins);
           setIsBulkCreateOpen(true);
           toast.success(`${adminsToCreate.length} School Admins imported successfully!`);
         } catch (error) {

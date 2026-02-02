@@ -10,7 +10,7 @@ import { School, Mail, Phone, MapPin, Users, Calendar, Badge as BadgeIcon } from
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 
-export default function SchoolPage(): JSX.Element {
+export default function SchoolPage(): React.JSX.Element {
   const router = useRouter();
   const { user } = useAuth();
 

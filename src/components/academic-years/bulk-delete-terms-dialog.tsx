@@ -39,7 +39,7 @@ export function BulkDeleteTermsDialog({
   terms,
   deletedBy,
   onDeleted,
-}: BulkDeleteTermsDialogProps): JSX.Element {
+}: BulkDeleteTermsDialogProps): React.JSX.Element {
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const bulkDeleteTerms = useMutation(api.terms.bulkDeleteTerms);

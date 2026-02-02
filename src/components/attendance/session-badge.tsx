@@ -6,8 +6,8 @@ interface SessionBadgeProps {
   session: 'morning' | 'afternoon' | 'full_day';
 }
 
-export function SessionBadge({ session }: SessionBadgeProps): JSX.Element {
-  const config: Record<string, { label: string; icon: JSX.Element; className: string }> = {
+export function SessionBadge({ session }: SessionBadgeProps): React.JSX.Element {
+  const config: Record<string, { label: string; icon: React.JSX.Element; className: string }> = {
     morning: { 
       label: 'Morning', 
       icon: <Sun className="h-3 w-3 mr-1" />,

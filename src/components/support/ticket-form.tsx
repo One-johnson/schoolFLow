@@ -34,7 +34,7 @@ export function TicketForm({
   schoolId,
   schoolName,
   onSuccess,
-}: TicketFormProps): JSX.Element {
+}: TicketFormProps): React.JSX.Element {
   const [subject, setSubject] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [category, setCategory] = useState<'payment' | 'technical' | 'account' | 'general'>('general');

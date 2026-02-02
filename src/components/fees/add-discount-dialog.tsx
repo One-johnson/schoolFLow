@@ -24,7 +24,7 @@ export function AddDiscountDialog({
   onOpenChange,
   schoolId,
   createdBy,
-}: AddDiscountDialogProps): JSX.Element {
+}: AddDiscountDialogProps): React.JSX.Element {
   const [discountName, setDiscountName] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage');

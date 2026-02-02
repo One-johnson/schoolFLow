@@ -43,7 +43,7 @@ export function BulkUploadCSVDialog({
   schoolId,
   collectedBy,
   collectedByName,
-}: BulkUploadCSVDialogProps): JSX.Element {
+}: BulkUploadCSVDialogProps): React.JSX.Element {
   const [csvData, setCsvData] = useState<ParsedPayment[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [uploading, setUploading] = useState<boolean>(false);

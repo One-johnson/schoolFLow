@@ -132,7 +132,7 @@ export function BulkAddTeachersDialog({
   onOpenChange,
   schoolId,
   createdBy,
-}: BulkAddTeachersDialogProps): JSX.Element {
+}: BulkAddTeachersDialogProps): React.JSX.Element {
   const [activeTab, setActiveTab] = useState<string>("manual");
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [showConfirmation, setShowConfirmation] = useState<boolean>(false);

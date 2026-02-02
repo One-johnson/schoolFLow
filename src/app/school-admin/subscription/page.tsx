@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
 
-export default function SubscriptionPage(): JSX.Element {
+export default function SubscriptionPage(): React.JSX.Element {
   const router = useRouter();
   const { user } = useAuth();
   const [, setSelectedPlan] = useState<string | null>(null);

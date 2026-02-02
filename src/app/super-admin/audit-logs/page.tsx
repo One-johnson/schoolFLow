@@ -38,7 +38,7 @@ interface AuditLog {
   ipAddress: string;
 }
 
-export default function AuditLogsPage(): JSX.Element {
+export default function AuditLogsPage(): React.JSX.Element {
   const logs = useQuery(api.auditLogs.list);
   const [entityFilter, setEntityFilter] = useState<string>('all');
 

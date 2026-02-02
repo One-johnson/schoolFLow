@@ -36,7 +36,7 @@ export function EditCategoryDialog({
   open,
   onOpenChange,
   category,
-}: EditCategoryDialogProps): JSX.Element {
+}: EditCategoryDialogProps): React.JSX.Element {
   const [categoryName, setCategoryName] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [isOptional, setIsOptional] = useState<boolean>(false);

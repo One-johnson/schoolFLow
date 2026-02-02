@@ -37,7 +37,7 @@ export function CreateFeeStructureDialog({
   onOpenChange,
   schoolId,
   createdBy,
-}: CreateFeeStructureDialogProps): JSX.Element {
+}: CreateFeeStructureDialogProps): React.JSX.Element {
   const [structureName, setStructureName] = useState<string>('');
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [selectedDepartment, setSelectedDepartment] = useState<string>('');

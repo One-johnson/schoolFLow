@@ -25,7 +25,7 @@ const eventTypeColors: Record<string, string> = {
   other: 'bg-gray-100 text-gray-800',
 };
 
-export function UpcomingEventsCard({ schoolId }: UpcomingEventsCardProps): JSX.Element {
+export function UpcomingEventsCard({ schoolId }: UpcomingEventsCardProps): React.JSX.Element {
   const events = useQuery(api.dashboard.getUpcomingEvents, { schoolId });
 
   if (!events) {

@@ -38,7 +38,7 @@ export function DailyRegisterExportDialog({
   onOpenChange,
   schoolId,
   schoolName
-}: DailyRegisterExportDialogProps): JSX.Element {
+}: DailyRegisterExportDialogProps): React.JSX.Element {
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedSession, setSelectedSession] = useState<string>('full_day');

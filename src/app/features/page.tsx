@@ -224,7 +224,7 @@ const features = [
   }
 ];
 
-export default function FeaturesPage(): JSX.Element {
+export default function FeaturesPage(): React.JSX.Element {
   return (
     <div className="min-h-screen bg-background">
       <LandingHeader />

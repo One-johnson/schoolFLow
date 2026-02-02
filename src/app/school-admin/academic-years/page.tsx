@@ -88,7 +88,7 @@ interface Term {
   createdBy: string;
 }
 
-export default function AcademicYearsPage(): JSX.Element {
+export default function AcademicYearsPage(): React.JSX.Element {
   const { user } = useAuth();
   const [showAddYearDialog, setShowAddYearDialog] = useState<boolean>(false);
   const [showAddTermDialog, setShowAddTermDialog] = useState<boolean>(false);
@@ -210,7 +210,7 @@ export default function AcademicYearsPage(): JSX.Element {
     }
   }, [schoolAdmin, updateTermStatus]);
 
-  const getYearStatusBadge = useCallback((status: string): JSX.Element => {
+  const getYearStatusBadge = useCallback((status: string): React.JSX.Element => {
     switch (status) {
       case 'active':
         return <Badge className="bg-green-500">Active</Badge>;
@@ -225,7 +225,7 @@ export default function AcademicYearsPage(): JSX.Element {
     }
   }, []);
 
-  const getTermStatusBadge = useCallback((status: string): JSX.Element => {
+  const getTermStatusBadge = useCallback((status: string): React.JSX.Element => {
     switch (status) {
       case 'active':
         return <Badge className="bg-green-500">Active</Badge>;

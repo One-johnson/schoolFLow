@@ -14,7 +14,7 @@ export default function SchoolAdminLayout({
   children,
 }: {
   children: React.ReactNode;
-}): JSX.Element {
+}): React.JSX.Element {
   const router = useRouter();
   const pathname = usePathname();
   const { authenticated, loading, user } = useAuth();

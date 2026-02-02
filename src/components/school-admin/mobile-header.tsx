@@ -53,7 +53,7 @@ const menuItems = [
   },
 ];
 
-export function MobileHeader(): JSX.Element {
+export function MobileHeader(): React.JSX.Element {
   const notifications = useQuery(api.notifications.list);
   const unreadCount = notifications?.filter((n) => !n.read).length || 0;
   const pathname = usePathname();

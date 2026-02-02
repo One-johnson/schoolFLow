@@ -13,7 +13,7 @@ export function Providers({
   children,
 }: {
   children: React.ReactNode;
-}): JSX.Element {
+}): React.JSX.Element {
   return (
     <ConvexProvider client={convex}>
       <ThemeProvider

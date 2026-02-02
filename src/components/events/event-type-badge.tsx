@@ -9,7 +9,7 @@ interface EventTypeBadgeProps {
   color?: string;
 }
 
-export function EventTypeBadge({ eventType, color }: EventTypeBadgeProps): JSX.Element {
+export function EventTypeBadge({ eventType, color }: EventTypeBadgeProps): React.JSX.Element {
   const bgColor = color || getEventTypeColor(eventType);
   const label = getEventTypeLabel(eventType);
 

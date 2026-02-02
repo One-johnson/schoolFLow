@@ -52,7 +52,7 @@ const searchItems = [
   { label: 'Support', href: '/super-admin/support', keywords: ['help', 'support', 'tickets'] },
 ];
 
-export function DesktopHeader(): JSX.Element {
+export function DesktopHeader(): React.JSX.Element {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [showLogoutDialog, setShowLogoutDialog] = useState<boolean>(false);

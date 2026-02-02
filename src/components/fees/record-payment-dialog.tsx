@@ -37,7 +37,7 @@ export function RecordPaymentDialog({
   onOpenChange,
   schoolId,
   schoolAdminName,
-}: RecordPaymentDialogProps): JSX.Element {
+}: RecordPaymentDialogProps): React.JSX.Element {
   const { user } = useAuth();
   const [studentId, setStudentId] = useState<string>('');
   const [categoryId, setCategoryId] = useState<string>('');
@@ -103,11 +103,15 @@ export function RecordPaymentDialog({
         studentId: selectedStudent.studentId,
         studentName: `${selectedStudent.firstName} ${selectedStudent.lastName}`,
         classId: selectedStudent.classId,
-        className: selectedStudent.className,
-        categoryId: selectedCategory._id,
-        categoryName: selectedCategory.categoryName,
-        amountDue: amountDueNum,
-        amountPaid: amountPaidNum,
+        className: selectedStudent.className || '',
+        items: [
+          {
+            categoryId: selectedCategory._id,
+            categoryName: selectedCategory.categoryName,
+            amountDue: amountDueNum,
+            amountPaid: amountPaidNum,
+          },
+        ],
         paymentMethod: paymentMethod as 'cash' | 'bank_transfer' | 'mobile_money' | 'check' | 'other',
         transactionReference: transactionRef || undefined,
         paymentDate,

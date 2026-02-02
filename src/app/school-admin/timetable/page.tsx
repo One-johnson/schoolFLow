@@ -101,7 +101,7 @@ interface Assignment {
   endTime: string;
 }
 
-export default function TimetablePage(): JSX.Element {
+export default function TimetablePage(): React.JSX.Element {
   const { user } = useAuth();
   const convex = useConvex();
   const schoolId = user?.schoolId || '';

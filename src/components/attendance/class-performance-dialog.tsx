@@ -32,7 +32,7 @@ export function ClassPerformanceDialog({
   onOpenChange,
   schoolId,
   schoolName
-}: ClassPerformanceDialogProps): JSX.Element {
+}: ClassPerformanceDialogProps): React.JSX.Element {
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: new Date(new Date().setMonth(new Date().getMonth() - 1)),
     to: new Date()

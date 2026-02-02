@@ -38,7 +38,7 @@ interface RSVPListProps {
   showReminder?: boolean;
 }
 
-export function RSVPList({ rsvps, showReminder = false }: RSVPListProps): JSX.Element {
+export function RSVPList({ rsvps, showReminder = false }: RSVPListProps): React.JSX.Element {
   const sortedRSVPs = useMemo(() => {
     return [...rsvps].sort((a, b) => {
       // Sort by responded date (most recent first), then by name
@@ -49,7 +49,7 @@ export function RSVPList({ rsvps, showReminder = false }: RSVPListProps): JSX.El
     });
   }, [rsvps]);
 
-  const getStatusBadge = (status: RSVP['rsvpStatus']): JSX.Element => {
+  const getStatusBadge = (status: RSVP['rsvpStatus']): React.JSX.Element => {
     const variants: Record<RSVP['rsvpStatus'], { variant: 'default' | 'secondary' | 'destructive' | 'outline'; className: string }> = {
       attending: { variant: 'default', className: 'bg-green-100 text-green-800 hover:bg-green-100' },
       not_attending: { variant: 'destructive', className: 'bg-red-100 text-red-800 hover:bg-red-100' },
@@ -65,7 +65,7 @@ export function RSVPList({ rsvps, showReminder = false }: RSVPListProps): JSX.El
     );
   };
 
-  const getTypeBadge = (type: RSVP['respondentType']): JSX.Element => {
+  const getTypeBadge = (type: RSVP['respondentType']): React.JSX.Element => {
     const colors: Record<RSVP['respondentType'], string> = {
       student: 'bg-blue-100 text-blue-800',
       parent: 'bg-purple-100 text-purple-800',

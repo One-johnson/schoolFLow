@@ -22,7 +22,7 @@ export function StatsCard({
   trend,
   loading = false,
   colorClass = 'text-blue-600'
-}: StatsCardProps): JSX.Element {
+}: StatsCardProps): React.JSX.Element {
   if (loading) {
     return (
       <Card>

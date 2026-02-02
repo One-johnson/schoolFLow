@@ -21,7 +21,7 @@ interface MessageThreadProps {
   currentUserRole: 'super_admin' | 'school_admin';
 }
 
-export function MessageThread({ messages, currentUserRole }: MessageThreadProps): JSX.Element {
+export function MessageThread({ messages, currentUserRole }: MessageThreadProps): React.JSX.Element {
   return (
     <div className="space-y-4">
       {messages.map((message) => {

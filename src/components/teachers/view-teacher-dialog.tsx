@@ -23,7 +23,7 @@ export function ViewTeacherDialog({
   open,
   onOpenChange,
   teacher,
-}: ViewTeacherDialogProps): JSX.Element {
+}: ViewTeacherDialogProps): React.JSX.Element {
   const formatDate = (dateString: string): string => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -32,7 +32,7 @@ export function ViewTeacherDialog({
     });
   };
 
-  const getStatusBadge = (status: string): JSX.Element => {
+  const getStatusBadge = (status: string): React.JSX.Element => {
     switch (status) {
       case 'active':
         return <Badge className="bg-green-500">Active</Badge>;
@@ -45,7 +45,7 @@ export function ViewTeacherDialog({
     }
   };
 
-  const getEmploymentTypeBadge = (type: string): JSX.Element => {
+  const getEmploymentTypeBadge = (type: string): React.JSX.Element => {
     const displayText = type.split('_').map(word => 
       word.charAt(0).toUpperCase() + word.slice(1)
     ).join(' ');

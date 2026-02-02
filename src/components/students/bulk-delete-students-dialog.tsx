@@ -38,7 +38,7 @@ export function BulkDeleteStudentsDialog({
   open,
   onOpenChange,
   onDeleted,
-}: BulkDeleteStudentsDialogProps): JSX.Element {
+}: BulkDeleteStudentsDialogProps): React.JSX.Element {
   const { user } = useAuth();
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const deleteStudent = useMutation(api.students.deleteStudent);

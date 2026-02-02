@@ -59,7 +59,7 @@ interface ViewStudentDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export function ViewStudentDialog({ student, open, onOpenChange }: ViewStudentDialogProps): JSX.Element {
+export function ViewStudentDialog({ student, open, onOpenChange }: ViewStudentDialogProps): React.JSX.Element {
   // Fetch photo and document URLs from storage
   const photoUrl = useQuery(
     api.photos.getFileUrl,
@@ -71,7 +71,7 @@ export function ViewStudentDialog({ student, open, onOpenChange }: ViewStudentDi
     student.birthCertificateStorageId ? { storageId: student.birthCertificateStorageId } : 'skip'
   );
 
-  const getStatusBadge = (status: string): JSX.Element => {
+  const getStatusBadge = (status: string): React.JSX.Element => {
     const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
       active: 'default',
       inactive: 'secondary',

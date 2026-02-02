@@ -10,7 +10,7 @@ import { useQuery } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { useAuth } from '@/hooks/useAuth';
 
-export default function SchoolDeletedPage(): JSX.Element {
+export default function SchoolDeletedPage(): React.JSX.Element {
   const router = useRouter();
      const { user } = useAuth();
   const [email, setEmail] = useState<string | null>(null);

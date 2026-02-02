@@ -26,7 +26,7 @@ export function ViewAttendanceDialog({
   attendanceId,
   open,
   onOpenChange,
-}: ViewAttendanceDialogProps): JSX.Element {
+}: ViewAttendanceDialogProps): React.JSX.Element {
   const attendance = useQuery(
     api.attendance.getAttendanceById,
     attendanceId ? { attendanceId } : 'skip'

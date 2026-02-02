@@ -29,7 +29,7 @@ interface DeleteAnnouncementDialogProps {
   onSuccess: () => void;
 }
 
-export function DeleteAnnouncementDialog({ open, onOpenChange, announcement, onSuccess }: DeleteAnnouncementDialogProps): JSX.Element {
+export function DeleteAnnouncementDialog({ open, onOpenChange, announcement, onSuccess }: DeleteAnnouncementDialogProps): React.JSX.Element {
   const { user } = useAuth();
   const deleteAnnouncement = useMutation(api.announcements.deleteSingle);
   const [isDeleting, setIsDeleting] = useState(false);

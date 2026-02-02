@@ -39,7 +39,7 @@ export function StudentCertificateDialog({
   onOpenChange,
   schoolId,
   schoolName
-}: StudentCertificateDialogProps): JSX.Element {
+}: StudentCertificateDialogProps): React.JSX.Element {
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: new Date(new Date().setMonth(new Date().getMonth() - 1)),

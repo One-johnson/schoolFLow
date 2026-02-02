@@ -165,7 +165,7 @@ function getStatusColor(status: string): string {
   }
 }
 
-function StatusBadge({ status }: { status: string }): JSX.Element {
+function StatusBadge({ status }: { status: string }): React.JSX.Element {
   return (
     <span
       className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusColor(status)}`}
@@ -187,7 +187,7 @@ function StatCard({
   icon: LucideIcon;
   color?: string;
   iconColor?: string;
-}): JSX.Element {
+}): React.JSX.Element {
   return (
     <Card>
       <CardContent className="p-4">
@@ -211,7 +211,7 @@ function ExportButtons({
   onCSV: () => void;
   onPDF: () => void;
   disabled: boolean;
-}): JSX.Element {
+}): React.JSX.Element {
   return (
     <div className="flex items-center gap-2 ml-auto">
       <Button variant="outline" size="sm" onClick={onCSV} disabled={disabled}>
@@ -228,7 +228,7 @@ function ExportButtons({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function ReportsPage(): JSX.Element {
+export default function ReportsPage(): React.JSX.Element {
   const { user } = useAuth();
   const schoolId = user?.schoolId || "";
 
@@ -423,7 +423,7 @@ export default function ReportsPage(): JSX.Element {
   const studentColumns: ColumnDef<Student>[] = [
     {
       accessorKey: "firstName",
-      header: ({ column }) => createSortableHeader(column, "Name"),
+      header: createSortableHeader("Name"),
       cell: ({ row }) => `${row.original.firstName} ${row.original.lastName}`,
     },
     {
@@ -433,7 +433,7 @@ export default function ReportsPage(): JSX.Element {
     },
     {
       accessorKey: "className",
-      header: ({ column }) => createSortableHeader(column, "Class"),
+      header: createSortableHeader("Class"),
     },
     {
       accessorKey: "department",
@@ -463,7 +463,7 @@ export default function ReportsPage(): JSX.Element {
   const teacherColumns: ColumnDef<Teacher>[] = [
     {
       accessorKey: "firstName",
-      header: ({ column }) => createSortableHeader(column, "Name"),
+      header: createSortableHeader("Name"),
       cell: ({ row }) => `${row.original.firstName} ${row.original.lastName}`,
     },
     {
@@ -495,11 +495,11 @@ export default function ReportsPage(): JSX.Element {
   const attendanceColumns: ColumnDef<AttendanceRecord>[] = [
     {
       accessorKey: "className",
-      header: ({ column }) => createSortableHeader(column, "Class"),
+      header: createSortableHeader("Class"),
     },
     {
       accessorKey: "date",
-      header: ({ column }) => createSortableHeader(column, "Date"),
+      header: createSortableHeader("Date"),
       cell: ({ row }) => shortDate(row.original.date),
     },
     {
@@ -509,11 +509,11 @@ export default function ReportsPage(): JSX.Element {
     },
     {
       accessorKey: "presentCount",
-      header: ({ column }) => createSortableHeader(column, "Present"),
+      header: createSortableHeader("Present"),
     },
     {
       accessorKey: "absentCount",
-      header: ({ column }) => createSortableHeader(column, "Absent"),
+      header: createSortableHeader("Absent"),
     },
     {
       accessorKey: "lateCount",
@@ -542,11 +542,11 @@ export default function ReportsPage(): JSX.Element {
   const feeColumns: ColumnDef<FeePayment>[] = [
     {
       accessorKey: "studentName",
-      header: ({ column }) => createSortableHeader(column, "Student"),
+      header: createSortableHeader("Student"),
     },
     {
       accessorKey: "className",
-      header: ({ column }) => createSortableHeader(column, "Class"),
+      header: createSortableHeader("Class"),
     },
     {
       accessorKey: "receiptNumber",
@@ -555,17 +555,17 @@ export default function ReportsPage(): JSX.Element {
     },
     {
       accessorKey: "totalAmountDue",
-      header: ({ column }) => createSortableHeader(column, "Due"),
+      header: createSortableHeader("Due"),
       cell: ({ row }) => row.original.totalAmountDue.toLocaleString(),
     },
     {
       accessorKey: "totalAmountPaid",
-      header: ({ column }) => createSortableHeader(column, "Paid"),
+      header: createSortableHeader("Paid"),
       cell: ({ row }) => row.original.totalAmountPaid.toLocaleString(),
     },
     {
       accessorKey: "totalBalance",
-      header: ({ column }) => createSortableHeader(column, "Balance"),
+      header: createSortableHeader("Balance"),
       cell: ({ row }) => (
         <span
           className={
@@ -597,7 +597,7 @@ export default function ReportsPage(): JSX.Element {
   const eventColumns: ColumnDef<SchoolEvent>[] = [
     {
       accessorKey: "eventTitle",
-      header: ({ column }) => createSortableHeader(column, "Event"),
+      header: createSortableHeader("Event"),
     },
     {
       accessorKey: "eventType",
@@ -606,7 +606,7 @@ export default function ReportsPage(): JSX.Element {
     },
     {
       accessorKey: "startDate",
-      header: ({ column }) => createSortableHeader(column, "Start"),
+      header: createSortableHeader("Start"),
       cell: ({ row }) => shortDate(row.original.startDate),
     },
     {
@@ -636,11 +636,11 @@ export default function ReportsPage(): JSX.Element {
   const reportCardColumns: ColumnDef<ReportCard>[] = [
     {
       accessorKey: "studentName",
-      header: ({ column }) => createSortableHeader(column, "Student"),
+      header: createSortableHeader("Student"),
     },
     {
       accessorKey: "className",
-      header: ({ column }) => createSortableHeader(column, "Class"),
+      header: createSortableHeader("Class"),
     },
     {
       accessorKey: "termName",
@@ -654,13 +654,13 @@ export default function ReportsPage(): JSX.Element {
     },
     {
       accessorKey: "totalScore",
-      header: ({ column }) => createSortableHeader(column, "Score"),
+      header: createSortableHeader("Score"),
       cell: ({ row }) =>
         `${row.original.totalScore} / ${row.original.rawScore}`,
     },
     {
       accessorKey: "percentage",
-      header: ({ column }) => createSortableHeader(column, "%"),
+      header: createSortableHeader("%"),
       cell: ({ row }) => `${row.original.percentage}%`,
     },
     {
@@ -674,7 +674,7 @@ export default function ReportsPage(): JSX.Element {
     },
     {
       accessorKey: "position",
-      header: ({ column }) => createSortableHeader(column, "Rank"),
+      header: createSortableHeader("Rank"),
       cell: ({ row }) =>
         row.original.position ? `#${row.original.position}` : "—",
     },
@@ -913,7 +913,7 @@ export default function ReportsPage(): JSX.Element {
   }: {
     value: string;
     onChange: (v: string) => void;
-  }): JSX.Element => (
+  }): React.JSX.Element => (
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger className="w-45">
         <SelectValue placeholder="All Classes" />
