@@ -849,3 +849,13 @@ export const getStudentPhotoUrl = query({
     return url;
   },
 });
+// Query: Get students by class ID (for teacher portal)
+export const getStudentsByClassId = query({
+  args: { classId: v.string() },
+  handler: async (ctx, args) => {
+    const students = await ctx.db
+      .query('students')
+      .collect();
+    return students.filter((student) => student.classId === args.classId);
+  },
+});

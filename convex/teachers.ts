@@ -2,6 +2,7 @@ import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
 import type { MutationCtx } from './_generated/server';
 import type { Id } from './_generated/dataModel';
+import bcrypt from 'bcryptjs';
 
 // Generate teacher ID: teacher initials + 6 random digits
 function generateTeacherId(firstName: string, lastName: string): string {
@@ -148,6 +149,7 @@ export const addTeacher = mutation({
         .first();
     }
 
+    const hashedPassword = await bcrypt.hash(teacherId, 12);
     const now = new Date().toISOString();
 
     const teacherDbId = await ctx.db.insert('teachers', {
@@ -173,6 +175,7 @@ export const addTeacher = mutation({
       createdAt: now,
       updatedAt: now,
       createdBy: args.createdBy,
+      password: hashedPassword,
     });
 
     // Create audit log
@@ -266,6 +269,7 @@ export const addBulkTeachers = mutation({
             .first();
         }
 
+        const hashedPassword = await bcrypt.hash(teacherId, 12);
         const teacherDbId = await ctx.db.insert('teachers', {
           schoolId: args.schoolId,
           teacherId,
@@ -289,6 +293,7 @@ export const addBulkTeachers = mutation({
           createdAt: now,
           updatedAt: now,
           createdBy: args.createdBy,
+          password: hashedPassword,
         });
 
         // Add to existing emails set to prevent duplicates within the same bulk operation
@@ -559,6 +564,48 @@ export const updateTeacherStatus = mutation({
       ipAddress: '0.0.0.0',
     });
 
+    return { success: true };
+  },
+});
+
+// Query: Get teacher by email (for login)
+export const getTeacherByEmail = query({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    const teacher = await ctx.db
+      .query('teachers')
+      .withIndex('by_email', (q) => q.eq('email', args.email))
+      .first();
+    return teacher;
+  },
+});
+
+// Query: Get classes where this teacher is the class teacher
+export const getTeacherClasses = query({
+  args: { teacherId: v.string() },
+  handler: async (ctx, args) => {
+    const classes = await ctx.db
+      .query('classes')
+      .collect();
+    return classes.filter((cls) => cls.classTeacherId === args.teacherId);
+  },
+});
+
+// Mutation: Update teacher password
+export const updateTeacherPassword = mutation({
+  args: {
+    teacherId: v.id('teachers'),
+    hashedPassword: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const teacher = await ctx.db.get(args.teacherId);
+    if (!teacher) {
+      throw new Error('Teacher not found');
+    }
+    await ctx.db.patch(args.teacherId, {
+      password: args.hashedPassword,
+      updatedAt: new Date().toISOString(),
+    });
     return { success: true };
   },
 });

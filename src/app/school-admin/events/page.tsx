@@ -366,7 +366,7 @@ export default function EventsPage(): React.JSX.Element {
 
         <div className="flex gap-2">
           <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-[150px]">
+            <SelectTrigger className="w-37.5">
               <SelectValue placeholder="Event Type" />
             </SelectTrigger>
             <SelectContent>
@@ -384,7 +384,7 @@ export default function EventsPage(): React.JSX.Element {
           </Select>
 
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[150px]">
+            <SelectTrigger className="w-37.5">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>

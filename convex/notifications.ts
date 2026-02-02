@@ -96,3 +96,16 @@ export const bulkDelete = mutation({
     return args.ids.length;
   },
 });
+
+// Query: Get notifications for a specific teacher
+export const getNotificationsByTeacher = query({
+  args: { teacherId: v.string() },
+  handler: async (ctx, args) => {
+    const notifications = await ctx.db
+      .query('notifications')
+      .collect();
+    return notifications.filter(
+      (n) => n.recipientId === args.teacherId || n.recipientRole === 'teacher'
+    );
+  },
+});

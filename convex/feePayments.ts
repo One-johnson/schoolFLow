@@ -396,3 +396,14 @@ export const bulkRecordPayments = mutation({
     return createdIds;
   },
 });
+
+// Query: Get fee payments by student ID (for teacher portal)
+export const getFeePaymentsByStudentId = query({
+  args: { studentId: v.string() },
+  handler: async (ctx, args) => {
+    const payments = await ctx.db
+      .query('feePayments')
+      .collect();
+    return payments.filter((payment) => payment.studentId === args.studentId);
+  },
+});

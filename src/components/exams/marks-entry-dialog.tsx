@@ -479,12 +479,12 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
                 </span>
               </div>
 
-              <div className="flex-1 rounded-lg border overflow-auto max-h-[500px]">
+              <div className="flex-1 rounded-lg border overflow-auto max-h-125">
                 <div className="min-w-max">
                   <Table>
                     <TableHeader className="bg-muted sticky top-0 z-10">
                       <TableRow>
-                        <TableHead className="text-left p-3 font-medium border-r min-w-[200px]">
+                        <TableHead className="text-left p-3 font-medium border-r min-w-50">
                           Student Name
                         </TableHead>
                         {subjects.map((subject) => (
@@ -501,10 +501,10 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
                             </div>
                           </TableHead>
                         ))}
-                        <TableHead className="text-center p-3 font-medium min-w-[100px]">
+                        <TableHead className="text-center p-3 font-medium min-w-25">
                           Avg %
                         </TableHead>
-                        <TableHead className="text-center p-3 font-medium min-w-[120px]">
+                        <TableHead className="text-center p-3 font-medium min-w-30">
                           Status
                         </TableHead>
                       </TableRow>

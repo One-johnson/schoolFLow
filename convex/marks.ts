@@ -358,3 +358,19 @@ export const deleteMark = mutation({
     return { success: true };
   },
 });
+
+// Get marks for a class in an exam (for teacher portal)
+export const getMarksByClassAndExam = query({
+  args: {
+    examId: v.id('exams'),
+    classId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const marks = await ctx.db
+      .query('studentMarks')
+      .withIndex('by_exam', (q) => q.eq('examId', args.examId))
+      .filter((q) => q.eq(q.field('classId'), args.classId))
+      .collect();
+    return marks;
+  },
+});
