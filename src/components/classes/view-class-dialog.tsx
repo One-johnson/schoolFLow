@@ -40,14 +40,14 @@ export function ViewClassDialog({
   open,
   onOpenChange,
   classData,
-}: ViewClassDialogProps): JSX.Element {
+}: ViewClassDialogProps): React.JSX.Element {
   // Fetch teacher details if classTeacherId exists
   const teacher = useQuery(
     api.teachers.getTeacherById,
     classData.classTeacherId ? { teacherId: classData.classTeacherId as Id<'teachers'> } : 'skip'
   );
 
-  const getDepartmentBadge = (department: string): JSX.Element => {
+  const getDepartmentBadge = (department: string): React.JSX.Element => {
     switch (department) {
       case 'creche':
         return <Badge className="bg-orange-500">Creche</Badge>;
@@ -62,7 +62,7 @@ export function ViewClassDialog({
     }
   };
 
-  const getStatusBadge = (status: string): JSX.Element => {
+  const getStatusBadge = (status: string): React.JSX.Element => {
     switch (status) {
       case 'active':
         return <Badge className="bg-green-500">Active</Badge>;

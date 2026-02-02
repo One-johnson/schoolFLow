@@ -34,7 +34,7 @@ import { ChartsSection } from '@/components/school-admin/charts-section';
 import { PerformanceMetricsCard } from '@/components/school-admin/performance-metrics-card';
 import { QuickActionsGrid } from '@/components/school-admin/quick-actions-grid';
 
-export default function SchoolAdminDashboard(): JSX.Element {
+export default function SchoolAdminDashboard(): React.JSX.Element {
   const router = useRouter();
   const { user } = useAuth();
   
@@ -119,7 +119,7 @@ export default function SchoolAdminDashboard(): JSX.Element {
     );
   }
 
-  const getStatusBadge = (status: string): JSX.Element => {
+  const getStatusBadge = (status: string): React.JSX.Element => {
     const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
       active: { label: 'Active', variant: 'default' },
       pending: { label: 'Pending', variant: 'secondary' },

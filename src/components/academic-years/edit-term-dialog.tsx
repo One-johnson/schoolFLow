@@ -51,7 +51,7 @@ export function EditTermDialog({
   onOpenChange,
   term,
   updatedBy,
-}: EditTermDialogProps): JSX.Element {
+}: EditTermDialogProps): React.JSX.Element {
   const [termName, setTermName] = useState<string>('');
   const [termNumber, setTermNumber] = useState<string>('1');
   const [startDate, setStartDate] = useState<string>('');

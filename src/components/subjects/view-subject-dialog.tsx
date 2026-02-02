@@ -36,8 +36,8 @@ export function ViewSubjectDialog({
   open,
   onOpenChange,
   subjectData,
-}: ViewSubjectDialogProps): JSX.Element {
-  const getDepartmentBadge = (department: string): JSX.Element => {
+}: ViewSubjectDialogProps): React.JSX.Element {
+  const getDepartmentBadge = (department: string): React.JSX.Element => {
     switch (department) {
       case 'creche':
         return <Badge className="bg-orange-500">Creche</Badge>;
@@ -52,7 +52,7 @@ export function ViewSubjectDialog({
     }
   };
 
-  const getCategoryBadge = (category: string): JSX.Element => {
+  const getCategoryBadge = (category: string): React.JSX.Element => {
     switch (category) {
       case 'core':
         return <Badge className="bg-green-600">Core</Badge>;
@@ -65,7 +65,7 @@ export function ViewSubjectDialog({
     }
   };
 
-  const getStatusBadge = (status: string): JSX.Element => {
+  const getStatusBadge = (status: string): React.JSX.Element => {
     switch (status) {
       case 'active':
         return <Badge className="bg-green-500">Active</Badge>;

@@ -41,7 +41,7 @@ export function EditAcademicYearDialog({
   onOpenChange,
   academicYear,
   updatedBy,
-}: EditAcademicYearDialogProps): JSX.Element {
+}: EditAcademicYearDialogProps): React.JSX.Element {
   const [yearName, setYearName] = useState<string>('');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');

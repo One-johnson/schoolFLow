@@ -59,7 +59,7 @@ export function DataTable<TData, TValue>({
   exportFormats = ['json', 'csv', 'pdf'],
   onExport,
   onSelectionChange,
-}: DataTableProps<TData, TValue>): JSX.Element {
+}: DataTableProps<TData, TValue>): React.JSX.Element {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
@@ -286,7 +286,7 @@ export function DataTable<TData, TValue>({
   );
 }
 
-export function createSortableHeader(column: unknown, label: string) {
+export function createSortableHeader(label: string) {
   // eslint-disable-next-line react/display-name
   return ({ column }: { column: { toggleSorting: (desc?: boolean) => void; getIsSorted: () => string | boolean } }) => {
     return (

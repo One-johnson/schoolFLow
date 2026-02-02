@@ -47,7 +47,7 @@ export function BulkAddClassesDialog({
   onOpenChange,
   schoolId,
   createdBy,
-}: BulkAddClassesDialogProps): JSX.Element {
+}: BulkAddClassesDialogProps): React.JSX.Element {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [classes, setClasses] = useState<ClassEntry[]>([
     {

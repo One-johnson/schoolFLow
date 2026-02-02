@@ -84,7 +84,7 @@ export function AddTeacherDialog({
   onOpenChange,
   schoolId,
   createdBy,
-}: AddTeacherDialogProps): JSX.Element {
+}: AddTeacherDialogProps): React.JSX.Element {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState<boolean>(false);
   const [photoUrl, setPhotoUrl] = useState<string>('');

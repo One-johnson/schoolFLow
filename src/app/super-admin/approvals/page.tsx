@@ -29,7 +29,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { JSX } from 'react';
 
-function PaymentScreenshot({ storageId }: { storageId: string }): JSX.Element {
+function PaymentScreenshot({ storageId }: { storageId: string }): React.JSX.Element {
   const fileUrl = useQuery(api.paymentProofs.getFileUrl, { storageId });
 
   if (!fileUrl) {
@@ -84,7 +84,7 @@ interface SchoolCreationRequest {
   createdAt: string;
 }
 
-export default function ApprovalsPage(): JSX.Element {
+export default function ApprovalsPage(): React.JSX.Element {
   const pendingPayments = useQuery(api.paymentProofs.getPending) as PaymentProof[] | undefined;
   const pendingSchools = useQuery(api.schoolCreationRequests.getPending) as SchoolCreationRequest[] | undefined;
 

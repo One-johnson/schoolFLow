@@ -55,7 +55,7 @@ const DEPARTMENTS = [
   { value: 'junior_high', label: 'Junior High' },
 ];
 
-export function EditAnnouncementDialog({ open, onOpenChange, announcement, onSuccess }: EditAnnouncementDialogProps): JSX.Element {
+export function EditAnnouncementDialog({ open, onOpenChange, announcement, onSuccess }: EditAnnouncementDialogProps): React.JSX.Element {
   const { user } = useAuth();
   const updateAnnouncement = useMutation(api.announcements.update);
   const classes = useQuery(api.classes.getClassesBySchool, {

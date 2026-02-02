@@ -29,7 +29,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-export default function NotificationsPage(): JSX.Element {
+export default function NotificationsPage(): React.JSX.Element {
   const notifications = useQuery(api.notifications.list) || [];
   const markAsRead = useMutation(api.notifications.markAsRead);
   const markAllAsRead = useMutation(api.notifications.markAllAsRead);
@@ -125,7 +125,7 @@ export default function NotificationsPage(): JSX.Element {
     }
   };
 
-  const getNotificationIcon = (type: string): JSX.Element => {
+  const getNotificationIcon = (type: string): React.JSX.Element => {
     switch (type) {
       case 'success':
         return <CheckCircle className="h-5 w-5 text-green-600" />;

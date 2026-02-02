@@ -74,7 +74,7 @@ interface FormData {
 
 const DRAFT_KEY = 'student_form_draft';
 
-export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps): JSX.Element {
+export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps): React.JSX.Element {
   const { user } = useAuth();
   const addStudent = useMutation(api.students.addStudent);
   const generateUploadUrl = useMutation(api.photos.generateUploadUrl);

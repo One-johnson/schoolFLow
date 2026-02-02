@@ -31,7 +31,7 @@ interface Announcement {
   publishedAt?: string;
 }
 
-export default function AnnouncementsPage(): JSX.Element {
+export default function AnnouncementsPage(): React.JSX.Element {
   const { user } = useAuth();
   const publishAnnouncement = useMutation(api.announcements.publish);
   const archiveAnnouncement = useMutation(api.announcements.archive);
@@ -92,7 +92,7 @@ export default function AnnouncementsPage(): JSX.Element {
     });
   };
 
-  const renderAnnouncementCard = (announcement: Announcement, actions: JSX.Element): JSX.Element => (
+  const renderAnnouncementCard = (announcement: Announcement, actions: React.JSX.Element): React.JSX.Element => (
     <Card key={announcement._id} className="hover:shadow-md transition-shadow">
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-3">
@@ -120,7 +120,7 @@ export default function AnnouncementsPage(): JSX.Element {
     </Card>
   );
 
-  const renderEmptyState = (status: string): JSX.Element => (
+  const renderEmptyState = (status: string): React.JSX.Element => (
     <div className="text-center py-12">
       <Megaphone className="h-10 w-10 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
       <p className="text-sm text-gray-500 dark:text-gray-400">No {status} announcements</p>

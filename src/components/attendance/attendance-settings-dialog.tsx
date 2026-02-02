@@ -29,7 +29,7 @@ export function AttendanceSettingsDialog({
   adminId,
   open,
   onOpenChange,
-}: AttendanceSettingsDialogProps): JSX.Element {
+}: AttendanceSettingsDialogProps): React.JSX.Element {
   const [enableMorningSession, setEnableMorningSession] = useState<boolean>(true);
   const [enableAfternoonSession, setEnableAfternoonSession] = useState<boolean>(false);
   const [morningStartTime, setMorningStartTime] = useState<string>('08:00');

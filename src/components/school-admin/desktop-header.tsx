@@ -104,7 +104,7 @@ function statusColor(status: string): string {
   }
 }
 
-function DetailRow({ label, value }: { label: string; value: string }): JSX.Element {
+function DetailRow({ label, value }: { label: string; value: string }): React.JSX.Element {
   return (
     <div>
       <p className="text-xs text-muted-foreground">{label}</p>
@@ -115,7 +115,7 @@ function DetailRow({ label, value }: { label: string; value: string }): JSX.Elem
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
-export function DesktopHeader(): JSX.Element {
+export function DesktopHeader(): React.JSX.Element {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [showLogoutDialog, setShowLogoutDialog] = useState<boolean>(false);

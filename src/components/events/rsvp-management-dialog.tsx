@@ -33,7 +33,7 @@ export function RSVPManagementDialog({
   eventId,
   eventTitle,
   requiresRSVP,
-}: RSVPManagementDialogProps): JSX.Element {
+}: RSVPManagementDialogProps): React.JSX.Element {
   const [activeTab, setActiveTab] = useState<string>('overview');
 
   // Fetch RSVPs

@@ -278,6 +278,7 @@ export const getAlerts = query({
       title: string;
       description: string;
       count: number;
+      link?: string;
     };
 
     const alerts: Alert[] = [];
@@ -296,6 +297,7 @@ export const getAlerts = query({
         title: 'No Active Timetables',
         description: 'No timetables are currently active for this school',
         count: 1,
+        link: '/school-admin/timetable',
       });
     }
 
@@ -317,6 +319,7 @@ export const getAlerts = query({
         title: 'Overdue Installments',
         description: `${overdueInstallments.length} installments are overdue`,
         count: overdueInstallments.length,
+        link: '/school-admin/fees',
       });
     }
 
@@ -348,6 +351,7 @@ export const getAlerts = query({
           title: 'Low RSVP Rate',
           description: `${event.eventTitle} has only ${respondedCount}/${totalInvited} responses`,
           count: 1,
+          link: '/school-admin/events',
         });
       }
     }
@@ -377,6 +381,7 @@ export const getAlerts = query({
         title: 'Unassigned Teachers',
         description: `${unassignedTeachers.length} teachers have no class assignments`,
         count: unassignedTeachers.length,
+        link: '/school-admin/teachers',
       });
     }
 
@@ -392,6 +397,7 @@ export const getAlerts = query({
         title: 'Classes Without Timetables',
         description: `${classesWithoutTimetables.length} classes don't have active timetables`,
         count: classesWithoutTimetables.length,
+        link: '/school-admin/timetable',
       });
     }
 

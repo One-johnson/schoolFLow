@@ -35,7 +35,7 @@ export function SaveAsTemplateDialog({
   className,
   schoolId,
   createdBy,
-}: SaveAsTemplateDialogProps): JSX.Element {
+}: SaveAsTemplateDialogProps): React.JSX.Element {
   const createTemplate = useMutation(api.timetableTemplates.createTemplate);
 
   const [templateName, setTemplateName] = useState<string>(`${className} Template`);

@@ -28,7 +28,7 @@ type UnifiedNotification = {
   notificationType?: string;
 };
 
-export default function NotificationsPage(): JSX.Element {
+export default function NotificationsPage(): React.JSX.Element {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<string>('all');
   const { user } = useAuth();
@@ -122,7 +122,7 @@ export default function NotificationsPage(): JSX.Element {
     }
   };
 
-  const getNotificationIcon = (icon: string): JSX.Element => {
+  const getNotificationIcon = (icon: string): React.JSX.Element => {
     switch (icon) {
       case 'success':
         return <CheckCircle className="h-5 w-5 text-green-500" />;

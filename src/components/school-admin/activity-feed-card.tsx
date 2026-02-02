@@ -21,7 +21,7 @@ interface ActivityFeedCardProps {
   schoolId: string;
 }
 
-export function ActivityFeedCard({ schoolId }: ActivityFeedCardProps): JSX.Element {
+export function ActivityFeedCard({ schoolId }: ActivityFeedCardProps): React.JSX.Element {
   const activities = useQuery(api.dashboard.getRecentActivity, { schoolId, limit: 10 });
 
   if (!activities) {
@@ -43,7 +43,7 @@ export function ActivityFeedCard({ schoolId }: ActivityFeedCardProps): JSX.Eleme
     );
   }
 
-  const getActivityIcon = (type: string): JSX.Element => {
+  const getActivityIcon = (type: string): React.JSX.Element => {
     switch (type) {
       case 'student':
         return (

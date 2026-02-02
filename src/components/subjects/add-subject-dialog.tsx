@@ -36,7 +36,7 @@ export function AddSubjectDialog({
   onOpenChange,
   schoolId,
   createdBy,
-}: AddSubjectDialogProps): JSX.Element {
+}: AddSubjectDialogProps): React.JSX.Element {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [formData, setFormData] = useState({
     subjectName: '',

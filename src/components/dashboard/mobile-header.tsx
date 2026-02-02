@@ -24,15 +24,21 @@ import {
   HelpCircle,
   GraduationCap,
   CheckSquare,
+  Clock,
+  Shield,
+  Activity,
 } from 'lucide-react';
 
 const navItems = [
   { href: '/super-admin', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/super-admin/approvals', icon: CheckSquare, label: 'Approvals' },
   { href: '/super-admin/profile', icon: User, label: 'Profile Management' },
+  { href: '/super-admin/manage-admins', icon: Shield, label: 'Manage Admins' },
   { href: '/super-admin/school-admins', icon: Users, label: 'School Admins' },
   { href: '/super-admin/schools', icon: School, label: 'Schools' },
   { href: '/super-admin/subscriptions', icon: CreditCard, label: 'Subscriptions' },
+  { href: '/super-admin/trial-management', icon: Clock, label: 'Trial Management' },
+  { href: '/super-admin/activity', icon: Activity, label: 'Activity & Sessions' },
   { href: '/super-admin/audit-logs', icon: FileText, label: 'Audit Logs' },
   { href: '/super-admin/notifications', icon: Bell, label: 'Notifications' },
   { href: '/super-admin/reports', icon: BarChart3, label: 'Reports' },
@@ -40,7 +46,7 @@ const navItems = [
   { href: '/super-admin/support', icon: HelpCircle, label: 'Support' },
 ];
 
-export function MobileHeader(): JSX.Element {
+export function MobileHeader(): React.JSX.Element {
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useAuth();

@@ -19,7 +19,7 @@ interface ClassAnalyticsTabProps {
   schoolId: string;
 }
 
-export function ClassAnalyticsTab({ schoolId }: ClassAnalyticsTabProps): JSX.Element {
+export function ClassAnalyticsTab({ schoolId }: ClassAnalyticsTabProps): React.JSX.Element {
   const [selectedClass, setSelectedClass] = useState<string>('all');
 
 

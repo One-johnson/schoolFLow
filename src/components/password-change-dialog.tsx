@@ -15,7 +15,7 @@ interface PasswordChangeDialogProps {
   userRole: 'super_admin' | 'school_admin';
 }
 
-export function PasswordChangeDialog({ open, onOpenChange, userRole }: PasswordChangeDialogProps): JSX.Element {
+export function PasswordChangeDialog({ open, onOpenChange, userRole }: PasswordChangeDialogProps): React.JSX.Element {
   const [currentPassword, setCurrentPassword] = useState<string>('');
   const [newPassword, setNewPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');

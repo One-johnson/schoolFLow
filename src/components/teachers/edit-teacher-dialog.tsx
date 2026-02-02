@@ -40,7 +40,7 @@ export function EditTeacherDialog({
   onOpenChange,
   teacher,
   updatedBy,
-}: EditTeacherDialogProps): JSX.Element {
+}: EditTeacherDialogProps): React.JSX.Element {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [photoUrl, setPhotoUrl] = useState<string>(teacher.photoUrl || '');
   const [photoPreview, setPhotoPreview] = useState<string>(teacher.photoUrl || '');

@@ -27,7 +27,7 @@ import {
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
 
-export default function SuperAdminDashboardPage(): JSX.Element {
+export default function SuperAdminDashboardPage(): React.JSX.Element {
   const stats = useQuery(api.schools.getDashboardStats);
   const auditLogs = useQuery(api.auditLogs.list);
   const schools = useQuery(api.schools.list);

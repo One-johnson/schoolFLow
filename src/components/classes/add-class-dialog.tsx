@@ -35,7 +35,7 @@ export function AddClassDialog({
   onOpenChange,
   schoolId,
   createdBy,
-}: AddClassDialogProps): JSX.Element {
+}: AddClassDialogProps): React.JSX.Element {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [formData, setFormData] = useState({
     className: '',

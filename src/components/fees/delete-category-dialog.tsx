@@ -29,7 +29,7 @@ export function DeleteCategoryDialog({
   open,
   onOpenChange,
   category,
-}: DeleteCategoryDialogProps): JSX.Element {
+}: DeleteCategoryDialogProps): React.JSX.Element {
   const [loading, setLoading] = useState<boolean>(false);
   const deleteCategory = useMutation(api.feeCategories.deleteFeeCategory);
 

@@ -30,7 +30,7 @@ export function AdminPasswordResetDialog({
   adminName,
   adminEmail,
   onSuccess,
-}: AdminPasswordResetDialogProps): JSX.Element {
+}: AdminPasswordResetDialogProps): React.JSX.Element {
   const [loading, setLoading] = useState(false);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);

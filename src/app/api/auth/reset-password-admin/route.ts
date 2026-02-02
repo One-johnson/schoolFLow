@@ -103,6 +103,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       message: 'Password reset successfully',
       adminName: schoolAdmin.name,
       adminEmail: schoolAdmin.email,
+      tempPassword, // Return plain text password to display to super admin
     });
   } catch (error) {
     console.error('Password reset error:', error);

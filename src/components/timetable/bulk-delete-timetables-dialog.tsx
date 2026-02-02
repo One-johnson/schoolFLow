@@ -29,7 +29,7 @@ export function BulkDeleteTimetablesDialog({
   onOpenChange,
   timetableIds,
   onSuccess,
-}: BulkDeleteTimetablesDialogProps): JSX.Element {
+}: BulkDeleteTimetablesDialogProps): React.JSX.Element {
   const bulkDeleteTimetables = useMutation(api.timetables.bulkDeleteTimetables);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 

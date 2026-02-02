@@ -93,7 +93,7 @@ const faqs = [
   },
 ];
 
-export default function SupportPage(): JSX.Element {
+export default function SupportPage(): React.JSX.Element {
   const { user } = useAuth();
   const [selectedTicketId, setSelectedTicketId] = useState<Id<'supportTickets'> | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
@@ -131,19 +131,19 @@ export default function SupportPage(): JSX.Element {
       createSelectColumn<SupportTicket>(),
       {
         accessorKey: 'ticketNumber',
-        header: createSortableHeader('Ticket #', 'ticket'),
+        header: createSortableHeader('Ticket #'),
         cell: ({ row }) => <span className="font-mono text-sm">{row.original.ticketNumber}</span>,
       },
       {
         accessorKey: 'schoolName',
-        header: createSortableHeader('School', 'school'),
+        header: createSortableHeader('School'),
         cell: ({ row }) => (
           <span className="font-medium">{row.original.schoolName || 'No School'}</span>
         ),
       },
       {
         accessorKey: 'subject',
-        header: createSortableHeader('Subject', 'subject'),
+        header: createSortableHeader('Subject'),
         cell: ({ row }) => (
           <div className="max-w-xs">
             <p className="truncate">{row.original.subject}</p>
@@ -152,29 +152,29 @@ export default function SupportPage(): JSX.Element {
       },
       {
         accessorKey: 'category',
-        header: createSortableHeader('Category', 'category'),
+        header: createSortableHeader('Category'),
         cell: ({ row }) => <TicketCategoryBadge category={row.original.category} />,
       },
       {
         accessorKey: 'priority',
-        header: createSortableHeader('Priority', 'priority'),
+        header: createSortableHeader('Priority'),
         cell: ({ row }) => <TicketPriorityBadge priority={row.original.priority} />,
       },
       {
         accessorKey: 'status',
-        header: createSortableHeader('Status', 'status'),
+        header: createSortableHeader('Status'),
         cell: ({ row }) => <TicketStatusBadge status={row.original.status} />,
       },
       {
         accessorKey: 'assignedToName',
-        header: createSortableHeader('Assigned To', 'assignedTo'),
+        header: createSortableHeader('Assigned To'),
         cell: ({ row }) => (
           <span className="text-sm">{row.original.assignedToName || 'Unassigned'}</span>
         ),
       },
       {
         accessorKey: 'updatedAt',
-        header: createSortableHeader('Last Updated', 'updatedAt'),
+        header: createSortableHeader('Last Updated'),
         cell: ({ row }) => (
           <span className="text-sm">
             {formatDistanceToNow(new Date(row.original.updatedAt), { addSuffix: true })}

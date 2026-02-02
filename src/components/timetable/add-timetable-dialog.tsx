@@ -40,7 +40,7 @@ export function AddTimetableDialog({
   onOpenChange,
   schoolId,
   classes,
-}: AddTimetableDialogProps): JSX.Element {
+}: AddTimetableDialogProps): React.JSX.Element {
   const { user } = useAuth();
   const createTimetable = useMutation(api.timetables.createTimetable);
 

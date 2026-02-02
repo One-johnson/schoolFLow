@@ -50,7 +50,7 @@ export function EditClassDialog({
   onOpenChange,
   classData,
   updatedBy,
-}: EditClassDialogProps): JSX.Element {
+}: EditClassDialogProps): React.JSX.Element {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [formData, setFormData] = useState({
     className: classData.className,

@@ -13,7 +13,7 @@ interface PerformanceMetricsCardProps {
   schoolId: string;
 }
 
-export function PerformanceMetricsCard({ schoolId }: PerformanceMetricsCardProps): JSX.Element {
+export function PerformanceMetricsCard({ schoolId }: PerformanceMetricsCardProps): React.JSX.Element {
   const metrics = useQuery(api.dashboard.getPerformanceMetrics, { schoolId });
 
   if (!metrics) {

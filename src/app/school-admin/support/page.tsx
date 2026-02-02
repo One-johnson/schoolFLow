@@ -82,7 +82,7 @@ const faqs = [
   },
 ];
 
-export default function SchoolAdminSupportPage(): JSX.Element {
+export default function SchoolAdminSupportPage(): React.JSX.Element {
   const { user } = useAuth();
   const [selectedTicketId, setSelectedTicketId] = useState<Id<'supportTickets'> | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);

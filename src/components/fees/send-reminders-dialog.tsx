@@ -23,7 +23,7 @@ export function SendRemindersDialog({
   open,
   onOpenChange,
   schoolId,
-}: SendRemindersDialogProps): JSX.Element {
+}: SendRemindersDialogProps): React.JSX.Element {
   const [reminderType, setReminderType] = useState<'payment_due' | 'installment_due' | 'overdue'>('payment_due');
   const [method, setMethod] = useState<'notification' | 'email' | 'sms'>('notification');
   const [minAmount, setMinAmount] = useState<string>('');

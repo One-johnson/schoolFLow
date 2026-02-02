@@ -48,7 +48,7 @@ export function BulkStatusChangeDialog({
   open,
   onOpenChange,
   onStatusChanged,
-}: BulkStatusChangeDialogProps): JSX.Element {
+}: BulkStatusChangeDialogProps): React.JSX.Element {
   const { user } = useAuth();
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -91,7 +91,7 @@ export function BulkStatusChangeDialog({
     }
   };
 
-  const getStatusBadge = (status: string): JSX.Element => {
+  const getStatusBadge = (status: string): React.JSX.Element => {
     switch (status) {
       case 'active':
         return <Badge className="bg-green-500">Active</Badge>;

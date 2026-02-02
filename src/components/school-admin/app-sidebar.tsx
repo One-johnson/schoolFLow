@@ -146,7 +146,7 @@ const menuItems = [
   },
 ];
 
-export function AppSidebar(): JSX.Element {
+export function AppSidebar(): React.JSX.Element {
   const pathname = usePathname();
   const router = useRouter();
   const { logout } = useAuth();

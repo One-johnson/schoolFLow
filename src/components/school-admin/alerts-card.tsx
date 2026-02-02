@@ -13,7 +13,7 @@ interface AlertsCardProps {
   schoolId: string;
 }
 
-export function AlertsCard({ schoolId }: AlertsCardProps): JSX.Element {
+export function AlertsCard({ schoolId }: AlertsCardProps): React.JSX.Element {
   const alerts = useQuery(api.dashboard.getAlerts, { schoolId });
 
   if (!alerts) {
@@ -35,7 +35,7 @@ export function AlertsCard({ schoolId }: AlertsCardProps): JSX.Element {
     );
   }
 
-  const getAlertIcon = (type: string): JSX.Element => {
+  const getAlertIcon = (type: string): React.JSX.Element => {
     switch (type) {
       case 'error':
         return <AlertCircle className="h-5 w-5 text-red-600" />;

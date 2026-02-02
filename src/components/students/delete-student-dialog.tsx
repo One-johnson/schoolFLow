@@ -35,7 +35,7 @@ export function DeleteStudentDialog({
   student,
   open,
   onOpenChange,
-}: DeleteStudentDialogProps): JSX.Element {
+}: DeleteStudentDialogProps): React.JSX.Element {
   const { user } = useAuth();
   const deleteStudent = useMutation(api.students.deleteStudent);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);

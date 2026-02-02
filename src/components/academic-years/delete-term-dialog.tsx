@@ -38,7 +38,7 @@ export function DeleteTermDialog({
   term,
   deletedBy,
   onDeleted,
-}: DeleteTermDialogProps): JSX.Element {
+}: DeleteTermDialogProps): React.JSX.Element {
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const deleteTerm = useMutation(api.terms.deleteTerm);

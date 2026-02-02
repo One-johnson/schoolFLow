@@ -20,7 +20,7 @@ interface StudentReportsTabProps {
   schoolId: string;
 }
 
-export function StudentReportsTab({ schoolId }: StudentReportsTabProps): JSX.Element {
+export function StudentReportsTab({ schoolId }: StudentReportsTabProps): React.JSX.Element {
   const [selectedStudent, setSelectedStudent] = useState<string>('');
 
   const students = useQuery(api.students.getStudentsBySchool, { schoolId });

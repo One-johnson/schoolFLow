@@ -36,7 +36,7 @@ interface ViewEventDialogProps {
   } | null;
 }
 
-export function ViewEventDialog({ open, onOpenChange, event }: ViewEventDialogProps): JSX.Element {
+export function ViewEventDialog({ open, onOpenChange, event }: ViewEventDialogProps): React.JSX.Element {
   if (!event) return <></>;
 
   return (

@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 
-export default function SettingsPage(): JSX.Element {
+export default function SettingsPage(): React.JSX.Element {
   const router = useRouter();
     const { user } = useAuth();
   const [passwordDialogOpen, setPasswordDialogOpen] = useState<boolean>(false);

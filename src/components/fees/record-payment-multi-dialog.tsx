@@ -47,7 +47,7 @@ export function RecordPaymentMultiDialog({
   onOpenChange,
   schoolId,
   schoolAdminName,
-}: RecordPaymentDialogProps): JSX.Element {
+}: RecordPaymentDialogProps): React.JSX.Element {
   const { user } = useAuth();
   const [studentId, setStudentId] = useState<string>('');
   const [items, setItems] = useState<PaymentItem[]>([

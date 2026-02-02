@@ -70,7 +70,7 @@ export function AssignTeacherDialog({
   day,
   schoolId,
   teachers,
-}: AssignTeacherDialogProps): JSX.Element {
+}: AssignTeacherDialogProps): React.JSX.Element {
   const assignTeacher = useMutation(api.timetables.assignTeacherToSlot);
   
   // Get subjects

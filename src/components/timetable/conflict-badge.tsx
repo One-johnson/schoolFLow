@@ -28,7 +28,7 @@ interface ConflictBadgeProps {
   conflicts: Conflict[];
 }
 
-export function ConflictBadge({ conflicts }: ConflictBadgeProps): JSX.Element | null {
+export function ConflictBadge({ conflicts }: ConflictBadgeProps): React.JSX.Element | null {
   if (conflicts.length === 0) return null;
 
   // Get highest severity

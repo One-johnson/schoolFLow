@@ -50,7 +50,7 @@ export function RSVPFormDialog({
   respondentEmail,
   respondentType,
   existingRSVP,
-}: RSVPFormDialogProps): JSX.Element {
+}: RSVPFormDialogProps): React.JSX.Element {
   const [rsvpStatus, setRsvpStatus] = useState<'attending' | 'not_attending' | 'maybe'>(
     existingRSVP?.rsvpStatus === 'pending' ? 'attending' : (existingRSVP?.rsvpStatus || 'attending')
   );

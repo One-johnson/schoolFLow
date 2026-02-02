@@ -10,7 +10,7 @@ interface StatsCardProps {
   trendUp?: boolean;
 }
 
-export function StatsCard({ title, value, icon: Icon, trend, trendUp }: StatsCardProps): JSX.Element {
+export function StatsCard({ title, value, icon: Icon, trend, trendUp }: StatsCardProps): React.JSX.Element {
   return (
     <Card className="transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-blue-500 cursor-pointer">
       <CardContent className="p-6">

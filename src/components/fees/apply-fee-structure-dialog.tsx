@@ -25,7 +25,7 @@ export function ApplyFeeStructureDialog({
   schoolId,
   collectedBy,
   collectedByName,
-}: ApplyFeeStructureDialogProps): JSX.Element {
+}: ApplyFeeStructureDialogProps): React.JSX.Element {
   const [selectedStructure, setSelectedStructure] = useState<string>('');
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());

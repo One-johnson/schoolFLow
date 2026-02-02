@@ -43,7 +43,7 @@ export function DeleteSubjectDialog({
   subjectData,
   deletedBy,
   onDeleted,
-}: DeleteSubjectDialogProps): JSX.Element {
+}: DeleteSubjectDialogProps): React.JSX.Element {
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const deleteSubject = useMutation(api.subjects.deleteSubject);
 

@@ -30,7 +30,7 @@ export function LockAttendanceDialog({
   adminId,
   open,
   onOpenChange,
-}: LockAttendanceDialogProps): JSX.Element {
+}: LockAttendanceDialogProps): React.JSX.Element {
   const [isLocking, setIsLocking] = useState<boolean>(false);
   const lockAttendance = useMutation(api.attendance.lockAttendance);
 

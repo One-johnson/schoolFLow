@@ -34,8 +34,8 @@ export function ViewAcademicYearDialog({
   open,
   onOpenChange,
   academicYear,
-}: ViewAcademicYearDialogProps): JSX.Element {
-  const getStatusBadge = (status: string): JSX.Element => {
+}: ViewAcademicYearDialogProps): React.JSX.Element {
+  const getStatusBadge = (status: string): React.JSX.Element => {
     switch (status) {
       case 'active':
         return <Badge className="bg-green-500">Active</Badge>;

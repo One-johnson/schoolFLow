@@ -65,7 +65,7 @@ interface Class {
   createdBy: string;
 }
 
-export default function ClassesPage(): JSX.Element {
+export default function ClassesPage(): React.JSX.Element {
   const { user } = useAuth();
   const [showAddDialog, setShowAddDialog] = useState<boolean>(false);
   const [showBulkAddDialog, setShowBulkAddDialog] = useState<boolean>(false);
@@ -154,7 +154,7 @@ export default function ClassesPage(): JSX.Element {
     }
   ) || [];
 
-  const getDepartmentBadge = (department: string): JSX.Element => {
+  const getDepartmentBadge = (department: string): React.JSX.Element => {
     switch (department) {
       case 'creche':
         return <Badge className="bg-orange-500">Creche</Badge>;
@@ -169,7 +169,7 @@ export default function ClassesPage(): JSX.Element {
     }
   };
 
-  const getStatusBadge = (status: string): JSX.Element => {
+  const getStatusBadge = (status: string): React.JSX.Element => {
     switch (status) {
       case 'active':
         return <Badge className="bg-green-500">Active</Badge>;

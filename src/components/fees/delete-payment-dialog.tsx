@@ -32,7 +32,7 @@ export function DeletePaymentDialog({
   onOpenChange,
   payment,
   adminId,
-}: DeletePaymentDialogProps): JSX.Element {
+}: DeletePaymentDialogProps): React.JSX.Element {
   const [loading, setLoading] = useState<boolean>(false);
   const deletePayment = useMutation(api.feePayments.deletePayment);
 

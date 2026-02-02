@@ -32,7 +32,7 @@ export function AbsenteeReportDialog({
   onOpenChange,
   schoolId,
   schoolName
-}: AbsenteeReportDialogProps): JSX.Element {
+}: AbsenteeReportDialogProps): React.JSX.Element {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const convex = useConvex();

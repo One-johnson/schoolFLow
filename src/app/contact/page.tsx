@@ -56,7 +56,7 @@ const officeHours = [
   { day: "Sunday", hours: "Closed" },
 ];
 
-export default function ContactPage(): JSX.Element {
+export default function ContactPage(): React.JSX.Element {
   const [formData, setFormData] = useState({
     name: "",
     email: "",

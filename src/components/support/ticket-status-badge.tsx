@@ -5,7 +5,7 @@ interface TicketStatusBadgeProps {
   status: 'open' | 'in_progress' | 'waiting_customer' | 'resolved' | 'closed';
 }
 
-export function TicketStatusBadge({ status }: TicketStatusBadgeProps): JSX.Element {
+export function TicketStatusBadge({ status }: TicketStatusBadgeProps): React.JSX.Element {
   const statusConfig = {
     open: { label: 'Open', variant: 'secondary' as const, className: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' },
     in_progress: { label: 'In Progress', variant: 'default' as const, className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300' },
@@ -27,7 +27,7 @@ interface TicketPriorityBadgeProps {
   priority: 'low' | 'medium' | 'high' | 'urgent';
 }
 
-export function TicketPriorityBadge({ priority }: TicketPriorityBadgeProps): JSX.Element {
+export function TicketPriorityBadge({ priority }: TicketPriorityBadgeProps): React.JSX.Element {
   const priorityConfig = {
     low: { label: 'Low', className: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300' },
     medium: { label: 'Medium', className: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' },
@@ -48,7 +48,7 @@ interface TicketCategoryBadgeProps {
   category: 'payment' | 'technical' | 'account' | 'general';
 }
 
-export function TicketCategoryBadge({ category }: TicketCategoryBadgeProps): JSX.Element {
+export function TicketCategoryBadge({ category }: TicketCategoryBadgeProps): React.JSX.Element {
   const categoryConfig = {
     payment: { label: 'Payment', className: 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300' },
     technical: { label: 'Technical', className: 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300' },

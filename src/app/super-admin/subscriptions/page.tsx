@@ -85,7 +85,7 @@ interface SubscriptionTableRow {
   requestedDate: string;
 }
 
-export default function SubscriptionsPage(): JSX.Element {
+export default function SubscriptionsPage(): React.JSX.Element {
   const subscriptionPlans = useQuery(api.subscriptionPlans.list);
   const subscriptionRequests = useQuery(api.subscriptionRequests.list);
   const createPlan = useMutation(api.subscriptionPlans.create);
@@ -222,7 +222,7 @@ export default function SubscriptionsPage(): JSX.Element {
     }
   };
 
-  const getStatusBadge = (status: string): JSX.Element => {
+  const getStatusBadge = (status: string): React.JSX.Element => {
     const statusConfig: Record<string, { variant: 'default' | 'secondary' | 'destructive' | 'outline', icon: React.ElementType }> = {
       approved: { variant: 'default', icon: CheckCircle2 },
       pending: { variant: 'secondary', icon: Clock },
@@ -291,14 +291,14 @@ export default function SubscriptionsPage(): JSX.Element {
       createSelectColumn<SubscriptionTableRow>(),
       {
         accessorKey: 'schoolAdminEmail',
-        header: createSortableHeader('School Admin', 'schoolAdminEmail'),
+        header: createSortableHeader('School Admin'),
         cell: ({ row }) => (
           <span className="font-medium text-sm">{row.original.schoolAdminEmail}</span>
         ),
       },
       {
         accessorKey: 'type',
-        header: createSortableHeader('Type', 'type'),
+        header: createSortableHeader('Type'),
         cell: ({ row }) => (
           row.original.type === 'Trial' ? (
             <Badge variant="outline" className="gap-1">
@@ -315,22 +315,22 @@ export default function SubscriptionsPage(): JSX.Element {
       },
       {
         accessorKey: 'planName',
-        header: createSortableHeader('Plan', 'planName'),
+        header: createSortableHeader('Plan'),
         cell: ({ row }) => <span className="text-sm">{row.original.planName}</span>,
       },
       {
         accessorKey: 'price',
-        header: createSortableHeader('Price', 'price'),
+        header: createSortableHeader('Price'),
         cell: ({ row }) => <span className="text-sm font-medium">{row.original.price}</span>,
       },
       {
         accessorKey: 'studentCapacity',
-        header: createSortableHeader('Student Capacity', 'studentCapacity'),
+        header: createSortableHeader('Student Capacity'),
         cell: ({ row }) => <span className="text-sm">{row.original.studentCapacity}</span>,
       },
       {
         accessorKey: 'trialEndDate',
-        header: createSortableHeader('Trial End Date', 'trialEndDate'),
+        header: createSortableHeader('Trial End Date'),
         cell: ({ row }) => (
           row.original.trialEndDate !== 'N/A' ? (
             <div className="flex items-center gap-1">
@@ -344,12 +344,12 @@ export default function SubscriptionsPage(): JSX.Element {
       },
       {
         accessorKey: 'status',
-        header: createSortableHeader('Status', 'status'),
+        header: createSortableHeader('Status'),
         cell: ({ row }) => getStatusBadge(row.original.status),
       },
       {
         accessorKey: 'requestedDate',
-        header: createSortableHeader('Requested', 'requestedDate'),
+        header: createSortableHeader('Requested'),
         cell: ({ row }) => <span className="text-sm text-gray-600">{row.original.requestedDate}</span>,
       },
     ],

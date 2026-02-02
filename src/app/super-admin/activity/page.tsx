@@ -66,7 +66,7 @@ interface SessionEntry {
   isActive: boolean;
 }
 
-export default function ActivityPage(): JSX.Element {
+export default function ActivityPage(): React.JSX.Element {
   const loginHistory = useQuery(api.loginHistory.list, { limit: 100 });
   const loginStats = useQuery(api.loginHistory.getStats, {});
   const activeSessions = useQuery(api.sessions.listActive, {});
@@ -80,7 +80,7 @@ export default function ActivityPage(): JSX.Element {
   const [showRevokeAllDialog, setShowRevokeAllDialog] = useState(false);
   const [isRevoking, setIsRevoking] = useState(false);
 
-  const getDeviceIcon = (deviceType: string): JSX.Element => {
+  const getDeviceIcon = (deviceType: string): React.JSX.Element => {
     switch (deviceType) {
       case 'mobile':
         return <Smartphone className="h-4 w-4" />;

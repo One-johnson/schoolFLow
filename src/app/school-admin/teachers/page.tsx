@@ -49,7 +49,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { exportToCSV, exportToPDF } from '../../../lib/exports';
 import Image from 'next/image';
 
-export default function TeachersPage(): JSX.Element {
+export default function TeachersPage(): React.JSX.Element {
   const { user } = useAuth();
   const [showAddDialog, setShowAddDialog] = useState<boolean>(false);
     const [showBulkAddTeachersDialog, setShowBulkAddTeachersDialog] = useState<boolean>(false);
@@ -151,7 +151,7 @@ export default function TeachersPage(): JSX.Element {
     }
   };
 
-  const getStatusBadge = (status: string): JSX.Element => {
+  const getStatusBadge = (status: string): React.JSX.Element => {
     switch (status) {
       case 'active':
         return <Badge className="bg-green-500">Active</Badge>;
@@ -164,7 +164,7 @@ export default function TeachersPage(): JSX.Element {
     }
   };
 
-  const getEmploymentTypeBadge = (type: string): JSX.Element => {
+  const getEmploymentTypeBadge = (type: string): React.JSX.Element => {
     switch (type) {
       case 'full_time':
         return <Badge variant="outline">Full Time</Badge>;
@@ -257,22 +257,22 @@ export default function TeachersPage(): JSX.Element {
     },
     {
       accessorKey: 'teacherId',
-      header: ({ column }) => createSortableHeader(column, 'Teacher ID'),
+      header: createSortableHeader('Teacher ID'),
       cell: ({ row }) => (
         <span className="font-medium">{row.getValue('teacherId')}</span>
       ),
     },
     {
       accessorKey: 'firstName',
-      header: ({ column }) => createSortableHeader(column, 'First Name'),
+      header: createSortableHeader('First Name'),
     },
     {
       accessorKey: 'lastName',
-      header: ({ column }) => createSortableHeader(column, 'Last Name'),
+      header: createSortableHeader('Last Name'),
     },
     {
       accessorKey: 'email',
-      header: ({ column }) => createSortableHeader(column, 'Email'),
+      header: createSortableHeader('Email'),
     },
     {
       accessorKey: 'phone',
@@ -306,7 +306,7 @@ export default function TeachersPage(): JSX.Element {
     },
     {
       accessorKey: 'status',
-      header: ({ column }) => createSortableHeader(column, 'Status'),
+      header: createSortableHeader('Status'),
       cell: ({ row }) => getStatusBadge(row.getValue('status')),
     },
     {

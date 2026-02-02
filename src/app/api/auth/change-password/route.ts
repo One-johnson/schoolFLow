@@ -95,12 +95,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
       // Verify current password (could be temp password or regular password)
       let isValidPassword = false;
-      
+
       if (currentUser.password) {
         isValidPassword = await PasswordManager.verify(currentPassword, currentUser.password);
-      } else if (currentUser.tempPassword) {
-        // For users still using temp password
-        isValidPassword = currentPassword === currentUser.tempPassword;
+      }
+
+      // If no match with regular password, try temp password (now hashed)
+      if (!isValidPassword && currentUser.tempPassword) {
+        isValidPassword = await PasswordManager.verify(currentPassword, currentUser.tempPassword);
       }
 
       if (!isValidPassword) {

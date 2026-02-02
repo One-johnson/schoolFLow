@@ -45,7 +45,7 @@ export function ApplyTemplateDialog({
   availableClasses,
   schoolId,
   createdBy,
-}: ApplyTemplateDialogProps): JSX.Element {
+}: ApplyTemplateDialogProps): React.JSX.Element {
   const applyTemplate = useMutation(api.timetableTemplates.applyTemplate);
 
   // Load templates

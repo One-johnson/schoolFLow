@@ -6,7 +6,7 @@ interface ClientOnlyProps {
   children: React.ReactNode;
 }
 
-export function ClientOnly({ children }: ClientOnlyProps): JSX.Element | null {
+export function ClientOnly({ children }: ClientOnlyProps): React.JSX.Element | null {
   const [hasMounted, setHasMounted] = useState<boolean>(false);
 
   useEffect(() => {

@@ -27,7 +27,7 @@ const carouselImages: Array<{ src: string; alt: string }> = [
   },
 ];
 
-export function Hero(): JSX.Element {
+export function Hero(): React.JSX.Element {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, duration: 30 });
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
 

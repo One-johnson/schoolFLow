@@ -51,7 +51,7 @@ export function EditSubjectDialog({
   onOpenChange,
   subjectData,
   updatedBy,
-}: EditSubjectDialogProps): JSX.Element {
+}: EditSubjectDialogProps): React.JSX.Element {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [formData, setFormData] = useState({
     subjectName: '',

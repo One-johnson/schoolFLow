@@ -37,7 +37,7 @@ export function DeleteAcademicYearDialog({
   academicYear,
   deletedBy,
   onDeleted,
-}: DeleteAcademicYearDialogProps): JSX.Element {
+}: DeleteAcademicYearDialogProps): React.JSX.Element {
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const deleteAcademicYear = useMutation(api.academicYears.deleteAcademicYear);

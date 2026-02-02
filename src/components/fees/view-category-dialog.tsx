@@ -28,7 +28,7 @@ export function ViewCategoryDialog({
   open,
   onOpenChange,
   category,
-}: ViewCategoryDialogProps): JSX.Element {
+}: ViewCategoryDialogProps): React.JSX.Element {
   if (!category) return <></>;
 
   return (

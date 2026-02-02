@@ -23,7 +23,7 @@ export function CreatePaymentPlanDialog({
   onOpenChange,
   schoolId,
   createdBy,
-}: CreatePaymentPlanDialogProps): JSX.Element {
+}: CreatePaymentPlanDialogProps): React.JSX.Element {
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
   const [totalAmount, setTotalAmount] = useState<string>('');

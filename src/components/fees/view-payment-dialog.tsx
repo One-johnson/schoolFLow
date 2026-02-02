@@ -53,7 +53,7 @@ export function ViewPaymentDialog({
   open,
   onOpenChange,
   payment,
-}: ViewPaymentDialogProps): JSX.Element {
+}: ViewPaymentDialogProps): React.JSX.Element {
   if (!payment) return <></>;
 
   // Check if this is a v2 payment (multi-category)

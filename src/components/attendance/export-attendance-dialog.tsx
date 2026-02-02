@@ -29,7 +29,7 @@ export function ExportAttendanceDialog({
   open,
   onOpenChange,
   onSelectReportType
-}: ExportAttendanceDialogProps): JSX.Element {
+}: ExportAttendanceDialogProps): React.JSX.Element {
   const [selectedType, setSelectedType] = useState<string>('');
 
   const handleProceed = (): void => {

@@ -100,7 +100,7 @@ interface Student {
     | "graduated";
 }
 
-export default function StudentsPage(): JSX.Element {
+export default function StudentsPage(): React.JSX.Element {
   const { user } = useAuth();
   const [addDialogOpen, setAddDialogOpen] = useState<boolean>(false);
   const [bulkAddDialogOpen, setBulkAddDialogOpen] = useState<boolean>(false);
@@ -172,7 +172,7 @@ export default function StudentsPage(): JSX.Element {
     [updateStudentStatus],
   );
 
-  const getStatusBadge = useCallback((status: string): JSX.Element => {
+  const getStatusBadge = useCallback((status: string): React.JSX.Element => {
     switch (status) {
       case "active":
         return <Badge className="bg-green-500">Active</Badge>;
@@ -191,7 +191,7 @@ export default function StudentsPage(): JSX.Element {
     }
   }, []);
 
-  const getDepartmentBadge = useCallback((department: string): JSX.Element => {
+  const getDepartmentBadge = useCallback((department: string): React.JSX.Element => {
     switch (department) {
       case "creche":
         return <Badge variant="outline">Creche</Badge>;
@@ -308,26 +308,26 @@ export default function StudentsPage(): JSX.Element {
       },
       {
         accessorKey: "studentId",
-        header: ({ column }) => createSortableHeader(column, "Student ID"),
+        header: createSortableHeader("Student ID"),
         cell: ({ row }) => (
           <span className="font-medium">{row.getValue("studentId")}</span>
         ),
       },
       {
         accessorKey: "admissionNumber",
-        header: ({ column }) => createSortableHeader(column, "Admission No."),
+        header: createSortableHeader("Admission No."),
       },
       {
         accessorKey: "firstName",
-        header: ({ column }) => createSortableHeader(column, "First Name"),
+        header: createSortableHeader("First Name"),
       },
       {
         accessorKey: "lastName",
-        header: ({ column }) => createSortableHeader(column, "Last Name"),
+        header: createSortableHeader("Last Name"),
       },
       {
         accessorKey: "className",
-        header: ({ column }) => createSortableHeader(column, "Class"),
+        header: createSortableHeader("Class"),
       },
       {
         accessorKey: "department",
@@ -348,7 +348,7 @@ export default function StudentsPage(): JSX.Element {
       },
       {
         accessorKey: "status",
-        header: ({ column }) => createSortableHeader(column, "Status"),
+        header: createSortableHeader("Status"),
         cell: ({ row }) => getStatusBadge(row.getValue("status")),
       },
       {

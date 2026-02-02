@@ -32,7 +32,7 @@ export function DeleteAttendanceDialog({
   adminId,
   open,
   onOpenChange,
-}: DeleteAttendanceDialogProps): JSX.Element {
+}: DeleteAttendanceDialogProps): React.JSX.Element {
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const deleteAttendance = useMutation(api.attendance.deleteAttendance);
 

@@ -62,7 +62,7 @@ interface AttendanceRecordsTabProps {
   adminName: string;
 }
 
-export function AttendanceRecordsTab({ schoolId, adminId, adminName }: AttendanceRecordsTabProps): JSX.Element {
+export function AttendanceRecordsTab({ schoolId, adminId, adminName }: AttendanceRecordsTabProps): React.JSX.Element {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [selectedClass, setSelectedClass] = useState<string>('all');

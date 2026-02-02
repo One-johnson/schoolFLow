@@ -17,7 +17,7 @@ import { useRouter } from 'next/navigation';
 import { PasswordChangeDialog } from '@/components/password-change-dialog';
 import { useAuth } from '@/hooks/useAuth';
 
-export default function SettingsPage(): JSX.Element {
+export default function SettingsPage(): React.JSX.Element {
   const router = useRouter();
   const { user } = useAuth();
   const subscriptionPlans = useQuery(api.subscriptionPlans.list);

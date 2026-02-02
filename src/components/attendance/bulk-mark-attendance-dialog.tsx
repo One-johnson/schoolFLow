@@ -41,7 +41,7 @@ export function BulkMarkAttendanceDialog({
   adminName,
   open,
   onOpenChange,
-}: BulkMarkAttendanceDialogProps): JSX.Element {
+}: BulkMarkAttendanceDialogProps): React.JSX.Element {
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [session, setSession] = useState<'morning' | 'afternoon' | 'full_day'>('full_day');
   const [defaultStatus, setDefaultStatus] = useState<'present' | 'absent'>('present');

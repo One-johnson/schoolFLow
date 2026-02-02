@@ -44,7 +44,7 @@ export function EditPaymentDialog({
   onOpenChange,
   payment,
   adminId,
-}: EditPaymentDialogProps): JSX.Element {
+}: EditPaymentDialogProps): React.JSX.Element {
   const [items, setItems] = useState<FeePaymentItem[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<string>('cash');
   const [transactionRef, setTransactionRef] = useState<string>('');

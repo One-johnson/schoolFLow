@@ -30,7 +30,7 @@ export function UnlockAttendanceDialog({
   adminId,
   open,
   onOpenChange,
-}: UnlockAttendanceDialogProps): JSX.Element {
+}: UnlockAttendanceDialogProps): React.JSX.Element {
   const [isUnlocking, setIsUnlocking] = useState<boolean>(false);
   const unlockAttendance = useMutation(api.attendance.unlockAttendance);
 

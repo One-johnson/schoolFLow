@@ -27,7 +27,7 @@ interface ChartsSectionProps {
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
-export function ChartsSection({ schoolId }: ChartsSectionProps): JSX.Element {
+export function ChartsSection({ schoolId }: ChartsSectionProps): React.JSX.Element {
   const feeCollectionTrend = useQuery(api.dashboard.getFeeCollectionTrend, { schoolId });
 
   if (!feeCollectionTrend) {
