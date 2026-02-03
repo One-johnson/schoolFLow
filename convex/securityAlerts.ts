@@ -55,7 +55,7 @@ export const list = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    let query = ctx.db.query('securityAlerts');
+    const query = ctx.db.query('securityAlerts');
 
     const results = await query.order('desc').take(args.limit || 100);
 

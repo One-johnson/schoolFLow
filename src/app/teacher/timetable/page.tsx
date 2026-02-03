@@ -4,7 +4,7 @@ import { useQuery } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { useTeacherAuth } from '@/hooks/useTeacherAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -216,7 +216,7 @@ export default function TeacherTimetablePage() {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[600px] border-collapse">
+                  <table className="w-full min-w-150 border-collapse">
                     <thead>
                       <tr>
                         <th className="p-2 text-left text-xs font-medium text-muted-foreground border-b w-20">

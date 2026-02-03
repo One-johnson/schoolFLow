@@ -61,7 +61,7 @@ export const list = query({
     status: v.optional(v.union(v.literal('success'), v.literal('failed'))),
   },
   handler: async (ctx, args) => {
-    let query = ctx.db.query('loginHistory');
+    const query = ctx.db.query('loginHistory');
 
     const results = await query.order('desc').take(args.limit || 100);
 
@@ -103,7 +103,7 @@ export const getStats = query({
     userRole: v.optional(v.union(v.literal('super_admin'), v.literal('school_admin'))),
   },
   handler: async (ctx, args) => {
-    let query = ctx.db.query('loginHistory');
+    const query = ctx.db.query('loginHistory');
     const allHistory = await query.collect();
 
     // Filter by role if specified

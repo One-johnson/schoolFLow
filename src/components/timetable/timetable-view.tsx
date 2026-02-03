@@ -31,8 +31,6 @@ import {
   closestCenter,
 } from '@dnd-kit/core';
 
-import { JSX } from 'react/jsx-runtime';
-
 type Day = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday';
 
 interface Timetable {
@@ -286,9 +284,9 @@ export function TimetableView({
           <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[200px] font-bold">Period / Time</TableHead>
+              <TableHead className="w-50 font-bold">Period / Time</TableHead>
               {daysOfWeek.map((day) => (
-                <TableHead key={day} className="text-center font-bold capitalize min-w-[180px]">
+                <TableHead key={day} className="text-center font-bold capitalize min-w-45">
                   {day}
                 </TableHead>
               ))}
@@ -425,6 +423,7 @@ export function TimetableView({
                                     periodId2: period._id,
                                   });
                                   toast.success('Assignments swapped');
+                                // eslint-disable-next-line @typescript-eslint/no-unused-vars
                                 } catch (error) {
                                   toast.error('Failed to swap');
                                 }

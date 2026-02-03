@@ -19,6 +19,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import {
   Calendar,
@@ -56,6 +66,8 @@ export default function TeacherAttendancePage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [activeTab, setActiveTab] = useState('mark');
   const [isEditMode, setIsEditMode] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
 
   const classId = teacher?.classIds?.[0];
 
@@ -108,17 +120,6 @@ export default function TeacherAttendancePage() {
   const updateAttendanceSession = useMutation(api.attendance.updateAttendanceSession);
   const deleteAttendance = useMutation(api.attendance.deleteAttendance);
 
-  // Load existing attendance for edit mode
-  const handleEnterEditMode = () => {
-    if (existingRecords?.records) {
-      const newAttendance = new Map<string, AttendanceStatus>();
-      existingRecords.records.forEach((record) => {
-        newAttendance.set(record.studentId, record.status);
-      });
-      setAttendance(newAttendance);
-      setIsEditMode(true);
-    }
-  };
 
   const handleCancelEdit = () => {
     setAttendance(new Map());
@@ -229,7 +230,7 @@ export default function TeacherAttendancePage() {
     }
   };
 
-  const handleDelete = async () => {
+  const handleDeleteClick = () => {
     if (!isOnline) {
       toast.error('You must be online to delete attendance');
       return;
@@ -240,11 +241,14 @@ export default function TeacherAttendancePage() {
       return;
     }
 
-    if (!confirm('Are you sure you want to delete this attendance record? This action cannot be undone.')) {
-      return;
-    }
+    setShowDeleteDialog(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!teacher || !existingAttendance?._id) return;
 
     setIsDeleting(true);
+    setShowDeleteDialog(false);
     try {
       await deleteAttendance({
         attendanceId: existingAttendance._id,
@@ -259,6 +263,22 @@ export default function TeacherAttendancePage() {
       toast.error('Failed to delete attendance. Please try again.');
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleEditClick = () => {
+    setShowEditDialog(true);
+  };
+
+  const handleConfirmEdit = () => {
+    setShowEditDialog(false);
+    if (existingRecords?.records) {
+      const newAttendance = new Map<string, AttendanceStatus>();
+      existingRecords.records.forEach((record) => {
+        newAttendance.set(record.studentId, record.status);
+      });
+      setAttendance(newAttendance);
+      setIsEditMode(true);
     }
   };
 
@@ -370,7 +390,7 @@ export default function TeacherAttendancePage() {
                           size="sm"
                           variant="outline"
                           className="h-8"
-                          onClick={handleEnterEditMode}
+                          onClick={handleEditClick}
                         >
                           <Pencil className="h-3 w-3 mr-1" />
                           Edit
@@ -379,7 +399,7 @@ export default function TeacherAttendancePage() {
                           size="sm"
                           variant="outline"
                           className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={handleDelete}
+                          onClick={handleDeleteClick}
                           disabled={isDeleting}
                         >
                           <Trash2 className="h-3 w-3 mr-1" />
@@ -763,6 +783,47 @@ export default function TeacherAttendancePage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Attendance Record</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this attendance record? This action cannot be undone.
+              All student attendance data for this date and session will be permanently removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Edit Confirmation Dialog */}
+      <AlertDialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Edit Attendance Record</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to edit the attendance record for {selectedDate}.
+              Any changes you make will update the existing attendance data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmEdit}>
+              Continue to Edit
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

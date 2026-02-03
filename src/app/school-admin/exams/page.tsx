@@ -145,7 +145,7 @@ export default function ExamsPage() {
 
   // Helper function to enrich report card with academic year, term names, and grading scale data
   const enrichReportCard = async (report: any): Promise<any> => {
-    let enrichedReport = { ...report };
+    const enrichedReport = { ...report };
 
     // Fetch academic year name if not present (match by _id, not yearCode)
     if (!report.academicYearName && report.academicYearId) {

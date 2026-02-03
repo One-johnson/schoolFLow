@@ -416,7 +416,7 @@ export default function TeacherHomePage() {
             <div className="space-y-2">
               {/* Group assignments by day and show in grid */}
               <div className="overflow-x-auto">
-                <div className="grid grid-cols-5 gap-1 min-w-[400px]">
+                <div className="grid grid-cols-5 gap-1 min-w-100">
                   {DAYS.map((day) => (
                     <div key={day} className="text-center">
                       <p className="text-xs font-medium text-muted-foreground mb-2">

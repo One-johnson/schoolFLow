@@ -1,724 +1,1210 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useQuery } from 'convex/react';
-import { api } from '../../../../convex/_generated/api';
-import { useTeacherAuth } from '@/hooks/useTeacherAuth';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { useState, useRef } from "react";
+import { useQuery } from "convex/react";
+import { api } from "../../../../convex/_generated/api";
+import { useTeacherAuth } from "@/hooks/useTeacherAuth";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { toast } from 'sonner';
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { toast } from "sonner";
 import {
   FileText,
+  Printer,
   Download,
-  Users,
   ClipboardCheck,
   BarChart3,
-  Calendar,
+  Users,
   Loader2,
-  Printer,
   FileSpreadsheet,
-} from 'lucide-react';
-import type { Id } from '../../../../convex/_generated/dataModel';
+} from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import type { Id } from "../../../../convex/_generated/dataModel";
 
-type ReportType = 'attendance' | 'grades' | 'class-summary' | 'student-profile';
+type ReportType = "attendance" | "grades" | "class-summary" | "student-profile";
 
 export default function ExportPage() {
   const { teacher } = useTeacherAuth();
-  const [selectedReportType, setSelectedReportType] = useState<ReportType>('attendance');
-  const [selectedExamId, setSelectedExamId] = useState<string>('');
-  const [selectedStudentId, setSelectedStudentId] = useState<string>('');
-  const [dateRange, setDateRange] = useState<string>('week');
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [selectedReportType, setSelectedReportType] =
+    useState<ReportType>("attendance");
+  const [selectedExamId, setSelectedExamId] = useState<string>("");
+  const [selectedStudentId, setSelectedStudentId] = useState<string>("");
+  const [dateRange, setDateRange] = useState<string>("week");
+  const [isExporting, setIsExporting] = useState(false);
+
+  const printRef = useRef<HTMLDivElement>(null);
 
   const classId = teacher?.classIds?.[0];
 
-  // Queries
   const students = useQuery(
     api.students.getStudentsByClassId,
-    classId ? { classId } : 'skip'
+    classId ? { classId } : "skip",
   );
-
   const exams = useQuery(
     api.exams.getExamsBySchool,
-    teacher ? { schoolId: teacher.schoolId } : 'skip'
+    teacher ? { schoolId: teacher.schoolId } : "skip",
   );
-
   const attendanceStats = useQuery(
     api.attendance.getClassAttendanceStats,
     teacher && classId
       ? {
           schoolId: teacher.schoolId,
           classId,
-          days: dateRange === 'week' ? 7 : dateRange === 'month' ? 30 : 90,
+          days: dateRange === "week" ? 7 : dateRange === "month" ? 30 : 90,
         }
-      : 'skip'
+      : "skip",
   );
-
   const classSummary = useQuery(
     api.marks.getClassGradeSummary,
     teacher && classId
       ? {
           schoolId: teacher.schoolId,
           classId,
-          examId: selectedExamId ? (selectedExamId as Id<'exams'>) : undefined,
+          examId: selectedExamId ? (selectedExamId as Id<"exams">) : undefined,
         }
-      : 'skip'
+      : "skip",
   );
 
-  const activeExams = exams?.filter(
-    (e) => e.status === 'completed' || e.status === 'published'
+  const activeExams = exams?.filter((e) =>
+    ["completed", "published"].includes(e.status ?? ""),
   );
 
-  const generatePDF = async () => {
-    if (!teacher) return;
+  const className = teacher?.classNames?.[0] || "Class";
+  const teacherName = teacher
+    ? `${teacher.firstName} ${teacher.lastName}`
+    : "—";
 
-    setIsGenerating(true);
-    try {
-      let content = '';
-      let filename = '';
+  // ── Print ────────────────────────────────────────────────────────
+  const handlePrint = () => {
+    if (!printRef.current) return;
 
-      switch (selectedReportType) {
-        case 'attendance':
-          content = generateAttendanceReport();
-          filename = `attendance-report-${new Date().toISOString().split('T')[0]}.html`;
-          break;
-        case 'grades':
-          content = generateGradesReport();
-          filename = `grades-report-${new Date().toISOString().split('T')[0]}.html`;
-          break;
-        case 'class-summary':
-          content = generateClassSummaryReport();
-          filename = `class-summary-${new Date().toISOString().split('T')[0]}.html`;
-          break;
-        case 'student-profile':
-          if (!selectedStudentId) {
-            toast.error('Please select a student');
-            return;
+    const content = printRef.current.innerHTML;
+    const win = window.open("", "_blank");
+    if (!win) {
+      toast.error("Could not open print window");
+      return;
+    }
+
+    win.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${getReportTitle()}</title>
+        <style>
+          @page { size: A4; margin: 18mm 15mm; }
+          body {
+            font-family: system-ui, sans-serif;
+            line-height: 1.55;
+            color: #111827;
+            font-size: 14px;
           }
-          content = generateStudentProfileReport();
-          filename = `student-profile-${new Date().toISOString().split('T')[0]}.html`;
-          break;
+          h1 { font-size: 22px; margin-bottom: 8px; }
+          h3 { font-size: 16px; margin: 24px 0 12px; border-bottom: 1px solid #d1d5db; padding-bottom: 6px; }
+          .header { text-align: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #374151; }
+          .meta { display: flex; justify-content: space-between; font-size: 13px; color: #4b5563; margin-bottom: 24px; }
+          table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+          th, td { border: 1px solid #9ca3af66; padding: 9px 11px; text-align: left; }
+          th { background: #f3f4f6; font-weight: 600; color: #111827; }
+          .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin: 24px 0; }
+          .stat-card {
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+          }
+          .stat-value { font-size: 2.2rem; font-weight: 700; line-height: 1; }
+          .footer {
+            margin-top: 48px;
+            text-align: center;
+            font-size: 11px;
+            color: #6b7280;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 16px;
+          }
+        </style>
+      </head>
+      <body>
+        ${content}
+        <div class="footer">Generated by SchoolFlow • Teacher Portal • ${new Date().toLocaleDateString()}</div>
+      </body>
+      </html>
+    `);
+
+    win.document.close();
+    setTimeout(() => win.print(), 700);
+  };
+
+  // ── PDF Export ───────────────────────────────────────────────────
+  const handleExportPDF = async () => {
+    setIsExporting(true);
+    try {
+      const doc = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+
+      doc.setFontSize(18);
+      doc.setTextColor(30, 41, 59);
+      doc.text(getReportTitle(), 20, 22);
+
+      doc.setFontSize(11);
+      doc.setTextColor(107, 114, 128);
+      doc.text(
+        `Teacher: ${teacherName}  •  Generated: ${new Date().toLocaleDateString()}`,
+        20,
+        32,
+      );
+
+      let y = 45;
+
+      if (selectedReportType === "attendance" && attendanceStats) {
+        doc.setFontSize(14);
+        doc.text("Summary Statistics", 20, y);
+        y += 10;
+
+        autoTable(doc, {
+          startY: y,
+          head: [["Metric", "Value"]],
+          body: [
+            ["Total Sessions", attendanceStats.totalSessions || 0],
+            [
+              "Attendance Rate",
+              `${Math.round(attendanceStats.attendanceRate || 0)}%`,
+            ],
+            ["Total Absent", attendanceStats.totalAbsent || 0],
+            ["Total Late", attendanceStats.totalLate || 0],
+          ],
+          theme: "grid",
+          styles: { fontSize: 10, cellPadding: 6, lineColor: [209, 213, 219] },
+          headStyles: {
+            fillColor: [243, 244, 246],
+            textColor: [31, 41, 55],
+            fontStyle: "bold",
+          },
+          margin: { left: 20, right: 20 },
+        });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        y = (doc as any).lastAutoTable.finalY + 20;
+
+        doc.setFontSize(14);
+        doc.text("Daily Attendance Breakdown", 20, y);
+        y += 10;
+
+        autoTable(doc, {
+          startY: y,
+          head: [["Date", "Present", "Absent", "Late", "Rate"]],
+          body:
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            attendanceStats.dailyData?.map((d: any) => [
+              new Date(d.date).toLocaleDateString(),
+              d.present,
+              d.absent,
+              d.late,
+              `${Math.round(d.rate)}%`,
+            ]) || [],
+          theme: "striped",
+          styles: { fontSize: 9, cellPadding: 5 },
+          headStyles: { fillColor: [59, 130, 246], textColor: 255 },
+          margin: { left: 20, right: 20 },
+        });
+      } else if (selectedReportType === "grades" && classSummary) {
+        doc.setFontSize(14);
+        doc.text("Summary Statistics", 20, y);
+        y += 10;
+
+        const avg =
+          classSummary.reduce((sum, s) => sum + s.average, 0) /
+            classSummary.length || 0;
+        const passCount = classSummary.filter((s) => s.average >= 50).length;
+
+        autoTable(doc, {
+          startY: y,
+          head: [["Metric", "Value"]],
+          body: [
+            ["Total Students", classSummary.length],
+            ["Class Average", `${Math.round(avg)}%`],
+            [
+              "Passed",
+              `${passCount} (${Math.round((passCount / classSummary.length) * 100 || 0)}%)`,
+            ],
+          ],
+          theme: "grid",
+          styles: { fontSize: 10, cellPadding: 6, lineColor: [209, 213, 219] },
+          headStyles: {
+            fillColor: [243, 244, 246],
+            textColor: [31, 41, 55],
+            fontStyle: "bold",
+          },
+          margin: { left: 20, right: 20 },
+        });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        y = (doc as any).lastAutoTable.finalY + 20;
+
+        doc.setFontSize(14);
+        doc.text("Student Rankings", 20, y);
+        y += 10;
+
+        autoTable(doc, {
+          startY: y,
+          head: [["#", "Student", "Total Score", "Average", "Subjects"]],
+          body: classSummary.map((s, i) => [
+            i + 1,
+            s.studentName,
+            `${s.totalScore}/${s.maxScore}`,
+            `${Math.round(s.average)}%`,
+            s.subjectCount,
+          ]),
+          theme: "striped",
+          styles: { fontSize: 9, cellPadding: 5 },
+          headStyles: { fillColor: [59, 130, 246], textColor: 255 },
+          margin: { left: 20, right: 20 },
+        });
+      } else if (selectedReportType === "class-summary" && students) {
+        doc.setFontSize(14);
+        doc.text("Class Information", 20, y);
+        y += 10;
+
+        const activeStudents = students.filter((s) =>
+          ["active", "continuing", "fresher"].includes(s.status ?? ""),
+        ).length;
+
+        autoTable(doc, {
+          startY: y,
+          head: [["Metric", "Value"]],
+          body: [
+            ["Total Students", students.length],
+            ["Active Students", activeStudents],
+          ],
+          theme: "grid",
+          styles: { fontSize: 10, cellPadding: 6, lineColor: [209, 213, 219] },
+          headStyles: {
+            fillColor: [243, 244, 246],
+            textColor: [31, 41, 55],
+            fontStyle: "bold",
+          },
+          margin: { left: 20, right: 20 },
+        });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        y = (doc as any).lastAutoTable.finalY + 20;
+
+        doc.setFontSize(14);
+        doc.text("Student List", 20, y);
+        y += 10;
+
+        autoTable(doc, {
+          startY: y,
+          head: [["#", "Student ID", "Name", "Gender", "Status"]],
+          body: students.map((s, i) => [
+            i + 1,
+            s.studentId,
+            `${s.firstName} ${s.lastName}`,
+            s.gender || "—",
+            s.status,
+          ]),
+          theme: "striped",
+          styles: { fontSize: 9, cellPadding: 5 },
+          headStyles: { fillColor: [59, 130, 246], textColor: 255 },
+          margin: { left: 20, right: 20 },
+        });
+      } else if (
+        selectedReportType === "student-profile" &&
+        selectedStudentId
+      ) {
+        const student = students?.find((s) => s._id === selectedStudentId);
+        if (!student) return toast.warning("No student selected");
+
+        doc.setFontSize(14);
+        doc.text("Personal Information", 20, y);
+        y += 10;
+
+        autoTable(doc, {
+          startY: y,
+          head: [["Field", "Value"]],
+          body: [
+            ["Student ID", student.studentId],
+            ["Admission Number", student.admissionNumber || "—"],
+            [
+              "Date of Birth",
+              new Date(student.dateOfBirth).toLocaleDateString(),
+            ],
+            ["Gender", student.gender || "—"],
+            ["Status", student.status],
+          ],
+          theme: "grid",
+          styles: { fontSize: 10, cellPadding: 6, lineColor: [209, 213, 219] },
+          headStyles: {
+            fillColor: [243, 244, 246],
+            textColor: [31, 41, 55],
+            fontStyle: "bold",
+          },
+          margin: { left: 20, right: 20 },
+        });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        y = (doc as any).lastAutoTable.finalY + 20;
+
+        doc.setFontSize(14);
+        doc.text("Parent/Guardian Information", 20, y);
+        y += 10;
+
+        autoTable(doc, {
+          startY: y,
+          head: [["Field", "Value"]],
+          body: [
+            ["Name", student.parentName || "—"],
+            ["Phone", student.parentPhone || "—"],
+            ["Email", student.parentEmail || "—"],
+          ],
+          theme: "grid",
+          styles: { fontSize: 10, cellPadding: 6, lineColor: [209, 213, 219] },
+          headStyles: {
+            fillColor: [243, 244, 246],
+            textColor: [31, 41, 55],
+            fontStyle: "bold",
+          },
+          margin: { left: 20, right: 20 },
+        });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        y = (doc as any).lastAutoTable.finalY + 20;
+
+        doc.setFontSize(14);
+        doc.text("Emergency Contact", 20, y);
+        y += 10;
+
+        autoTable(doc, {
+          startY: y,
+          head: [["Field", "Value"]],
+          body: [
+            ["Name", student.emergencyContactName || "—"],
+            ["Phone", student.emergencyContactPhone || "—"],
+            ["Relationship", student.emergencyContactRelationship || "—"],
+          ],
+          theme: "grid",
+          styles: { fontSize: 10, cellPadding: 6, lineColor: [209, 213, 219] },
+          headStyles: {
+            fillColor: [243, 244, 246],
+            textColor: [31, 41, 55],
+            fontStyle: "bold",
+          },
+          margin: { left: 20, right: 20 },
+        });
       }
 
-      // Create printable HTML and trigger print dialog
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(content);
-        printWindow.document.close();
-        printWindow.onload = () => {
-          printWindow.print();
-        };
-      }
-
-      toast.success('Report generated successfully');
-    } catch (error) {
-      toast.error('Failed to generate report');
-      console.error(error);
+      doc.save(
+        `${selectedReportType}-report-${new Date().toISOString().split("T")[0]}.pdf`,
+      );
+      toast.success("PDF downloaded");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to create PDF");
     } finally {
-      setIsGenerating(false);
+      setIsExporting(false);
     }
   };
 
-  const generateAttendanceReport = () => {
-    const stats = attendanceStats;
-    const className = teacher?.classNames?.[0] || 'Unknown';
-    const teacherName = `${teacher?.firstName} ${teacher?.lastName}`;
-    const dateRangeLabel = dateRange === 'week' ? 'Last 7 Days' : dateRange === 'month' ? 'Last 30 Days' : 'Last 90 Days';
+  // ── CSV Export ───────────────────────────────────────────────────
+  const handleExportCSV = () => {
+    let filename = "";
+    let csvContent = "";
 
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Attendance Report - ${className}</title>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; }
-          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
-          .header h1 { font-size: 24px; margin-bottom: 10px; }
-          .header p { color: #666; font-size: 14px; }
-          .meta { display: flex; justify-content: space-between; margin-bottom: 30px; font-size: 14px; }
-          .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
-          .stat-card { border: 1px solid #ddd; padding: 15px; border-radius: 8px; text-align: center; }
-          .stat-value { font-size: 28px; font-weight: bold; color: #333; }
-          .stat-label { font-size: 12px; color: #666; margin-top: 5px; }
-          .stat-present .stat-value { color: #22c55e; }
-          .stat-absent .stat-value { color: #ef4444; }
-          .stat-late .stat-value { color: #f59e0b; }
-          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-          th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-          th { background: #f5f5f5; font-weight: 600; }
-          .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; font-size: 12px; color: #666; }
-          @media print { body { padding: 20px; } }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>Attendance Report</h1>
-          <p>${className} - ${dateRangeLabel}</p>
-        </div>
+    if (selectedReportType === "attendance" && attendanceStats) {
+      filename = `attendance-${new Date().toISOString().split("T")[0]}.csv`;
+      const headers = ["Date", "Present", "Absent", "Late", "Rate (%)"];
+      const rows =
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        attendanceStats.dailyData?.map((d: any) => [
+          new Date(d.date).toLocaleDateString(),
+          d.present,
+          d.absent,
+          d.late,
+          Math.round(d.rate),
+        ]) || [];
 
-        <div class="meta">
-          <div><strong>Class Teacher:</strong> ${teacherName}</div>
-          <div><strong>Generated:</strong> ${new Date().toLocaleDateString()}</div>
-        </div>
+      csvContent = [headers, ...rows].map((row) => row.join(",")).join("\n");
+    } else if (selectedReportType === "grades" && classSummary?.length) {
+      filename = `grades-${new Date().toISOString().split("T")[0]}.csv`;
+      const headers = [
+        "Rank",
+        "Student Name",
+        "Total Score",
+        "Average (%)",
+        "Subjects",
+      ];
+      const rows = classSummary.map((s, i) => [
+        i + 1,
+        s.studentName,
+        `${s.totalScore}/${s.maxScore}`,
+        Math.round(s.average),
+        s.subjectCount,
+      ]);
 
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-value">${stats?.totalRecords || 0}</div>
-            <div class="stat-label">Total Records</div>
-          </div>
-          <div class="stat-card stat-present">
-            <div class="stat-value">${stats?.attendanceRate ? Math.round(stats.attendanceRate) : 0}%</div>
-            <div class="stat-label">Attendance Rate</div>
-          </div>
-          <div class="stat-card stat-absent">
-            <div class="stat-value">${stats?.totalAbsent || 0}</div>
-            <div class="stat-label">Total Absent</div>
-          </div>
-          <div class="stat-card stat-late">
-            <div class="stat-value">${stats?.totalLate || 0}</div>
-            <div class="stat-label">Total Late</div>
-          </div>
-        </div>
+      csvContent = [headers, ...rows].map((row) => row.join(",")).join("\n");
+    } else if (selectedReportType === "class-summary" && students?.length) {
+      filename = `class-summary-${new Date().toISOString().split("T")[0]}.csv`;
+      const headers = ["#", "Student ID", "Full Name", "Gender", "Status"];
+      const rows = students.map((s, i) => [
+        i + 1,
+        s.studentId,
+        `${s.firstName} ${s.lastName}`,
+        s.gender || "",
+        s.status || "",
+      ]);
 
-        <h3>Daily Breakdown</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Present</th>
-              <th>Absent</th>
-              <th>Late</th>
-              <th>Rate</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${(stats?.dailyData || []).map((day: { date: string; present: number; absent: number; late: number; rate: number }) => `
-              <tr>
-                <td>${new Date(day.date).toLocaleDateString()}</td>
-                <td>${day.present}</td>
-                <td>${day.absent}</td>
-                <td>${day.late}</td>
-                <td>${Math.round(day.rate)}%</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
+      csvContent = [headers, ...rows].map((row) => row.join(",")).join("\n");
+    } else if (selectedReportType === "student-profile" && selectedStudentId) {
+      const student = students?.find((s) => s._id === selectedStudentId);
+      if (!student) return toast.warning("No student selected");
 
-        <div class="footer">
-          <p>Generated by SchoolFlow Teacher Portal</p>
-        </div>
-      </body>
-      </html>
-    `;
+      filename = `profile-${student.studentId}-${new Date().toISOString().split("T")[0]}.csv`;
+      const headers = ["Field", "Value"];
+      const rows = [
+        ["Student ID", student.studentId],
+        ["Full Name", `${student.firstName} ${student.lastName}`],
+        ["Gender", student.gender || ""],
+        ["Date of Birth", new Date(student.dateOfBirth).toLocaleDateString()],
+        ["Status", student.status || ""],
+        ["Parent Name", student.parentName || ""],
+        ["Parent Phone", student.parentPhone || ""],
+        ["Parent Email", student.parentEmail || ""],
+        ["Emergency Contact", student.emergencyContactName || ""],
+        ["Emergency Phone", student.emergencyContactPhone || ""],
+      ];
+
+      csvContent = [headers, ...rows].map((row) => row.join(",")).join("\n");
+    }
+
+    if (!csvContent) {
+      toast.warning("No data available for export");
+      return;
+    }
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast.success("CSV file downloaded");
   };
 
-  const generateGradesReport = () => {
-    const grades = classSummary || [];
-    const className = teacher?.classNames?.[0] || 'Unknown';
-    const teacherName = `${teacher?.firstName} ${teacher?.lastName}`;
-    const examName = activeExams?.find((e) => e._id === selectedExamId)?.examName || 'All Exams';
-
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Grades Report - ${className}</title>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; }
-          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
-          .header h1 { font-size: 24px; margin-bottom: 10px; }
-          .header p { color: #666; font-size: 14px; }
-          .meta { display: flex; justify-content: space-between; margin-bottom: 30px; font-size: 14px; }
-          .summary { background: #f9f9f9; padding: 20px; border-radius: 8px; margin-bottom: 30px; }
-          .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-          .summary-item { text-align: center; }
-          .summary-value { font-size: 24px; font-weight: bold; }
-          .summary-label { font-size: 12px; color: #666; }
-          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-          th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-          th { background: #f5f5f5; font-weight: 600; }
-          .position { font-weight: bold; }
-          .grade-excellent { color: #22c55e; }
-          .grade-good { color: #3b82f6; }
-          .grade-average { color: #f59e0b; }
-          .grade-poor { color: #ef4444; }
-          .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; font-size: 12px; color: #666; }
-          @media print { body { padding: 20px; } }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>Class Grades Report</h1>
-          <p>${className} - ${examName}</p>
-        </div>
-
-        <div class="meta">
-          <div><strong>Class Teacher:</strong> ${teacherName}</div>
-          <div><strong>Generated:</strong> ${new Date().toLocaleDateString()}</div>
-        </div>
-
-        <div class="summary">
-          <div class="summary-grid">
-            <div class="summary-item">
-              <div class="summary-value">${grades.length}</div>
-              <div class="summary-label">Total Students</div>
-            </div>
-            <div class="summary-item">
-              <div class="summary-value">${grades.length > 0 ? Math.round(grades.reduce((sum, s) => sum + s.average, 0) / grades.length) : 0}%</div>
-              <div class="summary-label">Class Average</div>
-            </div>
-            <div class="summary-item">
-              <div class="summary-value">${grades.filter((s) => s.average >= 50).length}</div>
-              <div class="summary-label">Pass Rate</div>
-            </div>
-          </div>
-        </div>
-
-        <h3>Student Rankings</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Student Name</th>
-              <th>Total Score</th>
-              <th>Average</th>
-              <th>Subjects</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${grades.map((student, index) => {
-              const gradeClass = student.average >= 80 ? 'grade-excellent' : student.average >= 60 ? 'grade-good' : student.average >= 50 ? 'grade-average' : 'grade-poor';
-              return `
-                <tr>
-                  <td class="position">${index + 1}</td>
-                  <td>${student.studentName}</td>
-                  <td>${student.totalScore}/${student.maxScore}</td>
-                  <td class="${gradeClass}">${Math.round(student.average)}%</td>
-                  <td>${student.subjectCount}</td>
-                </tr>
-              `;
-            }).join('')}
-          </tbody>
-        </table>
-
-        <div class="footer">
-          <p>Generated by SchoolFlow Teacher Portal</p>
-        </div>
-      </body>
-      </html>
-    `;
+  const getReportTitle = () => {
+    switch (selectedReportType) {
+      case "attendance":
+        return `Attendance Report - ${className}`;
+      case "grades":
+        return `Grades Report - ${className}`;
+      case "class-summary":
+        return `Class Summary - ${className}`;
+      case "student-profile":
+        const st = students?.find((s) => s._id === selectedStudentId);
+        return st
+          ? `Profile - ${st.firstName} ${st.lastName}`
+          : "Student Profile";
+      default:
+        return "Report";
+    }
   };
 
-  const generateClassSummaryReport = () => {
-    const className = teacher?.classNames?.[0] || 'Unknown';
-    const teacherName = `${teacher?.firstName} ${teacher?.lastName}`;
-    const totalStudents = students?.length || 0;
-    const activeStudents = students?.filter((s) => s.status === 'active' || s.status === 'continuing' || s.status === 'fresher').length || 0;
+  // ── Render Report Content ────────────────────────────────────────
+  const renderReportContent = () => {
+    const className = teacher?.classNames?.[0] || "Unknown Class";
+    const teacherName = teacher
+      ? `${teacher.firstName} ${teacher.lastName}`
+      : "—";
 
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Class Summary - ${className}</title>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; }
-          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
-          .header h1 { font-size: 24px; margin-bottom: 10px; }
-          .section { margin-bottom: 30px; }
-          .section h3 { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #ddd; }
-          .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-          .info-item { padding: 10px; background: #f9f9f9; border-radius: 4px; }
-          .info-label { font-size: 12px; color: #666; }
-          .info-value { font-size: 16px; font-weight: bold; }
-          table { width: 100%; border-collapse: collapse; }
-          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-          th { background: #f5f5f5; font-weight: 600; }
-          .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; font-size: 12px; color: #666; }
-          @media print { body { padding: 20px; } }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>Class Summary Report</h1>
-          <p>${className}</p>
-        </div>
+    switch (selectedReportType) {
+      // ── Attendance Report ───────────────────────────────
+      case "attendance":
+        if (!attendanceStats)
+          return (
+            <div className="py-8 text-center opacity-70">
+              Loading attendance data...
+            </div>
+          );
 
-        <div class="section">
-          <h3>Class Information</h3>
-          <div class="info-grid">
-            <div class="info-item">
-              <div class="info-label">Class Teacher</div>
-              <div class="info-value">${teacherName}</div>
+        return (
+          <>
+            <div className="header">
+              <h1 className="text-2xl font-bold">Attendance Report</h1>
+              <p className="text-muted-foreground">
+                {className} —{" "}
+                {dateRange === "week"
+                  ? "Last 7 days"
+                  : dateRange === "month"
+                    ? "Last 30 days"
+                    : "Last 90 days"}
+              </p>
             </div>
-            <div class="info-item">
-              <div class="info-label">Total Students</div>
-              <div class="info-value">${totalStudents}</div>
-            </div>
-            <div class="info-item">
-              <div class="info-label">Active Students</div>
-              <div class="info-value">${activeStudents}</div>
-            </div>
-            <div class="info-item">
-              <div class="info-label">Generated</div>
-              <div class="info-value">${new Date().toLocaleDateString()}</div>
-            </div>
-          </div>
-        </div>
 
-        <div class="section">
-          <h3>Student List</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Student ID</th>
-                <th>Name</th>
-                <th>Gender</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${(students || []).map((student, index) => `
-                <tr>
-                  <td>${index + 1}</td>
-                  <td>${student.studentId}</td>
-                  <td>${student.firstName} ${student.lastName}</td>
-                  <td>${student.gender}</td>
-                  <td>${student.status}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
+            <div className="meta">
+              <div>
+                <strong>Teacher:</strong> {teacherName}
+              </div>
+              <div>
+                <strong>Generated:</strong> {new Date().toLocaleDateString()}
+              </div>
+            </div>
 
-        <div class="footer">
-          <p>Generated by SchoolFlow Teacher Portal</p>
-        </div>
-      </body>
-      </html>
-    `;
-  };
+            <div className="stats-grid">
+              <div className="stat-card">
+                <div className="stat-value">
+                  {attendanceStats.totalSessions || 0}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Total Sessions
+                </div>
+              </div>
+              <div className="stat-card border-green-200 bg-green-50/40">
+                <div className="stat-value text-green-700">
+                  {attendanceStats.attendanceRate
+                    ? Math.round(attendanceStats.attendanceRate)
+                    : 0}
+                  %
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Attendance Rate
+                </div>
+              </div>
+              <div className="stat-card border-red-200 bg-red-50/40">
+                <div className="stat-value text-red-700">
+                  {attendanceStats.totalAbsent || 0}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Total Absent
+                </div>
+              </div>
+              <div className="stat-card border-amber-200 bg-amber-50/40">
+                <div className="stat-value text-amber-700">
+                  {attendanceStats.totalLate || 0}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Total Late
+                </div>
+              </div>
+            </div>
 
-  const generateStudentProfileReport = () => {
-    const student = students?.find((s) => s._id === selectedStudentId);
-    if (!student) return '';
+            <h3 className="text-lg font-semibold mb-3">Daily Breakdown</h3>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Present</TableHead>
+                    <TableHead>Absent</TableHead>
+                    <TableHead>Late</TableHead>
+                    <TableHead>Rate</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(attendanceStats.dailyData || []).map((day) => (
+                    <TableRow key={day.date}>
+                      <TableCell>
+                        {new Date(day.date).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>{day.present}</TableCell>
+                      <TableCell>{day.absent}</TableCell>
+                      <TableCell>{day.late}</TableCell>
+                      <TableCell>{Math.round(day.rate)}%</TableCell>
+                    </TableRow>
+                  ))}
+                  {!attendanceStats.dailyData?.length && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={5}
+                        className="text-center py-8 text-muted-foreground"
+                      >
+                        No attendance data for this period
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </>
+        );
 
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Student Profile - ${student.firstName} ${student.lastName}</title>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; }
-          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
-          .header h1 { font-size: 24px; margin-bottom: 10px; }
-          .section { margin-bottom: 30px; }
-          .section h3 { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #ddd; }
-          .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-          .info-item { padding: 10px; background: #f9f9f9; border-radius: 4px; }
-          .info-label { font-size: 12px; color: #666; }
-          .info-value { font-size: 14px; font-weight: bold; }
-          .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; font-size: 12px; color: #666; }
-          @media print { body { padding: 20px; } }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>Student Profile</h1>
-          <p>${student.firstName} ${student.lastName}</p>
-        </div>
+      // ── Grades Report ───────────────────────────────────
+      case "grades":
+        if (!classSummary?.length)
+          return (
+            <div className="py-12 text-center opacity-70">
+              No grade data available
+            </div>
+          );
 
-        <div class="section">
-          <h3>Personal Information</h3>
-          <div class="info-grid">
-            <div class="info-item">
-              <div class="info-label">Student ID</div>
-              <div class="info-value">${student.studentId}</div>
-            </div>
-            <div class="info-item">
-              <div class="info-label">Admission Number</div>
-              <div class="info-value">${student.admissionNumber}</div>
-            </div>
-            <div class="info-item">
-              <div class="info-label">Date of Birth</div>
-              <div class="info-value">${new Date(student.dateOfBirth).toLocaleDateString()}</div>
-            </div>
-            <div class="info-item">
-              <div class="info-label">Gender</div>
-              <div class="info-value">${student.gender}</div>
-            </div>
-            <div class="info-item">
-              <div class="info-label">Class</div>
-              <div class="info-value">${student.className}</div>
-            </div>
-            <div class="info-item">
-              <div class="info-label">Status</div>
-              <div class="info-value">${student.status}</div>
-            </div>
-          </div>
-        </div>
+        const avg =
+          classSummary.reduce((sum, s) => sum + s.average, 0) /
+            classSummary.length || 0;
+        const passCount = classSummary.filter((s) => s.average >= 50).length;
 
-        <div class="section">
-          <h3>Contact Information</h3>
-          <div class="info-grid">
-            <div class="info-item">
-              <div class="info-label">Address</div>
-              <div class="info-value">${student.address}</div>
+        return (
+          <>
+            <div className="header">
+              <h1 className="text-2xl font-bold">Class Grades Report</h1>
+              <p className="text-muted-foreground">
+                {className} —{" "}
+                {selectedExamId
+                  ? activeExams?.find((e) => e._id === selectedExamId)?.examName
+                  : "All Exams"}
+              </p>
             </div>
-            ${student.phone ? `
-            <div class="info-item">
-              <div class="info-label">Phone</div>
-              <div class="info-value">${student.phone}</div>
-            </div>
-            ` : ''}
-            ${student.email ? `
-            <div class="info-item">
-              <div class="info-label">Email</div>
-              <div class="info-value">${student.email}</div>
-            </div>
-            ` : ''}
-          </div>
-        </div>
 
-        <div class="section">
-          <h3>Parent/Guardian Information</h3>
-          <div class="info-grid">
-            <div class="info-item">
-              <div class="info-label">Name</div>
-              <div class="info-value">${student.parentName}</div>
+            <div className="meta">
+              <div>
+                <strong>Teacher:</strong> {teacherName}
+              </div>
+              <div>
+                <strong>Generated:</strong> {new Date().toLocaleDateString()}
+              </div>
             </div>
-            <div class="info-item">
-              <div class="info-label">Relationship</div>
-              <div class="info-value">${student.relationship}</div>
-            </div>
-            <div class="info-item">
-              <div class="info-label">Phone</div>
-              <div class="info-value">${student.parentPhone}</div>
-            </div>
-            <div class="info-item">
-              <div class="info-label">Email</div>
-              <div class="info-value">${student.parentEmail}</div>
-            </div>
-          </div>
-        </div>
 
-        <div class="section">
-          <h3>Emergency Contact</h3>
-          <div class="info-grid">
-            <div class="info-item">
-              <div class="info-label">Name</div>
-              <div class="info-value">${student.emergencyContactName}</div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+              <Card className="text-center">
+                <CardContent className="pt-6">
+                  <div className="text-3xl font-bold">
+                    {classSummary.length}
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">Students</p>
+                </CardContent>
+              </Card>
+              <Card className="text-center">
+                <CardContent className="pt-6">
+                  <div className="text-3xl font-bold">{Math.round(avg)}%</div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Class Average
+                  </p>
+                </CardContent>
+              </Card>
+              <Card className="text-center">
+                <CardContent className="pt-6">
+                  <div className="text-3xl font-bold">{passCount}</div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Passed (
+                    {Math.round((passCount / classSummary.length) * 100) || 0}%)
+                  </p>
+                </CardContent>
+              </Card>
             </div>
-            <div class="info-item">
-              <div class="info-label">Phone</div>
-              <div class="info-value">${student.emergencyContactPhone}</div>
-            </div>
-            <div class="info-item">
-              <div class="info-label">Relationship</div>
-              <div class="info-value">${student.emergencyContactRelationship}</div>
-            </div>
-          </div>
-        </div>
 
-        <div class="footer">
-          <p>Generated by SchoolFlow Teacher Portal on ${new Date().toLocaleDateString()}</p>
-        </div>
-      </body>
-      </html>
-    `;
+            <h3 className="text-lg font-semibold mb-3">Student Rankings</h3>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-16">#</TableHead>
+                    <TableHead>Student</TableHead>
+                    <TableHead>Total Score</TableHead>
+                    <TableHead>Average</TableHead>
+                    <TableHead>Subjects</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {classSummary.map((s, i) => {
+                    const color =
+                      s.average >= 80
+                        ? "text-green-600"
+                        : s.average >= 60
+                          ? "text-blue-600"
+                          : s.average >= 50
+                            ? "text-amber-600"
+                            : "text-red-600";
+
+                    return (
+                      <TableRow key={s.studentId}>
+                        <TableCell className="font-medium">{i + 1}</TableCell>
+                        <TableCell>{s.studentName}</TableCell>
+                        <TableCell>
+                          {s.totalScore} / {s.maxScore}
+                        </TableCell>
+                        <TableCell className={`font-medium ${color}`}>
+                          {Math.round(s.average)}%
+                        </TableCell>
+                        <TableCell>{s.subjectCount}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </>
+        );
+
+      // ── Class Summary ───────────────────────────────────
+      case "class-summary":
+        if (!students?.length)
+          return (
+            <div className="py-12 text-center opacity-70">
+              No students found
+            </div>
+          );
+
+        return (
+          <>
+            <div className="header">
+              <h1 className="text-2xl font-bold">Class Summary</h1>
+              <p className="text-muted-foreground">{className}</p>
+            </div>
+
+            <div className="meta">
+              <div>
+                <strong>Teacher:</strong> {teacherName}
+              </div>
+              <div>
+                <strong>Generated:</strong> {new Date().toLocaleDateString()}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              <Card>
+                <CardContent className="pt-6 text-center">
+                  <div className="text-3xl font-bold">{students.length}</div>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Total Students
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6 text-center">
+                  <div className="text-3xl font-bold text-green-600">
+                    {
+                      students.filter((s) =>
+                        ["active", "continuing", "fresher"].includes(
+                          s.status ?? "",
+                        ),
+                      ).length
+                    }
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-2">Active</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <h3 className="text-lg font-semibold mb-3">Student List</h3>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-14">#</TableHead>
+                    <TableHead>Student ID</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Gender</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {students.map((student, i) => (
+                    <TableRow key={student._id}>
+                      <TableCell>{i + 1}</TableCell>
+                      <TableCell className="font-mono text-sm">
+                        {student.studentId}
+                      </TableCell>
+                      <TableCell>
+                        {student.firstName} {student.lastName}
+                      </TableCell>
+                      <TableCell className="capitalize">
+                        {student.gender || "—"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{student.status}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
+        );
+
+      // ── Student Profile ─────────────────────────────────
+      case "student-profile":
+        const student = students?.find((s) => s._id === selectedStudentId);
+        if (!student) {
+          return (
+            <div className="py-12 text-center text-muted-foreground">
+              Please select a student to view their profile
+            </div>
+          );
+        }
+
+        return (
+          <>
+            <div className="header">
+              <h1 className="text-2xl font-bold">Student Profile</h1>
+              <p className="text-muted-foreground">
+                {student.firstName} {student.lastName} • {student.studentId}
+              </p>
+            </div>
+
+            <div className="meta">
+              <div>
+                <strong>Class:</strong> {student.className || className}
+              </div>
+              <div>
+                <strong>Generated:</strong> {new Date().toLocaleDateString()}
+              </div>
+            </div>
+
+            <div className="space-y-8">
+              <div>
+                <h3 className="text-lg font-semibold mb-4">
+                  Personal Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="border rounded-lg p-4">
+                    <p className="text-xs text-muted-foreground">Student ID</p>
+                    <p className="font-medium">{student.studentId}</p>
+                  </div>
+                  <div className="border rounded-lg p-4">
+                    <p className="text-xs text-muted-foreground">
+                      Admission No.
+                    </p>
+                    <p className="font-medium">
+                      {student.admissionNumber || "—"}
+                    </p>
+                  </div>
+                  <div className="border rounded-lg p-4">
+                    <p className="text-xs text-muted-foreground">
+                      Date of Birth
+                    </p>
+                    <p className="font-medium">
+                      {new Date(student.dateOfBirth).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="border rounded-lg p-4">
+                    <p className="text-xs text-muted-foreground">Gender</p>
+                    <p className="font-medium capitalize">
+                      {student.gender || "—"}
+                    </p>
+                  </div>
+                  <div className="border rounded-lg p-4">
+                    <p className="text-xs text-muted-foreground">Status</p>
+                    <p className="font-medium">{student.status}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold mb-4">
+                  Parent / Guardian
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="border rounded-lg p-4">
+                    <p className="text-xs text-muted-foreground">Name</p>
+                    <p className="font-medium">{student.parentName}</p>
+                  </div>
+                  <div className="border rounded-lg p-4">
+                    <p className="text-xs text-muted-foreground">Phone</p>
+                    <p className="font-medium">{student.parentPhone || "—"}</p>
+                  </div>
+                  {student.parentEmail && (
+                    <div className="border rounded-lg p-4 md:col-span-2">
+                      <p className="text-xs text-muted-foreground">Email</p>
+                      <p className="font-medium">{student.parentEmail}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {(student.emergencyContactName ||
+                student.emergencyContactPhone) && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">
+                    Emergency Contact
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="border rounded-lg p-4">
+                      <p className="text-xs text-muted-foreground">Name</p>
+                      <p className="font-medium">
+                        {student.emergencyContactName}
+                      </p>
+                    </div>
+                    <div className="border rounded-lg p-4">
+                      <p className="text-xs text-muted-foreground">Phone</p>
+                      <p className="font-medium">
+                        {student.emergencyContactPhone}
+                      </p>
+                    </div>
+                    <div className="border rounded-lg p-4">
+                      <p className="text-xs text-muted-foreground">
+                        Relationship
+                      </p>
+                      <p className="font-medium">
+                        {student.emergencyContactRelationship || "—"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        );
+
+      default:
+        return null;
+    }
   };
 
   if (!teacher) {
     return (
-      <div className="space-y-4 py-4">
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-96 w-full" />
+      <div className="space-y-6 py-8">
+        <Skeleton className="h-10 w-64" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {Array(4)
+            .fill(0)
+            .map((_, i) => (
+              <Skeleton key={i} className="h-32 w-full" />
+            ))}
+        </div>
+        <Skeleton className="h-80 w-full" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 py-4">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <FileSpreadsheet className="h-6 w-6" />
-          Report Generation
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Generate and export reports for {teacher.classNames?.join(', ')}
-        </p>
+    <div className="container max-w-5xl py-8 space-y-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+            <FileSpreadsheet className="h-8 w-8 text-primary" />
+            Report Generation
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Create and print class reports
+          </p>
+        </div>
       </div>
 
-      {/* Report Type Selection */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {/* Report Type Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { type: 'attendance', icon: ClipboardCheck, label: 'Attendance', color: 'bg-green-100 text-green-700' },
-          { type: 'grades', icon: BarChart3, label: 'Grades', color: 'bg-blue-100 text-blue-700' },
-          { type: 'class-summary', icon: Users, label: 'Class Summary', color: 'bg-purple-100 text-purple-700' },
-          { type: 'student-profile', icon: FileText, label: 'Student Profile', color: 'bg-amber-100 text-amber-700' },
+          {
+            type: "attendance",
+            icon: ClipboardCheck,
+            label: "Attendance",
+            color: "bg-green-100 text-green-700",
+          },
+          {
+            type: "grades",
+            icon: BarChart3,
+            label: "Grades",
+            color: "bg-blue-100 text-blue-700",
+          },
+          {
+            type: "class-summary",
+            icon: Users,
+            label: "Class Summary",
+            color: "bg-purple-100 text-purple-700",
+          },
+          {
+            type: "student-profile",
+            icon: FileText,
+            label: "Student Profile",
+            color: "bg-amber-100 text-amber-700",
+          },
         ].map((item) => (
           <Card
             key={item.type}
-            className={`cursor-pointer transition-all ${
-              selectedReportType === item.type ? 'ring-2 ring-primary' : 'hover:bg-muted/50'
+            className={`cursor-pointer transition-all hover:shadow-md ${
+              selectedReportType === item.type
+                ? "ring-2 ring-primary ring-offset-2"
+                : "hover:border-primary/40"
             }`}
             onClick={() => setSelectedReportType(item.type as ReportType)}
           >
-            <CardContent className="p-4 flex flex-col items-center text-center">
-              <div className={`p-3 rounded-lg ${item.color} mb-2`}>
+            <CardContent className="p-5 flex flex-col items-center text-center gap-3">
+              <div className={`p-3 rounded-full ${item.color}`}>
                 <item.icon className="h-6 w-6" />
               </div>
-              <span className="text-sm font-medium">{item.label}</span>
+              <span className="font-medium">{item.label}</span>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Report Configuration */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Configure Report</CardTitle>
-          <CardDescription>
-            Select options for your {selectedReportType.replace('-', ' ')} report
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {selectedReportType === 'attendance' && (
-            <div>
-              <label className="text-sm font-medium mb-2 block">Date Range</label>
-              <Select value={dateRange} onValueChange={setDateRange}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="week">Last 7 Days</SelectItem>
-                  <SelectItem value="month">Last 30 Days</SelectItem>
-                  <SelectItem value="quarter">Last 90 Days</SelectItem>
-                </SelectContent>
-              </Select>
+      {/* Configuration + Preview */}
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* Left - Configuration */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Configure Report</CardTitle>
+            <CardDescription>
+              Choose options for the {selectedReportType.replace(/-/g, " ")}{" "}
+              report
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {selectedReportType === "attendance" && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Date Range</label>
+                <Select value={dateRange} onValueChange={setDateRange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select range" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="week">Last 7 Days</SelectItem>
+                    <SelectItem value="month">Last 30 Days</SelectItem>
+                    <SelectItem value="quarter">Last 90 Days</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {selectedReportType === "grades" && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Exam</label>
+                <Select
+                  value={selectedExamId}
+                  onValueChange={setSelectedExamId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All exams" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Exams (aggregate)</SelectItem>
+                    {activeExams?.map((exam) => (
+                      <SelectItem key={exam._id} value={exam._id}>
+                        {exam.examName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {selectedReportType === "student-profile" && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Student</label>
+                <Select
+                  value={selectedStudentId}
+                  onValueChange={setSelectedStudentId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select student..." />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-80">
+                    {students?.map((student) => (
+                      <SelectItem key={student._id} value={student._id}>
+                        {student.firstName} {student.lastName} •{" "}
+                        {student.studentId}
+                      </SelectItem>
+                    )) || (
+                      <SelectItem value="" disabled>
+                        No students loaded
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-3 pt-4">
+              <Button
+                onClick={handlePrint}
+                disabled={
+                  isExporting ||
+                  (selectedReportType === "student-profile" &&
+                    !selectedStudentId) ||
+                  (selectedReportType === "grades" && !classSummary?.length) ||
+                  (selectedReportType === "attendance" && !attendanceStats) ||
+                  (selectedReportType === "class-summary" && !students?.length)
+                }
+                className="flex-1"
+              >
+                <Printer className="mr-2 h-4 w-4" />
+                Print
+              </Button>
+
+              <Button
+                onClick={handleExportPDF}
+                disabled={
+                  isExporting ||
+                  (selectedReportType === "student-profile" &&
+                    !selectedStudentId) ||
+                  (selectedReportType === "grades" && !classSummary?.length) ||
+                  (selectedReportType === "attendance" && !attendanceStats) ||
+                  (selectedReportType === "class-summary" && !students?.length)
+                }
+                variant="outline"
+                className="flex-1"
+              >
+                {isExporting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <FileText className="mr-2 h-4 w-4" />
+                )}
+                PDF
+              </Button>
+
+              <Button
+                onClick={handleExportCSV}
+                variant="outline"
+                className="flex-1"
+                disabled={
+                  (selectedReportType === "attendance" && !attendanceStats) ||
+                  (selectedReportType === "grades" && !classSummary?.length) ||
+                  (selectedReportType === "class-summary" &&
+                    !students?.length) ||
+                  (selectedReportType === "student-profile" &&
+                    !selectedStudentId)
+                }
+              >
+                <Download className="mr-2 h-4 w-4" />
+                CSV
+              </Button>
             </div>
-          )}
+          </CardContent>
+        </Card>
 
-          {selectedReportType === 'grades' && (
-            <div>
-              <label className="text-sm font-medium mb-2 block">Select Exam</label>
-              <Select value={selectedExamId} onValueChange={setSelectedExamId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All exams" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">All Exams</SelectItem>
-                  {activeExams?.map((exam) => (
-                    <SelectItem key={exam._id} value={exam._id}>
-                      {exam.examName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        {/* Right - Preview Area */}
+        <Card className="overflow-hidden">
+          <CardHeader className="border-b bg-muted/40">
+            <CardTitle className="flex items-center justify-between text-base">
+              <span>Preview</span>
+              <span className="text-sm font-normal text-muted-foreground">
+                {getReportTitle()}
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div ref={printRef} className="p-8 min-h-145 bg-white">
+              {renderReportContent()}
             </div>
-          )}
+          </CardContent>
+        </Card>
+      </div>
 
-          {selectedReportType === 'student-profile' && (
-            <div>
-              <label className="text-sm font-medium mb-2 block">Select Student</label>
-              <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a student..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {students?.map((student) => (
-                    <SelectItem key={student._id} value={student._id}>
-                      {student.firstName} {student.lastName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          <div className="pt-4 flex gap-3">
-            <Button onClick={generatePDF} disabled={isGenerating} className="flex-1">
-              {isGenerating ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Printer className="h-4 w-4 mr-2" />
-                  Generate & Print
-                </>
-              )}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Report Preview Info */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Report Preview</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="bg-muted/50 rounded-lg p-6 text-center">
-            {selectedReportType === 'attendance' && (
-              <>
-                <ClipboardCheck className="h-12 w-12 mx-auto mb-3 text-green-600" />
-                <h3 className="font-medium">Attendance Report</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Includes attendance statistics, daily breakdown, and trends for{' '}
-                  {dateRange === 'week' ? 'the last 7 days' : dateRange === 'month' ? 'the last 30 days' : 'the last 90 days'}
-                </p>
-              </>
-            )}
-            {selectedReportType === 'grades' && (
-              <>
-                <BarChart3 className="h-12 w-12 mx-auto mb-3 text-blue-600" />
-                <h3 className="font-medium">Grades Report</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Includes student rankings, class average, and individual scores
-                  {selectedExamId ? ' for the selected exam' : ' across all exams'}
-                </p>
-              </>
-            )}
-            {selectedReportType === 'class-summary' && (
-              <>
-                <Users className="h-12 w-12 mx-auto mb-3 text-purple-600" />
-                <h3 className="font-medium">Class Summary Report</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Complete class roster with student details and contact information
-                </p>
-              </>
-            )}
-            {selectedReportType === 'student-profile' && (
-              <>
-                <FileText className="h-12 w-12 mx-auto mb-3 text-amber-600" />
-                <h3 className="font-medium">Student Profile Report</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {selectedStudentId
-                    ? `Detailed profile for ${students?.find((s) => s._id === selectedStudentId)?.firstName || 'selected student'}`
-                    : 'Select a student to generate their profile report'}
-                </p>
-              </>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="text-xs text-center text-muted-foreground pt-6">
+        Generated by SchoolFlow • Teacher Portal
+      </div>
     </div>
   );
 }
