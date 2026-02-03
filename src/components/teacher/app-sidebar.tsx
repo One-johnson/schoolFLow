@@ -26,6 +26,7 @@ import {
   BarChart3,
   Calendar,
   Download,
+  Clock,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -45,6 +46,7 @@ import { toast } from 'sonner';
 
 const mainMenuItems = [
   { title: 'Dashboard', icon: Home, url: '/teacher' },
+  { title: 'Timetable', icon: Clock, url: '/teacher/timetable' },
   { title: 'Students', icon: Users, url: '/teacher/students' },
   { title: 'Attendance', icon: ClipboardCheck, url: '/teacher/attendance' },
   { title: 'Grade Book', icon: BookOpen, url: '/teacher/gradebook' },

@@ -149,7 +149,7 @@ export default function StudentDetailPage() {
             <span className="text-muted-foreground">Email</span>
             <a
               href={`mailto:${student.parentEmail}`}
-              className="text-primary hover:underline truncate max-w-[180px]"
+              className="text-primary hover:underline truncate max-w-45"
             >
               {student.parentEmail}
             </a>
