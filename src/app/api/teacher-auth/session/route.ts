@@ -1,15 +1,21 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { ConvexHttpClient } from 'convex/browser';
-import { api } from '../../../../../convex/_generated/api';
-import jwt from 'jsonwebtoken';
+import { NextRequest, NextResponse } from "next/server";
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "../../../../../convex/_generated/api";
+import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
+const JWT_SECRET = (() => {
+  const s = process.env.JWT_SECRET;
+  if (!s) {
+    throw new Error("Missing required environment variable: JWT_SECRET");
+  }
+  return s;
+})();
 
 interface TokenData {
   teacherId: string;
   email: string;
   schoolId: string;
-  role: 'teacher';
+  role: "teacher";
 }
 
 interface SessionToken {
@@ -21,7 +27,7 @@ interface SessionToken {
 function getConvexClient(): ConvexHttpClient {
   const url = process.env.NEXT_PUBLIC_CONVEX_URL;
   if (!url) {
-    throw new Error('NEXT_PUBLIC_CONVEX_URL is not configured');
+    throw new Error("NEXT_PUBLIC_CONVEX_URL is not configured");
   }
   return new ConvexHttpClient(url);
 }
@@ -29,13 +35,15 @@ function getConvexClient(): ConvexHttpClient {
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     // Get token from Authorization header
-    const authHeader = request.headers.get('Authorization');
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const authHeader = request.headers.get("Authorization");
+    const token = authHeader?.startsWith("Bearer ")
+      ? authHeader.slice(7)
+      : null;
 
     if (!token) {
       return NextResponse.json(
-        { authenticated: false, teacher: null, reason: 'no_token' },
-        { status: 401 }
+        { authenticated: false, teacher: null, reason: "no_token" },
+        { status: 401 },
       );
     }
 
@@ -44,17 +52,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Fetch full teacher data from database
     const convex = getConvexClient();
-    const teacher = await convex.query(api.teachers.getTeacherByEmail, { email });
+    const teacher = await convex.query(api.teachers.getTeacherByEmail, {
+      email,
+    });
 
     if (!teacher) {
       return NextResponse.json(
-        { authenticated: false, teacher: null, reason: 'teacher_not_found' },
-        { status: 401 }
+        { authenticated: false, teacher: null, reason: "teacher_not_found" },
+        { status: 401 },
       );
     }
 
     // Get teacher's classes
-    const classes = await convex.query(api.teachers.getTeacherClasses, { teacherId: teacher._id });
+    const classes = await convex.query(api.teachers.getTeacherClasses, {
+      teacherId: teacher._id,
+    });
     const classIds = classes.map((c) => c._id);
     const classNames = classes.map((c) => c.className);
 
@@ -70,14 +82,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         classIds,
         classNames,
         photoUrl: teacher.photoUrl,
-        role: 'teacher',
+        role: "teacher",
       },
     });
   } catch (error) {
-    console.error('Teacher session validation error:', error);
+    console.error("Teacher session validation error:", error);
     return NextResponse.json(
-      { authenticated: false, teacher: null, reason: 'invalid_token' },
-      { status: 401 }
+      { authenticated: false, teacher: null, reason: "invalid_token" },
+      { status: 401 },
     );
   }
 }

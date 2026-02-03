@@ -16,6 +16,11 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Required environment variables
+
+- **JWT_SECRET** — required. Must be set to a strong secret; the app will fail to start if it's missing.
+- **NEXT_PUBLIC_CONVEX_URL** — Convex URL used by the app (set in `.env.local` during development).
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

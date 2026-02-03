@@ -1,17 +1,23 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { ConvexHttpClient } from 'convex/browser';
-import { api } from '../../../../../convex/_generated/api';
-import { PasswordManager } from '@/lib/password';
-import jwt from 'jsonwebtoken';
-import type { Id } from '../../../../../convex/_generated/dataModel';
+import { NextRequest, NextResponse } from "next/server";
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "../../../../../convex/_generated/api";
+import { PasswordManager } from "@/lib/password";
+import jwt from "jsonwebtoken";
+import type { Id } from "../../../../../convex/_generated/dataModel";
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
+const JWT_SECRET = (() => {
+  const s = process.env.JWT_SECRET;
+  if (!s) {
+    throw new Error("Missing required environment variable: JWT_SECRET");
+  }
+  return s;
+})();
 
 interface TeacherSessionData {
   teacherId: string;
   email: string;
   schoolId: string;
-  role: 'teacher';
+  role: "teacher";
   firstName: string;
   lastName: string;
   classIds: string[];
@@ -26,7 +32,7 @@ interface SessionToken {
 function getConvexClient(): ConvexHttpClient {
   const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
   if (!convexUrl) {
-    throw new Error('NEXT_PUBLIC_CONVEX_URL is not set');
+    throw new Error("NEXT_PUBLIC_CONVEX_URL is not set");
   }
   return new ConvexHttpClient(convexUrl);
 }
@@ -34,14 +40,13 @@ function getConvexClient(): ConvexHttpClient {
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     // Get token from Authorization header
-    const authHeader = request.headers.get('Authorization');
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const authHeader = request.headers.get("Authorization");
+    const token = authHeader?.startsWith("Bearer ")
+      ? authHeader.slice(7)
+      : null;
 
     if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     let sessionData: TeacherSessionData;
@@ -49,10 +54,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const decoded = jwt.verify(token, JWT_SECRET) as SessionToken;
       sessionData = decoded.data;
     } catch {
-      return NextResponse.json(
-        { error: 'Invalid session' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Invalid session" }, { status: 401 });
     }
 
     const body = await request.json();
@@ -60,18 +62,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (!currentPassword || !newPassword) {
       return NextResponse.json(
-        { error: 'Current password and new password are required' },
-        { status: 400 }
+        { error: "Current password and new password are required" },
+        { status: 400 },
       );
     }
 
     // Validate new password
     const validation = PasswordManager.validate(newPassword);
     if (!validation.valid) {
-      return NextResponse.json(
-        { error: validation.message },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: validation.message }, { status: 400 });
     }
 
     const convex = getConvexClient();
@@ -82,19 +81,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
 
     if (!teacher) {
-      return NextResponse.json(
-        { error: 'Teacher not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Teacher not found" }, { status: 404 });
     }
 
     // Verify current password
-    const isValidPassword = await PasswordManager.verify(currentPassword, teacher.password);
+    const isValidPassword = await PasswordManager.verify(
+      currentPassword,
+      teacher.password,
+    );
 
     if (!isValidPassword) {
       return NextResponse.json(
-        { error: 'Current password is incorrect' },
-        { status: 400 }
+        { error: "Current password is incorrect" },
+        { status: 400 },
       );
     }
 
@@ -103,19 +102,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Update password in database
     await convex.mutation(api.teachers.updateTeacherPassword, {
-      teacherId: teacher._id as Id<'teachers'>,
+      teacherId: teacher._id as Id<"teachers">,
       hashedPassword: hashedNewPassword,
     });
 
     return NextResponse.json({
       success: true,
-      message: 'Password changed successfully',
+      message: "Password changed successfully",
     });
   } catch (error) {
-    console.error('Teacher password change error:', error);
+    console.error("Teacher password change error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to change password' },
-      { status: 500 }
+      {
+        error:
+          error instanceof Error ? error.message : "Failed to change password",
+      },
+      { status: 500 },
     );
   }
 }
