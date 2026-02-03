@@ -63,17 +63,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const classIds = classes.map((c) => c._id);
     const classNames = classes.map((c) => c.className);
 
-    // Create session token
+    // Create session token with minimal data (to avoid large headers)
     const sessionData = {
       teacherId: teacher._id,
       email: teacher.email,
       schoolId: teacher.schoolId,
       role: 'teacher' as const,
-      firstName: teacher.firstName,
-      lastName: teacher.lastName,
-      classIds,
-      classNames,
-      photoUrl: teacher.photoUrl,
     };
 
     const token = jwt.sign(
@@ -82,10 +77,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { expiresIn: SESSION_DURATION }
     );
 
-    // Create response with teacher data
-    const response = NextResponse.json({
+    console.log('Login successful for:', email);
+
+    // Return token in response body - client will store in localStorage
+    return NextResponse.json({
       success: true,
       message: 'Login successful',
+      token, // Include token for localStorage storage
       teacher: {
         id: teacher._id,
         email: teacher.email,
@@ -98,17 +96,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       },
       redirectTo: '/teacher',
     });
-
-    // Set session cookie on the response
-    response.cookies.set(SESSION_COOKIE_NAME, token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: SESSION_DURATION,
-      path: '/',
-    });
-
-    return response;
   } catch (error) {
     console.error('Teacher login error:', error);
     return NextResponse.json(

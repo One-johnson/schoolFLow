@@ -3,11 +3,9 @@ import { ConvexHttpClient } from 'convex/browser';
 import { api } from '../../../../../convex/_generated/api';
 import { PasswordManager } from '@/lib/password';
 import jwt from 'jsonwebtoken';
-import { cookies } from 'next/headers';
 import type { Id } from '../../../../../convex/_generated/dataModel';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
-const SESSION_COOKIE_NAME = 'schoolflow_teacher_session';
 
 interface TeacherSessionData {
   teacherId: string;
@@ -35,9 +33,9 @@ function getConvexClient(): ConvexHttpClient {
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    // Get session
-    const cookieStore = await cookies();
-    const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+    // Get token from Authorization header
+    const authHeader = request.headers.get('Authorization');
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
     if (!token) {
       return NextResponse.json(
