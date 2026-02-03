@@ -86,6 +86,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       token, // Include token for localStorage storage
       teacher: {
         id: teacher._id,
+        teacherId: teacher.teacherId, // Custom teacher ID (e.g., "JD123456")
         email: teacher.email,
         firstName: teacher.firstName,
         lastName: teacher.lastName,

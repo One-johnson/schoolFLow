@@ -7,6 +7,7 @@ const TOKEN_KEY = "schoolflow_teacher_token";
 
 export interface Teacher {
   id: string;
+  teacherId: string; // Custom teacher ID (e.g., "JD123456") - used for timetable lookups
   email: string;
   schoolId: string;
   firstName: string;
@@ -145,6 +146,7 @@ export function useTeacherAuth() {
         setState({
           teacher: {
             id: data.teacher.id,
+            teacherId: data.teacher.teacherId,
             email: data.teacher.email,
             schoolId: data.teacher.schoolId,
             firstName: data.teacher.firstName,

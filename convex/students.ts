@@ -53,7 +53,18 @@ export const getStudentById = query({
   args: { studentId: v.id('students') },
   handler: async (ctx, args) => {
     const student = await ctx.db.get(args.studentId);
-    return student;
+    if (!student) return null;
+
+    // Fetch photo URL if storage ID exists
+    let photoUrl: string | null = null;
+    if (student.photoStorageId) {
+      photoUrl = await ctx.storage.getUrl(student.photoStorageId as Id<'_storage'>);
+    }
+
+    return {
+      ...student,
+      photoUrl,
+    };
   },
 });
 
@@ -867,6 +878,20 @@ export const getStudentsByClassId = query({
       .withIndex('by_class', (q) => q.eq('classId', classDoc.classCode))
       .collect();
 
-    return students;
+    // Fetch photo URLs for each student
+    const studentsWithPhotos = await Promise.all(
+      students.map(async (student) => {
+        let photoUrl: string | null = null;
+        if (student.photoStorageId) {
+          photoUrl = await ctx.storage.getUrl(student.photoStorageId as Id<'_storage'>);
+        }
+        return {
+          ...student,
+          photoUrl,
+        };
+      })
+    );
+
+    return studentsWithPhotos;
   },
 });

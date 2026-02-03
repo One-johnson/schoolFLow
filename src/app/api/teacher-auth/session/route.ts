@@ -62,6 +62,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       authenticated: true,
       teacher: {
         id: teacherId,
+        teacherId: teacher.teacherId, // Custom teacher ID (e.g., "JD123456")
         email: teacher.email,
         schoolId: schoolId,
         firstName: teacher.firstName,

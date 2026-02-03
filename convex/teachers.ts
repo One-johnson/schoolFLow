@@ -609,3 +609,46 @@ export const updateTeacherPassword = mutation({
     return { success: true };
   },
 });
+
+// Mutation: Update teacher's own photo (for teacher portal)
+export const updateTeacherPhoto = mutation({
+  args: {
+    teacherId: v.id('teachers'),
+    photoUrl: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const teacher = await ctx.db.get(args.teacherId);
+    if (!teacher) {
+      throw new Error('Teacher not found');
+    }
+    await ctx.db.patch(args.teacherId, {
+      photoUrl: args.photoUrl,
+      updatedAt: new Date().toISOString(),
+    });
+    return { success: true };
+  },
+});
+
+// Query: Get full teacher details by ID (for teacher portal)
+export const getTeacherFullDetails = query({
+  args: { teacherId: v.id('teachers') },
+  handler: async (ctx, args) => {
+    const teacher = await ctx.db.get(args.teacherId);
+    if (!teacher) return null;
+
+    // Get assigned classes
+    const classes = await ctx.db
+      .query('classes')
+      .collect();
+    const assignedClasses = classes.filter((cls) => cls.classTeacherId === teacher._id);
+
+    return {
+      ...teacher,
+      assignedClasses: assignedClasses.map(c => ({
+        id: c._id,
+        className: c.className,
+        classCode: c.classCode,
+      })),
+    };
+  },
+});

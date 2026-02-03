@@ -1324,4 +1324,72 @@ export default defineSchema({
     updatedAt: v.string(),
   })
     .index('by_school', ['schoolId']),
+
+  // Messages for Communication Hub (Teacher-Parent messaging)
+  messages: defineTable({
+    schoolId: v.string(),
+    messageCode: v.string(), // Auto-generated: MSG + 8 digits
+    conversationId: v.string(), // Groups messages in a thread
+    senderId: v.string(), // Teacher or Parent ID
+    senderName: v.string(),
+    senderRole: v.union(v.literal('teacher'), v.literal('parent')),
+    senderEmail: v.optional(v.string()),
+    recipientId: v.string(), // Teacher or Parent ID
+    recipientName: v.string(),
+    recipientRole: v.union(v.literal('teacher'), v.literal('parent')),
+    recipientEmail: v.optional(v.string()),
+    studentId: v.optional(v.string()), // Related student (for context)
+    studentName: v.optional(v.string()),
+    subject: v.string(),
+    content: v.string(),
+    messageType: v.union(
+      v.literal('general'),
+      v.literal('academic'),
+      v.literal('behavior'),
+      v.literal('attendance'),
+      v.literal('fee'),
+      v.literal('urgent')
+    ),
+    priority: v.union(v.literal('low'), v.literal('normal'), v.literal('high')),
+    isRead: v.boolean(),
+    readAt: v.optional(v.string()),
+    attachmentStorageIds: v.optional(v.array(v.string())),
+    replyToId: v.optional(v.id('messages')), // For threading
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index('by_school', ['schoolId'])
+    .index('by_message_code', ['messageCode'])
+    .index('by_conversation', ['conversationId'])
+    .index('by_sender', ['schoolId', 'senderId'])
+    .index('by_recipient', ['schoolId', 'recipientId'])
+    .index('by_student', ['schoolId', 'studentId'])
+    .index('by_read', ['recipientId', 'isRead']),
+
+  // Conversations for grouping messages
+  conversations: defineTable({
+    schoolId: v.string(),
+    conversationCode: v.string(), // Auto-generated: CONV + 8 digits
+    participant1Id: v.string(), // Usually teacher
+    participant1Name: v.string(),
+    participant1Role: v.union(v.literal('teacher'), v.literal('parent')),
+    participant2Id: v.string(), // Usually parent
+    participant2Name: v.string(),
+    participant2Role: v.union(v.literal('teacher'), v.literal('parent')),
+    studentId: v.optional(v.string()), // Related student
+    studentName: v.optional(v.string()),
+    lastMessageAt: v.string(),
+    lastMessagePreview: v.string(),
+    unreadCount1: v.number(), // Unread for participant1
+    unreadCount2: v.number(), // Unread for participant2
+    status: v.union(v.literal('active'), v.literal('archived')),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index('by_school', ['schoolId'])
+    .index('by_conversation_code', ['conversationCode'])
+    .index('by_participant1', ['schoolId', 'participant1Id'])
+    .index('by_participant2', ['schoolId', 'participant2Id'])
+    .index('by_student', ['schoolId', 'studentId'])
+    .index('by_last_message', ['schoolId', 'lastMessageAt']),
 });
