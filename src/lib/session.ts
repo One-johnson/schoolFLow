@@ -1,16 +1,22 @@
-import jwt from 'jsonwebtoken';
-import { cookies } from 'next/headers';
+import jwt from "jsonwebtoken";
+import { cookies } from "next/headers";
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
-const SESSION_COOKIE_NAME = 'schoolflow_session';
+const JWT_SECRET = (() => {
+  const s = process.env.JWT_SECRET;
+  if (!s) {
+    throw new Error("Missing required environment variable: JWT_SECRET");
+  }
+  return s;
+})();
+const SESSION_COOKIE_NAME = "schoolflow_session";
 const SESSION_DURATION = 7 * 24 * 60 * 60; // 7 days in seconds
 
 export interface SessionData {
   userId: string;
   email: string;
-  role: 'super_admin' | 'school_admin';
+  role: "super_admin" | "school_admin";
   schoolId?: string;
-  adminRole?: 'owner' | 'admin' | 'moderator'; // For super admin hierarchy
+  adminRole?: "owner" | "admin" | "moderator"; // For super admin hierarchy
 }
 
 export interface SessionToken {
@@ -21,19 +27,17 @@ export interface SessionToken {
 
 export class SessionManager {
   static async createSession(data: SessionData): Promise<string> {
-    const token = jwt.sign(
-      { data },
-      JWT_SECRET,
-      { expiresIn: SESSION_DURATION }
-    );
+    const token = jwt.sign({ data }, JWT_SECRET, {
+      expiresIn: SESSION_DURATION,
+    });
 
     const cookieStore = await cookies();
     cookieStore.set(SESSION_COOKIE_NAME, token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
       maxAge: SESSION_DURATION,
-      path: '/',
+      path: "/",
     });
 
     return token;
@@ -50,6 +54,7 @@ export class SessionManager {
 
       const decoded = jwt.verify(token, JWT_SECRET) as SessionToken;
       return decoded.data;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       return null;
     }
@@ -68,23 +73,23 @@ export class SessionManager {
   static async requireSession(): Promise<SessionData> {
     const session = await this.getSession();
     if (!session) {
-      throw new Error('Unauthorized');
+      throw new Error("Unauthorized");
     }
     return session;
   }
 
   static async requireSuperAdmin(): Promise<SessionData> {
     const session = await this.requireSession();
-    if (session.role !== 'super_admin') {
-      throw new Error('Forbidden: Super Admin access required');
+    if (session.role !== "super_admin") {
+      throw new Error("Forbidden: Super Admin access required");
     }
     return session;
   }
 
   static async requireSchoolAdmin(): Promise<SessionData> {
     const session = await this.requireSession();
-    if (session.role !== 'school_admin') {
-      throw new Error('Forbidden: School Admin access required');
+    if (session.role !== "school_admin") {
+      throw new Error("Forbidden: School Admin access required");
     }
     return session;
   }

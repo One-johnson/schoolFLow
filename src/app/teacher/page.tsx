@@ -20,8 +20,19 @@ import {
   Award,
   ChevronRight,
   Megaphone,
+  Clock,
 } from 'lucide-react';
 import Link from 'next/link';
+
+type Day = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday';
+const DAYS: Day[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+const DAY_SHORT: Record<Day, string> = {
+  monday: 'Mon',
+  tuesday: 'Tue',
+  wednesday: 'Wed',
+  thursday: 'Thu',
+  friday: 'Fri',
+};
 
 export default function TeacherHomePage() {
   const { teacher } = useTeacherAuth();
@@ -36,6 +47,12 @@ export default function TeacherHomePage() {
 
   const timetables = useQuery(
     api.timetables.getTimetablesByTeacher,
+    teacher ? { schoolId: teacher.schoolId, teacherId: teacher.teacherId } : 'skip'
+  );
+
+  // Fetch teacher's timetable assignments
+  const assignments = useQuery(
+    api.timetableAssignments.getAssignmentsByTeacher,
     teacher ? { schoolId: teacher.schoolId, teacherId: teacher.teacherId } : 'skip'
   );
 
@@ -222,11 +239,11 @@ export default function TeacherHomePage() {
                 {students.slice(0, 8).map((student) => (
                   <div
                     key={student._id}
-                    className="flex flex-col items-center gap-2 min-w-[80px]"
+                    className="flex flex-col items-center gap-2 min-w-20"
                   >
                     <Avatar className="h-12 w-12">
                       <AvatarImage
-                        src={student.photoUrl}
+                        src={student.photoUrl || ""}
                         alt={`${student.firstName} ${student.lastName}`}
                       />
                       <AvatarFallback className="bg-primary/10 text-primary text-sm">
@@ -235,7 +252,7 @@ export default function TeacherHomePage() {
                       </AvatarFallback>
                     </Avatar>
                     <div className="text-center">
-                      <p className="text-xs font-medium truncate max-w-[80px]">
+                      <p className="text-xs font-medium truncate max-w-20">
                         {student.firstName}
                       </p>
                     </div>
@@ -368,46 +385,72 @@ export default function TeacherHomePage() {
         </CardContent>
       </Card>
 
-      {/* Today's Schedule */}
+      {/* Timetable Schedule */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <ClipboardCheck className="h-4 w-4" />
-            Today&apos;s Schedule
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              Timetable Schedule
+            </CardTitle>
+            <Link href="/teacher/timetable">
+              <Button variant="ghost" size="sm" className="gap-1">
+                View Full
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
         </CardHeader>
         <CardContent>
-          {!timetables ? (
+          {!assignments ? (
             <div className="space-y-2">
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
             </div>
-          ) : timetables.length === 0 ? (
+          ) : assignments.length === 0 ? (
             <div className="text-center py-6 text-muted-foreground">
               <Calendar className="h-10 w-10 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No timetable assigned yet</p>
+              <p className="text-sm">No classes assigned yet</p>
             </div>
           ) : (
             <div className="space-y-2">
-              {timetables.slice(0, 4).map((timetable) => (
-                <div
-                  key={timetable._id}
-                  className="p-3 bg-muted/50 rounded-lg flex items-center justify-between"
-                >
-                  <div>
-                    <p className="font-medium text-sm">{timetable.className}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Class ID: {timetable.classId.slice(-6)}
-                    </p>
-                  </div>
-                  <Badge variant="secondary" className="text-xs">
-                    {timetable.status}
-                  </Badge>
+              {/* Group assignments by day and show in grid */}
+              <div className="overflow-x-auto">
+                <div className="grid grid-cols-5 gap-1 min-w-[400px]">
+                  {DAYS.map((day) => (
+                    <div key={day} className="text-center">
+                      <p className="text-xs font-medium text-muted-foreground mb-2">
+                        {DAY_SHORT[day]}
+                      </p>
+                      <div className="space-y-1">
+                        {assignments
+                          .filter((a) => a.day === day)
+                          .sort((a, b) => a.startTime.localeCompare(b.startTime))
+                          .slice(0, 3)
+                          .map((assignment) => (
+                            <div
+                              key={assignment._id}
+                              className="p-2 bg-primary/10 rounded text-xs"
+                            >
+                              <p className="font-medium truncate">{assignment.subjectName}</p>
+                              <p className="text-muted-foreground text-[10px]">
+                                {assignment.startTime} - {assignment.endTime}
+                              </p>
+                            </div>
+                          ))}
+                        {assignments.filter((a) => a.day === day).length === 0 && (
+                          <div className="p-2 bg-muted/30 rounded text-xs text-muted-foreground">
+                            -
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-              {timetables.length > 4 && (
+              </div>
+              {assignments.length > 15 && (
                 <p className="text-xs text-muted-foreground text-center pt-2">
-                  +{timetables.length - 4} more
+                  +{assignments.length - 15} more assignments
                 </p>
               )}
             </div>

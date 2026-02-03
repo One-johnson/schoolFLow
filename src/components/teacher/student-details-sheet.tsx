@@ -22,7 +22,7 @@ import {
   User,
   Phone,
   Mail,
-  Calendar,
+
   MapPin,
   CreditCard,
   Users,
@@ -105,10 +105,12 @@ export function StudentDetailsSheet({
             <SheetHeader className="pb-4">
               <div className="flex items-center gap-4">
                 <Avatar className="h-16 w-16">
-                  <AvatarImage
-                    src={student.photoUrl}
-                    alt={`${student.firstName} ${student.lastName}`}
-                  />
+                  {student.photoUrl && (
+                    <AvatarImage
+                      src={student.photoUrl}
+                      alt={`${student.firstName} ${student.lastName}`}
+                    />
+                  )}
                   <AvatarFallback className="text-lg bg-primary/10 text-primary">
                     {student.firstName[0]}
                     {student.lastName[0]}
@@ -255,7 +257,7 @@ export function StudentDetailsSheet({
                     <span className="text-muted-foreground">Email</span>
                     <a
                       href={`mailto:${student.parentEmail}`}
-                      className="text-primary hover:underline truncate max-w-[180px]"
+                      className="text-primary hover:underline truncate max-w-45"
                     >
                       {student.parentEmail}
                     </a>

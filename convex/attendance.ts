@@ -1061,11 +1061,19 @@ export const sendAttendanceReminders = internalMutation({
     let notificationsSent = 0;
 
     for (const teacher of teachers) {
+      // Get classes assigned to this teacher
+      const assignedClasses = await ctx.db
+        .query('classes')
+        .withIndex('by_school', (q) => q.eq('schoolId', teacher.schoolId))
+        .filter((q) => q.eq(q.field('classTeacherId'), teacher._id))
+        .collect();
+
       // Skip teachers without assigned classes
-      if (!teacher.classIds || teacher.classIds.length === 0) continue;
+      if (assignedClasses.length === 0) continue;
 
       // Check each class the teacher is assigned to
-      for (const classId of teacher.classIds) {
+      for (const classDoc of assignedClasses) {
+        const classId = classDoc._id;
         // Check if attendance already exists for today
         const existingAttendance = await ctx.db
           .query('attendance')

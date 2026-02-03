@@ -40,6 +40,17 @@ export const getClassById = query({
   },
 });
 
+// Query: Get multiple classes by IDs
+export const getClassesByIds = query({
+  args: { classIds: v.array(v.string()) },
+  handler: async (ctx, args) => {
+    const classes = await Promise.all(
+      args.classIds.map((id) => ctx.db.get(id as Id<'classes'>))
+    );
+    return classes.filter((c): c is NonNullable<typeof c> => c !== null);
+  },
+});
+
 // Query: Get class statistics for a school
 export const getClassStats = query({
   args: { schoolId: v.string() },

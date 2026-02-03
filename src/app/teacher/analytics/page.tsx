@@ -270,7 +270,7 @@ export default function AnalyticsPage() {
                         outerRadius={80}
                         paddingAngle={2}
                         dataKey="value"
-                        label={({ name, value }) => `${value}`}
+                        label={({  value }) => `${value}`}
                         labelLine={false}
                       >
                         {[
