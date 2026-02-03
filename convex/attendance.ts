@@ -1,5 +1,5 @@
 import { v } from 'convex/values';
-import { mutation, query } from './_generated/server';
+import { mutation, query, internalMutation } from './_generated/server';
 import type { MutationCtx } from './_generated/server';
 import type { Id } from './_generated/dataModel';
 
@@ -717,6 +717,265 @@ export const getAttendanceSettings = query({
   },
 });
 
+// Get class attendance statistics (for teacher dashboard)
+export const getClassAttendanceStats = query({
+  args: {
+    schoolId: v.string(),
+    classId: v.string(),
+    days: v.optional(v.number()), // Last N days, default 30
+  },
+  handler: async (ctx, args) => {
+    const daysToFetch = args.days || 30;
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - daysToFetch);
+
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
+
+    // Get attendance records for this class in date range
+    const attendance = await ctx.db
+      .query('attendance')
+      .withIndex('by_class', (q) => q.eq('schoolId', args.schoolId).eq('classId', args.classId))
+      .collect();
+
+    const filteredAttendance = attendance.filter(
+      (a) => a.date >= startDateStr && a.date <= endDateStr
+    );
+
+    // Calculate totals
+    const totalSessions = filteredAttendance.length;
+    const totalPresent = filteredAttendance.reduce((sum, a) => sum + a.presentCount, 0);
+    const totalAbsent = filteredAttendance.reduce((sum, a) => sum + a.absentCount, 0);
+    const totalLate = filteredAttendance.reduce((sum, a) => sum + a.lateCount, 0);
+    const totalExcused = filteredAttendance.reduce((sum, a) => sum + a.excusedCount, 0);
+    const totalMarked = totalPresent + totalAbsent + totalLate + totalExcused;
+
+    const attendanceRate = totalMarked > 0
+      ? Math.round(((totalPresent + totalLate + totalExcused) / totalMarked) * 100)
+      : 0;
+
+    // Get daily breakdown for chart
+    const dailyData = filteredAttendance.map((a) => ({
+      date: a.date,
+      present: a.presentCount,
+      absent: a.absentCount,
+      late: a.lateCount,
+      excused: a.excusedCount,
+      total: a.totalStudents,
+      rate: a.totalStudents > 0
+        ? Math.round(((a.presentCount + a.lateCount + a.excusedCount) / a.totalStudents) * 100)
+        : 0,
+    })).sort((a, b) => a.date.localeCompare(b.date));
+
+    return {
+      totalSessions,
+      totalPresent,
+      totalAbsent,
+      totalLate,
+      totalExcused,
+      totalMarked,
+      attendanceRate,
+      dailyData,
+    };
+  },
+});
+
+// Get students with low attendance (at risk)
+export const getStudentsAtRisk = query({
+  args: {
+    schoolId: v.string(),
+    classId: v.string(),
+    threshold: v.optional(v.number()), // Attendance rate threshold, default 80%
+  },
+  handler: async (ctx, args) => {
+    const rateThreshold = args.threshold || 80;
+
+    // Get all attendance records for this class
+    const records = await ctx.db
+      .query('attendanceRecords')
+      .withIndex('by_class', (q) => q.eq('schoolId', args.schoolId).eq('classId', args.classId))
+      .collect();
+
+    // Group by student
+    const studentStats = new Map<string, { name: string; present: number; absent: number; late: number; excused: number; total: number }>();
+
+    for (const record of records) {
+      const existing = studentStats.get(record.studentId) || {
+        name: record.studentName,
+        present: 0,
+        absent: 0,
+        late: 0,
+        excused: 0,
+        total: 0,
+      };
+
+      existing.total++;
+      if (record.status === 'present') existing.present++;
+      else if (record.status === 'absent') existing.absent++;
+      else if (record.status === 'late') existing.late++;
+      else if (record.status === 'excused') existing.excused++;
+
+      studentStats.set(record.studentId, existing);
+    }
+
+    // Calculate rates and filter at-risk students
+    const atRiskStudents = [];
+    for (const [studentId, stats] of studentStats.entries()) {
+      const rate = stats.total > 0
+        ? Math.round(((stats.present + stats.late + stats.excused) / stats.total) * 100)
+        : 100;
+
+      if (rate < rateThreshold) {
+        atRiskStudents.push({
+          studentId,
+          studentName: stats.name,
+          attendanceRate: rate,
+          totalDays: stats.total,
+          present: stats.present,
+          absent: stats.absent,
+          late: stats.late,
+          excused: stats.excused,
+        });
+      }
+    }
+
+    return atRiskStudents.sort((a, b) => a.attendanceRate - b.attendanceRate);
+  },
+});
+
+// Get attendance history for a class
+export const getClassAttendanceHistory = query({
+  args: {
+    schoolId: v.string(),
+    classId: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const attendance = await ctx.db
+      .query('attendance')
+      .withIndex('by_class', (q) => q.eq('schoolId', args.schoolId).eq('classId', args.classId))
+      .order('desc')
+      .collect();
+
+    const limited = args.limit ? attendance.slice(0, args.limit) : attendance;
+
+    return limited;
+  },
+});
+
+// Check if attendance already exists for a date/class/session
+export const checkAttendanceExists = query({
+  args: {
+    schoolId: v.string(),
+    classId: v.string(),
+    date: v.string(),
+    session: v.union(v.literal('morning'), v.literal('afternoon'), v.literal('full_day')),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query('attendance')
+      .withIndex('by_class', (q) => q.eq('schoolId', args.schoolId).eq('classId', args.classId))
+      .filter((q) => q.eq(q.field('date'), args.date))
+      .filter((q) => q.eq(q.field('session'), args.session))
+      .first();
+
+    return existing;
+  },
+});
+
+// Get attendance records for editing
+export const getAttendanceForEdit = query({
+  args: {
+    attendanceId: v.id('attendance'),
+  },
+  handler: async (ctx, args) => {
+    const attendance = await ctx.db.get(args.attendanceId);
+    if (!attendance) return null;
+
+    const records = await ctx.db
+      .query('attendanceRecords')
+      .withIndex('by_attendance', (q) => q.eq('attendanceId', args.attendanceId))
+      .collect();
+
+    return {
+      attendance,
+      records,
+    };
+  },
+});
+
+// Update entire attendance session (edit mode)
+export const updateAttendanceSession = mutation({
+  args: {
+    attendanceId: v.id('attendance'),
+    updates: v.array(v.object({
+      studentId: v.string(),
+      status: v.union(v.literal('present'), v.literal('absent'), v.literal('late'), v.literal('excused')),
+    })),
+    updatedBy: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const attendance = await ctx.db.get(args.attendanceId);
+    if (!attendance) throw new Error('Attendance session not found');
+
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.updatedBy);
+    if (callerSchoolId !== attendance.schoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+
+    const now = new Date().toISOString();
+
+    // Update each student's record
+    for (const update of args.updates) {
+      const existingRecord = await ctx.db
+        .query('attendanceRecords')
+        .withIndex('by_attendance', (q) => q.eq('attendanceId', args.attendanceId))
+        .filter((q) => q.eq(q.field('studentId'), update.studentId))
+        .first();
+
+      if (existingRecord) {
+        await ctx.db.patch(existingRecord._id, {
+          status: update.status,
+          updatedAt: now,
+        });
+      }
+    }
+
+    // Recalculate counts
+    const allRecords = await ctx.db
+      .query('attendanceRecords')
+      .withIndex('by_attendance', (q) => q.eq('attendanceId', args.attendanceId))
+      .collect();
+
+    // Apply updates to calculate new counts
+    const updatesMap = new Map(args.updates.map(u => [u.studentId, u.status]));
+
+    let presentCount = 0;
+    let absentCount = 0;
+    let lateCount = 0;
+    let excusedCount = 0;
+
+    for (const record of allRecords) {
+      const status = updatesMap.get(record.studentId) || record.status;
+      if (status === 'present') presentCount++;
+      else if (status === 'absent') absentCount++;
+      else if (status === 'late') lateCount++;
+      else if (status === 'excused') excusedCount++;
+    }
+
+    await ctx.db.patch(args.attendanceId, {
+      presentCount,
+      absentCount,
+      lateCount,
+      excusedCount,
+      updatedAt: now,
+    });
+
+    return { success: true };
+  },
+});
+
 // Save attendance settings
 export const saveAttendanceSettings = mutation({
   args: {
@@ -781,5 +1040,71 @@ export const saveAttendanceSettings = mutation({
       createdAt: now,
       updatedAt: now,
     });
+  },
+});
+
+// ========== INTERNAL FUNCTIONS ==========
+
+// Send attendance reminder notifications to teachers who haven't marked attendance
+export const sendAttendanceReminders = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const today = new Date().toISOString().split('T')[0];
+    const now = new Date().toISOString();
+
+    // Get all active teachers with assigned classes
+    const teachers = await ctx.db
+      .query('teachers')
+      .filter((q) => q.eq(q.field('status'), 'active'))
+      .collect();
+
+    let notificationsSent = 0;
+
+    for (const teacher of teachers) {
+      // Skip teachers without assigned classes
+      if (!teacher.classIds || teacher.classIds.length === 0) continue;
+
+      // Check each class the teacher is assigned to
+      for (const classId of teacher.classIds) {
+        // Check if attendance already exists for today
+        const existingAttendance = await ctx.db
+          .query('attendance')
+          .withIndex('by_class', (q) => q.eq('schoolId', teacher.schoolId).eq('classId', classId))
+          .filter((q) => q.eq(q.field('date'), today))
+          .first();
+
+        // If no attendance marked, send reminder
+        if (!existingAttendance) {
+          // Check if we already sent a reminder today
+          const existingNotification = await ctx.db
+            .query('notifications')
+            .filter((q) => q.eq(q.field('recipientId'), teacher._id))
+            .filter((q) => q.gte(q.field('timestamp'), today))
+            .filter((q) => q.eq(q.field('title'), 'Attendance Reminder'))
+            .first();
+
+          if (!existingNotification) {
+            // Get class name
+            const classDoc = await ctx.db.get(classId as Id<'classes'>);
+            const className = classDoc?.className || 'your class';
+
+            await ctx.db.insert('notifications', {
+              title: 'Attendance Reminder',
+              message: `Don't forget to mark attendance for ${className} today.`,
+              type: 'warning',
+              timestamp: now,
+              read: false,
+              recipientId: teacher._id,
+              recipientRole: 'teacher',
+              actionUrl: '/teacher/attendance',
+            });
+
+            notificationsSent++;
+          }
+        }
+      }
+    }
+
+    return { notificationsSent, date: today };
   },
 });

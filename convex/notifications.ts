@@ -103,9 +103,81 @@ export const getNotificationsByTeacher = query({
   handler: async (ctx, args) => {
     const notifications = await ctx.db
       .query('notifications')
+      .order('desc')
       .collect();
     return notifications.filter(
       (n) => n.recipientId === args.teacherId || n.recipientRole === 'teacher'
     );
+  },
+});
+
+// Get unread notification count for a teacher
+export const getTeacherUnreadCount = query({
+  args: { teacherId: v.string() },
+  handler: async (ctx, args) => {
+    const notifications = await ctx.db
+      .query('notifications')
+      .filter((q) => q.eq(q.field('read'), false))
+      .collect();
+
+    const teacherNotifications = notifications.filter(
+      (n) => n.recipientId === args.teacherId || n.recipientRole === 'teacher'
+    );
+
+    return teacherNotifications.length;
+  },
+});
+
+// Create notification for teacher
+export const createTeacherNotification = mutation({
+  args: {
+    teacherId: v.string(),
+    schoolId: v.string(),
+    title: v.string(),
+    message: v.string(),
+    type: v.union(v.literal('info'), v.literal('warning'), v.literal('success'), v.literal('error')),
+    actionUrl: v.optional(v.string()),
+    category: v.optional(v.union(
+      v.literal('attendance'),
+      v.literal('grades'),
+      v.literal('message'),
+      v.literal('event'),
+      v.literal('announcement'),
+      v.literal('system')
+    )),
+  },
+  handler: async (ctx, args) => {
+    const id = await ctx.db.insert('notifications', {
+      title: args.title,
+      message: args.message,
+      type: args.type,
+      timestamp: new Date().toISOString(),
+      read: false,
+      recipientId: args.teacherId,
+      recipientRole: 'teacher',
+      actionUrl: args.actionUrl,
+    });
+    return id;
+  },
+});
+
+// Mark all teacher notifications as read
+export const markAllTeacherNotificationsAsRead = mutation({
+  args: { teacherId: v.string() },
+  handler: async (ctx, args) => {
+    const notifications = await ctx.db
+      .query('notifications')
+      .filter((q) => q.eq(q.field('read'), false))
+      .collect();
+
+    const teacherNotifications = notifications.filter(
+      (n) => n.recipientId === args.teacherId || n.recipientRole === 'teacher'
+    );
+
+    for (const notification of teacherNotifications) {
+      await ctx.db.patch(notification._id, { read: true });
+    }
+
+    return teacherNotifications.length;
   },
 });

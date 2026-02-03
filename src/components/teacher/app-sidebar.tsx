@@ -22,6 +22,10 @@ import {
   LogOut,
   GraduationCap,
   Bell,
+  MessageSquare,
+  BarChart3,
+  Calendar,
+  Download,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -39,42 +43,24 @@ import { useState } from 'react';
 import { useTeacherAuth } from '@/hooks/useTeacherAuth';
 import { toast } from 'sonner';
 
-const menuItems = [
-  {
-    title: 'Dashboard',
-    icon: Home,
-    url: '/teacher',
-  },
-  {
-    title: 'Students',
-    icon: Users,
-    url: '/teacher/students',
-  },
-  {
-    title: 'Attendance',
-    icon: ClipboardCheck,
-    url: '/teacher/attendance',
-  },
-  {
-    title: 'Exams',
-    icon: BookOpen,
-    url: '/teacher/exams',
-  },
-  {
-    title: 'Reports',
-    icon: FileText,
-    url: '/teacher/reports',
-  },
-  {
-    title: 'Notifications',
-    icon: Bell,
-    url: '/teacher/notifications',
-  },
-  {
-    title: 'Profile',
-    icon: User,
-    url: '/teacher/profile',
-  },
+const mainMenuItems = [
+  { title: 'Dashboard', icon: Home, url: '/teacher' },
+  { title: 'Students', icon: Users, url: '/teacher/students' },
+  { title: 'Attendance', icon: ClipboardCheck, url: '/teacher/attendance' },
+  { title: 'Grade Book', icon: BookOpen, url: '/teacher/gradebook' },
+  { title: 'Messages', icon: MessageSquare, url: '/teacher/messages' },
+];
+
+const toolsMenuItems = [
+  { title: 'Analytics', icon: BarChart3, url: '/teacher/analytics' },
+  { title: 'Calendar', icon: Calendar, url: '/teacher/calendar' },
+  { title: 'Reports', icon: FileText, url: '/teacher/reports' },
+  { title: 'Export', icon: Download, url: '/teacher/export' },
+];
+
+const settingsMenuItems = [
+  { title: 'Notifications', icon: Bell, url: '/teacher/notifications' },
+  { title: 'Profile', icon: User, url: '/teacher/profile' },
 ];
 
 export function TeacherAppSidebar() {
@@ -105,14 +91,56 @@ export function TeacherAppSidebar() {
         </SidebarHeader>
         <SidebarContent>
           <SidebarGroup>
-            <SidebarGroupLabel>Menu</SidebarGroupLabel>
+            <SidebarGroupLabel>Main</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {menuItems.map((item) => (
+                {mainMenuItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
                       asChild
                       isActive={pathname === item.url || (item.url !== '/teacher' && pathname.startsWith(item.url))}
+                    >
+                      <Link href={item.url}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+
+          <SidebarGroup>
+            <SidebarGroupLabel>Tools</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {toolsMenuItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname === item.url || pathname.startsWith(item.url)}
+                    >
+                      <Link href={item.url}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+
+          <SidebarGroup>
+            <SidebarGroupLabel>Settings</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {settingsMenuItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname === item.url || pathname.startsWith(item.url)}
                     >
                       <Link href={item.url}>
                         <item.icon className="h-4 w-4" />
