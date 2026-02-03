@@ -101,7 +101,7 @@ export const listActive = query({
     userRole: v.optional(v.union(v.literal('super_admin'), v.literal('school_admin'))),
   },
   handler: async (ctx, args) => {
-    let query = ctx.db.query('sessions');
+    const query = ctx.db.query('sessions');
 
     const results = await query.collect();
 

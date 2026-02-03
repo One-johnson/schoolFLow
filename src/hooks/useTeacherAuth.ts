@@ -1,7 +1,9 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+
+const TOKEN_KEY = "schoolflow_teacher_token";
 
 export interface Teacher {
   id: string;
@@ -12,7 +14,7 @@ export interface Teacher {
   classIds: string[];
   classNames: string[];
   photoUrl?: string;
-  role: 'teacher';
+  role: "teacher";
 }
 
 interface TeacherAuthState {
@@ -34,6 +36,24 @@ interface ChangePasswordResult {
   error?: string;
 }
 
+// Helper to get token from localStorage (client-side only)
+function getStoredToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+// Helper to store token in localStorage
+function storeToken(token: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+// Helper to remove token from localStorage
+function removeToken(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(TOKEN_KEY);
+}
+
 export function useTeacherAuth() {
   const [state, setState] = useState<TeacherAuthState>({
     teacher: null,
@@ -44,7 +64,34 @@ export function useTeacherAuth() {
 
   const checkAuth = useCallback(async () => {
     try {
-      const response = await fetch('/api/teacher-auth/session');
+      const token = getStoredToken();
+
+      if (!token) {
+        setState({
+          teacher: null,
+          loading: false,
+          authenticated: false,
+        });
+        return;
+      }
+
+      const response = await fetch("/api/teacher-auth/session", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        // Token is invalid or expired
+        removeToken();
+        setState({
+          teacher: null,
+          loading: false,
+          authenticated: false,
+        });
+        return;
+      }
+
       const data = await response.json();
 
       if (data.authenticated && data.teacher) {
@@ -54,6 +101,8 @@ export function useTeacherAuth() {
           authenticated: true,
         });
       } else {
+        // Token is invalid, remove it
+        removeToken();
         setState({
           teacher: null,
           loading: false,
@@ -61,7 +110,8 @@ export function useTeacherAuth() {
         });
       }
     } catch (error) {
-      console.error('Auth check failed:', error);
+      console.error("Auth check failed:", error);
+      removeToken();
       setState({
         teacher: null,
         loading: false,
@@ -75,17 +125,23 @@ export function useTeacherAuth() {
     checkAuth();
   }, [checkAuth]);
 
-  const login = async (email: string, password: string): Promise<LoginResult> => {
+  const login = async (
+    email: string,
+    password: string,
+  ): Promise<LoginResult> => {
     try {
-      const response = await fetch('/api/teacher-auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/teacher-auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
 
       const data = await response.json();
 
-      if (data.success && data.teacher) {
+      if (data.success && data.teacher && data.token) {
+        // Store token in localStorage
+        storeToken(data.token);
+
         setState({
           teacher: {
             id: data.teacher.id,
@@ -96,7 +152,7 @@ export function useTeacherAuth() {
             classIds: data.teacher.classIds,
             classNames: data.teacher.classNames || [],
             photoUrl: data.teacher.photoUrl,
-            role: 'teacher',
+            role: "teacher",
           },
           loading: false,
           authenticated: true,
@@ -110,36 +166,47 @@ export function useTeacherAuth() {
         redirectTo: data.redirectTo,
       };
     } catch (error) {
-      console.error('Login failed:', error);
+      console.error("Login failed:", error);
       return {
         success: false,
-        message: 'Login failed. Please try again.',
+        message: "Login failed. Please try again.",
       };
     }
   };
 
   const logout = async () => {
     try {
-      await fetch('/api/teacher-auth/logout', { method: 'POST' });
+      // Remove token from localStorage
+      removeToken();
+
       setState({
         teacher: null,
         loading: false,
         authenticated: false,
       });
-      router.push('/teacher/login');
+      router.push("/teacher/login");
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error("Logout failed:", error);
     }
   };
 
   const changePassword = async (
     currentPassword: string,
-    newPassword: string
+    newPassword: string,
   ): Promise<ChangePasswordResult> => {
     try {
-      const response = await fetch('/api/teacher-auth/change-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const token = getStoredToken();
+
+      if (!token) {
+        return { success: false, error: "Not authenticated" };
+      }
+
+      const response = await fetch("/api/teacher-auth/change-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ currentPassword, newPassword }),
       });
 
@@ -151,10 +218,16 @@ export function useTeacherAuth() {
         return { success: false, error: data.error };
       }
     } catch (error) {
-      console.error('Password change failed:', error);
-      return { success: false, error: 'Failed to change password. Please try again.' };
+      console.error("Password change failed:", error);
+      return {
+        success: false,
+        error: "Failed to change password. Please try again.",
+      };
     }
   };
+
+  // Export getToken for components that need to make authenticated requests
+  const getToken = useCallback(() => getStoredToken(), []);
 
   return {
     ...state,
@@ -162,5 +235,6 @@ export function useTeacherAuth() {
     logout,
     changePassword,
     checkAuth,
+    getToken,
   };
 }

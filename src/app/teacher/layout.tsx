@@ -15,9 +15,14 @@ import { ConvexProvider, ConvexReactClient } from 'convex/react';
 const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
 function TeacherLayoutContent({ children }: { children: React.ReactNode }) {
-  const { teacher, loading, authenticated } = useTeacherAuth();
+  const { teacher, loading, authenticated, checkAuth } = useTeacherAuth();
   const router = useRouter();
   const pathname = usePathname();
+
+  // Re-check auth when pathname changes (e.g., after login redirect)
+  useEffect(() => {
+    checkAuth();
+  }, [pathname, checkAuth]);
 
   useEffect(() => {
     // Don't redirect if still loading

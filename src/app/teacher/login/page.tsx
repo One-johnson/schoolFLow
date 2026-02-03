@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,6 +12,7 @@ import { useTeacherAuth } from '@/hooks/useTeacherAuth';
 
 export default function TeacherLoginPage(): React.JSX.Element {
   const { login } = useTeacherAuth();
+  const router = useRouter();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -33,8 +35,7 @@ export default function TeacherLoginPage(): React.JSX.Element {
 
       if (result.success) {
         toast.success('Login successful!');
-        // Use window.location.href for full page reload to ensure cookie is included
-        window.location.href = result.redirectTo || '/teacher';
+        router.push(result.redirectTo || '/teacher');
       } else {
         toast.error(result.message || 'Invalid credentials');
       }
