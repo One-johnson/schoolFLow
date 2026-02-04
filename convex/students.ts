@@ -1,7 +1,7 @@
-import { v } from 'convex/values';
-import { mutation, query } from './_generated/server';
-import type { MutationCtx } from './_generated/server';
-import type { Id } from './_generated/dataModel';
+import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
+import type { MutationCtx } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 
 // Generate student ID: initials + 6 random digits
 function generateStudentId(firstName: string, lastName: string): string {
@@ -12,25 +12,28 @@ function generateStudentId(firstName: string, lastName: string): string {
 }
 
 // Generate admission number: ADM + year + sequence
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function generateAdmissionNumber(ctx: any, schoolId: string): Promise<string> {
+async function generateAdmissionNumber(
+  ctx: MutationCtx,
+  schoolId: string,
+): Promise<string> {
   const year = new Date().getFullYear();
   const students = await ctx.db
-    .query('students')
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .withIndex('by_school', (q: any) => q.eq('schoolId', schoolId))
+    .query("students")
+    .withIndex("by_school", (q) => q.eq("schoolId", schoolId))
     .collect();
 
-  
   const sequence = students.length + 1;
-  return `ADM${year}${sequence.toString().padStart(3, '0')}`;
+  return `ADM${year}${sequence.toString().padStart(3, "0")}`;
 }
 
 // Verify the caller is a school admin and return their schoolId
-async function getVerifiedSchoolId(ctx: MutationCtx, adminId: string): Promise<string> {
-  const admin = await ctx.db.get(adminId as Id<'schoolAdmins'>);
+async function getVerifiedSchoolId(
+  ctx: MutationCtx,
+  adminId: string,
+): Promise<string> {
+  const admin = await ctx.db.get(adminId as Id<"schoolAdmins">);
   if (!admin) {
-    throw new Error('Unauthorized: Admin not found');
+    throw new Error("Unauthorized: Admin not found");
   }
   return admin.schoolId;
 }
@@ -40,8 +43,8 @@ export const getStudentsBySchool = query({
   args: { schoolId: v.string() },
   handler: async (ctx, args) => {
     const students = await ctx.db
-      .query('students')
-      .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))
+      .query("students")
+      .withIndex("by_school", (q) => q.eq("schoolId", args.schoolId))
       .collect();
 
     return students;
@@ -50,7 +53,7 @@ export const getStudentsBySchool = query({
 
 // Query: Get student by ID
 export const getStudentById = query({
-  args: { studentId: v.id('students') },
+  args: { studentId: v.id("students") },
   handler: async (ctx, args) => {
     const student = await ctx.db.get(args.studentId);
     if (!student) return null;
@@ -58,7 +61,9 @@ export const getStudentById = query({
     // Fetch photo URL if storage ID exists
     let photoUrl: string | null = null;
     if (student.photoStorageId) {
-      photoUrl = await ctx.storage.getUrl(student.photoStorageId as Id<'_storage'>);
+      photoUrl = await ctx.storage.getUrl(
+        student.photoStorageId as Id<"_storage">,
+      );
     }
 
     return {
@@ -68,14 +73,12 @@ export const getStudentById = query({
   },
 });
 
-
-
 export const getStudentByStudentId = query({
   args: { studentId: v.string() },
   handler: async (ctx, args) => {
     const student = await ctx.db
-      .query('students')
-      .withIndex('by_student_id', (q) => q.eq('studentId', args.studentId))
+      .query("students")
+      .withIndex("by_student_id", (q) => q.eq("studentId", args.studentId))
       .first();
     return student;
   },
@@ -86,8 +89,8 @@ export const getStudentsByClass = query({
   args: { classId: v.string() },
   handler: async (ctx, args) => {
     const students = await ctx.db
-      .query('students')
-      .withIndex('by_class', (q) => q.eq('classId', args.classId))
+      .query("students")
+      .withIndex("by_class", (q) => q.eq("classId", args.classId))
       .collect();
 
     return students;
@@ -96,15 +99,20 @@ export const getStudentsByClass = query({
 
 // Query: Get students by department
 export const getStudentsByDepartment = query({
-  args: { 
+  args: {
     schoolId: v.string(),
-    department: v.union(v.literal('creche'), v.literal('kindergarten'), v.literal('primary'), v.literal('junior_high'))
+    department: v.union(
+      v.literal("creche"),
+      v.literal("kindergarten"),
+      v.literal("primary"),
+      v.literal("junior_high"),
+    ),
   },
   handler: async (ctx, args) => {
     const students = await ctx.db
-      .query('students')
-      .withIndex('by_department', (q) => q.eq('department', args.department))
-      .filter((q) => q.eq(q.field('schoolId'), args.schoolId))
+      .query("students")
+      .withIndex("by_department", (q) => q.eq("department", args.department))
+      .filter((q) => q.eq(q.field("schoolId"), args.schoolId))
       .collect();
 
     return students;
@@ -116,27 +124,48 @@ export const getStudentStats = query({
   args: { schoolId: v.string() },
   handler: async (ctx, args) => {
     const students = await ctx.db
-      .query('students')
-      .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))
+      .query("students")
+      .withIndex("by_school", (q) => q.eq("schoolId", args.schoolId))
       .collect();
 
-    const activeStudents = students.filter((s) => s.status === 'active').length;
-    const inactiveStudents = students.filter((s) => s.status === 'inactive').length;
-    const fresherStudents = students.filter((s) => s.status === 'fresher').length;
-    const continuingStudents = students.filter((s) => s.status === 'continuing').length;
-    const transferredStudents = students.filter((s) => s.status === 'transferred').length;
-    const graduatedStudents = students.filter((s) => s.status === 'graduated').length;
+    const activeStudents = students.filter((s) => s.status === "active").length;
+    const inactiveStudents = students.filter(
+      (s) => s.status === "inactive",
+    ).length;
+    const fresherStudents = students.filter(
+      (s) => s.status === "fresher",
+    ).length;
+    const continuingStudents = students.filter(
+      (s) => s.status === "continuing",
+    ).length;
+    const transferredStudents = students.filter(
+      (s) => s.status === "transferred",
+    ).length;
+    const graduatedStudents = students.filter(
+      (s) => s.status === "graduated",
+    ).length;
 
-    const crecheStudents = students.filter((s) => s.department === 'creche').length;
-    const kindergartenStudents = students.filter((s) => s.department === 'kindergarten').length;
-    const primaryStudents = students.filter((s) => s.department === 'primary').length;
-    const juniorHighStudents = students.filter((s) => s.department === 'junior_high').length;
+    const crecheStudents = students.filter(
+      (s) => s.department === "creche",
+    ).length;
+    const kindergartenStudents = students.filter(
+      (s) => s.department === "kindergarten",
+    ).length;
+    const primaryStudents = students.filter(
+      (s) => s.department === "primary",
+    ).length;
+    const juniorHighStudents = students.filter(
+      (s) => s.department === "junior_high",
+    ).length;
 
     // Count by class
-    const classCounts = students.reduce((acc: Record<string, number>, student) => {
-      acc[student.className] = (acc[student.className] || 0) + 1;
-      return acc;
-    }, {});
+    const classCounts = students.reduce(
+      (acc: Record<string, number>, student) => {
+        acc[student.className] = (acc[student.className] || 0) + 1;
+        return acc;
+      },
+      {},
+    );
 
     return {
       total: students.length,
@@ -165,8 +194,8 @@ export const searchStudents = query({
   },
   handler: async (ctx, args) => {
     const students = await ctx.db
-      .query('students')
-      .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))
+      .query("students")
+      .withIndex("by_school", (q) => q.eq("schoolId", args.schoolId))
       .collect();
 
     const searchLower = args.searchTerm.toLowerCase();
@@ -174,11 +203,12 @@ export const searchStudents = query({
       (student) =>
         student.firstName.toLowerCase().includes(searchLower) ||
         student.lastName.toLowerCase().includes(searchLower) ||
-        (student.middleName && student.middleName.toLowerCase().includes(searchLower)) ||
+        (student.middleName &&
+          student.middleName.toLowerCase().includes(searchLower)) ||
         student.studentId.toLowerCase().includes(searchLower) ||
         student.admissionNumber.toLowerCase().includes(searchLower) ||
         (student.email && student.email.toLowerCase().includes(searchLower)) ||
-        student.parentEmail.toLowerCase().includes(searchLower)
+        student.parentEmail.toLowerCase().includes(searchLower),
     );
   },
 });
@@ -191,7 +221,7 @@ export const addStudent = mutation({
     lastName: v.string(),
     middleName: v.optional(v.string()),
     dateOfBirth: v.string(),
-    gender: v.union(v.literal('male'), v.literal('female'), v.literal('other')),
+    gender: v.union(v.literal("male"), v.literal("female"), v.literal("other")),
     nationality: v.optional(v.string()),
     religion: v.optional(v.string()),
     email: v.optional(v.string()),
@@ -199,14 +229,23 @@ export const addStudent = mutation({
     address: v.string(),
     classId: v.string(),
     className: v.string(),
-    department: v.union(v.literal('creche'), v.literal('kindergarten'), v.literal('primary'), v.literal('junior_high')),
+    department: v.union(
+      v.literal("creche"),
+      v.literal("kindergarten"),
+      v.literal("primary"),
+      v.literal("junior_high"),
+    ),
     rollNumber: v.optional(v.string()),
     admissionDate: v.string(),
     parentName: v.string(),
     parentEmail: v.string(),
     parentPhone: v.string(),
     parentOccupation: v.optional(v.string()),
-    relationship: v.union(v.literal('father'), v.literal('mother'), v.literal('guardian')),
+    relationship: v.union(
+      v.literal("father"),
+      v.literal("mother"),
+      v.literal("guardian"),
+    ),
     secondaryContactName: v.optional(v.string()),
     secondaryContactPhone: v.optional(v.string()),
     secondaryContactRelationship: v.optional(v.string()),
@@ -217,47 +256,51 @@ export const addStudent = mutation({
     allergies: v.optional(v.array(v.string())),
     photoStorageId: v.optional(v.string()),
     birthCertificateStorageId: v.optional(v.string()),
-    status: v.optional(v.union(
-      v.literal('active'),
-      v.literal('inactive'),
-      v.literal('fresher'),
-      v.literal('continuing'),
-      v.literal('transferred'),
-      v.literal('graduated')
-    )),
+    status: v.optional(
+      v.union(
+        v.literal("active"),
+        v.literal("inactive"),
+        v.literal("fresher"),
+        v.literal("continuing"),
+        v.literal("transferred"),
+        v.literal("graduated"),
+      ),
+    ),
     createdBy: v.string(),
   },
   handler: async (ctx, args) => {
     const callerSchoolId = await getVerifiedSchoolId(ctx, args.createdBy);
     if (callerSchoolId !== args.schoolId) {
-      throw new Error('Unauthorized: You do not have access to this school');
+      throw new Error("Unauthorized: You do not have access to this school");
     }
 
     // Check if email already exists (if provided)
     if (args.email) {
       const existingStudent = await ctx.db
-        .query('students')
-        .withIndex('by_email', (q) => q.eq('email', args.email))
-        .filter((q) => q.eq(q.field('schoolId'), args.schoolId))
+        .query("students")
+        .withIndex("by_email", (q) => q.eq("email", args.email))
+        .filter((q) => q.eq(q.field("schoolId"), args.schoolId))
         .first();
 
       if (existingStudent) {
-        throw new Error('A student with this email already exists in your school');
+        throw new Error(
+          "A student with this email already exists in your school",
+        );
       }
     }
 
     // Generate unique student ID
     let studentId = generateStudentId(args.firstName, args.lastName);
     let existingId = await ctx.db
-      .query('students')
-      .withIndex('by_student_id', (q) => q.eq('studentId', studentId))
+      .query("students")
+      .withIndex("by_student_id", (q) => q.eq("studentId", studentId))
       .first();
 
     while (existingId) {
       studentId = generateStudentId(args.firstName, args.lastName);
       existingId = await ctx.db
-        .query('students')
-        .withIndex('by_student_id', (q) => q.eq('studentId', studentId))
+        .query("students")
+        .withIndex("by_student_id", (q) => q.eq("studentId", studentId))
         .first();
     }
 
@@ -266,7 +309,7 @@ export const addStudent = mutation({
 
     const now = new Date().toISOString();
 
-    const studentDbId = await ctx.db.insert('students', {
+    const studentDbId = await ctx.db.insert("students", {
       schoolId: args.schoolId,
       studentId,
       admissionNumber,
@@ -301,7 +344,7 @@ export const addStudent = mutation({
       allergies: args.allergies || [],
       photoStorageId: args.photoStorageId,
       birthCertificateStorageId: args.birthCertificateStorageId,
-      status: args.status || 'fresher',
+      status: args.status || "fresher",
       createdAt: now,
       updatedAt: now,
       createdBy: args.createdBy,
@@ -309,8 +352,8 @@ export const addStudent = mutation({
 
     // Update class student count
     const classData = await ctx.db
-      .query('classes')
-      .withIndex('by_class_code', (q) => q.eq('classCode', args.classId))
+      .query("classes")
+      .withIndex("by_class_code", (q) => q.eq("classCode", args.classId))
       .first();
 
     if (classData) {
@@ -321,30 +364,36 @@ export const addStudent = mutation({
     }
 
     // Create audit log
-    await ctx.db.insert('auditLogs', {
+    await ctx.db.insert("auditLogs", {
       timestamp: now,
       userId: args.createdBy,
-      userName: 'School Admin',
-      action: 'CREATE',
-      entity: 'Student',
+      userName: "School Admin",
+      action: "CREATE",
+      entity: "Student",
       entityId: studentDbId,
       details: `Added student: ${args.firstName} ${args.lastName} (${studentId})`,
-      ipAddress: '0.0.0.0',
+      ipAddress: "0.0.0.0",
     });
 
-    return { studentId: studentDbId, generatedStudentId: studentId, admissionNumber };
+    return {
+      studentId: studentDbId,
+      generatedStudentId: studentId,
+      admissionNumber,
+    };
   },
 });
 
 // Mutation: Update student
 export const updateStudent = mutation({
   args: {
-    studentId: v.id('students'),
+    studentId: v.id("students"),
     firstName: v.optional(v.string()),
     lastName: v.optional(v.string()),
     middleName: v.optional(v.string()),
     dateOfBirth: v.optional(v.string()),
-    gender: v.optional(v.union(v.literal('male'), v.literal('female'), v.literal('other'))),
+    gender: v.optional(
+      v.union(v.literal("male"), v.literal("female"), v.literal("other")),
+    ),
     nationality: v.optional(v.string()),
     religion: v.optional(v.string()),
     email: v.optional(v.string()),
@@ -352,14 +401,23 @@ export const updateStudent = mutation({
     address: v.optional(v.string()),
     classId: v.optional(v.string()),
     className: v.optional(v.string()),
-    department: v.optional(v.union(v.literal('creche'), v.literal('kindergarten'), v.literal('primary'), v.literal('junior_high'))),
+    department: v.optional(
+      v.union(
+        v.literal("creche"),
+        v.literal("kindergarten"),
+        v.literal("primary"),
+        v.literal("junior_high"),
+      ),
+    ),
     rollNumber: v.optional(v.string()),
     admissionDate: v.optional(v.string()),
     parentName: v.optional(v.string()),
     parentEmail: v.optional(v.string()),
     parentPhone: v.optional(v.string()),
     parentOccupation: v.optional(v.string()),
-    relationship: v.optional(v.union(v.literal('father'), v.literal('mother'), v.literal('guardian'))),
+    relationship: v.optional(
+      v.union(v.literal("father"), v.literal("mother"), v.literal("guardian")),
+    ),
     secondaryContactName: v.optional(v.string()),
     secondaryContactPhone: v.optional(v.string()),
     secondaryContactRelationship: v.optional(v.string()),
@@ -370,38 +428,42 @@ export const updateStudent = mutation({
     allergies: v.optional(v.array(v.string())),
     photoStorageId: v.optional(v.string()),
     birthCertificateStorageId: v.optional(v.string()),
-    status: v.optional(v.union(
-      v.literal('active'),
-      v.literal('inactive'),
-      v.literal('fresher'),
-      v.literal('continuing'),
-      v.literal('transferred'),
-      v.literal('graduated')
-    )),
+    status: v.optional(
+      v.union(
+        v.literal("active"),
+        v.literal("inactive"),
+        v.literal("fresher"),
+        v.literal("continuing"),
+        v.literal("transferred"),
+        v.literal("graduated"),
+      ),
+    ),
     updatedBy: v.string(),
   },
   handler: async (ctx, args) => {
     const student = await ctx.db.get(args.studentId);
 
     if (!student) {
-      throw new Error('Student not found');
+      throw new Error("Student not found");
     }
 
     const callerSchoolId = await getVerifiedSchoolId(ctx, args.updatedBy);
     if (student.schoolId !== callerSchoolId) {
-      throw new Error('Unauthorized: You do not have access to this student');
+      throw new Error("Unauthorized: You do not have access to this student");
     }
 
     // If email is being updated, check for duplicates
     if (args.email && args.email !== student.email) {
       const existingStudent = await ctx.db
-        .query('students')
-        .withIndex('by_email', (q) => q.eq('email', args.email))
-        .filter((q) => q.eq(q.field('schoolId'), student.schoolId))
+        .query("students")
+        .withIndex("by_email", (q) => q.eq("email", args.email))
+        .filter((q) => q.eq(q.field("schoolId"), student.schoolId))
         .first();
 
       if (existingStudent && existingStudent._id !== args.studentId) {
-        throw new Error('A student with this email already exists in your school');
+        throw new Error(
+          "A student with this email already exists in your school",
+        );
       }
     }
 
@@ -414,9 +476,11 @@ export const updateStudent = mutation({
     if (args.firstName !== undefined) updateData.firstName = args.firstName;
     if (args.lastName !== undefined) updateData.lastName = args.lastName;
     if (args.middleName !== undefined) updateData.middleName = args.middleName;
-    if (args.dateOfBirth !== undefined) updateData.dateOfBirth = args.dateOfBirth;
+    if (args.dateOfBirth !== undefined)
+      updateData.dateOfBirth = args.dateOfBirth;
     if (args.gender !== undefined) updateData.gender = args.gender;
-    if (args.nationality !== undefined) updateData.nationality = args.nationality;
+    if (args.nationality !== undefined)
+      updateData.nationality = args.nationality;
     if (args.religion !== undefined) updateData.religion = args.religion;
     if (args.email !== undefined) updateData.email = args.email;
     if (args.phone !== undefined) updateData.phone = args.phone;
@@ -425,36 +489,52 @@ export const updateStudent = mutation({
     if (args.className !== undefined) updateData.className = args.className;
     if (args.department !== undefined) updateData.department = args.department;
     if (args.rollNumber !== undefined) updateData.rollNumber = args.rollNumber;
-    if (args.admissionDate !== undefined) updateData.admissionDate = args.admissionDate;
+    if (args.admissionDate !== undefined)
+      updateData.admissionDate = args.admissionDate;
     if (args.parentName !== undefined) updateData.parentName = args.parentName;
-    if (args.parentEmail !== undefined) updateData.parentEmail = args.parentEmail;
-    if (args.parentPhone !== undefined) updateData.parentPhone = args.parentPhone;
-    if (args.parentOccupation !== undefined) updateData.parentOccupation = args.parentOccupation;
-    if (args.relationship !== undefined) updateData.relationship = args.relationship;
-    if (args.secondaryContactName !== undefined) updateData.secondaryContactName = args.secondaryContactName;
-    if (args.secondaryContactPhone !== undefined) updateData.secondaryContactPhone = args.secondaryContactPhone;
-    if (args.secondaryContactRelationship !== undefined) updateData.secondaryContactRelationship = args.secondaryContactRelationship;
-    if (args.emergencyContactName !== undefined) updateData.emergencyContactName = args.emergencyContactName;
-    if (args.emergencyContactPhone !== undefined) updateData.emergencyContactPhone = args.emergencyContactPhone;
-    if (args.emergencyContactRelationship !== undefined) updateData.emergencyContactRelationship = args.emergencyContactRelationship;
-    if (args.medicalConditions !== undefined) updateData.medicalConditions = args.medicalConditions;
+    if (args.parentEmail !== undefined)
+      updateData.parentEmail = args.parentEmail;
+    if (args.parentPhone !== undefined)
+      updateData.parentPhone = args.parentPhone;
+    if (args.parentOccupation !== undefined)
+      updateData.parentOccupation = args.parentOccupation;
+    if (args.relationship !== undefined)
+      updateData.relationship = args.relationship;
+    if (args.secondaryContactName !== undefined)
+      updateData.secondaryContactName = args.secondaryContactName;
+    if (args.secondaryContactPhone !== undefined)
+      updateData.secondaryContactPhone = args.secondaryContactPhone;
+    if (args.secondaryContactRelationship !== undefined)
+      updateData.secondaryContactRelationship =
+        args.secondaryContactRelationship;
+    if (args.emergencyContactName !== undefined)
+      updateData.emergencyContactName = args.emergencyContactName;
+    if (args.emergencyContactPhone !== undefined)
+      updateData.emergencyContactPhone = args.emergencyContactPhone;
+    if (args.emergencyContactRelationship !== undefined)
+      updateData.emergencyContactRelationship =
+        args.emergencyContactRelationship;
+    if (args.medicalConditions !== undefined)
+      updateData.medicalConditions = args.medicalConditions;
     if (args.allergies !== undefined) updateData.allergies = args.allergies;
-    if (args.photoStorageId !== undefined) updateData.photoStorageId = args.photoStorageId;
-    if (args.birthCertificateStorageId !== undefined) updateData.birthCertificateStorageId = args.birthCertificateStorageId;
+    if (args.photoStorageId !== undefined)
+      updateData.photoStorageId = args.photoStorageId;
+    if (args.birthCertificateStorageId !== undefined)
+      updateData.birthCertificateStorageId = args.birthCertificateStorageId;
     if (args.status !== undefined) updateData.status = args.status;
 
     await ctx.db.patch(args.studentId, updateData);
 
     // Create audit log
-    await ctx.db.insert('auditLogs', {
+    await ctx.db.insert("auditLogs", {
       timestamp: now,
       userId: args.updatedBy,
-      userName: 'School Admin',
-      action: 'UPDATE',
-      entity: 'Student',
+      userName: "School Admin",
+      action: "UPDATE",
+      entity: "Student",
       entityId: args.studentId,
       details: `Updated student: ${student.firstName} ${student.lastName} (${student.studentId})`,
-      ipAddress: '0.0.0.0',
+      ipAddress: "0.0.0.0",
     });
 
     return { success: true };
@@ -464,43 +544,45 @@ export const updateStudent = mutation({
 // Mutation: Delete student
 export const deleteStudent = mutation({
   args: {
-    studentId: v.id('students'),
+    studentId: v.id("students"),
     deletedBy: v.string(),
   },
   handler: async (ctx, args) => {
     const student = await ctx.db.get(args.studentId);
 
     if (!student) {
-      throw new Error('Student not found');
+      throw new Error("Student not found");
     }
 
     const callerSchoolId = await getVerifiedSchoolId(ctx, args.deletedBy);
     if (student.schoolId !== callerSchoolId) {
-      throw new Error('Unauthorized: You do not have access to this student');
+      throw new Error("Unauthorized: You do not have access to this student");
     }
 
     // Delete photo from storage if exists
     if (student.photoStorageId) {
       try {
-        await ctx.storage.delete(student.photoStorageId as Id<'_storage'>);
+        await ctx.storage.delete(student.photoStorageId as Id<"_storage">);
       } catch (error) {
-        console.error('Failed to delete photo:', error);
+        console.error("Failed to delete photo:", error);
       }
     }
 
     // Delete birth certificate from storage if exists
     if (student.birthCertificateStorageId) {
       try {
-        await ctx.storage.delete(student.birthCertificateStorageId as Id<'_storage'>);
+        await ctx.storage.delete(
+          student.birthCertificateStorageId as Id<"_storage">,
+        );
       } catch (error) {
-        console.error('Failed to delete birth certificate:', error);
+        console.error("Failed to delete birth certificate:", error);
       }
     }
 
     // Update class student count
     const classData = await ctx.db
-      .query('classes')
-      .withIndex('by_class_code', (q) => q.eq('classCode', student.classId))
+      .query("classes")
+      .withIndex("by_class_code", (q) => q.eq("classCode", student.classId))
       .first();
 
     if (classData && classData.currentStudentCount > 0) {
@@ -515,15 +597,15 @@ export const deleteStudent = mutation({
     const now = new Date().toISOString();
 
     // Create audit log
-    await ctx.db.insert('auditLogs', {
+    await ctx.db.insert("auditLogs", {
       timestamp: now,
       userId: args.deletedBy,
-      userName: 'School Admin',
-      action: 'DELETE',
-      entity: 'Student',
+      userName: "School Admin",
+      action: "DELETE",
+      entity: "Student",
       entityId: args.studentId,
       details: `Deleted student: ${student.firstName} ${student.lastName} (${student.studentId})`,
-      ipAddress: '0.0.0.0',
+      ipAddress: "0.0.0.0",
     });
 
     return { success: true };
@@ -533,7 +615,7 @@ export const deleteStudent = mutation({
 // Mutation: Bulk delete students
 export const bulkDeleteStudents = mutation({
   args: {
-    studentIds: v.array(v.id('students')),
+    studentIds: v.array(v.id("students")),
     deletedBy: v.string(),
   },
   handler: async (ctx, args) => {
@@ -553,8 +635,8 @@ export const bulkDeleteStudents = mutation({
 
         // Update class student count
         const classData = await ctx.db
-          .query('classes')
-          .withIndex('by_class_code', (q) => q.eq('classCode', student.classId))
+          .query("classes")
+          .withIndex("by_class_code", (q) => q.eq("classCode", student.classId))
           .first();
 
         if (classData && classData.currentStudentCount > 0) {
@@ -567,15 +649,15 @@ export const bulkDeleteStudents = mutation({
         await ctx.db.delete(studentId);
 
         // Create audit log
-        await ctx.db.insert('auditLogs', {
+        await ctx.db.insert("auditLogs", {
           timestamp: now,
           userId: args.deletedBy,
-          userName: 'School Admin',
-          action: 'DELETE',
-          entity: 'Student',
+          userName: "School Admin",
+          action: "DELETE",
+          entity: "Student",
           entityId: studentId,
           details: `Deleted student: ${student.firstName} ${student.lastName} (${student.studentId})`,
-          ipAddress: '0.0.0.0',
+          ipAddress: "0.0.0.0",
         });
 
         successCount++;
@@ -592,14 +674,14 @@ export const bulkDeleteStudents = mutation({
 // Mutation: Update student status
 export const updateStudentStatus = mutation({
   args: {
-    studentId: v.id('students'),
+    studentId: v.id("students"),
     status: v.union(
-      v.literal('active'),
-      v.literal('inactive'),
-      v.literal('fresher'),
-      v.literal('continuing'),
-      v.literal('transferred'),
-      v.literal('graduated')
+      v.literal("active"),
+      v.literal("inactive"),
+      v.literal("fresher"),
+      v.literal("continuing"),
+      v.literal("transferred"),
+      v.literal("graduated"),
     ),
     updatedBy: v.string(),
   },
@@ -607,12 +689,12 @@ export const updateStudentStatus = mutation({
     const student = await ctx.db.get(args.studentId);
 
     if (!student) {
-      throw new Error('Student not found');
+      throw new Error("Student not found");
     }
 
     const callerSchoolId = await getVerifiedSchoolId(ctx, args.updatedBy);
     if (student.schoolId !== callerSchoolId) {
-      throw new Error('Unauthorized: You do not have access to this student');
+      throw new Error("Unauthorized: You do not have access to this student");
     }
 
     const now = new Date().toISOString();
@@ -623,15 +705,15 @@ export const updateStudentStatus = mutation({
     });
 
     // Create audit log
-    await ctx.db.insert('auditLogs', {
+    await ctx.db.insert("auditLogs", {
       timestamp: now,
       userId: args.updatedBy,
-      userName: 'School Admin',
-      action: 'UPDATE',
-      entity: 'Student',
+      userName: "School Admin",
+      action: "UPDATE",
+      entity: "Student",
       entityId: args.studentId,
       details: `Changed student status to ${args.status}: ${student.firstName} ${student.lastName} (${student.studentId})`,
-      ipAddress: '0.0.0.0',
+      ipAddress: "0.0.0.0",
     });
 
     return { success: true };
@@ -641,30 +723,35 @@ export const updateStudentStatus = mutation({
 // Mutation: Transfer student to different class
 export const transferStudent = mutation({
   args: {
-    studentId: v.id('students'),
+    studentId: v.id("students"),
     newClassId: v.string(),
     newClassName: v.string(),
-    newDepartment: v.union(v.literal('creche'), v.literal('kindergarten'), v.literal('primary'), v.literal('junior_high')),
+    newDepartment: v.union(
+      v.literal("creche"),
+      v.literal("kindergarten"),
+      v.literal("primary"),
+      v.literal("junior_high"),
+    ),
     updatedBy: v.string(),
   },
   handler: async (ctx, args) => {
     const student = await ctx.db.get(args.studentId);
 
     if (!student) {
-      throw new Error('Student not found');
+      throw new Error("Student not found");
     }
 
     const callerSchoolId = await getVerifiedSchoolId(ctx, args.updatedBy);
     if (student.schoolId !== callerSchoolId) {
-      throw new Error('Unauthorized: You do not have access to this student');
+      throw new Error("Unauthorized: You do not have access to this student");
     }
 
     const now = new Date().toISOString();
 
     // Update old class count
     const oldClass = await ctx.db
-      .query('classes')
-      .withIndex('by_class_code', (q) => q.eq('classCode', student.classId))
+      .query("classes")
+      .withIndex("by_class_code", (q) => q.eq("classCode", student.classId))
       .first();
 
     if (oldClass && oldClass.currentStudentCount > 0) {
@@ -676,8 +763,8 @@ export const transferStudent = mutation({
 
     // Update new class count
     const newClass = await ctx.db
-      .query('classes')
-      .withIndex('by_class_code', (q) => q.eq('classCode', args.newClassId))
+      .query("classes")
+      .withIndex("by_class_code", (q) => q.eq("classCode", args.newClassId))
       .first();
 
     if (newClass) {
@@ -696,15 +783,15 @@ export const transferStudent = mutation({
     });
 
     // Create audit log
-    await ctx.db.insert('auditLogs', {
+    await ctx.db.insert("auditLogs", {
       timestamp: now,
       userId: args.updatedBy,
-      userName: 'School Admin',
-      action: 'UPDATE',
-      entity: 'Student',
+      userName: "School Admin",
+      action: "UPDATE",
+      entity: "Student",
       entityId: args.studentId,
       details: `Transferred student ${student.firstName} ${student.lastName} from ${student.className} to ${args.newClassName}`,
-      ipAddress: '0.0.0.0',
+      ipAddress: "0.0.0.0",
     });
 
     return { success: true };
@@ -714,10 +801,15 @@ export const transferStudent = mutation({
 // Mutation: Promote students (bulk)
 export const promoteStudents = mutation({
   args: {
-    studentIds: v.array(v.id('students')),
+    studentIds: v.array(v.id("students")),
     newClassId: v.string(),
     newClassName: v.string(),
-    newDepartment: v.union(v.literal('creche'), v.literal('kindergarten'), v.literal('primary'), v.literal('junior_high')),
+    newDepartment: v.union(
+      v.literal("creche"),
+      v.literal("kindergarten"),
+      v.literal("primary"),
+      v.literal("junior_high"),
+    ),
     updatedBy: v.string(),
   },
   handler: async (ctx, args) => {
@@ -737,8 +829,8 @@ export const promoteStudents = mutation({
 
         // Update old class count
         const oldClass = await ctx.db
-          .query('classes')
-          .withIndex('by_class_code', (q) => q.eq('classCode', student.classId))
+          .query("classes")
+          .withIndex("by_class_code", (q) => q.eq("classCode", student.classId))
           .first();
 
         if (oldClass && oldClass.currentStudentCount > 0) {
@@ -753,20 +845,20 @@ export const promoteStudents = mutation({
           classId: args.newClassId,
           className: args.newClassName,
           department: args.newDepartment,
-          status: 'continuing',
+          status: "continuing",
           updatedAt: now,
         });
 
         // Create audit log
-        await ctx.db.insert('auditLogs', {
+        await ctx.db.insert("auditLogs", {
           timestamp: now,
           userId: args.updatedBy,
-          userName: 'School Admin',
-          action: 'UPDATE',
-          entity: 'Student',
+          userName: "School Admin",
+          action: "UPDATE",
+          entity: "Student",
           entityId: studentId,
           details: `Promoted student ${student.firstName} ${student.lastName} from ${student.className} to ${args.newClassName}`,
-          ipAddress: '0.0.0.0',
+          ipAddress: "0.0.0.0",
         });
 
         successCount++;
@@ -778,8 +870,8 @@ export const promoteStudents = mutation({
 
     // Update new class count
     const newClass = await ctx.db
-      .query('classes')
-      .withIndex('by_class_code', (q) => q.eq('classCode', args.newClassId))
+      .query("classes")
+      .withIndex("by_class_code", (q) => q.eq("classCode", args.newClassId))
       .first();
 
     if (newClass) {
@@ -796,14 +888,14 @@ export const promoteStudents = mutation({
 // Mutation: Bulk update student status
 export const bulkUpdateStudentStatus = mutation({
   args: {
-    studentIds: v.array(v.id('students')),
+    studentIds: v.array(v.id("students")),
     status: v.union(
-      v.literal('active'),
-      v.literal('inactive'),
-      v.literal('fresher'),
-      v.literal('continuing'),
-      v.literal('transferred'),
-      v.literal('graduated')
+      v.literal("active"),
+      v.literal("inactive"),
+      v.literal("fresher"),
+      v.literal("continuing"),
+      v.literal("transferred"),
+      v.literal("graduated"),
     ),
     updatedBy: v.string(),
   },
@@ -829,15 +921,15 @@ export const bulkUpdateStudentStatus = mutation({
         });
 
         // Create audit log
-        await ctx.db.insert('auditLogs', {
+        await ctx.db.insert("auditLogs", {
           timestamp: now,
           userId: args.updatedBy,
-          userName: 'School Admin',
-          action: 'UPDATE',
-          entity: 'Student',
+          userName: "School Admin",
+          action: "UPDATE",
+          entity: "Student",
           entityId: studentId,
           details: `Changed student status to ${args.status}: ${student.firstName} ${student.lastName} (${student.studentId})`,
-          ipAddress: '0.0.0.0',
+          ipAddress: "0.0.0.0",
         });
 
         successCount++;
@@ -851,12 +943,11 @@ export const bulkUpdateStudentStatus = mutation({
   },
 });
 
-
 // Get student photo URL from storage
 export const getStudentPhotoUrl = query({
   args: { storageId: v.string() },
   handler: async (ctx, args) => {
-    const url = await ctx.storage.getUrl(args.storageId as Id<'_storage'>);
+    const url = await ctx.storage.getUrl(args.storageId as Id<"_storage">);
     return url;
   },
 });
@@ -866,7 +957,7 @@ export const getStudentsByClassId = query({
   args: { classId: v.string() },
   handler: async (ctx, args) => {
     // First, get the class to find its classCode
-    const classDoc = await ctx.db.get(args.classId as Id<'classes'>);
+    const classDoc = await ctx.db.get(args.classId as Id<"classes">);
 
     if (!classDoc) {
       return [];
@@ -874,8 +965,8 @@ export const getStudentsByClassId = query({
 
     // Students store classCode as their classId field
     const students = await ctx.db
-      .query('students')
-      .withIndex('by_class', (q) => q.eq('classId', classDoc.classCode))
+      .query("students")
+      .withIndex("by_class", (q) => q.eq("classId", classDoc.classCode))
       .collect();
 
     // Fetch photo URLs for each student
@@ -883,13 +974,15 @@ export const getStudentsByClassId = query({
       students.map(async (student) => {
         let photoUrl: string | null = null;
         if (student.photoStorageId) {
-          photoUrl = await ctx.storage.getUrl(student.photoStorageId as Id<'_storage'>);
+          photoUrl = await ctx.storage.getUrl(
+            student.photoStorageId as Id<"_storage">,
+          );
         }
         return {
           ...student,
           photoUrl,
         };
-      })
+      }),
     );
 
     return studentsWithPhotos;
