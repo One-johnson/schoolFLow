@@ -114,6 +114,7 @@ export default function TeacherNotificationsPage() {
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const getCategoryIcon = (title: string) => {
     const lowerTitle = title.toLowerCase();
     if (lowerTitle.includes("attendance")) return ClipboardCheck;

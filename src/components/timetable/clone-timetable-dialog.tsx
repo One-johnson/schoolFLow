@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, JSX } from 'react';
+import { useState, useMemo} from 'react';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import {
@@ -111,7 +111,7 @@ export function CloneTimetableDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-125">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Clone Timetable</DialogTitle>

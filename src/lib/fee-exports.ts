@@ -91,6 +91,7 @@ export function generateFeeReceipt(receipt: ReceiptData): void {
   currentY += lineHeight;
   
   // Build table body based on version
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let tableBody: any[];
   
   if (receipt.items && receipt.items.length > 0) {
@@ -116,6 +117,7 @@ export function generateFeeReceipt(receipt: ReceiptData): void {
       footStyles: { fillColor: [59, 130, 246], fontStyle: 'bold' },
     });
     
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     currentY = (doc as any).lastAutoTable.finalY + 10;
     
     // Additional details
@@ -159,6 +161,7 @@ export function generateFeeReceipt(receipt: ReceiptData): void {
   });
   
   // Footer
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const finalY = (doc as any).lastAutoTable.finalY + 15;
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');

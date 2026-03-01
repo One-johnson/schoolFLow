@@ -1,155 +1,212 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useQuery } from 'convex/react';
-import { api } from '@/../convex/_generated/api';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useAuth } from '@/hooks/useAuth';
-import { Plus, Search, FileText, Award, BookOpen, Upload } from 'lucide-react';
-import { AddExamDialog } from '@/components/exams/add-exam-dialog';
-import { EditExamDialog } from '@/components/exams/edit-exam-dialog';
-import { ViewExamDialog } from '@/components/exams/view-exam-dialog';
-import { DeleteExamDialog } from '@/components/exams/delete-exam-dialog';
-import { MarksEntryDialog } from '@/components/exams/marks-entry-dialog';
-import { GradingScaleDialog } from '@/components/exams/grading-scale-dialog';
-import { GradingScaleCard } from '@/components/exams/grading-scale-card';
-import { GenerateReportCardsDialog } from '@/components/exams/generate-report-cards-dialog';
-import { ReportCardSheet } from '@/components/exams/report-card-sheet';
-import { DeleteReportCardDialog } from '@/components/exams/delete-report-card-dialog';
-import { BulkDeleteReportCardsDialog } from '@/components/exams/bulk-delete-report-cards-dialog';
-import { exportReportCardToPDF, bulkExportReportCardsToPDF, type PrintLayoutOptions } from '@/lib/pdf-utils';
-import { useConvex } from 'convex/react';
-import { BulkMarksUploadDialog } from '@/components/exams/bulk-marks-upload-dialog';
-import { ExamCard } from '@/components/exams/exam-card';
-import { ViewMarksDialog } from '@/components/exams/view-marks-dialog';
-import { PerformanceAnalyticsDashboard } from '@/components/exams/performance-analytics-dashboard';
-import { ReportCardReviewDialog } from '@/components/exams/report-card-review-dialog';
-import { UpdateExamStatusDialog } from '@/components/exams/update-exam-status-dialog';
-import { UnlockExamDialog } from '@/components/exams/unlock-exam-dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { BarChart3, CheckCircle, Eye, Trash2, Download } from 'lucide-react';
-import type { Id } from '../../../../convex/_generated/dataModel';
+import { useState } from "react";
+import { useQuery } from "convex/react";
+import { api } from "@/../convex/_generated/api";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useAuth } from "@/hooks/useAuth";
+import { Plus, Search, FileText, Award, BookOpen, Upload } from "lucide-react";
+import { AddExamDialog } from "@/components/exams/add-exam-dialog";
+import { EditExamDialog } from "@/components/exams/edit-exam-dialog";
+import { ViewExamDialog } from "@/components/exams/view-exam-dialog";
+import { DeleteExamDialog } from "@/components/exams/delete-exam-dialog";
+import { MarksEntryDialog } from "@/components/exams/marks-entry-dialog";
+import { GradingScaleDialog } from "@/components/exams/grading-scale-dialog";
+import { GradingScaleCard } from "@/components/exams/grading-scale-card";
+import { GenerateReportCardsDialog } from "@/components/exams/generate-report-cards-dialog";
+import { ReportCardSheet } from "@/components/exams/report-card-sheet";
+import { DeleteReportCardDialog } from "@/components/exams/delete-report-card-dialog";
+import { BulkDeleteReportCardsDialog } from "@/components/exams/bulk-delete-report-cards-dialog";
+import {
+  exportReportCardToPDF,
+  bulkExportReportCardsToPDF,
+  type PrintLayoutOptions,
+} from "@/lib/pdf-utils";
+import { useConvex } from "convex/react";
+import { BulkMarksUploadDialog } from "@/components/exams/bulk-marks-upload-dialog";
+import { ExamCard } from "@/components/exams/exam-card";
+import { ViewMarksDialog } from "@/components/exams/view-marks-dialog";
+import { PerformanceAnalyticsDashboard } from "@/components/exams/performance-analytics-dashboard";
+import { ReportCardReviewDialog } from "@/components/exams/report-card-review-dialog";
+import { UpdateExamStatusDialog } from "@/components/exams/update-exam-status-dialog";
+import { UnlockExamDialog } from "@/components/exams/unlock-exam-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BarChart3, CheckCircle, Eye, Trash2, Download } from "lucide-react";
+import type { Id, Doc } from "../../../../convex/_generated/dataModel";
 
 export default function ExamsPage() {
   const { user } = useAuth();
   const convex = useConvex();
-  
+
   const currentAdmin = useQuery(
     api.schoolAdmins.getByEmail,
-    user?.email ? { email: user.email } : 'skip'
+    user?.email ? { email: user.email } : "skip",
   );
-  
+
   const schoolId = currentAdmin?.schoolId;
 
-  const exams = useQuery(api.exams.getExamsBySchool, schoolId ? { schoolId } : 'skip');
-  const gradingScales = useQuery(api.grading.getGradingScalesBySchool, schoolId ? { schoolId } : 'skip');
-  const reportCards = useQuery(api.reportCards.getReportCardsBySchool, schoolId ? { schoolId } : 'skip');
-  const classes = useQuery(api.classes.getClassesBySchool, schoolId ? { schoolId } : 'skip');
-  const terms = useQuery(api.terms.getTermsBySchool, schoolId ? { schoolId } : 'skip');
-  const academicYears = useQuery(api.academicYears.getYearsBySchool, schoolId ? { schoolId } : 'skip');
-  
-  const [selectedAnalyticsExamId, setSelectedAnalyticsExamId] = useState<Id<'exams'> | null>(null);
-  const analyticsData = useQuery(
-    api.examAnalytics.getExamAnalytics,
-    selectedAnalyticsExamId ? { examId: selectedAnalyticsExamId } : 'skip'
+  const exams = useQuery(
+    api.exams.getExamsBySchool,
+    schoolId ? { schoolId } : "skip",
+  );
+  const gradingScales = useQuery(
+    api.grading.getGradingScalesBySchool,
+    schoolId ? { schoolId } : "skip",
+  );
+  const reportCards = useQuery(
+    api.reportCards.getReportCardsBySchool,
+    schoolId ? { schoolId } : "skip",
+  );
+  const classes = useQuery(
+    api.classes.getClassesBySchool,
+    schoolId ? { schoolId } : "skip",
+  );
+  const terms = useQuery(
+    api.terms.getTermsBySchool,
+    schoolId ? { schoolId } : "skip",
+  );
+  const academicYears = useQuery(
+    api.academicYears.getYearsBySchool,
+    schoolId ? { schoolId } : "skip",
   );
 
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedAnalyticsExamId, setSelectedAnalyticsExamId] =
+    useState<Id<"exams"> | null>(null);
+  const analyticsData = useQuery(
+    api.examAnalytics.getExamAnalytics,
+    selectedAnalyticsExamId ? { examId: selectedAnalyticsExamId } : "skip",
+  );
+
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [showAddExam, setShowAddExam] = useState<boolean>(false);
   const [showEditExam, setShowEditExam] = useState<boolean>(false);
   const [showViewExam, setShowViewExam] = useState<boolean>(false);
   const [showDeleteExam, setShowDeleteExam] = useState<boolean>(false);
   const [showMarksEntry, setShowMarksEntry] = useState<boolean>(false);
   const [showGradingScale, setShowGradingScale] = useState<boolean>(false);
-  const [showGenerateReports, setShowGenerateReports] = useState<boolean>(false);
+  const [showGenerateReports, setShowGenerateReports] =
+    useState<boolean>(false);
   const [showBulkUpload, setShowBulkUpload] = useState<boolean>(false);
   const [showViewMarks, setShowViewMarks] = useState<boolean>(false);
   const [showReviewDialog, setShowReviewDialog] = useState<boolean>(false);
   const [showUpdateStatus, setShowUpdateStatus] = useState<boolean>(false);
   const [showUnlockDialog, setShowUnlockDialog] = useState<boolean>(false);
-  const [selectedExamId, setSelectedExamId] = useState<Id<'exams'> | null>(null);
-  const [selectedExamName, setSelectedExamName] = useState<string>('');
-  const [selectedExamStatus, setSelectedExamStatus] = useState<'draft' | 'scheduled' | 'ongoing' | 'completed' | 'published'>('draft');
-  const [selectedExamUnlocked, setSelectedExamUnlocked] = useState<boolean>(false);
-  const [selectedReportCardId, setSelectedReportCardId] = useState<Id<'reportCards'> | null>(null);
-  const [reviewFilterClass, setReviewFilterClass] = useState<string>('');
-  const [reviewFilterTerm, setReviewFilterTerm] = useState<string>('');
-  const [reportFilterClass, setReportFilterClass] = useState<string>('');
-  const [reportFilterDepartment, setReportFilterDepartment] = useState<string>('');
-  const [selectedReportCards, setSelectedReportCards] = useState<Id<'reportCards'>[]>([]);
+  const [selectedExamId, setSelectedExamId] = useState<Id<"exams"> | null>(
+    null,
+  );
+  const [selectedExamName, setSelectedExamName] = useState<string>("");
+  const [selectedExamStatus, setSelectedExamStatus] = useState<
+    "draft" | "scheduled" | "ongoing" | "completed" | "published"
+  >("draft");
+  const [selectedExamUnlocked, setSelectedExamUnlocked] =
+    useState<boolean>(false);
+  const [selectedReportCardId, setSelectedReportCardId] =
+    useState<Id<"reportCards"> | null>(null);
+  const [reviewFilterClass, setReviewFilterClass] = useState<string>("");
+  const [reviewFilterTerm, setReviewFilterTerm] = useState<string>("");
+  const [reportFilterClass, setReportFilterClass] = useState<string>("");
+  const [reportFilterDepartment, setReportFilterDepartment] =
+    useState<string>("");
+  const [selectedReportCards, setSelectedReportCards] = useState<
+    Id<"reportCards">[]
+  >([]);
   const [showDeleteReport, setShowDeleteReport] = useState<boolean>(false);
-  const [showBulkDeleteReports, setShowBulkDeleteReports] = useState<boolean>(false);
+  const [showBulkDeleteReports, setShowBulkDeleteReports] =
+    useState<boolean>(false);
   const [showReportSheet, setShowReportSheet] = useState<boolean>(false);
-  const [deleteReportName, setDeleteReportName] = useState<string>('');
+  const [deleteReportName, setDeleteReportName] = useState<string>("");
 
-  const filteredExams = exams?.filter((exam) =>
-    exam.examName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    exam.examCode.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredExams = exams?.filter(
+    (exam) =>
+      exam.examName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      exam.examCode.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const stats = {
     total: exams?.length || 0,
-    scheduled: exams?.filter((e) => e.status === 'scheduled').length || 0,
-    ongoing: exams?.filter((e) => e.status === 'ongoing').length || 0,
-    completed: exams?.filter((e) => e.status === 'completed').length || 0,
+    scheduled: exams?.filter((e) => e.status === "scheduled").length || 0,
+    ongoing: exams?.filter((e) => e.status === "ongoing").length || 0,
+    completed: exams?.filter((e) => e.status === "completed").length || 0,
   };
 
-  const handleViewExam = (examId: Id<'exams'>): void => {
+  const handleViewExam = (examId: Id<"exams">): void => {
     setSelectedExamId(examId);
     setShowViewExam(true);
   };
 
-  const handleEditExam = (examId: Id<'exams'>): void => {
+  const handleEditExam = (examId: Id<"exams">): void => {
     setSelectedExamId(examId);
     setShowEditExam(true);
   };
 
-  const handleDeleteExam = (examId: Id<'exams'>): void => {
+  const handleDeleteExam = (examId: Id<"exams">): void => {
     const exam = exams?.find((e) => e._id === examId);
     setSelectedExamId(examId);
-    setSelectedExamName(exam?.examName || '');
+    setSelectedExamName(exam?.examName || "");
     setShowDeleteExam(true);
   };
 
-  const handleEnterMarks = (examId: Id<'exams'>): void => {
+  const handleEnterMarks = (examId: Id<"exams">): void => {
     setSelectedExamId(examId);
     setShowMarksEntry(true);
   };
 
-  const handleViewMarks = (examId: Id<'exams'>): void => {
+  const handleViewMarks = (examId: Id<"exams">): void => {
     setSelectedExamId(examId);
     setShowViewMarks(true);
   };
 
-  const handleChangeStatus = (examId: Id<'exams'>): void => {
+  const handleChangeStatus = (examId: Id<"exams">): void => {
     const exam = exams?.find((e) => e._id === examId);
     setSelectedExamId(examId);
-    setSelectedExamName(exam?.examName || '');
-    setSelectedExamStatus(exam?.status || 'draft');
+    setSelectedExamName(exam?.examName || "");
+    setSelectedExamStatus(exam?.status || "draft");
     setShowUpdateStatus(true);
   };
 
-  const handleUnlock = (examId: Id<'exams'>): void => {
+  const handleUnlock = (examId: Id<"exams">): void => {
     const exam = exams?.find((e) => e._id === examId);
     setSelectedExamId(examId);
-    setSelectedExamName(exam?.examName || '');
-    setSelectedExamStatus(exam?.status || 'draft');
+    setSelectedExamName(exam?.examName || "");
+    setSelectedExamStatus(exam?.status || "draft");
     setSelectedExamUnlocked(exam?.unlocked || false);
     setShowUnlockDialog(true);
   };
 
   // Helper function to enrich report card with academic year, term names, and grading scale data
-  const enrichReportCard = async (report: any): Promise<any> => {
-    const enrichedReport = { ...report };
+  type EnrichedReport = Doc<"reportCards"> & {
+    gradingScaleData?: string;
+    academicYearName?: string;
+    termName?: string;
+  };
+
+  const enrichReportCard = async (
+    report: Doc<"reportCards">,
+  ): Promise<EnrichedReport> => {
+    const enrichedReport: EnrichedReport = { ...report };
 
     // Fetch academic year name if not present (match by _id, not yearCode)
     if (!report.academicYearName && report.academicYearId) {
-      const academicYear = academicYears?.find(y => y._id === report.academicYearId);
+      const academicYear = academicYears?.find(
+        (y) => y._id === report.academicYearId,
+      );
       if (academicYear) {
         enrichedReport.academicYearName = academicYear.yearName;
       }
@@ -157,7 +214,7 @@ export default function ExamsPage() {
 
     // Fetch term name if not present (match by _id, not termCode)
     if (!report.termName && report.termId) {
-      const term = terms?.find(t => t._id === report.termId);
+      const term = terms?.find((t) => t._id === report.termId);
       if (term) {
         enrichedReport.termName = term.termName;
       }
@@ -165,7 +222,9 @@ export default function ExamsPage() {
 
     // Fetch grading scale data if report has a grading scale ID
     if (report.gradingScaleId && !report.gradingScaleData) {
-      const gradingScale = gradingScales?.find(g => g._id === report.gradingScaleId);
+      const gradingScale = gradingScales?.find(
+        (g) => g._id === report.gradingScaleId,
+      );
       if (gradingScale && gradingScale.grades) {
         enrichedReport.gradingScaleData = gradingScale.grades; // Store the JSON string of grades
       }
@@ -331,7 +390,9 @@ export default function ExamsPage() {
                     onClick={() => handleEnterMarks(exam._id)}
                   >
                     <span className="font-semibold">{exam.examName}</span>
-                    <span className="text-sm text-muted-foreground">{exam.examCode}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {exam.examCode}
+                    </span>
                   </Button>
                 ))}
               </div>
@@ -357,7 +418,9 @@ export default function ExamsPage() {
                     variant="outline"
                     size="sm"
                     onClick={async () => {
-                      const selectedReports = reportCards?.filter(r => selectedReportCards.includes(r._id));
+                      const selectedReports = reportCards?.filter((r) =>
+                        selectedReportCards.includes(r._id),
+                      );
                       if (selectedReports) {
                         // Fetch photo URLs for selected students
                         const enrichedReports = await Promise.all(
@@ -365,16 +428,22 @@ export default function ExamsPage() {
                             const enriched = await enrichReportCard(report);
                             // Fetch student photo if available
                             try {
-                              const studentData = await convex.query(api.students.getStudentByStudentId, { studentId: report.studentId });
+                              const studentData = await convex.query(
+                                api.students.getStudentByStudentId,
+                                { studentId: report.studentId },
+                              );
                               if (studentData?.photoStorageId) {
-                                const photoUrl = await convex.query(api.students.getStudentPhotoUrl, { storageId: studentData.photoStorageId });
+                                const photoUrl = await convex.query(
+                                  api.students.getStudentPhotoUrl,
+                                  { storageId: studentData.photoStorageId },
+                                );
                                 enriched.photoUrl = photoUrl || undefined;
                               }
                             } catch (error) {
-                              console.error('Error fetching photo:', error);
+                              console.error("Error fetching photo:", error);
                             }
                             return enriched;
-                          })
+                          }),
                         );
                         bulkExportReportCardsToPDF(enrichedReports);
                       }
@@ -396,7 +465,10 @@ export default function ExamsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="report-class-filter">Filter by Class</Label>
-              <Select value={reportFilterClass} onValueChange={setReportFilterClass}>
+              <Select
+                value={reportFilterClass}
+                onValueChange={setReportFilterClass}
+              >
                 <SelectTrigger id="report-class-filter">
                   <SelectValue placeholder="All Classes" />
                 </SelectTrigger>
@@ -411,8 +483,13 @@ export default function ExamsPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="report-department-filter">Filter by Department</Label>
-              <Select value={reportFilterDepartment} onValueChange={setReportFilterDepartment}>
+              <Label htmlFor="report-department-filter">
+                Filter by Department
+              </Label>
+              <Select
+                value={reportFilterDepartment}
+                onValueChange={setReportFilterDepartment}
+              >
                 <SelectTrigger id="report-department-filter">
                   <SelectValue placeholder="All Departments" />
                 </SelectTrigger>
@@ -430,93 +507,128 @@ export default function ExamsPage() {
           {reportCards && reportCards.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {reportCards
-                .filter(r => !reportFilterClass || reportFilterClass === 'all' || r.classId === reportFilterClass)
-                .filter(r => {
-                  if (!reportFilterDepartment || reportFilterDepartment === 'all') return true;
-                  const classDoc = classes?.find(c => c.classCode === r.classId);
+                .filter(
+                  (r) =>
+                    !reportFilterClass ||
+                    reportFilterClass === "all" ||
+                    r.classId === reportFilterClass,
+                )
+                .filter((r) => {
+                  if (
+                    !reportFilterDepartment ||
+                    reportFilterDepartment === "all"
+                  )
+                    return true;
+                  const classDoc = classes?.find(
+                    (c) => c.classCode === r.classId,
+                  );
                   return classDoc?.department === reportFilterDepartment;
                 })
                 .map((report) => (
-                <Card key={report._id} className="hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <Checkbox
-                        checked={selectedReportCards.includes(report._id)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSelectedReportCards([...selectedReportCards, report._id]);
-                          } else {
-                            setSelectedReportCards(selectedReportCards.filter(id => id !== report._id));
-                          }
-                        }}
-                      />
-                      <div className="flex-1 ml-2">
-                        <CardTitle className="text-sm">{report.studentName}</CardTitle>
-                        <CardDescription className="text-xs">
-                          {report.className}
-                        </CardDescription>
+                  <Card
+                    key={report._id}
+                    className="hover:shadow-md transition-shadow"
+                  >
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <Checkbox
+                          checked={selectedReportCards.includes(report._id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedReportCards([
+                                ...selectedReportCards,
+                                report._id,
+                              ]);
+                            } else {
+                              setSelectedReportCards(
+                                selectedReportCards.filter(
+                                  (id) => id !== report._id,
+                                ),
+                              );
+                            }
+                          }}
+                        />
+                        <div className="flex-1 ml-2">
+                          <CardTitle className="text-sm">
+                            {report.studentName}
+                          </CardTitle>
+                          <CardDescription className="text-xs">
+                            {report.className}
+                          </CardDescription>
+                        </div>
                       </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <div className="text-xs space-y-1">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Percentage:</span>
-                        <span className="font-medium">{report.percentage.toFixed(1)}%</span>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <div className="text-xs space-y-1">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">
+                            Percentage:
+                          </span>
+                          <span className="font-medium">
+                            {report.percentage.toFixed(1)}%
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Grade:</span>
+                          <span className="font-medium">
+                            {report.overallGrade}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">
+                            Position:
+                          </span>
+                          <span className="font-medium">
+                            {report.position}/{report.totalStudents}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Grade:</span>
-                        <span className="font-medium">{report.overallGrade}</span>
+                      <div className="flex gap-1 pt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => {
+                            setSelectedReportCardId(report._id);
+                            setShowReportSheet(true);
+                          }}
+                        >
+                          <Eye className="h-3 w-3 mr-1" />
+                          View
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            const enriched = await enrichReportCard(report);
+                            exportReportCardToPDF(enriched);
+                          }}
+                        >
+                          <Download className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedReportCardId(report._id);
+                            setDeleteReportName(report.studentName);
+                            setShowDeleteReport(true);
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Position:</span>
-                        <span className="font-medium">{report.position}/{report.totalStudents}</span>
-                      </div>
-                    </div>
-                    <div className="flex gap-1 pt-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => {
-                          setSelectedReportCardId(report._id);
-                          setShowReportSheet(true);
-                        }}
-                      >
-                        <Eye className="h-3 w-3 mr-1" />
-                        View
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={async () => {
-                          const enriched = await enrichReportCard(report);
-                          exportReportCardToPDF(enriched);
-                        }}
-                      >
-                        <Download className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedReportCardId(report._id);
-                          setDeleteReportName(report.studentName);
-                          setShowDeleteReport(true);
-                        }}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                ))}
             </div>
           ) : (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Award className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No report cards generated</h3>
+                <h3 className="text-lg font-semibold mb-2">
+                  No report cards generated
+                </h3>
                 <p className="text-sm text-muted-foreground mb-4">
                   Generate report cards after entering exam marks
                 </p>
@@ -543,7 +655,10 @@ export default function ExamsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="review-class-filter">Filter by Class</Label>
-                  <Select value={reviewFilterClass} onValueChange={setReviewFilterClass}>
+                  <Select
+                    value={reviewFilterClass}
+                    onValueChange={setReviewFilterClass}
+                  >
                     <SelectTrigger id="review-class-filter">
                       <SelectValue placeholder="All Classes" />
                     </SelectTrigger>
@@ -559,7 +674,10 @@ export default function ExamsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="review-term-filter">Filter by Term</Label>
-                  <Select value={reviewFilterTerm} onValueChange={setReviewFilterTerm}>
+                  <Select
+                    value={reviewFilterTerm}
+                    onValueChange={setReviewFilterTerm}
+                  >
                     <SelectTrigger id="review-term-filter">
                       <SelectValue placeholder="All Terms" />
                     </SelectTrigger>
@@ -576,64 +694,102 @@ export default function ExamsPage() {
               </div>
 
               {/* Draft Report Cards List */}
-              {reportCards && reportCards.filter(r => r.status === 'draft').length > 0 ? (
+              {reportCards &&
+              reportCards.filter((r) => r.status === "draft").length > 0 ? (
                 <div className="grid grid-cols-1 gap-4">
                   {reportCards
-                    .filter(r => r.status === 'draft')
-                    .filter(r => !reviewFilterClass || reviewFilterClass === 'all' || r.classId === reviewFilterClass)
-                    .filter(r => !reviewFilterTerm || reviewFilterTerm === 'all' || r.termId === reviewFilterTerm)
+                    .filter((r) => r.status === "draft")
+                    .filter(
+                      (r) =>
+                        !reviewFilterClass ||
+                        reviewFilterClass === "all" ||
+                        r.classId === reviewFilterClass,
+                    )
+                    .filter(
+                      (r) =>
+                        !reviewFilterTerm ||
+                        reviewFilterTerm === "all" ||
+                        r.termId === reviewFilterTerm,
+                    )
                     .map((report) => (
-                    <Card key={report._id} className="hover:shadow-md transition-shadow">
-                      <CardContent className="pt-6">
-                        <div className="flex justify-between items-start">
-                          <div className="space-y-1">
-                            <h3 className="font-semibold text-lg">{report.studentName}</h3>
-                            <p className="text-sm text-muted-foreground">
-                              {report.className} • {report.termName || 'N/A'}
-                            </p>
-                            <div className="flex gap-4 text-sm mt-2">
-                              <span>Percentage: <span className="font-medium">{report.percentage.toFixed(1)}%</span></span>
-                              <span>Grade: <span className="font-medium">{report.overallGrade}</span></span>
-                              <span>Position: <span className="font-medium">{report.position}/{report.totalStudents}</span></span>
-                            </div>
-                            {report.verifiedByClassTeacher && (
-                              <div className="flex items-center gap-2 mt-2">
-                                <CheckCircle className="h-4 w-4 text-green-600" />
-                                <span className="text-sm text-green-600">Approved by {report.reviewedByName}</span>
+                      <Card
+                        key={report._id}
+                        className="hover:shadow-md transition-shadow"
+                      >
+                        <CardContent className="pt-6">
+                          <div className="flex justify-between items-start">
+                            <div className="space-y-1">
+                              <h3 className="font-semibold text-lg">
+                                {report.studentName}
+                              </h3>
+                              <p className="text-sm text-muted-foreground">
+                                {report.className} • {report.termName || "N/A"}
+                              </p>
+                              <div className="flex gap-4 text-sm mt-2">
+                                <span>
+                                  Percentage:{" "}
+                                  <span className="font-medium">
+                                    {report.percentage.toFixed(1)}%
+                                  </span>
+                                </span>
+                                <span>
+                                  Grade:{" "}
+                                  <span className="font-medium">
+                                    {report.overallGrade}
+                                  </span>
+                                </span>
+                                <span>
+                                  Position:{" "}
+                                  <span className="font-medium">
+                                    {report.position}/{report.totalStudents}
+                                  </span>
+                                </span>
                               </div>
-                            )}
+                              {report.verifiedByClassTeacher && (
+                                <div className="flex items-center gap-2 mt-2">
+                                  <CheckCircle className="h-4 w-4 text-green-600" />
+                                  <span className="text-sm text-green-600">
+                                    Approved by {report.reviewedByName}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  setSelectedReportCardId(report._id)
+                                }
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                View
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedReportCardId(report._id);
+                                  setShowReviewDialog(true);
+                                }}
+                              >
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                                Review
+                              </Button>
+                            </div>
                           </div>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setSelectedReportCardId(report._id)}
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              View
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                setSelectedReportCardId(report._id);
-                                setShowReviewDialog(true);
-                              }}
-                            >
-                              <CheckCircle className="h-4 w-4 mr-2" />
-                              Review
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        </CardContent>
+                      </Card>
+                    ))}
                 </div>
               ) : (
                 <div className="text-center py-12">
                   <CheckCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No draft report cards</h3>
+                  <h3 className="text-lg font-semibold mb-2">
+                    No draft report cards
+                  </h3>
                   <p className="text-sm text-muted-foreground">
-                    All report cards have been reviewed or none have been generated yet
+                    All report cards have been reviewed or none have been
+                    generated yet
                   </p>
                 </div>
               )}
@@ -660,7 +816,9 @@ export default function ExamsPage() {
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Award className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No grading scales configured</h3>
+                <h3 className="text-lg font-semibold mb-2">
+                  No grading scales configured
+                </h3>
                 <p className="text-sm text-muted-foreground mb-4">
                   Create a grading scale to calculate student grades
                 </p>
@@ -685,10 +843,10 @@ export default function ExamsPage() {
             <CardContent>
               <div className="max-w-md">
                 <Select
-                  value={selectedAnalyticsExamId || ''}
+                  value={selectedAnalyticsExamId || ""}
                   onValueChange={(value: string) => {
                     if (value) {
-                      setSelectedAnalyticsExamId(value as Id<'exams'>);
+                      setSelectedAnalyticsExamId(value as Id<"exams">);
                     }
                   }}
                 >
@@ -697,7 +855,11 @@ export default function ExamsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {exams
-                      ?.filter((exam) => exam.status === 'completed' || exam.status === 'published')
+                      ?.filter(
+                        (exam) =>
+                          exam.status === "completed" ||
+                          exam.status === "published",
+                      )
                       .map((exam) => (
                         <SelectItem key={exam._id} value={exam._id}>
                           {exam.examName} ({exam.examCode})
@@ -723,7 +885,8 @@ export default function ExamsPage() {
                 <BarChart3 className="h-12 w-12 text-muted-foreground mb-4" />
                 <h3 className="text-lg font-semibold mb-2">Select an Exam</h3>
                 <p className="text-sm text-muted-foreground">
-                  Choose a completed exam from the dropdown above to view detailed analytics
+                  Choose a completed exam from the dropdown above to view
+                  detailed analytics
                 </p>
               </CardContent>
             </Card>
