@@ -5,7 +5,7 @@ import { mutation, query } from './_generated/server';
 export const create = mutation({
   args: {
     userId: v.string(),
-    userRole: v.union(v.literal('super_admin'), v.literal('school_admin')),
+    userRole: v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher')),
     status: v.union(v.literal('success'), v.literal('failed')),
     ipAddress: v.string(),
     device: v.string(),
@@ -57,7 +57,7 @@ export const updateLogout = mutation({
 export const list = query({
   args: {
     limit: v.optional(v.number()),
-    userRole: v.optional(v.union(v.literal('super_admin'), v.literal('school_admin'))),
+    userRole: v.optional(v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher'))),
     status: v.optional(v.union(v.literal('success'), v.literal('failed'))),
   },
   handler: async (ctx, args) => {
@@ -100,7 +100,7 @@ export const getByUser = query({
 // Get statistics
 export const getStats = query({
   args: {
-    userRole: v.optional(v.union(v.literal('super_admin'), v.literal('school_admin'))),
+    userRole: v.optional(v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher'))),
   },
   handler: async (ctx, args) => {
     const query = ctx.db.query('loginHistory');

@@ -1,12 +1,13 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import axios from "axios";
 
 export interface User {
   userId: string;
   email: string;
-  role: 'super_admin' | 'school_admin';
+  role: "super_admin" | "school_admin";
   schoolId?: string;
 }
 
@@ -31,10 +32,12 @@ export function useAuth() {
 
   const checkAuth = async (): Promise<void> => {
     try {
-      const response = await fetch('/api/auth/session');
-      const data = await response.json();
+      const { data } = await axios.get<{
+        authenticated: boolean;
+        session: User | null;
+      }>("/api/auth/session", { withCredentials: true });
 
-      if (data.authenticated) {
+      if (data.authenticated && data.session) {
         setAuthState({
           user: data.session,
           loading: false,
@@ -48,7 +51,7 @@ export function useAuth() {
         });
       }
     } catch (error) {
-      console.error('Auth check error:', error);
+      console.error("Auth check error:", error);
       setAuthState({
         user: null,
         loading: false,
@@ -59,15 +62,15 @@ export function useAuth() {
 
   const logout = async (): Promise<void> => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await axios.post("/api/auth/logout", null, { withCredentials: true });
       setAuthState({
         user: null,
         loading: false,
         authenticated: false,
       });
-      router.push('/login');
+      router.push("/login");
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error("Logout error:", error);
     }
   };
 

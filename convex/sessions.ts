@@ -6,7 +6,7 @@ import { mutation, query } from './_generated/server';
 export const create = mutation({
   args: {
     userId: v.string(),
-    userRole: v.union(v.literal('super_admin'), v.literal('school_admin')),
+    userRole: v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher')),
     sessionToken: v.string(),
     ipAddress: v.string(),
     device: v.string(),
@@ -98,7 +98,7 @@ export const revokeAllExcept = mutation({
 export const listActive = query({
   args: {
     userId: v.optional(v.string()),
-    userRole: v.optional(v.union(v.literal('super_admin'), v.literal('school_admin'))),
+    userRole: v.optional(v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher'))),
   },
   handler: async (ctx, args) => {
     const query = ctx.db.query('sessions');
@@ -165,7 +165,7 @@ export const cleanupExpired = mutation({
 // Get statistics
 export const getStats = query({
   args: {
-    userRole: v.optional(v.union(v.literal('super_admin'), v.literal('school_admin'))),
+    userRole: v.optional(v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher'))),
   },
   handler: async (ctx, args) => {
     const allSessions = await ctx.db.query('sessions').collect();

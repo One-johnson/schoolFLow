@@ -198,7 +198,7 @@ export default defineSchema({
 
   sessions: defineTable({
     userId: v.string(),
-    userRole: v.union(v.literal('super_admin'), v.literal('school_admin')),
+    userRole: v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher')),
     sessionToken: v.string(),
     ipAddress: v.string(),
     device: v.string(),
