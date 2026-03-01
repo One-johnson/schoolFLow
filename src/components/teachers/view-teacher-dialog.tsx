@@ -11,7 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import type { Teacher } from '@/types';
 import { Mail, Phone, MapPin, Calendar, Briefcase, DollarSign, User } from 'lucide-react';
-import { JSX } from 'react';
+import Image from 'next/image';
+
 
 interface ViewTeacherDialogProps {
   open: boolean;
@@ -73,7 +74,7 @@ export function ViewTeacherDialog({
           {teacher.photoUrl && (
             <div className="flex justify-center">
               <div className="h-32 w-32 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden border-4 border-gray-100 shadow-md">
-                <img src={teacher.photoUrl} alt={`${teacher.firstName} ${teacher.lastName}`} className="h-full w-full object-cover" />
+                <Image src={teacher.photoUrl} alt={`${teacher.firstName} ${teacher.lastName}`} className="h-full w-full object-cover" />
               </div>
             </div>
           )}

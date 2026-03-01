@@ -1,27 +1,43 @@
-'use client';
+"use client";
 
-import { JSX, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useQuery, useMutation } from 'convex/react';
-import { api } from '../../../../convex/_generated/api';
-import { Bell, Check, Info, AlertCircle, CheckCircle, XCircle, Clock, Calendar, Eye } from 'lucide-react';
-import { toast } from 'sonner';
-import Link from 'next/link';
-import { useAuth } from '@/hooks/useAuth';
+import { JSX, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../../../convex/_generated/api";
+import {
+  Bell,
+  Check,
+  Info,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Calendar,
+  Eye,
+} from "lucide-react";
+import { toast } from "sonner";
+import Link from "next/link";
+import { useAuth } from "@/hooks/useAuth";
 
 // Unified notification type
 type UnifiedNotification = {
   _id: string;
-  type: 'platform' | 'event';
+  type: "platform" | "event";
   title: string;
   message: string;
   timestamp: string;
   read: boolean;
-  icon: 'success' | 'warning' | 'error' | 'info' | 'event';
+  icon: "success" | "warning" | "error" | "info" | "event";
   actionUrl?: string;
   eventId?: string;
   eventCode?: string;
@@ -30,78 +46,103 @@ type UnifiedNotification = {
 
 export default function NotificationsPage(): React.JSX.Element {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<string>('all');
+  const [activeTab, setActiveTab] = useState<string>("all");
   const { user } = useAuth();
 
   // Fetch school admin data
   const schoolAdmin = useQuery(
     api.schoolAdmins.getByEmail,
-    user?.email ? { email: user.email } : 'skip'
+    user?.email ? { email: user.email } : "skip",
   );
 
   const school = useQuery(
     api.schools.getBySchoolId,
-    schoolAdmin?.schoolId ? { schoolId: schoolAdmin.schoolId } : 'skip'
+    schoolAdmin?.schoolId ? { schoolId: schoolAdmin.schoolId } : "skip",
   );
 
   // Query both notification types
   const allPlatformNotifications = useQuery(api.notifications.list);
   const platformNotifications = allPlatformNotifications?.filter(
-    (notif) => 
-      notif.recipientRole === 'school_admin' && 
-      (!notif.recipientId || notif.recipientId === schoolAdmin?._id)
+    (notif) =>
+      notif.recipientRole === "school_admin" &&
+      (!notif.recipientId || notif.recipientId === schoolAdmin?._id),
   );
+
+  type EventNotificationDoc = {
+    _id: string;
+    notificationType: string;
+    eventTitle: string;
+    createdAt: string;
+    readAt?: string | null;
+    eventId?: string;
+    eventCode?: string;
+  };
 
   const eventNotifications = useQuery(
     schoolAdmin?.schoolId
       ? api.eventNotifications.getMyEventNotifications
-      : 'skip' as any,
+      : "skip",
     schoolAdmin?.schoolId
-      ? { schoolId: schoolAdmin.schoolId, recipientId: schoolAdmin._id.toString() }
-      : 'skip' as any
-  );
+      ? {
+          schoolId: schoolAdmin.schoolId,
+          recipientId: schoolAdmin._id.toString(),
+        }
+      : undefined,
+  ) as EventNotificationDoc[] | undefined;
 
   const markPlatformAsRead = useMutation(api.notifications.markAsRead);
   const markAllPlatformAsRead = useMutation(api.notifications.markAllAsRead);
-  const markEventAsRead = useMutation(api.eventNotifications.markNotificationAsRead);
+  const markEventAsRead = useMutation(
+    api.eventNotifications.markNotificationAsRead,
+  );
 
   // Merge and transform notifications
   const unifiedNotifications: UnifiedNotification[] = [
     ...(platformNotifications || []).map((notif) => ({
       _id: notif._id,
-      type: 'platform' as const,
+      type: "platform" as const,
       title: notif.title,
       message: notif.message,
       timestamp: notif.timestamp,
       read: notif.read,
-      icon: notif.type as 'success' | 'warning' | 'error' | 'info',
+      icon: notif.type as "success" | "warning" | "error" | "info",
       actionUrl: notif.actionUrl,
     })),
-    ...(eventNotifications || []).map((notif: { _id: any; notificationType: string; eventTitle: string; createdAt: any; readAt: any; eventId: any; eventCode: any; }) => ({
+    ...(eventNotifications || []).map((notif) => ({
       _id: notif._id,
-      type: 'event' as const,
-      title: getEventNotificationTitle(notif.notificationType, notif.eventTitle),
-      message: getEventNotificationMessage(notif.notificationType, notif.eventTitle),
+      type: "event" as const,
+      title: getEventNotificationTitle(
+        notif.notificationType,
+        notif.eventTitle,
+      ),
+      message: getEventNotificationMessage(
+        notif.notificationType,
+        notif.eventTitle,
+      ),
       timestamp: notif.createdAt,
       read: !!notif.readAt,
-      icon: 'event' as const,
+      icon: "event" as const,
       actionUrl: `/school-admin/events`,
       eventId: notif.eventId,
       eventCode: notif.eventCode,
       notificationType: notif.notificationType,
     })),
-  ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  ].sort(
+    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+  );
 
-  const handleMarkAsRead = async (notification: UnifiedNotification): Promise<void> => {
+  const handleMarkAsRead = async (
+    notification: UnifiedNotification,
+  ): Promise<void> => {
     try {
-      if (notification.type === 'platform') {
-        await markPlatformAsRead({ id: notification._id as any });
+      if (notification.type === "platform") {
+        await markPlatformAsRead({ id: notification._id });
       } else {
-        await markEventAsRead({ notificationId: notification._id as any });
+        await markEventAsRead({ notificationId: notification._id });
       }
-      toast.success('Notification marked as read');
+      toast.success("Notification marked as read");
     } catch (error) {
-      toast.error('Failed to mark notification as read');
+      toast.error("Failed to mark notification as read");
     }
   };
 
@@ -109,28 +150,30 @@ export default function NotificationsPage(): React.JSX.Element {
     try {
       // Mark all platform notifications as read
       await markAllPlatformAsRead({});
-      
+
       // Mark all event notifications as read (one by one for now)
-      const unreadEventNotifs = (eventNotifications || []).filter((n: { readAt: any; }) => !n.readAt);
+      const unreadEventNotifs = (eventNotifications || []).filter(
+        (n) => !n.readAt,
+      );
       for (const notif of unreadEventNotifs) {
         await markEventAsRead({ notificationId: notif._id });
       }
-      
-      toast.success('All notifications marked as read');
+
+      toast.success("All notifications marked as read");
     } catch (error) {
-      toast.error('Failed to mark all notifications as read');
+      toast.error("Failed to mark all notifications as read");
     }
   };
 
   const getNotificationIcon = (icon: string): React.JSX.Element => {
     switch (icon) {
-      case 'success':
+      case "success":
         return <CheckCircle className="h-5 w-5 text-green-500" />;
-      case 'warning':
+      case "warning":
         return <AlertCircle className="h-5 w-5 text-orange-500" />;
-      case 'error':
+      case "error":
         return <XCircle className="h-5 w-5 text-red-500" />;
-      case 'event':
+      case "event":
         return <Calendar className="h-5 w-5 text-blue-500" />;
       default:
         return <Info className="h-5 w-5 text-blue-500" />;
@@ -139,32 +182,35 @@ export default function NotificationsPage(): React.JSX.Element {
 
   function getEventNotificationTitle(type: string, eventTitle: string): string {
     switch (type) {
-      case 'event_created':
-        return '📅 New Event Created';
-      case 'event_updated':
-        return '✏️ Event Updated';
-      case 'event_cancelled':
-        return '❌ Event Cancelled';
-      case 'rsvp_reminder':
-        return '⏰ RSVP Reminder';
-      case 'event_reminder':
-        return '⏰ Event Reminder';
+      case "event_created":
+        return "📅 New Event Created";
+      case "event_updated":
+        return "✏️ Event Updated";
+      case "event_cancelled":
+        return "❌ Event Cancelled";
+      case "rsvp_reminder":
+        return "⏰ RSVP Reminder";
+      case "event_reminder":
+        return "⏰ Event Reminder";
       default:
-        return '📅 Event Notification';
+        return "📅 Event Notification";
     }
   }
 
-  function getEventNotificationMessage(type: string, eventTitle: string): string {
+  function getEventNotificationMessage(
+    type: string,
+    eventTitle: string,
+  ): string {
     switch (type) {
-      case 'event_created':
+      case "event_created":
         return `New event "${eventTitle}" has been scheduled`;
-      case 'event_updated':
+      case "event_updated":
         return `Event "${eventTitle}" has been updated`;
-      case 'event_cancelled':
+      case "event_cancelled":
         return `Event "${eventTitle}" has been cancelled`;
-      case 'rsvp_reminder':
+      case "rsvp_reminder":
         return `Please RSVP for "${eventTitle}"`;
-      case 'event_reminder':
+      case "event_reminder":
         return `Reminder: "${eventTitle}" is coming up`;
       default:
         return eventTitle;
@@ -172,15 +218,19 @@ export default function NotificationsPage(): React.JSX.Element {
   }
 
   const filteredNotifications = unifiedNotifications.filter((notif) => {
-    if (activeTab === 'all') return true;
-    if (activeTab === 'platform') return notif.type === 'platform';
-    if (activeTab === 'events') return notif.type === 'event';
+    if (activeTab === "all") return true;
+    if (activeTab === "platform") return notif.type === "platform";
+    if (activeTab === "events") return notif.type === "event";
     return true;
   });
 
   const unreadCount = unifiedNotifications.filter((n) => !n.read).length;
-  const platformUnreadCount = unifiedNotifications.filter((n) => n.type === 'platform' && !n.read).length;
-  const eventUnreadCount = unifiedNotifications.filter((n) => n.type === 'event' && !n.read).length;
+  const platformUnreadCount = unifiedNotifications.filter(
+    (n) => n.type === "platform" && !n.read,
+  ).length;
+  const eventUnreadCount = unifiedNotifications.filter(
+    (n) => n.type === "event" && !n.read,
+  ).length;
 
   if (!schoolAdmin) {
     return (
@@ -216,7 +266,9 @@ export default function NotificationsPage(): React.JSX.Element {
             <div>
               <CardTitle>All Notifications</CardTitle>
               <CardDescription>
-                {unreadCount > 0 ? `${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}` : 'No unread notifications'}
+                {unreadCount > 0
+                  ? `${unreadCount} unread notification${unreadCount > 1 ? "s" : ""}`
+                  : "No unread notifications"}
               </CardDescription>
             </div>
             <Badge variant="outline">
@@ -231,7 +283,10 @@ export default function NotificationsPage(): React.JSX.Element {
               <TabsTrigger value="all">
                 All
                 {unreadCount > 0 && (
-                  <Badge variant="destructive" className="ml-2 h-5 min-w-5 px-1 text-xs">
+                  <Badge
+                    variant="destructive"
+                    className="ml-2 h-5 min-w-5 px-1 text-xs"
+                  >
                     {unreadCount}
                   </Badge>
                 )}
@@ -239,7 +294,10 @@ export default function NotificationsPage(): React.JSX.Element {
               <TabsTrigger value="platform">
                 Platform
                 {platformUnreadCount > 0 && (
-                  <Badge variant="destructive" className="ml-2 h-5 min-w-5 px-1 text-xs">
+                  <Badge
+                    variant="destructive"
+                    className="ml-2 h-5 min-w-5 px-1 text-xs"
+                  >
                     {platformUnreadCount}
                   </Badge>
                 )}
@@ -247,7 +305,10 @@ export default function NotificationsPage(): React.JSX.Element {
               <TabsTrigger value="events">
                 Events
                 {eventUnreadCount > 0 && (
-                  <Badge variant="destructive" className="ml-2 h-5 min-w-5 px-1 text-xs">
+                  <Badge
+                    variant="destructive"
+                    className="ml-2 h-5 min-w-5 px-1 text-xs"
+                  >
                     {eventUnreadCount}
                   </Badge>
                 )}
@@ -261,7 +322,9 @@ export default function NotificationsPage(): React.JSX.Element {
                     <div
                       key={notification._id}
                       className={`flex gap-4 p-4 rounded-lg border ${
-                        notification.read ? 'bg-background' : 'bg-primary/5 border-primary/20'
+                        notification.read
+                          ? "bg-background"
+                          : "bg-primary/5 border-primary/20"
                       }`}
                     >
                       <div className="flex-shrink-0 mt-1">
@@ -271,8 +334,10 @@ export default function NotificationsPage(): React.JSX.Element {
                         <div className="flex items-start justify-between gap-2">
                           <div>
                             <div className="flex items-center gap-2">
-                              <h4 className="font-semibold">{notification.title}</h4>
-                              {notification.type === 'event' && (
+                              <h4 className="font-semibold">
+                                {notification.title}
+                              </h4>
+                              {notification.type === "event" && (
                                 <Badge variant="outline" className="text-xs">
                                   Event
                                 </Badge>
@@ -299,9 +364,16 @@ export default function NotificationsPage(): React.JSX.Element {
                           </span>
                           {notification.actionUrl && (
                             <Link href={notification.actionUrl}>
-                              <Button size="sm" variant="link" className="h-auto p-0 text-xs">
+                              <Button
+                                size="sm"
+                                variant="link"
+                                className="h-auto p-0 text-xs"
+                              >
                                 <Eye className="h-3 w-3 mr-1" />
-                                {notification.type === 'event' ? 'View Event' : 'View Details'} →
+                                {notification.type === "event"
+                                  ? "View Event"
+                                  : "View Details"}{" "}
+                                →
                               </Button>
                             </Link>
                           )}
@@ -313,11 +385,15 @@ export default function NotificationsPage(): React.JSX.Element {
               ) : (
                 <div className="text-center py-12">
                   <Bell className="mx-auto h-12 w-12 text-muted-foreground/50" />
-                  <h3 className="mt-4 text-lg font-semibold">No notifications</h3>
+                  <h3 className="mt-4 text-lg font-semibold">
+                    No notifications
+                  </h3>
                   <p className="text-sm text-muted-foreground mt-2">
-                    {activeTab === 'all' && "You'll see notifications here when there's activity"}
-                    {activeTab === 'platform' && "No platform notifications yet"}
-                    {activeTab === 'events' && "No event notifications yet"}
+                    {activeTab === "all" &&
+                      "You'll see notifications here when there's activity"}
+                    {activeTab === "platform" &&
+                      "No platform notifications yet"}
+                    {activeTab === "events" && "No event notifications yet"}
                   </p>
                 </div>
               )}

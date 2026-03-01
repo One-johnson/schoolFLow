@@ -32,7 +32,7 @@ export function convertTo24Hour(time12: string): string {
     return time12;
   }
   
-  let [, hoursStr, minutesStr, period] = match;
+  const [, hoursStr, minutesStr, period] = match;
   let hours = parseInt(hoursStr);
   const minutes = parseInt(minutesStr);
   

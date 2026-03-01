@@ -1,16 +1,16 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useQuery, useMutation } from 'convex/react';
-import { api } from '../../../../convex/_generated/api';
-import { useTeacherAuth } from '@/hooks/useTeacherAuth';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { toast } from 'sonner';
+import { useState } from "react";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../../../convex/_generated/api";
+import { useTeacherAuth } from "@/hooks/useTeacherAuth";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
 import {
   Bell,
   BellOff,
@@ -28,10 +28,10 @@ import {
   BarChart3,
   Megaphone,
   Settings,
-} from 'lucide-react';
-import type { Id } from '../../../../convex/_generated/dataModel';
+} from "lucide-react";
+import type { Id } from "../../../../convex/_generated/dataModel";
 
-type NotificationType = 'info' | 'warning' | 'success' | 'error';
+type NotificationType = "info" | "warning" | "success" | "error";
 
 const TYPE_ICONS: Record<NotificationType, React.ElementType> = {
   info: Info,
@@ -41,37 +41,40 @@ const TYPE_ICONS: Record<NotificationType, React.ElementType> = {
 };
 
 const TYPE_COLORS: Record<NotificationType, string> = {
-  info: 'bg-blue-100 text-blue-700 border-blue-200',
-  warning: 'bg-amber-100 text-amber-700 border-amber-200',
-  success: 'bg-green-100 text-green-700 border-green-200',
-  error: 'bg-red-100 text-red-700 border-red-200',
+  info: "bg-blue-100 text-blue-700 border-blue-200",
+  warning: "bg-amber-100 text-amber-700 border-amber-200",
+  success: "bg-green-100 text-green-700 border-green-200",
+  error: "bg-red-100 text-red-700 border-red-200",
 };
 
 export default function TeacherNotificationsPage() {
   const { teacher } = useTeacherAuth();
-  const [selectedTab, setSelectedTab] = useState<'all' | 'unread'>('all');
+  const [selectedTab, setSelectedTab] = useState<"all" | "unread">("all");
 
   // Queries
   const notifications = useQuery(
     api.notifications.getNotificationsByTeacher,
-    teacher ? { teacherId: teacher.id } : 'skip'
+    teacher ? { teacherId: teacher.id } : "skip",
   );
 
   const unreadCount = useQuery(
     api.notifications.getTeacherUnreadCount,
-    teacher ? { teacherId: teacher.id } : 'skip'
+    teacher ? { teacherId: teacher.id } : "skip",
   );
 
   // Mutations
   const markAsRead = useMutation(api.notifications.markAsRead);
-  const markAllAsRead = useMutation(api.notifications.markAllTeacherNotificationsAsRead);
+  const markAllAsRead = useMutation(
+    api.notifications.markAllTeacherNotificationsAsRead,
+  );
   const deleteNotification = useMutation(api.notifications.deleteSingle);
 
-  const handleMarkAsRead = async (id: Id<'notifications'>) => {
+  const handleMarkAsRead = async (id: Id<"notifications">) => {
     try {
       await markAsRead({ id });
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
-      toast.error('Failed to mark notification as read');
+      toast.error("Failed to mark notification as read");
     }
   };
 
@@ -80,17 +83,19 @@ export default function TeacherNotificationsPage() {
     try {
       const count = await markAllAsRead({ teacherId: teacher.id });
       toast.success(`Marked ${count} notifications as read`);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
-      toast.error('Failed to mark all as read');
+      toast.error("Failed to mark all as read");
     }
   };
 
-  const handleDelete = async (id: Id<'notifications'>) => {
+  const handleDelete = async (id: Id<"notifications">) => {
     try {
       await deleteNotification({ id });
-      toast.success('Notification deleted');
+      toast.success("Notification deleted");
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
-      toast.error('Failed to delete notification');
+      toast.error("Failed to delete notification");
     }
   };
 
@@ -102,25 +107,33 @@ export default function TeacherNotificationsPage() {
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-    if (diffMins < 1) return 'Just now';
+    if (diffMins < 1) return "Just now";
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const getCategoryIcon = (title: string) => {
     const lowerTitle = title.toLowerCase();
-    if (lowerTitle.includes('attendance')) return ClipboardCheck;
-    if (lowerTitle.includes('message') || lowerTitle.includes('parent')) return MessageSquare;
-    if (lowerTitle.includes('event') || lowerTitle.includes('calendar')) return Calendar;
-    if (lowerTitle.includes('grade') || lowerTitle.includes('mark') || lowerTitle.includes('score')) return BarChart3;
-    if (lowerTitle.includes('announcement')) return Megaphone;
+    if (lowerTitle.includes("attendance")) return ClipboardCheck;
+    if (lowerTitle.includes("message") || lowerTitle.includes("parent"))
+      return MessageSquare;
+    if (lowerTitle.includes("event") || lowerTitle.includes("calendar"))
+      return Calendar;
+    if (
+      lowerTitle.includes("grade") ||
+      lowerTitle.includes("mark") ||
+      lowerTitle.includes("score")
+    )
+      return BarChart3;
+    if (lowerTitle.includes("announcement")) return Megaphone;
     return Bell;
   };
 
   const filteredNotifications = notifications?.filter((n) =>
-    selectedTab === 'all' ? true : !n.read
+    selectedTab === "all" ? true : !n.read,
   );
 
   if (!teacher) {
@@ -143,8 +156,8 @@ export default function TeacherNotificationsPage() {
           </h1>
           <p className="text-sm text-muted-foreground">
             {unreadCount !== undefined && unreadCount > 0
-              ? `${unreadCount} unread notification${unreadCount !== 1 ? 's' : ''}`
-              : 'All caught up!'}
+              ? `${unreadCount} unread notification${unreadCount !== 1 ? "s" : ""}`
+              : "All caught up!"}
           </p>
         </div>
         {unreadCount !== undefined && unreadCount > 0 && (
@@ -163,7 +176,9 @@ export default function TeacherNotificationsPage() {
               <Bell className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{notifications?.length ?? '-'}</p>
+              <p className="text-2xl font-bold">
+                {notifications?.length ?? "-"}
+              </p>
               <p className="text-xs text-muted-foreground">Total</p>
             </div>
           </CardContent>
@@ -175,7 +190,7 @@ export default function TeacherNotificationsPage() {
               <BellOff className="h-5 w-5 text-amber-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{unreadCount ?? '-'}</p>
+              <p className="text-2xl font-bold">{unreadCount ?? "-"}</p>
               <p className="text-xs text-muted-foreground">Unread</p>
             </div>
           </CardContent>
@@ -188,7 +203,9 @@ export default function TeacherNotificationsPage() {
             </div>
             <div>
               <p className="text-2xl font-bold">
-                {notifications ? notifications.filter((n) => n.type === 'success').length : '-'}
+                {notifications
+                  ? notifications.filter((n) => n.type === "success").length
+                  : "-"}
               </p>
               <p className="text-xs text-muted-foreground">Success</p>
             </div>
@@ -203,8 +220,10 @@ export default function TeacherNotificationsPage() {
             <div>
               <p className="text-2xl font-bold">
                 {notifications
-                  ? notifications.filter((n) => n.type === 'warning' || n.type === 'error').length
-                  : '-'}
+                  ? notifications.filter(
+                      (n) => n.type === "warning" || n.type === "error",
+                    ).length
+                  : "-"}
               </p>
               <p className="text-xs text-muted-foreground">Alerts</p>
             </div>
@@ -215,13 +234,19 @@ export default function TeacherNotificationsPage() {
       {/* Notifications List */}
       <Card>
         <CardHeader className="pb-3">
-          <Tabs value={selectedTab} onValueChange={(v) => setSelectedTab(v as 'all' | 'unread')}>
-            <TabsList className="grid w-full grid-cols-2 max-w-[200px]">
+          <Tabs
+            value={selectedTab}
+            onValueChange={(v) => setSelectedTab(v as "all" | "unread")}
+          >
+            <TabsList className="grid w-full grid-cols-2 max-w-50">
               <TabsTrigger value="all">All</TabsTrigger>
               <TabsTrigger value="unread">
                 Unread
                 {unreadCount !== undefined && unreadCount > 0 && (
-                  <Badge variant="destructive" className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                  <Badge
+                    variant="destructive"
+                    className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs"
+                  >
                     {unreadCount}
                   </Badge>
                 )}
@@ -230,7 +255,7 @@ export default function TeacherNotificationsPage() {
           </Tabs>
         </CardHeader>
         <CardContent className="p-0">
-          <ScrollArea className="h-[400px]">
+          <ScrollArea className="h-100">
             {!notifications ? (
               <div className="space-y-2 p-4">
                 <Skeleton className="h-20 w-full" />
@@ -241,29 +266,36 @@ export default function TeacherNotificationsPage() {
               <div className="text-center py-12 text-muted-foreground">
                 <Bell className="h-12 w-12 mx-auto mb-3 opacity-50" />
                 <p className="font-medium">
-                  {selectedTab === 'unread' ? 'No unread notifications' : 'No notifications yet'}
+                  {selectedTab === "unread"
+                    ? "No unread notifications"
+                    : "No notifications yet"}
                 </p>
                 <p className="text-sm mt-1">
-                  {selectedTab === 'unread'
-                    ? "You're all caught up!"
-                    : 'Notifications will appear here'}
+                  {selectedTab === "unread"
+                    ? "You&apos;re all caught up!"
+                    : "Notifications will appear here"}
                 </p>
               </div>
             ) : (
               <div className="divide-y">
                 {filteredNotifications?.map((notification) => {
-                  const TypeIcon = TYPE_ICONS[notification.type as NotificationType] || Bell;
-                  const colorClass = TYPE_COLORS[notification.type as NotificationType] || TYPE_COLORS.info;
+                  const TypeIcon =
+                    TYPE_ICONS[notification.type as NotificationType] || Bell;
+                  const colorClass =
+                    TYPE_COLORS[notification.type as NotificationType] ||
+                    TYPE_COLORS.info;
 
                   return (
                     <div
                       key={notification._id}
                       className={`p-4 hover:bg-muted/50 transition-colors ${
-                        !notification.read ? 'bg-primary/5' : ''
+                        !notification.read ? "bg-primary/5" : ""
                       }`}
                     >
                       <div className="flex items-start gap-3">
-                        <div className={`p-2 rounded-lg shrink-0 ${colorClass}`}>
+                        <div
+                          className={`p-2 rounded-lg shrink-0 ${colorClass}`}
+                        >
                           <TypeIcon className="h-4 w-4" />
                         </div>
 
@@ -271,9 +303,14 @@ export default function TeacherNotificationsPage() {
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
-                                <h4 className="font-medium text-sm">{notification.title}</h4>
+                                <h4 className="font-medium text-sm">
+                                  {notification.title}
+                                </h4>
                                 {!notification.read && (
-                                  <Badge variant="default" className="h-2 w-2 p-0 rounded-full" />
+                                  <Badge
+                                    variant="default"
+                                    className="h-2 w-2 p-0 rounded-full"
+                                  />
                                 )}
                               </div>
                               <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
@@ -293,7 +330,9 @@ export default function TeacherNotificationsPage() {
                                   variant="ghost"
                                   size="icon"
                                   className="h-8 w-8"
-                                  onClick={() => handleMarkAsRead(notification._id)}
+                                  onClick={() =>
+                                    handleMarkAsRead(notification._id)
+                                  }
                                 >
                                   <Check className="h-4 w-4" />
                                 </Button>
@@ -336,7 +375,9 @@ export default function TeacherNotificationsPage() {
                 </div>
                 <div>
                   <p className="text-sm font-medium">Parent Messages</p>
-                  <p className="text-xs text-muted-foreground">Get notified when parents send messages</p>
+                  <p className="text-xs text-muted-foreground">
+                    Get notified when parents send messages
+                  </p>
                 </div>
               </div>
               <Badge variant="secondary">Enabled</Badge>
@@ -349,7 +390,9 @@ export default function TeacherNotificationsPage() {
                 </div>
                 <div>
                   <p className="text-sm font-medium">Event Reminders</p>
-                  <p className="text-xs text-muted-foreground">Receive reminders for upcoming events</p>
+                  <p className="text-xs text-muted-foreground">
+                    Receive reminders for upcoming events
+                  </p>
                 </div>
               </div>
               <Badge variant="secondary">Enabled</Badge>
@@ -362,7 +405,9 @@ export default function TeacherNotificationsPage() {
                 </div>
                 <div>
                   <p className="text-sm font-medium">Announcements</p>
-                  <p className="text-xs text-muted-foreground">Stay updated with school announcements</p>
+                  <p className="text-xs text-muted-foreground">
+                    Stay updated with school announcements
+                  </p>
                 </div>
               </div>
               <Badge variant="secondary">Enabled</Badge>

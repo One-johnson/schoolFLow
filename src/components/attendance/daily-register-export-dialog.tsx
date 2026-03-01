@@ -1,6 +1,6 @@
 'use client';
 
-import { JSX, useState } from 'react';
+import { useState } from 'react';
 import { useQuery, useConvex } from 'convex/react';
 import { api } from '@/../convex/_generated/api';
 import {
@@ -121,7 +121,7 @@ export function DailyRegisterExportDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-125">
         <DialogHeader>
           <DialogTitle>Export Daily Attendance Register</DialogTitle>
           <DialogDescription>

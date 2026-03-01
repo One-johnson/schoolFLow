@@ -85,7 +85,7 @@ export default function ContactPage(): React.JSX.Element {
   };
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     setFormData((prev) => ({
       ...prev,
@@ -109,15 +109,16 @@ export default function ContactPage(): React.JSX.Element {
               Get In Touch
             </Badge>
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              Let's Start a
-              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Let&apos;s Start a
+              <span className="bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 {" "}
                 Conversation
               </span>
             </h1>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Have questions about SchoolFlow? We're here to help. Reach out to
-              our team and we'll get back to you as soon as possible.
+              Have questions about SchoolFlow? We&apos;re here to help. Reach
+              out to our team and we&apos;ll get back to you as soon as
+              possible.
             </p>
           </motion.div>
         </div>
@@ -137,7 +138,7 @@ export default function ContactPage(): React.JSX.Element {
               >
                 <Card className="text-center h-full hover:shadow-lg transition-shadow">
                   <CardHeader>
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mx-auto mb-4">
+                    <div className="w-12 h-12 rounded-full bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center mx-auto mb-4">
                       <info.icon className="w-6 h-6 text-white" />
                     </div>
                     <CardTitle className="text-lg">{info.title}</CardTitle>
@@ -176,7 +177,7 @@ export default function ContactPage(): React.JSX.Element {
                 <CardHeader>
                   <CardTitle className="text-2xl">Send Us a Message</CardTitle>
                   <CardDescription>
-                    Fill out the form below and we'll get back to you within 24
+                    Fill out the form below and we&apos;ll get back to you within 24
                     hours
                   </CardDescription>
                 </CardHeader>
@@ -285,7 +286,7 @@ export default function ContactPage(): React.JSX.Element {
               {/* Office Hours */}
               <Card>
                 <CardHeader>
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mb-2">
+                  <div className="w-10 h-10 rounded-full bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center mb-2">
                     <Clock className="w-5 h-5 text-white" />
                   </div>
                   <CardTitle className="text-xl">Office Hours</CardTitle>
@@ -344,7 +345,7 @@ export default function ContactPage(): React.JSX.Element {
               </Card>
 
               {/* Response Time */}
-              <Card className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+              <Card className="bg-linear-to-br from-blue-500 to-purple-600 text-white">
                 <CardHeader>
                   <CardTitle className="text-white">Fast Response</CardTitle>
                 </CardHeader>
@@ -371,7 +372,7 @@ export default function ContactPage(): React.JSX.Element {
           >
             <Card>
               <CardContent className="p-0">
-                <div className="w-full h-96 bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-950 dark:to-purple-950 rounded-lg flex items-center justify-center">
+                <div className="w-full h-96 bg-linear-to-br from-blue-100 to-purple-100 dark:from-blue-950 dark:to-purple-950 rounded-lg flex items-center justify-center">
                   <div className="text-center">
                     <MapPin className="w-16 h-16 mx-auto mb-4 text-blue-600 dark:text-blue-400" />
                     <h3 className="text-2xl font-bold mb-2">

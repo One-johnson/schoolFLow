@@ -1,76 +1,90 @@
-'use client';
+"use client";
 
-import { useState, JSX } from 'react';
+import { useState, JSX } from "react";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { FileText, Award, BarChart3, AlertCircle, Calendar } from 'lucide-react';
+} from "@/components/ui/select";
+import {
+  FileText,
+  Award,
+  BarChart3,
+  AlertCircle,
+  Calendar,
+} from "lucide-react";
 
 interface ExportAttendanceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSelectReportType: (type: 'daily' | 'summary' | 'certificate' | 'performance' | 'absentee') => void;
+  onSelectReportType: (
+    type: "daily" | "summary" | "certificate" | "performance" | "absentee",
+  ) => void;
 }
 
 export function ExportAttendanceDialog({
   open,
   onOpenChange,
-  onSelectReportType
+  onSelectReportType,
 }: ExportAttendanceDialogProps): React.JSX.Element {
-  const [selectedType, setSelectedType] = useState<string>('');
+  type ReportType =
+    | "daily"
+    | "summary"
+    | "certificate"
+    | "performance"
+    | "absentee";
+  const [selectedType, setSelectedType] = useState<ReportType | "">("");
 
   const handleProceed = (): void => {
     if (selectedType) {
-      onSelectReportType(selectedType as any);
+      onSelectReportType(selectedType as ReportType);
       onOpenChange(false);
-      setSelectedType('');
+      setSelectedType("");
     }
   };
 
   const reportTypes = [
     {
-      value: 'daily',
-      label: 'Daily Attendance Register',
-      description: 'Printable register for a specific class and date',
-      icon: FileText
+      value: "daily",
+      label: "Daily Attendance Register",
+      description: "Printable register for a specific class and date",
+      icon: FileText,
     },
     {
-      value: 'summary',
-      label: 'Attendance Summary',
-      description: 'Weekly/monthly summary with student statistics',
-      icon: Calendar
+      value: "summary",
+      label: "Attendance Summary",
+      description: "Weekly/monthly summary with student statistics",
+      icon: Calendar,
     },
     {
-      value: 'certificate',
-      label: 'Student Certificate',
-      description: 'Individual student attendance certificate',
-      icon: Award
+      value: "certificate",
+      label: "Student Certificate",
+      description: "Individual student attendance certificate",
+      icon: Award,
     },
     {
-      value: 'performance',
-      label: 'Class Performance Report',
-      description: 'Compare attendance across multiple classes',
-      icon: BarChart3
+      value: "performance",
+      label: "Class Performance Report",
+      description: "Compare attendance across multiple classes",
+      icon: BarChart3,
     },
     {
-      value: 'absentee',
-      label: 'Absentee Report',
-      description: 'List of absent students on specific date(s)',
-      icon: AlertCircle
-    }
+      value: "absentee",
+      label: "Absentee Report",
+      description: "List of absent students on specific date(s)",
+      icon: AlertCircle,
+    },
   ];
 
   return (
@@ -113,8 +127,12 @@ export function ExportAttendanceDialog({
                     <div key={type.value} className="flex gap-3">
                       <Icon className="h-5 w-5 text-blue-600 mt-0.5" />
                       <div>
-                        <p className="font-medium text-blue-900">{type.label}</p>
-                        <p className="text-sm text-blue-700 mt-1">{type.description}</p>
+                        <p className="font-medium text-blue-900">
+                          {type.label}
+                        </p>
+                        <p className="text-sm text-blue-700 mt-1">
+                          {type.description}
+                        </p>
                       </div>
                     </div>
                   );

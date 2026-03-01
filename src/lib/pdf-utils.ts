@@ -277,6 +277,7 @@ function generateReportCardPage(doc: jsPDF, reportCard: ReportCardData, pageInde
   });
 
   // Update yPos after table
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const finalY = (doc as any).lastAutoTable.finalY;
   yPos = finalY + 8;
 
@@ -304,6 +305,7 @@ function generateReportCardPage(doc: jsPDF, reportCard: ReportCardData, pageInde
   if (reportCard.gradingScaleData) {
     try {
       gradingScaleGrades = JSON.parse(reportCard.gradingScaleData);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
       // Use default scale
     }
@@ -329,7 +331,7 @@ function generateReportCardPage(doc: jsPDF, reportCard: ReportCardData, pageInde
   let col = 0;
   let row = 0;
   
-  gradingScaleGrades.forEach((grade, index) => {
+  gradingScaleGrades.forEach((grade) => {
     const xPos = margin + 8 + (col * colWidth);
     const currentYPos = yPos + (row * 4);
     doc.text(`${grade.minPercent}-${grade.maxPercent}: Grade ${grade.grade} - ${grade.remark}`, xPos, currentYPos);

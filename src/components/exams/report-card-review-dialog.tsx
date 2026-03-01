@@ -1,36 +1,36 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useMutation, useQuery } from 'convex/react';
-import { api } from '../../../convex/_generated/api';
+import { useState } from "react";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
-import { toast } from 'sonner';
-import { CheckCircle2, Loader2 } from 'lucide-react';
-import type { Id } from '../../../convex/_generated/dataModel';
+} from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
+import { CheckCircle2, Loader2 } from "lucide-react";
+import type { Id } from "../../../convex/_generated/dataModel";
 
 interface ReportCardReviewDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  reportCardId: Id<'reportCards'>;
+  reportCardId: Id<"reportCards">;
   reviewedBy: string;
   reviewedByName: string;
   onReviewComplete?: () => void;
@@ -45,16 +45,18 @@ export function ReportCardReviewDialog({
   onReviewComplete,
 }: ReportCardReviewDialogProps) {
   const [loading, setLoading] = useState<boolean>(false);
-  const [presentDays, setPresentDays] = useState<string>('');
-  const [totalDays, setTotalDays] = useState<string>('');
-  const [conduct, setConduct] = useState<string>('');
-  const [attitude, setAttitude] = useState<string>('');
-  const [interest, setInterest] = useState<string>('');
-  const [classTeacherComment, setClassTeacherComment] = useState<string>('');
-  const [headmasterComment, setHeadmasterComment] = useState<string>('');
-  const [reviewNotes, setReviewNotes] = useState<string>('');
+  const [presentDays, setPresentDays] = useState<string>("");
+  const [totalDays, setTotalDays] = useState<string>("");
+  const [conduct, setConduct] = useState<string>("");
+  const [attitude, setAttitude] = useState<string>("");
+  const [interest, setInterest] = useState<string>("");
+  const [classTeacherComment, setClassTeacherComment] = useState<string>("");
+  const [headmasterComment, setHeadmasterComment] = useState<string>("");
+  const [reviewNotes, setReviewNotes] = useState<string>("");
 
-  const reportCard = useQuery(api.reportCards.getReportCardById, { reportId: reportCardId });
+  const reportCard = useQuery(api.reportCards.getReportCardById, {
+    reportId: reportCardId,
+  });
   const reviewReportCard = useMutation(api.reportCardReview.reviewReportCard);
 
   const subjects = reportCard?.subjects ? JSON.parse(reportCard.subjects) : [];
@@ -62,9 +64,13 @@ export function ReportCardReviewDialog({
   const handleSaveDraft = async (): Promise<void> => {
     setLoading(true);
     try {
-      const attendance = presentDays && totalDays 
-        ? JSON.stringify({ present: parseInt(presentDays), total: parseInt(totalDays) })
-        : undefined;
+      const attendance =
+        presentDays && totalDays
+          ? JSON.stringify({
+              present: parseInt(presentDays),
+              total: parseInt(totalDays),
+            })
+          : undefined;
 
       await reviewReportCard({
         reportCardId,
@@ -80,11 +86,13 @@ export function ReportCardReviewDialog({
         reviewNotes: reviewNotes || undefined,
       });
 
-      toast.success('Report card saved as draft');
+      toast.success("Report card saved as draft");
       onReviewComplete?.();
       onOpenChange(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to save report card');
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save report card",
+      );
     } finally {
       setLoading(false);
     }
@@ -93,9 +101,13 @@ export function ReportCardReviewDialog({
   const handleApprove = async (): Promise<void> => {
     setLoading(true);
     try {
-      const attendance = presentDays && totalDays 
-        ? JSON.stringify({ present: parseInt(presentDays), total: parseInt(totalDays) })
-        : undefined;
+      const attendance =
+        presentDays && totalDays
+          ? JSON.stringify({
+              present: parseInt(presentDays),
+              total: parseInt(totalDays),
+            })
+          : undefined;
 
       await reviewReportCard({
         reportCardId,
@@ -111,11 +123,15 @@ export function ReportCardReviewDialog({
         reviewNotes: reviewNotes || undefined,
       });
 
-      toast.success('Report card approved successfully');
+      toast.success("Report card approved successfully");
       onReviewComplete?.();
       onOpenChange(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to approve report card');
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to approve report card",
+      );
     } finally {
       setLoading(false);
     }
@@ -131,7 +147,8 @@ export function ReportCardReviewDialog({
         <DialogHeader>
           <DialogTitle>Review Report Card</DialogTitle>
           <DialogDescription>
-            Review and add comments for {reportCard.studentName} - {reportCard.className}
+            Review and add comments for {reportCard.studentName} -{" "}
+            {reportCard.className}
           </DialogDescription>
         </DialogHeader>
 
@@ -143,11 +160,15 @@ export function ReportCardReviewDialog({
               <div className="grid grid-cols-3 gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground">Total Score:</span>
-                  <p className="font-medium">{reportCard.totalScore.toFixed(1)} / {reportCard.rawScore}</p>
+                  <p className="font-medium">
+                    {reportCard.totalScore.toFixed(1)} / {reportCard.rawScore}
+                  </p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Percentage:</span>
-                  <p className="font-medium">{reportCard.percentage.toFixed(1)}%</p>
+                  <p className="font-medium">
+                    {reportCard.percentage.toFixed(1)}%
+                  </p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Overall Grade:</span>
@@ -155,7 +176,9 @@ export function ReportCardReviewDialog({
                 </div>
                 <div>
                   <span className="text-muted-foreground">Position:</span>
-                  <p className="font-medium">{reportCard.position} / {reportCard.totalStudents}</p>
+                  <p className="font-medium">
+                    {reportCard.position} / {reportCard.totalStudents}
+                  </p>
                 </div>
               </div>
             </div>
@@ -175,21 +198,32 @@ export function ReportCardReviewDialog({
                     </tr>
                   </thead>
                   <tbody>
-                    {subjects.map((subject: {
-                      subjectName: string;
-                      classScore: number;
-                      examScore: number;
-                      totalScore: number;
-                      grade: string;
-                    }, index: number) => (
-                      <tr key={index} className="border-t">
-                        <td className="p-2">{subject.subjectName}</td>
-                        <td className="text-center p-2">{subject.classScore}</td>
-                        <td className="text-center p-2">{subject.examScore}</td>
-                        <td className="text-center p-2 font-semibold">{subject.totalScore}</td>
-                        <td className="text-center p-2">{subject.grade}</td>
-                      </tr>
-                    ))}
+                    {subjects.map(
+                      (
+                        subject: {
+                          subjectName: string;
+                          classScore: number;
+                          examScore: number;
+                          totalScore: number;
+                          grade: string;
+                        },
+                        index: number,
+                      ) => (
+                        <tr key={index} className="border-t">
+                          <td className="p-2">{subject.subjectName}</td>
+                          <td className="text-center p-2">
+                            {subject.classScore}
+                          </td>
+                          <td className="text-center p-2">
+                            {subject.examScore}
+                          </td>
+                          <td className="text-center p-2 font-semibold">
+                            {subject.totalScore}
+                          </td>
+                          <td className="text-center p-2">{subject.grade}</td>
+                        </tr>
+                      ),
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -237,7 +271,9 @@ export function ReportCardReviewDialog({
                     <SelectItem value="Very Good">Very Good</SelectItem>
                     <SelectItem value="Good">Good</SelectItem>
                     <SelectItem value="Satisfactory">Satisfactory</SelectItem>
-                    <SelectItem value="Needs Improvement">Needs Improvement</SelectItem>
+                    <SelectItem value="Needs Improvement">
+                      Needs Improvement
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -272,7 +308,9 @@ export function ReportCardReviewDialog({
 
               {/* Class Teacher Comment */}
               <div className="space-y-2">
-                <Label htmlFor="classTeacherComment">Class Teacher&apos;s Comment</Label>
+                <Label htmlFor="classTeacherComment">
+                  Class Teacher&apos;s Comment
+                </Label>
                 <Textarea
                   id="classTeacherComment"
                   placeholder="Enter your comments about the student's performance..."
@@ -284,7 +322,9 @@ export function ReportCardReviewDialog({
 
               {/* Headmaster Comment */}
               <div className="space-y-2">
-                <Label htmlFor="headmasterComment">Headmaster&apos;s Comment</Label>
+                <Label htmlFor="headmasterComment">
+                  Headmaster&apos;s Comment
+                </Label>
                 <Textarea
                   id="headmasterComment"
                   placeholder="Enter headmaster's remarks (optional)..."
@@ -310,17 +350,25 @@ export function ReportCardReviewDialog({
         </ScrollArea>
 
         <div className="flex justify-end gap-3 pt-4 border-t">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={loading}
+          >
             Cancel
           </Button>
-          <Button variant="outline" onClick={handleSaveDraft} disabled={loading}>
+          <Button
+            variant="outline"
+            onClick={handleSaveDraft}
+            disabled={loading}
+          >
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 Saving...
               </>
             ) : (
-              'Save Draft'
+              "Save Draft"
             )}
           </Button>
           <Button onClick={handleApprove} disabled={loading}>

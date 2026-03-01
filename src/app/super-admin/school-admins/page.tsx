@@ -468,7 +468,7 @@ export default function SchoolAdminsPage(): React.JSX.Element {
   };
 
   const columns: ColumnDef<SchoolAdmin>[] = useMemo(
-    // eslint-disable-next-line react-hooks/preserve-manual-memoization
+     
     () => [
       createSelectColumn<SchoolAdmin>(),
       {

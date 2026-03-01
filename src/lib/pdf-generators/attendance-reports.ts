@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import type { Id } from '@/../convex/_generated/dataModel';
+
 
 interface AttendanceRecord {
   studentName: string;
@@ -83,6 +83,7 @@ export function generateDailyRegisterPDF(data: {
   });
   
   // Summary
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const finalY = (doc as any).lastAutoTable.finalY + 10;
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
@@ -166,6 +167,7 @@ export function generateAttendanceSummaryPDF(data: {
   });
   
   // Summary Statistics
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const finalY = (doc as any).lastAutoTable.finalY + 10;
   const avgAttendance = data.students.length > 0
     ? data.students.reduce((sum, s) => sum + s.percentage, 0) / data.students.length
@@ -357,6 +359,7 @@ export function generateClassPerformancePDF(data: {
   });
   
   // Summary
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const finalY = (doc as any).lastAutoTable.finalY + 15;
   
   if (sortedClasses.length > 0) {
@@ -464,6 +467,7 @@ export function generateAbsenteeReportPDF(data: {
         margin: { left: 25 }
       });
       
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       currentY = (doc as any).lastAutoTable.finalY + 10;
       
       // Add new page if needed

@@ -176,15 +176,16 @@ export default function AboutPage(): React.JSX.Element {
             </Badge>
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
               Empowering Education Through
-              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              <span className="bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 {" "}
                 Technology
               </span>
             </h1>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              We're on a mission to transform school management with innovative,
-              intuitive, and powerful software that helps educational
-              institutions focus on what matters most: student success.
+              We&apos;re on a mission to transform school management with
+              innovative, intuitive, and powerful software that helps
+              educational institutions focus on what matters most: student
+              success.
             </p>
           </motion.div>
         </div>
@@ -202,7 +203,7 @@ export default function AboutPage(): React.JSX.Element {
             >
               <Card className="h-full">
                 <CardHeader>
-                  <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-4">
+                  <div className="w-12 h-12 rounded-lg bg-linear-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-4">
                     <Target className="w-6 h-6 text-white" />
                   </div>
                   <CardTitle className="text-2xl">Our Mission</CardTitle>
@@ -227,14 +228,14 @@ export default function AboutPage(): React.JSX.Element {
             >
               <Card className="h-full">
                 <CardHeader>
-                  <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center mb-4">
+                  <div className="w-12 h-12 rounded-lg bg-linear-to-br from-purple-500 to-purple-600 flex items-center justify-center mb-4">
                     <Eye className="w-6 h-6 text-white" />
                   </div>
                   <CardTitle className="text-2xl">Our Vision</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground leading-relaxed">
-                    To become the world's most trusted school management
+                    To become the world&apos;s most trusted school management
                     platform, enabling thousands of educational institutions to
                     operate efficiently, make data-driven decisions, and provide
                     exceptional experiences for students, parents, and staff.
@@ -274,7 +275,7 @@ export default function AboutPage(): React.JSX.Element {
               >
                 <Card className="text-center h-full">
                   <CardHeader>
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mx-auto mb-4">
+                    <div className="w-12 h-12 rounded-full bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center mx-auto mb-4">
                       <value.icon className="w-6 h-6 text-white" />
                     </div>
                     <CardTitle className="text-lg">{value.title}</CardTitle>
@@ -307,7 +308,7 @@ export default function AboutPage(): React.JSX.Element {
           </motion.div>
 
           <div className="relative">
-            <div className="absolute left-1/2 transform -translate-x-1/2 h-full w-0.5 bg-gradient-to-b from-blue-500 to-purple-600 hidden md:block" />
+            <div className="absolute left-1/2 transform -translate-x-1/2 h-full w-0.5 bg-linear-to-b from-blue-500 to-purple-600 hidden md:block" />
 
             <div className="space-y-12">
               {milestones.map((milestone, index) => (
@@ -323,7 +324,7 @@ export default function AboutPage(): React.JSX.Element {
                 >
                   <div className="flex-1" />
                   <div className="relative z-10">
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
+                    <div className="w-16 h-16 rounded-full bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
                       <TrendingUp className="w-8 h-8" />
                     </div>
                   </div>
@@ -375,7 +376,7 @@ export default function AboutPage(): React.JSX.Element {
                   <CardHeader>
                     <Avatar className="w-24 h-24 mx-auto mb-4">
                       <AvatarImage src={member.image} />
-                      <AvatarFallback className="text-2xl bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+                      <AvatarFallback className="text-2xl bg-linear-to-br from-blue-500 to-purple-600 text-white">
                         {member.name
                           .split(" ")
                           .map((n: string) => n[0])
