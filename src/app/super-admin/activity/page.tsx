@@ -37,7 +37,7 @@ import { toast } from 'sonner';
 interface LoginHistoryEntry {
   _id: Id<'loginHistory'>;
   userId: string;
-  userRole: 'super_admin' | 'school_admin';
+  userRole: 'super_admin' | 'school_admin' | 'teacher';
   loginTime: string;
   logoutTime?: string;
   status: 'success' | 'failed';
@@ -53,7 +53,7 @@ interface LoginHistoryEntry {
 interface SessionEntry {
   _id: Id<'sessions'>;
   userId: string;
-  userRole: 'super_admin' | 'school_admin';
+  userRole: 'super_admin' | 'school_admin' | 'teacher';
   sessionToken: string;
   ipAddress: string;
   device: string;

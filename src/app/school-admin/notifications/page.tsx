@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
+import type { Id } from "../../../../convex/_generated/dataModel";
 import {
   Bell,
   Check,
@@ -79,15 +80,13 @@ export default function NotificationsPage(): React.JSX.Element {
   };
 
   const eventNotifications = useQuery(
-    schoolAdmin?.schoolId
-      ? api.eventNotifications.getMyEventNotifications
-      : "skip",
+    api.eventNotifications.getMyEventNotifications,
     schoolAdmin?.schoolId
       ? {
           schoolId: schoolAdmin.schoolId,
-          recipientId: schoolAdmin._id.toString(),
+          recipientId: schoolAdmin._id,
         }
-      : undefined,
+      : "skip",
   ) as EventNotificationDoc[] | undefined;
 
   const markPlatformAsRead = useMutation(api.notifications.markAsRead);
@@ -136,9 +135,11 @@ export default function NotificationsPage(): React.JSX.Element {
   ): Promise<void> => {
     try {
       if (notification.type === "platform") {
-        await markPlatformAsRead({ id: notification._id });
+        await markPlatformAsRead({ id: notification._id as Id<"notifications"> });
       } else {
-        await markEventAsRead({ notificationId: notification._id });
+        await markEventAsRead({
+          notificationId: notification._id as Id<"eventNotifications">,
+        });
       }
       toast.success("Notification marked as read");
     } catch (error) {
@@ -156,7 +157,9 @@ export default function NotificationsPage(): React.JSX.Element {
         (n) => !n.readAt,
       );
       for (const notif of unreadEventNotifs) {
-        await markEventAsRead({ notificationId: notif._id });
+        await markEventAsRead({
+          notificationId: notif._id as Id<"eventNotifications">,
+        });
       }
 
       toast.success("All notifications marked as read");

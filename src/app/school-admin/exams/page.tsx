@@ -195,6 +195,7 @@ export default function ExamsPage() {
     gradingScaleData?: string;
     academicYearName?: string;
     termName?: string;
+    photoUrl?: string;
   };
 
   const enrichReportCard = async (

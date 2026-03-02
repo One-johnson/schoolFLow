@@ -100,7 +100,10 @@ export function ExportAttendanceDialog({
         <div className="space-y-6 py-4">
           <div className="space-y-2">
             <Label>Report Type</Label>
-            <Select value={selectedType} onValueChange={setSelectedType}>
+            <Select
+              value={selectedType}
+              onValueChange={(value) => setSelectedType(value as ReportType | "")}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Choose report type" />
               </SelectTrigger>
