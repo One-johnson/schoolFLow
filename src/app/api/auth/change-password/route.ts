@@ -14,14 +14,30 @@ function getConvexClient(): ConvexHttpClient {
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const session = await SessionManager.getSession();
-    
-    if (!session) {
+    const token = await SessionManager.getSessionToken();
+    if (!token) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
+    const convex = getConvexClient();
+    const session = await convex.query(api.sessions.getSessionWithUser, {
+      sessionToken: token,
+    });
+    if (!session || session.role === 'teacher') {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    const sessionData = {
+      userId: session.userId,
+      email: session.email,
+      role: session.role,
+      schoolId: 'schoolId' in session ? session.schoolId : undefined,
+      adminRole: 'adminRole' in session ? session.adminRole : undefined,
+    };
 
     const body = await request.json();
     const { currentPassword, newPassword, role } = body;
@@ -42,12 +58,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const convex = getConvexClient();
-
-    if (role === 'super_admin' || session.role === 'super_admin') {
+    if (role === 'super_admin' || sessionData.role === 'super_admin') {
       // Handle Super Admin password change
       const superAdmins = await convex.query(api.auth.listSuperAdmins);
-      const currentUser = superAdmins.find((admin) => admin.email === session.email);
+      const currentUser = superAdmins.find((admin) => admin.email === sessionData.email);
 
       if (!currentUser) {
         return NextResponse.json(
@@ -71,7 +85,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
       // Update password in database
       await convex.mutation(api.auth.changePassword, {
-        email: session.email,
+        email: sessionData.email,
         oldPassword: currentUser.password, // Pass the hashed password for verification
         newPassword: hashedNewPassword,
       });
@@ -81,10 +95,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         message: 'Password changed successfully'
       });
 
-    } else if (role === 'school_admin' || session.role === 'school_admin') {
+    } else if (role === 'school_admin' || sessionData.role === 'school_admin') {
       // Handle School Admin password change
       const schoolAdmins = await convex.query(api.schoolAdmins.list);
-      const currentUser = schoolAdmins.find((admin) => admin.email === session.email);
+      const currentUser = schoolAdmins.find((admin) => admin.email === sessionData.email);
 
       if (!currentUser) {
         return NextResponse.json(
@@ -117,7 +131,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
       // Update password in database
       await convex.mutation(api.schoolAdmins.updatePassword, {
-        email: session.email,
+        email: sessionData.email,
         password: hashedNewPassword,
       });
 

@@ -46,8 +46,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const convex = getConvexClient();
   
   try {
-    // Verify Super Admin session
-    const session = await SessionManager.getSession();
+    const token = await SessionManager.getSessionToken();
+    if (!token) {
+      return NextResponse.json(
+        { success: false, message: 'Unauthorized - Super Admin access required' },
+        { status: 403 }
+      );
+    }
+    const session = await convex.query(api.sessions.getSessionWithUser, {
+      sessionToken: token,
+    });
     if (!session || session.role !== 'super_admin') {
       return NextResponse.json(
         { success: false, message: 'Unauthorized - Super Admin access required' },
