@@ -2,32 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../../../convex/_generated/api";
 import { PasswordManager } from "@/lib/password";
-import jwt from "jsonwebtoken";
+import { TeacherSessionManager } from "@/lib/session";
 import type { Id } from "../../../../../convex/_generated/dataModel";
-
-const JWT_SECRET = (() => {
-  const s = process.env.JWT_SECRET;
-  if (!s) {
-    throw new Error("Missing required environment variable: JWT_SECRET");
-  }
-  return s;
-})();
-
-interface TeacherSessionData {
-  teacherId: string;
-  email: string;
-  schoolId: string;
-  role: "teacher";
-  firstName: string;
-  lastName: string;
-  classIds: string[];
-}
-
-interface SessionToken {
-  data: TeacherSessionData;
-  exp: number;
-  iat: number;
-}
 
 function getConvexClient(): ConvexHttpClient {
   const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
@@ -39,22 +15,10 @@ function getConvexClient(): ConvexHttpClient {
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    // Get token from Authorization header
-    const authHeader = request.headers.get("Authorization");
-    const token = authHeader?.startsWith("Bearer ")
-      ? authHeader.slice(7)
-      : null;
+    const session = await TeacherSessionManager.getSession();
 
-    if (!token) {
+    if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    let sessionData: TeacherSessionData;
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET) as SessionToken;
-      sessionData = decoded.data;
-    } catch {
-      return NextResponse.json({ error: "Invalid session" }, { status: 401 });
     }
 
     const body = await request.json();
@@ -67,24 +31,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Validate new password
     const validation = PasswordManager.validate(newPassword);
     if (!validation.valid) {
       return NextResponse.json({ error: validation.message }, { status: 400 });
     }
 
     const convex = getConvexClient();
-
-    // Get teacher's current password
     const teacher = await convex.query(api.teachers.getTeacherByEmail, {
-      email: sessionData.email,
+      email: session.email,
     });
 
     if (!teacher) {
       return NextResponse.json({ error: "Teacher not found" }, { status: 404 });
     }
 
-    // Verify current password
     const isValidPassword = await PasswordManager.verify(
       currentPassword,
       teacher.password,
@@ -97,10 +57,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Hash new password
     const hashedNewPassword = await PasswordManager.hash(newPassword);
 
-    // Update password in database
     await convex.mutation(api.teachers.updateTeacherPassword, {
       teacherId: teacher._id as Id<"teachers">,
       hashedPassword: hashedNewPassword,

@@ -19,6 +19,21 @@ export interface SessionData {
   adminRole?: "owner" | "admin" | "moderator"; // For super admin hierarchy
 }
 
+const TEACHER_SESSION_COOKIE_NAME = "schoolflow_teacher_session";
+
+export interface TeacherSessionData {
+  userId: string;
+  email: string;
+  role: "teacher";
+  schoolId: string;
+}
+
+export interface TeacherSessionToken {
+  data: TeacherSessionData;
+  exp: number;
+  iat: number;
+}
+
 export interface SessionToken {
   data: SessionData;
   exp: number;
@@ -92,5 +107,46 @@ export class SessionManager {
       throw new Error("Forbidden: School Admin access required");
     }
     return session;
+  }
+}
+
+/** Session-based auth for teachers (httpOnly cookie, no localStorage). */
+export class TeacherSessionManager {
+  static async createSession(data: TeacherSessionData): Promise<string> {
+    const token = jwt.sign({ data }, JWT_SECRET, {
+      expiresIn: SESSION_DURATION,
+    });
+
+    const cookieStore = await cookies();
+    cookieStore.set(TEACHER_SESSION_COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: SESSION_DURATION,
+      path: "/",
+    });
+
+    return token;
+  }
+
+  static async getSession(): Promise<TeacherSessionData | null> {
+    try {
+      const cookieStore = await cookies();
+      const token = cookieStore.get(TEACHER_SESSION_COOKIE_NAME)?.value;
+
+      if (!token) {
+        return null;
+      }
+
+      const decoded = jwt.verify(token, JWT_SECRET) as TeacherSessionToken;
+      return decoded.data;
+    } catch {
+      return null;
+    }
+  }
+
+  static async clearSession(): Promise<void> {
+    const cookieStore = await cookies();
+    cookieStore.delete(TEACHER_SESSION_COOKIE_NAME);
   }
 }

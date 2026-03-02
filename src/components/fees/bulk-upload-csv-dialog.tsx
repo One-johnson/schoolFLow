@@ -75,8 +75,8 @@ export function BulkUploadCSVDialog({
           const validationErrors: string[] = [];
           const parsedData: ParsedPayment[] = [];
 
-          results.data.forEach(
-            (row: Partial<Record<string, string>>, index: number) => {
+          (results.data as Partial<Record<string, string>>[]).forEach(
+            (row, index) => {
               try {
                 // Validate required fields
                 if (!row.studentId || !row.studentName || !row.categoryName) {

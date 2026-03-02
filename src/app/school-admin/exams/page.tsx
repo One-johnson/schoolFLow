@@ -195,6 +195,7 @@ export default function ExamsPage() {
     gradingScaleData?: string;
     academicYearName?: string;
     termName?: string;
+    photoUrl?: string;
   };
 
   const enrichReportCard = async (
@@ -221,7 +222,7 @@ export default function ExamsPage() {
     }
 
     // Fetch grading scale data if report has a grading scale ID
-    if (report.gradingScaleId && !report.gradingScaleData) {
+    if (report.gradingScaleId) {
       const gradingScale = gradingScales?.find(
         (g) => g._id === report.gradingScaleId,
       );
