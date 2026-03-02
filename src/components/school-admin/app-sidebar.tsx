@@ -1,17 +1,8 @@
 'use client';
 
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from '@/components/ui/sidebar';
+import * as React from 'react';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
   School,
@@ -31,9 +22,30 @@ import {
   ClipboardCheck,
   Megaphone,
   BarChart3,
+  ChevronDown,
 } from 'lucide-react';
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useState } from 'react';
+
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
+} from '@/components/ui/sidebar';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,107 +56,88 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { JSX, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
-const menuItems = [
+const standaloneNavItems = [
+  { title: 'Dashboard', icon: LayoutDashboard, url: '/school-admin' },
+];
+
+const navGroups: Array<{
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  items: Array<{ title: string; icon: React.ComponentType<{ className?: string }>; url: string }>;
+}> = [
   {
-    title: 'Dashboard',
-    icon: LayoutDashboard,
-    url: '/school-admin',
-  },
-  {
-    title: 'My School',
+    label: 'School & setup',
     icon: School,
-    url: '/school-admin/school',
+    items: [
+      { title: 'My School', icon: School, url: '/school-admin/school' },
+      { title: 'Academic Years', icon: Calendar, url: '/school-admin/academic-years' },
+    ],
   },
   {
-    title: 'Academic Years',
-    icon: Calendar,
-    url: '/school-admin/academic-years',
-  },
-  {
-    title: 'Teachers',
+    label: 'People & classes',
     icon: Users,
-    url: '/school-admin/teachers',
+    items: [
+      { title: 'Teachers', icon: Users, url: '/school-admin/teachers' },
+      { title: 'Classes', icon: BookOpen, url: '/school-admin/classes' },
+      { title: 'Students', icon: GraduationCap, url: '/school-admin/students' },
+      { title: 'Subjects', icon: BookOpen, url: '/school-admin/subjects' },
+    ],
   },
   {
-    title: 'Classes',
-    icon: BookOpen,
-    url: '/school-admin/classes',
-  },
-  {
-    title: 'Students',
-    icon: GraduationCap,
-    url: '/school-admin/students',
-  },
-  {
-    title: 'Subjects',
-    icon: BookOpen,
-    url: '/school-admin/subjects',
-  },
-  {
-    title: 'Timetable',
+    label: 'Timetable & attendance',
     icon: Clock,
-    url: '/school-admin/timetable',
+    items: [
+      { title: 'Timetable', icon: Clock, url: '/school-admin/timetable' },
+      { title: 'Attendance', icon: ClipboardCheck, url: '/school-admin/attendance' },
+    ],
   },
-   {
-    title: 'Attendance',
-    icon: ClipboardCheck,
-    url: '/school-admin/attendance',
-  },
-   {
-    title: 'Fees',
-    icon: DollarSign,
-    url: '/school-admin/fees',
-  },
-   {
-    title: 'Events',
-    icon: Calendar,
-    url: '/school-admin/events',
-  },
-   {
-    title: 'Exams',
+  {
+    label: 'Exams & reports',
     icon: FileText,
-    url: '/school-admin/exams',
+    items: [
+      { title: 'Exams', icon: FileText, url: '/school-admin/exams' },
+      { title: 'Reports', icon: BarChart3, url: '/school-admin/reports' },
+    ],
   },
   {
-    title: 'Reports',
-    icon: BarChart3,
-    url: '/school-admin/reports',
+    label: 'Finance',
+    icon: DollarSign,
+    items: [
+      { title: 'Fees', icon: DollarSign, url: '/school-admin/fees' },
+      { title: 'Subscription', icon: CreditCard, url: '/school-admin/subscription' },
+    ],
   },
   {
-    title: 'Announcements',
+    label: 'Events & communication',
     icon: Megaphone,
-    url: '/school-admin/announcements',
+    items: [
+      { title: 'Events', icon: Calendar, url: '/school-admin/events' },
+      { title: 'Announcements', icon: Megaphone, url: '/school-admin/announcements' },
+      { title: 'Notifications', icon: Bell, url: '/school-admin/notifications' },
+    ],
   },
   {
-    title: 'Subscription',
-    icon: CreditCard,
-    url: '/school-admin/subscription',
-  },
-  {
-    title: 'Notifications',
-    icon: Bell,
-    url: '/school-admin/notifications',
-  },
-  {
-    title: 'Support',
-    icon: HelpCircle,
-    url: '/school-admin/support',
-  },
-  {
-    title: 'Profile',
+    label: 'Account & support',
     icon: User,
-    url: '/school-admin/profile',
-  },
-  {
-    title: 'Settings',
-    icon: Settings,
-    url: '/school-admin/settings',
+    items: [
+      { title: 'Profile', icon: User, url: '/school-admin/profile' },
+      { title: 'Settings', icon: Settings, url: '/school-admin/settings' },
+      { title: 'Support', icon: HelpCircle, url: '/school-admin/support' },
+    ],
   },
 ];
+
+function isPathInGroup(
+  pathname: string,
+  items: Array<{ url: string }>,
+): boolean {
+  return items.some(
+    (item) => pathname === item.url || pathname.startsWith(item.url + '/'),
+  );
+}
 
 export function AppSidebar(): React.JSX.Element {
   const pathname = usePathname();
@@ -162,7 +155,10 @@ export function AppSidebar(): React.JSX.Element {
     <>
       <Sidebar>
         <SidebarHeader>
-          <Link href="/" className="flex items-center gap-2 px-4 py-3 hover:opacity-80 transition-opacity">
+          <Link
+            href="/"
+            className="flex items-center gap-2 px-4 py-3 hover:opacity-80 transition-opacity"
+          >
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
               <GraduationCap className="h-5 w-5 text-primary-foreground" />
             </div>
@@ -177,12 +173,9 @@ export function AppSidebar(): React.JSX.Element {
             <SidebarGroupLabel>Menu</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {menuItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={pathname === item.url}
-                    >
+                {standaloneNavItems.map((item) => (
+                  <SidebarMenuItem key={item.url}>
+                    <SidebarMenuButton asChild isActive={pathname === item.url}>
                       <Link href={item.url}>
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
@@ -190,6 +183,45 @@ export function AppSidebar(): React.JSX.Element {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
+                {navGroups.map((group) => {
+                  const GroupIcon = group.icon;
+                  const hasActiveChild = isPathInGroup(pathname, group.items);
+                  return (
+                    <Collapsible
+                      key={group.label}
+                      defaultOpen={hasActiveChild}
+                      className="group/collapsible"
+                    >
+                      <SidebarMenuItem>
+                        <CollapsibleTrigger asChild>
+                          <SidebarMenuButton>
+                            <GroupIcon className="h-4 w-4" />
+                            <span>{group.label}</span>
+                            <ChevronDown className="ml-auto size-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                          </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <SidebarMenuSub>
+                            {group.items.map((item) => {
+                              const SubIcon = item.icon;
+                              const isActive = pathname === item.url;
+                              return (
+                                <SidebarMenuSubItem key={item.url}>
+                                  <SidebarMenuSubButton asChild isActive={isActive}>
+                                    <Link href={item.url}>
+                                      <SubIcon className="h-4 w-4" />
+                                      <span>{item.title}</span>
+                                    </Link>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                              );
+                            })}
+                          </SidebarMenuSub>
+                        </CollapsibleContent>
+                      </SidebarMenuItem>
+                    </Collapsible>
+                  );
+                })}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
@@ -211,12 +243,15 @@ export function AppSidebar(): React.JSX.Element {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Logout</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to logout? You will be redirected to the home page.
+              Are you sure you want to logout? You will be redirected to the home
+              page.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleLogout}>Logout</AlertDialogAction>
+            <AlertDialogAction onClick={handleLogout}>
+              Logout
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

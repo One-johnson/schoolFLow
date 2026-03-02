@@ -19,8 +19,15 @@ import {
   Clock,
   Shield,
   Activity,
+  ChevronDown,
+  UserCircle,
 } from 'lucide-react';
 
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import {
   Sidebar,
   SidebarContent,
@@ -31,24 +38,69 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
 } from '@/components/ui/sidebar';
 
-const navItems = [
+const standaloneNavItems = [
   { href: '/super-admin', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/super-admin/approvals', icon: CheckSquare, label: 'Approvals' },
-  { href: '/super-admin/profile', icon: User, label: 'Profile Management' },
-  { href: '/super-admin/manage-admins', icon: Shield, label: 'Manage Admins' },
-  { href: '/super-admin/school-admins', icon: Users, label: 'School Admins' },
-  { href: '/super-admin/schools', icon: School, label: 'Schools' },
-  { href: '/super-admin/subscriptions', icon: CreditCard, label: 'Subscriptions' },
-  { href: '/super-admin/trial-management', icon: Clock, label: 'Trial Management' },
-  { href: '/super-admin/activity', icon: Activity, label: 'Activity & Sessions' },
-  { href: '/super-admin/audit-logs', icon: FileText, label: 'Audit Logs' },
-  { href: '/super-admin/notifications', icon: Bell, label: 'Notifications' },
-  { href: '/super-admin/reports', icon: BarChart3, label: 'Reports' },
-  { href: '/super-admin/settings', icon: Settings, label: 'Settings' },
-  { href: '/super-admin/support', icon: HelpCircle, label: 'Support' },
 ];
+
+const navGroups: Array<{
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  items: Array<{ href: string; icon: React.ComponentType<{ className?: string }>; label: string }>;
+}> = [
+  {
+    label: 'Users & access',
+    icon: Users,
+    items: [
+      { href: '/super-admin/profile', icon: User, label: 'Profile Management' },
+      { href: '/super-admin/manage-admins', icon: Shield, label: 'Manage Admins' },
+      { href: '/super-admin/school-admins', icon: Users, label: 'School Admins' },
+    ],
+  },
+  {
+    label: 'Schools & billing',
+    icon: School,
+    items: [
+      { href: '/super-admin/schools', icon: School, label: 'Schools' },
+      { href: '/super-admin/subscriptions', icon: CreditCard, label: 'Subscriptions' },
+      { href: '/super-admin/trial-management', icon: Clock, label: 'Trial Management' },
+    ],
+  },
+  {
+    label: 'Activity & security',
+    icon: Activity,
+    items: [
+      { href: '/super-admin/activity', icon: Activity, label: 'Activity & Sessions' },
+      { href: '/super-admin/audit-logs', icon: FileText, label: 'Audit Logs' },
+    ],
+  },
+  {
+    label: 'Reports & notifications',
+    icon: Bell,
+    items: [
+      { href: '/super-admin/notifications', icon: Bell, label: 'Notifications' },
+      { href: '/super-admin/reports', icon: BarChart3, label: 'Reports' },
+    ],
+  },
+  {
+    label: 'System',
+    icon: Settings,
+    items: [
+      { href: '/super-admin/account', icon: UserCircle, label: 'Account' },
+      { href: '/super-admin/settings', icon: Settings, label: 'Settings' },
+      { href: '/super-admin/support', icon: HelpCircle, label: 'Support' },
+    ],
+  },
+];
+
+function isPathInGroup(pathname: string, items: Array<{ href: string }>): boolean {
+  return items.some((item) => pathname === item.href || pathname.startsWith(item.href + '/'));
+}
 
 export function AppSidebar(): React.JSX.Element {
   const pathname = usePathname();
@@ -77,7 +129,7 @@ export function AppSidebar(): React.JSX.Element {
           <SidebarGroupLabel>Platform</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => {
+              {standaloneNavItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = pathname === item.href;
                 return (
@@ -89,6 +141,45 @@ export function AppSidebar(): React.JSX.Element {
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
+                );
+              })}
+              {navGroups.map((group) => {
+                const GroupIcon = group.icon;
+                const hasActiveChild = isPathInGroup(pathname, group.items);
+                return (
+                  <Collapsible
+                    key={group.label}
+                    defaultOpen={hasActiveChild}
+                    className="group/collapsible"
+                  >
+                    <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton tooltip={group.label}>
+                          <GroupIcon />
+                          <span>{group.label}</span>
+                          <ChevronDown className="ml-auto size-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          {group.items.map((item) => {
+                            const SubIcon = item.icon;
+                            const isActive = pathname === item.href;
+                            return (
+                              <SidebarMenuSubItem key={item.href}>
+                                <SidebarMenuSubButton asChild isActive={isActive}>
+                                  <Link href={item.href}>
+                                    <SubIcon />
+                                    <span>{item.label}</span>
+                                  </Link>
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            );
+                          })}
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </SidebarMenuItem>
+                  </Collapsible>
                 );
               })}
             </SidebarMenu>

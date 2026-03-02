@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, JSX } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -13,11 +13,30 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
-import { useMutation } from "convex/react";
-import { toast } from "sonner";
-import { Eye, EyeOff } from "lucide-react";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
+import { toast } from "sonner";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
+import axios from "axios";
+
+function validateNewPassword(password: string): { valid: boolean; message: string } {
+  if (password.length < 8) {
+    return { valid: false, message: "Password must be at least 8 characters long" };
+  }
+  if (!/[A-Z]/.test(password)) {
+    return { valid: false, message: "Password must contain at least one uppercase letter" };
+  }
+  if (!/[a-z]/.test(password)) {
+    return { valid: false, message: "Password must contain at least one lowercase letter" };
+  }
+  if (!/[0-9]/.test(password)) {
+    return { valid: false, message: "Password must contain at least one number" };
+  }
+  if (!/[!@#$%^&*]/.test(password)) {
+    return { valid: false, message: "Password must contain at least one special character (!@#$%^&*)" };
+  }
+  return { valid: true, message: "" };
+}
 
 export default function ProfilePage(): React.JSX.Element {
   const { user } = useAuth();
@@ -32,10 +51,10 @@ export default function ProfilePage(): React.JSX.Element {
     new: false,
     confirm: false,
   });
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   const activityLogs = useQuery(api.auditLogs.list);
   const updateProfile = useMutation(api.auth.updateProfile);
-  const changePassword = useMutation(api.auth.changePassword);
 
   useEffect(() => {
     if (user && profileData.name === "" && profileData.email === "") {
@@ -59,20 +78,35 @@ export default function ProfilePage(): React.JSX.Element {
       toast.error("New passwords do not match");
       return;
     }
+    const validation = validateNewPassword(passwordData.newPassword);
+    if (!validation.valid) {
+      toast.error(validation.message);
+      return;
+    }
+    setIsChangingPassword(true);
     try {
-      await changePassword({
-        email: user?.email || "",
-        oldPassword: passwordData.currentPassword,
-        newPassword: passwordData.newPassword,
-      });
+      await axios.post(
+        "/api/auth/change-password",
+        {
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword,
+        },
+        { withCredentials: true }
+      );
       toast.success("Password changed successfully");
       setPasswordData({
         currentPassword: "",
         newPassword: "",
         confirmPassword: "",
       });
-    } catch (error) {
-      toast.error("Failed to change password");
+    } catch (err) {
+      const message =
+        axios.isAxiosError(err) && err.response?.data?.error
+          ? String(err.response.data.error)
+          : "Failed to change password";
+      toast.error(message);
+    } finally {
+      setIsChangingPassword(false);
     }
   };
 
@@ -248,7 +282,16 @@ export default function ProfilePage(): React.JSX.Element {
                     </button>
                   </div>
                 </div>
-                <Button type="submit">Change Password</Button>
+                <Button type="submit" disabled={isChangingPassword}>
+                      {isChangingPassword ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Changing...
+                        </>
+                      ) : (
+                        "Change Password"
+                      )}
+                    </Button>
               </form>
             </CardContent>
           </Card>

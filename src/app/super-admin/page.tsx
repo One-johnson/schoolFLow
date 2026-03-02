@@ -1,6 +1,7 @@
 'use client';
 
-import {  useMemo } from 'react';
+import { useMemo } from 'react';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatsCard } from '@/components/dashboard/stats-card';
 import { School, Users, DollarSign, AlertCircle, TrendingUp, GraduationCap, BarChart as BarChartIcon } from 'lucide-react';
@@ -29,16 +30,31 @@ const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
 
 export default function SuperAdminDashboardPage(): React.JSX.Element {
   const stats = useQuery(api.schools.getDashboardStats);
+  const chartData = useQuery(api.schools.getDashboardChartData);
   const auditLogs = useQuery(api.auditLogs.list);
   const schools = useQuery(api.schools.list);
 
-  // Revenue trend data (empty - no data in system yet)
-  const revenueData: Array<{ month: string; revenue: number; students: number }> = [];
+  const revenueData = useMemo(() => {
+    if (!chartData?.revenueByMonth) return [];
+    const enrollmentByKey = new Map(
+      (chartData.enrollmentByMonth ?? []).map((e) => [e.monthKey, e.enrolled])
+    );
+    return chartData.revenueByMonth.map((r) => ({
+      month: r.month,
+      revenue: r.revenue,
+      students: enrollmentByKey.get(r.monthKey) ?? 0,
+    }));
+  }, [chartData]);
 
-  // School growth data (empty - no data in system yet)
-  const schoolGrowthData: Array<{ month: string; active: number; pending: number }> = [];
+  const schoolGrowthData = useMemo(() => {
+    if (!chartData?.schoolGrowthByMonth) return [];
+    return chartData.schoolGrowthByMonth.map((g) => ({
+      month: g.month,
+      active: g.active,
+      pending: g.pending,
+    }));
+  }, [chartData]);
 
-  // Status distribution data (real data from schools)
   const statusData = useMemo(() => {
     if (!schools) return [];
     const statusCounts = schools.reduce((acc: Record<string, number>, school) => {
@@ -52,8 +68,19 @@ export default function SuperAdminDashboardPage(): React.JSX.Element {
     }));
   }, [schools]);
 
-  // Monthly student enrollment data (empty - no data in system yet)
-  const enrollmentData: Array<{ month: string; enrolled: number; target: number }> = [];
+  const enrollmentData = useMemo(() => {
+    if (!chartData?.enrollmentByMonth) return [];
+    return chartData.enrollmentByMonth.map((e) => ({
+      month: e.month,
+      enrolled: e.enrolled,
+      target: e.target,
+    }));
+  }, [chartData]);
+
+  const hasRevenueData = revenueData.some((d) => d.revenue > 0 || d.students > 0);
+  const hasSchoolGrowthData = schoolGrowthData.some((d) => d.active > 0 || d.pending > 0);
+  const hasEnrollmentData = enrollmentData.some((d) => d.enrolled > 0);
+  const showEnrollmentTarget = enrollmentData.some((d) => d.target > 0);
 
   if (!stats) {
     return (
@@ -141,7 +168,7 @@ export default function SuperAdminDashboardPage(): React.JSX.Element {
             <CardTitle>Revenue & Student Growth</CardTitle>
           </CardHeader>
           <CardContent>
-            {revenueData.length === 0 ? (
+            {!hasRevenueData ? (
               <div className="flex flex-col items-center justify-center h-75 space-y-4">
                 <div className="relative">
                   <div className="absolute inset-0 bg-linear-to-br from-green-100 to-blue-100 dark:from-green-900/20 dark:to-blue-900/20 rounded-full blur-xl animate-pulse" />
@@ -202,7 +229,7 @@ export default function SuperAdminDashboardPage(): React.JSX.Element {
             <CardTitle>School Growth Trend</CardTitle>
           </CardHeader>
           <CardContent>
-            {schoolGrowthData.length === 0 ? (
+            {!hasSchoolGrowthData ? (
               <div className="flex flex-col items-center justify-center h-75 space-y-4">
                 <div className="relative">
                   <div className="absolute inset-0 bg-linear-to-br from-blue-100 to-purple-100 dark:from-blue-900/20 dark:to-purple-900/20 rounded-full blur-xl animate-pulse" />
@@ -266,7 +293,7 @@ export default function SuperAdminDashboardPage(): React.JSX.Element {
             <CardTitle>Monthly Student Enrollment</CardTitle>
           </CardHeader>
           <CardContent>
-            {enrollmentData.length === 0 ? (
+            {!hasEnrollmentData ? (
               <div className="flex flex-col items-center justify-center h-75 space-y-4">
                 <div className="relative">
                   <div className="absolute inset-0 bg-linear-to-br from-purple-100 to-pink-100 dark:from-purple-900/20 dark:to-pink-900/20 rounded-full blur-xl animate-pulse" />
@@ -298,15 +325,17 @@ export default function SuperAdminDashboardPage(): React.JSX.Element {
                     name="Enrolled"
                     dot={{ r: 4 }}
                   />
-                  <Line
-                    type="monotone"
-                    dataKey="target"
-                    stroke="#ef4444"
-                    strokeWidth={2}
-                    strokeDasharray="5 5"
-                    name="Target"
-                    dot={{ r: 4 }}
-                  />
+                  {showEnrollmentTarget && (
+                    <Line
+                      type="monotone"
+                      dataKey="target"
+                      stroke="#ef4444"
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      name="Target"
+                      dot={{ r: 4 }}
+                    />
+                  )}
                 </LineChart>
               </ResponsiveContainer>
             )}
@@ -348,7 +377,10 @@ export default function SuperAdminDashboardPage(): React.JSX.Element {
           <CardContent>
             <div className="space-y-4">
               {stats.pendingPayments > 0 && (
-                <div className="flex items-center justify-between p-3 bg-yellow-50 dark:bg-yellow-950 rounded-lg">
+                <Link
+                  href="/super-admin/approvals?tab=payments"
+                  className="flex items-center justify-between p-3 bg-yellow-50 dark:bg-yellow-950 rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/40 transition-colors"
+                >
                   <div>
                     <p className="text-sm font-medium text-yellow-900 dark:text-yellow-200">
                       Payment Verification
@@ -357,19 +389,22 @@ export default function SuperAdminDashboardPage(): React.JSX.Element {
                       {stats.pendingPayments} payment(s) awaiting verification
                     </p>
                   </div>
-                  <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
-                </div>
+                  <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 shrink-0" />
+                </Link>
               )}
               {stats.pendingApproval > 0 && (
-                <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                <Link
+                  href="/super-admin/approvals?tab=schools"
+                  className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
+                >
                   <div>
                     <p className="text-sm font-medium text-blue-900 dark:text-blue-200">School Approval</p>
                     <p className="text-xs text-blue-700 dark:text-blue-300">
                       {stats.pendingApproval} school(s) awaiting approval
                     </p>
                   </div>
-                  <School className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                </div>
+                  <School className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0" />
+                </Link>
               )}
               {stats.pendingPayments === 0 && stats.pendingApproval === 0 && (
                 <p className="text-sm text-gray-500 dark:text-gray-400">No pending actions</p>

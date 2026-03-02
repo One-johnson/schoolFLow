@@ -153,6 +153,7 @@ export default defineSchema({
     supportEmail: v.string(),
     maxSchools: v.number(),
     defaultPricePerStudent: v.number(),
+    monthlyEnrollmentTarget: v.optional(v.number()),
     createdAt: v.string(),
     updatedAt: v.string(),
   }),

@@ -40,6 +40,7 @@ export default function SettingsPage(): React.JSX.Element {
     supportEmail: 'support@schoolflow.com',
     maxSchools: '1000',
     defaultPricePerStudent: '10',
+    monthlyEnrollmentTarget: '',
   });
 
   const [notifications, setNotifications] = useState({
@@ -63,6 +64,10 @@ export default function SettingsPage(): React.JSX.Element {
         supportEmail: platformSettingsData.supportEmail,
         maxSchools: String(platformSettingsData.maxSchools),
         defaultPricePerStudent: String(platformSettingsData.defaultPricePerStudent),
+        monthlyEnrollmentTarget:
+          platformSettingsData.monthlyEnrollmentTarget != null
+            ? String(platformSettingsData.monthlyEnrollmentTarget)
+            : '',
       });
     }
   }, [platformSettingsData]);
@@ -98,6 +103,9 @@ export default function SettingsPage(): React.JSX.Element {
         supportEmail: platformSettings.supportEmail,
         maxSchools: parseInt(platformSettings.maxSchools, 10),
         defaultPricePerStudent: parseInt(platformSettings.defaultPricePerStudent, 10),
+        monthlyEnrollmentTarget: platformSettings.monthlyEnrollmentTarget
+          ? parseInt(platformSettings.monthlyEnrollmentTarget, 10)
+          : undefined,
       });
       toast.success('Platform settings updated successfully');
     } catch (error) {
@@ -234,6 +242,22 @@ export default function SettingsPage(): React.JSX.Element {
                       setPlatformSettings({ ...platformSettings, defaultPricePerStudent: e.target.value })
                     }
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="monthlyEnrollmentTarget">Monthly Enrollment Target</Label>
+                  <Input
+                    id="monthlyEnrollmentTarget"
+                    type="number"
+                    min={0}
+                    placeholder="Optional — used as target line on dashboard"
+                    value={platformSettings.monthlyEnrollmentTarget}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setPlatformSettings({ ...platformSettings, monthlyEnrollmentTarget: e.target.value })
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Target student capacity shown on the dashboard enrollment chart. Leave empty to hide.
+                  </p>
                 </div>
                 <Button type="submit" disabled={isSavingPlatform}>
                   {isSavingPlatform ? 'Saving...' : 'Save Platform Settings'}

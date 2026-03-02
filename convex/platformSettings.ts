@@ -16,12 +16,16 @@ export const get = query({
         supportEmail: 'support@schoolflow.com',
         maxSchools: 1000,
         defaultPricePerStudent: 10,
+        monthlyEnrollmentTarget: undefined,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
     }
-    
-    return settings;
+
+    return {
+      ...settings,
+      monthlyEnrollmentTarget: settings.monthlyEnrollmentTarget,
+    };
   },
 });
 
@@ -32,32 +36,30 @@ export const update = mutation({
     supportEmail: v.string(),
     maxSchools: v.number(),
     defaultPricePerStudent: v.number(),
+    monthlyEnrollmentTarget: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db
       .query('platformSettings')
       .order('desc')
       .first();
-    
+
+    const updates = {
+      platformName: args.platformName,
+      supportEmail: args.supportEmail,
+      maxSchools: args.maxSchools,
+      defaultPricePerStudent: args.defaultPricePerStudent,
+      monthlyEnrollmentTarget: args.monthlyEnrollmentTarget,
+      updatedAt: new Date().toISOString(),
+    };
+
     if (existing) {
-      // Update existing settings
-      await ctx.db.patch(existing._id, {
-        platformName: args.platformName,
-        supportEmail: args.supportEmail,
-        maxSchools: args.maxSchools,
-        defaultPricePerStudent: args.defaultPricePerStudent,
-        updatedAt: new Date().toISOString(),
-      });
+      await ctx.db.patch(existing._id, updates);
       return existing._id;
     } else {
-      // Create new settings
       return await ctx.db.insert('platformSettings', {
-        platformName: args.platformName,
-        supportEmail: args.supportEmail,
-        maxSchools: args.maxSchools,
-        defaultPricePerStudent: args.defaultPricePerStudent,
+        ...updates,
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
       });
     }
   },

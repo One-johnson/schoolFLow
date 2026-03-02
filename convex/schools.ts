@@ -263,17 +263,106 @@ export const getDashboardStats = query({
     const admins = await ctx.db.query('schoolAdmins').collect();
     const subscriptions = await ctx.db.query('subscriptions').collect();
 
+    const activeSchoolsList = schools.filter((s) => s.status === 'active');
+    const totalStudents = activeSchoolsList.reduce((sum, s) => sum + s.studentCount, 0);
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    const monthlyRevenue = subscriptions
+      .filter((s) => s.status === 'verified')
+      .reduce((sum, s) => {
+        const dateStr = s.verifiedDate ?? s.paymentDate;
+        if (!dateStr) return sum;
+        const d = new Date(dateStr);
+        if (d.getFullYear() === currentYear && d.getMonth() + 1 === currentMonth) return sum + (s.totalAmount ?? 0);
+        return sum;
+      }, 0);
+
     return {
       totalSchools: schools.length,
-      activeSchools: schools.filter((s) => s.status === 'active').length,
+      activeSchools: activeSchoolsList.length,
       pendingApproval: schools.filter((s) => s.status === 'pending_approval').length,
-      totalStudents: 0, // No students enrolled yet - studentCount is subscription capacity, not actual enrollments
+      totalStudents,
       totalRevenue: subscriptions.reduce((sum, s) => sum + (s.status === 'verified' ? s.totalAmount : 0), 0),
-      monthlyRevenue: subscriptions
-        .filter((s) => s.status === 'verified')
-        .reduce((sum, s) => sum + s.totalAmount, 0),
+      monthlyRevenue,
       activeAdmins: admins.filter((a) => a.status === 'active').length,
       pendingPayments: subscriptions.filter((s) => s.status === 'pending').length,
+    };
+  },
+});
+
+/** Last 12 months in YYYY-MM format, most recent first */
+function last12MonthKeys(): string[] {
+  const keys: string[] = [];
+  const now = new Date();
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    keys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+  return keys.reverse();
+}
+
+/** Format YYYY-MM as short label e.g. "Jan 25" */
+function monthLabel(ym: string): string {
+  const [y, m] = ym.split('-').map(Number);
+  const date = new Date(y, m - 1, 1);
+  return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+}
+
+export const getDashboardChartData = query({
+  args: {},
+  handler: async (ctx) => {
+    const schools = await ctx.db.query('schools').collect();
+    const subscriptions = await ctx.db.query('subscriptions').collect();
+    const months = last12MonthKeys();
+
+    const revenueByMonth = months.map((monthKey) => {
+      const [year, month] = monthKey.split('-').map(Number);
+      const revenue = subscriptions
+        .filter((s) => s.status === 'verified')
+        .reduce((sum, s) => {
+          const dateStr = s.verifiedDate ?? s.paymentDate;
+          if (!dateStr) return sum;
+          const d = new Date(dateStr);
+          if (d.getFullYear() === year && d.getMonth() + 1 === month) return sum + (s.totalAmount ?? 0);
+          return sum;
+        }, 0);
+      return { month: monthLabel(monthKey), monthKey, revenue };
+    });
+
+    const schoolGrowthByMonth = months.map((monthKey) => {
+      const [year, month] = monthKey.split('-').map(Number);
+      const newSchools = schools.filter((s) => {
+        const d = new Date(s.registrationDate);
+        return d.getFullYear() === year && d.getMonth() + 1 === month;
+      });
+      const active = newSchools.filter((s) => s.status === 'active').length;
+      const pending = newSchools.filter((s) => s.status === 'pending_approval' || s.status === 'pending_payment').length;
+      return {
+        month: monthLabel(monthKey),
+        monthKey,
+        active,
+        pending,
+        newSchools: newSchools.length,
+      };
+    });
+
+    const platformSettings = await ctx.db.query('platformSettings').order('desc').first();
+    const enrollmentTarget = platformSettings?.monthlyEnrollmentTarget ?? 0;
+
+    const enrollmentByMonth = months.map((monthKey) => {
+      const [year, month] = monthKey.split('-').map(Number);
+      const endOfMonth = new Date(year, month, 0);
+      const enrolled = schools
+        .filter((s) => s.status === 'active' && new Date(s.registrationDate) <= endOfMonth)
+        .reduce((sum, s) => sum + s.studentCount, 0);
+      return { month: monthLabel(monthKey), monthKey, enrolled, target: enrollmentTarget };
+    });
+
+    return {
+      revenueByMonth,
+      schoolGrowthByMonth,
+      enrollmentByMonth,
     };
   },
 });
