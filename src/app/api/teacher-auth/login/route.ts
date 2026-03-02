@@ -74,13 +74,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const sessionToken = `session_${Date.now()}_${Math.random().toString(36).substring(2)}`;
     const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
 
-    await TeacherSessionManager.createSession({
-      userId: teacher._id,
-      email: teacher.email,
-      role: "teacher",
-      schoolId: teacher.schoolId,
-    });
-
     await convex.mutation(api.loginHistory.create, {
       userId: teacher._id,
       userRole: "teacher",
@@ -104,6 +97,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       deviceType: deviceInfo.deviceType,
       expiresAt,
     });
+
+    await TeacherSessionManager.setSessionCookie(sessionToken);
 
     return NextResponse.json({
       success: true,

@@ -15,9 +15,15 @@ function getConvexClient(): ConvexHttpClient {
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const session = await TeacherSessionManager.getSession();
-
-    if (!session) {
+    const token = await TeacherSessionManager.getSessionToken();
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const convex = getConvexClient();
+    const session = await convex.query(api.sessions.getSessionWithUser, {
+      sessionToken: token,
+    });
+    if (!session || session.role !== "teacher") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -36,7 +42,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: validation.message }, { status: 400 });
     }
 
-    const convex = getConvexClient();
     const teacher = await convex.query(api.teachers.getTeacherByEmail, {
       email: session.email,
     });

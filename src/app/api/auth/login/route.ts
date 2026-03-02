@@ -52,17 +52,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         // Update last login
         await convex.mutation(api.auth.updateLastLogin, { email });
 
-        // Generate session token
+        // Generate session token and create Convex session record
         const sessionToken = `session_${Date.now()}_${Math.random().toString(36).substring(2)}`;
         const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
-
-        // Create session with role information
-        await SessionManager.createSession({
-          userId: superAdmin._id.toString(),
-          email: superAdmin.email,
-          role: 'super_admin',
-          adminRole: superAdmin.role, // Include owner/admin/moderator role
-        });
 
         // Track login in history
         await convex.mutation(api.loginHistory.create, {
@@ -77,7 +69,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           sessionId: sessionToken,
         });
 
-        // Create session record
         await convex.mutation(api.sessions.create, {
           userId: superAdmin._id.toString(),
           userRole: 'super_admin',
@@ -89,6 +80,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           deviceType: deviceInfo.deviceType,
           expiresAt,
         });
+
+        await SessionManager.setSessionCookie(sessionToken);
 
         // Check for suspicious activity
         await convex.mutation(api.securityAlerts.detectSuspiciousActivity, {
@@ -164,19 +157,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           );
         }
 
-        // Generate session token
         const sessionToken = `session_${Date.now()}_${Math.random().toString(36).substring(2)}`;
         const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
 
-        // Create session
-        await SessionManager.createSession({
-          userId: schoolAdmin._id.toString(),
-          email: schoolAdmin.email,
-          role: 'school_admin',
-          schoolId: schoolAdmin.schoolId,
-        });
-
-        // Track login in history
         await convex.mutation(api.loginHistory.create, {
           userId: schoolAdmin._id.toString(),
           userRole: 'school_admin',
@@ -189,7 +172,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           sessionId: sessionToken,
         });
 
-        // Create session record
         await convex.mutation(api.sessions.create, {
           userId: schoolAdmin._id.toString(),
           userRole: 'school_admin',
@@ -201,6 +183,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           deviceType: deviceInfo.deviceType,
           expiresAt,
         });
+
+        await SessionManager.setSessionCookie(sessionToken);
 
         // Check for suspicious activity
         await convex.mutation(api.securityAlerts.detectSuspiciousActivity, {

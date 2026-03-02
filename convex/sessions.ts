@@ -1,5 +1,6 @@
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
+import type { Id } from './_generated/dataModel';
 
 
 // Create session
@@ -140,6 +141,56 @@ export const getByToken = query({
       .first();
 
     return session;
+  },
+});
+
+// Resolve session token to session + user data (no JWT; used by API routes)
+export const getSessionWithUser = query({
+  args: { sessionToken: v.string() },
+  handler: async (ctx, args) => {
+    const session = await ctx.db
+      .query('sessions')
+      .filter((q) => q.eq(q.field('sessionToken'), args.sessionToken))
+      .first();
+
+    if (!session || !session.isActive || session.expiresAt <= Date.now()) {
+      return null;
+    }
+
+    if (session.userRole === 'super_admin') {
+      const user = await ctx.db.get(session.userId as Id<'superAdmins'>);
+      return user
+        ? {
+            userId: session.userId,
+            email: user.email,
+            role: 'super_admin' as const,
+            adminRole: user.role,
+          }
+        : null;
+    }
+    if (session.userRole === 'school_admin') {
+      const user = await ctx.db.get(session.userId as Id<'schoolAdmins'>);
+      return user
+        ? {
+            userId: session.userId,
+            email: user.email,
+            role: 'school_admin' as const,
+            schoolId: user.schoolId,
+          }
+        : null;
+    }
+    if (session.userRole === 'teacher') {
+      const user = await ctx.db.get(session.userId as Id<'teachers'>);
+      return user
+        ? {
+            userId: session.userId,
+            email: user.email,
+            role: 'teacher' as const,
+            schoolId: user.schoolId,
+          }
+        : null;
+    }
+    return null;
   },
 });
 

@@ -54,12 +54,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       password: hashedPassword,
     });
 
-    // Create session
-    await SessionManager.createSession({
+    const sessionToken = `session_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+    const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
+    await convex.mutation(api.sessions.create, {
       userId: userId.toString(),
-      email,
-      role: 'super_admin',
+      userRole: 'super_admin',
+      sessionToken,
+      ipAddress: '0.0.0.0',
+      device: 'Unknown',
+      browser: 'Unknown',
+      os: 'Unknown',
+      deviceType: 'unknown',
+      expiresAt,
     });
+    await SessionManager.setSessionCookie(sessionToken);
 
     return NextResponse.json({
       success: true,
