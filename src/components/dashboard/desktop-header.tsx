@@ -41,10 +41,15 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 
 const searchItems = [
   { label: 'Dashboard', href: '/super-admin', keywords: ['home', 'overview', 'metrics'] },
-  { label: 'Profile Management', href: '/super-admin/profile', keywords: ['profile', 'account', 'settings'] },
-  { label: 'School Admins', href: '/super-admin/school-admins', keywords: ['admins', 'users', 'invite'] },
+  { label: 'Approvals', href: '/super-admin/approvals', keywords: ['approvals', 'payments', 'schools'] },
+  { label: 'Profile Management', href: '/super-admin/profile', keywords: ['profile', 'password', 'settings'] },
+  { label: 'Account', href: '/super-admin/account', keywords: ['account', 'theme', 'logout'] },
+  { label: 'Manage Admins', href: '/super-admin/manage-admins', keywords: ['admins', 'super', 'manage'] },
+  { label: 'School Admins', href: '/super-admin/school-admins', keywords: ['school admins', 'users', 'invite'] },
   { label: 'Schools', href: '/super-admin/schools', keywords: ['schools', 'institutions', 'approve'] },
   { label: 'Subscriptions', href: '/super-admin/subscriptions', keywords: ['billing', 'payments', 'subscription'] },
+  { label: 'Trial Management', href: '/super-admin/trial-management', keywords: ['trial', 'trials'] },
+  { label: 'Activity & Sessions', href: '/super-admin/activity', keywords: ['activity', 'sessions', 'login'] },
   { label: 'Audit Logs', href: '/super-admin/audit-logs', keywords: ['logs', 'history', 'audit'] },
   { label: 'Notifications', href: '/super-admin/notifications', keywords: ['notifications', 'alerts', 'messages'] },
   { label: 'Reports & Analytics', href: '/super-admin/reports', keywords: ['reports', 'analytics', 'charts'] },

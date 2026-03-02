@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import type { Id } from '../../../../convex/_generated/dataModel';
@@ -85,6 +86,15 @@ interface SchoolCreationRequest {
 }
 
 export default function ApprovalsPage(): React.JSX.Element {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const activeTab = tabParam === 'schools' ? 'schools' : 'payments';
+
+  const setActiveTab = (value: string) => {
+    router.push(`/super-admin/approvals?tab=${value}`);
+  };
+
   const pendingPayments = useQuery(api.paymentProofs.getPending) as PaymentProof[] | undefined;
   const pendingSchools = useQuery(api.schoolCreationRequests.getPending) as SchoolCreationRequest[] | undefined;
 
@@ -99,6 +109,9 @@ export default function ApprovalsPage(): React.JSX.Element {
   const [rejectReason, setRejectReason] = React.useState<string>('');
   const [rejectType, setRejectType] = React.useState<'payment' | 'school' | null>(null);
   const [isProcessing, setIsProcessing] = React.useState<boolean>(false);
+
+  const pendingPaymentCount = pendingPayments?.length ?? 0;
+  const pendingSchoolCount = pendingSchools?.length ?? 0;
 
   const handleApprovePayment = async (payment: PaymentProof): Promise<void> => {
     setIsProcessing(true);
@@ -209,7 +222,30 @@ export default function ApprovalsPage(): React.JSX.Element {
         </p>
       </div>
 
-      <Tabs defaultValue="payments" className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending payments</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{pendingPaymentCount}</div>
+            <p className="text-xs text-muted-foreground">Payment proofs awaiting verification</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending schools</CardTitle>
+            <School className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{pendingSchoolCount}</div>
+            <p className="text-xs text-muted-foreground">School creation requests awaiting approval</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="payments">
             <FileText className="mr-2 h-4 w-4" />
