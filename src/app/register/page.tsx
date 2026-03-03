@@ -80,8 +80,10 @@ export default function RegisterPage(): React.JSX.Element {
               <GraduationCap className="h-8 w-8 text-primary" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">Create Your Account</CardTitle>
-          <CardDescription>Register as Super Admin</CardDescription>
+          <CardTitle className="text-2xl font-bold">Super Admin Registration</CardTitle>
+          <CardDescription>
+            Platform owner registration only. School admins and teachers are invited through the platform.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

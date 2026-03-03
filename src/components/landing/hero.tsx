@@ -145,10 +145,15 @@ export function Hero(): React.JSX.Element {
               transition={{ duration: 0.6, delay: 0.3 }}
               className="flex flex-col sm:flex-row items-center lg:items-start justify-center lg:justify-start gap-4 mb-8"
             >
-              <Link href="/register">
+              <Link href="/features">
+                <Button size="lg" variant="outline">
+                  Explore Features
+                </Button>
+              </Link>
+              <Link href="/login">
                 <Button size="lg" className="group relative overflow-hidden">
                   <span className="relative z-10 flex items-center gap-2">
-                    Get Started Free
+                    Login
                     <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                   </span>
                   <motion.div
@@ -157,11 +162,6 @@ export function Hero(): React.JSX.Element {
                     whileHover={{ x: 0 }}
                     transition={{ duration: 0.3 }}
                   />
-                </Button>
-              </Link>
-              <Link href="/features">
-                <Button size="lg" variant="outline">
-                  Explore Features
                 </Button>
               </Link>
             </motion.div>

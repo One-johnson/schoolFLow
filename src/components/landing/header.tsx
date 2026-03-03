@@ -79,13 +79,8 @@ export function LandingHeader(): React.JSX.Element {
           {/* CTA Buttons */}
           <div className="hidden md:flex items-center gap-3">
             <Link href="/login">
-              <Button variant="ghost" size="sm">
-                Login
-              </Button>
-            </Link>
-            <Link href="/register">
               <Button size="sm" className="relative overflow-hidden group">
-                <span className="relative z-10">Get Started</span>
+                <span className="relative z-10">Login</span>
                 <motion.div
                   className="absolute inset-0 bg-primary-foreground/10"
                   initial={{ x: "-100%" }}
@@ -145,16 +140,8 @@ export function LandingHeader(): React.JSX.Element {
               </Link>
               <div className="flex flex-col gap-2 pt-2 border-t border-border">
                 <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
-                  <Button variant="ghost" size="sm" className="w-full">
-                    Login
-                  </Button>
-                </Link>
-                <Link
-                  href="/register"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
                   <Button size="sm" className="w-full">
-                    Get Started
+                    Login
                   </Button>
                 </Link>
               </div>

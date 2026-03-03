@@ -3,7 +3,7 @@
 import { LandingHeader } from "@/components/landing/header";
 import { Footer } from "@/components/landing/footer";
 import { motion } from "framer-motion";
-import { Mail, Phone, MapPin, MessageSquare, Send, Clock } from "lucide-react";
+import { Phone, MapPin, MessageSquare, Send, Clock } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -23,36 +23,29 @@ const contactInfo = [
   {
     icon: Phone,
     title: "Phone",
-    details: "+1 (555) 123-4567",
-    link: "tel:+15551234567",
-    description: "Mon-Fri 9am to 6pm EST",
+    details: "+233 55 301 044",
+    link: "tel:+23355301044",
+    description: "Same as WhatsApp",
   },
   {
     icon: MessageSquare,
     title: "WhatsApp",
-    details: "+1 (555) 987-6543",
-    link: "https://wa.me/15559876543",
+    details: "+233 55 301 044",
+    link: "https://wa.me/23355301044",
     description: "Quick support via WhatsApp",
-  },
-  {
-    icon: Mail,
-    title: "Email",
-    details: "support@schoolflow.com",
-    link: "mailto:support@schoolflow.com",
-    description: "We will respond within 24 hours",
   },
   {
     icon: MapPin,
     title: "Office",
-    details: "123 Education Ave, Suite 456",
-    link: "#",
-    description: "San Francisco, CA 94102",
+    details: "Accra, Ghana",
+    link: "https://maps.google.com/?q=Accra,Ghana",
+    description: "Visit us in Accra",
   },
 ];
 
 const officeHours = [
-  { day: "Monday - Friday", hours: "9:00 AM - 6:00 PM EST" },
-  { day: "Saturday", hours: "10:00 AM - 4:00 PM EST" },
+  { day: "Monday - Friday", hours: "9:00 AM - 6:00 PM GMT" },
+  { day: "Saturday", hours: "10:00 AM - 4:00 PM GMT" },
   { day: "Sunday", hours: "Closed" },
 ];
 
@@ -63,6 +56,7 @@ export default function ContactPage(): React.JSX.Element {
     phone: "",
     subject: "",
     message: "",
+    botcheck: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -70,18 +64,48 @@ export default function ContactPage(): React.JSX.Element {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simulate form submission
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    const accessKey = process.env.NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY;
+    if (!accessKey) {
+      toast.error("Contact form is not configured. Please try again later.");
+      setIsSubmitting(false);
+      return;
+    }
 
-    toast.success("Message sent successfully! We will get back to you soon.");
-    setFormData({
-      name: "",
-      email: "",
-      phone: "",
-      subject: "",
-      message: "",
-    });
-    setIsSubmitting(false);
+    try {
+      const response = await fetch("https://api.web3forms.com/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          access_key: accessKey,
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          subject: formData.subject,
+          message: formData.message,
+          botcheck: formData.botcheck,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast.success("Message sent successfully! We will get back to you soon.");
+        setFormData({
+          name: "",
+          email: "",
+          phone: "",
+          subject: "",
+          message: "",
+          botcheck: "",
+        });
+      } else {
+        toast.error(result.message || "Failed to send message. Please try again.");
+      }
+    } catch {
+      toast.error("Failed to send message. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleChange = (
@@ -127,7 +151,7 @@ export default function ContactPage(): React.JSX.Element {
       {/* Contact Info Cards */}
       <section className="py-16 px-4 bg-muted/50">
         <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {contactInfo.map((info, index) => (
               <motion.div
                 key={index}
@@ -183,6 +207,20 @@ export default function ContactPage(): React.JSX.Element {
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handleSubmit} className="space-y-6">
+                    {/* Honeypot - hidden from users, bots will fill it */}
+                    <div className="absolute -left-[9999px] top-0" aria-hidden="true">
+                      <input
+                        type="text"
+                        name="botcheck"
+                        tabIndex={-1}
+                        autoComplete="off"
+                        value={formData.botcheck}
+                        onChange={(e) =>
+                          setFormData((prev) => ({ ...prev, botcheck: e.target.value }))
+                        }
+                      />
+                    </div>
+
                     <div className="grid md:grid-cols-2 gap-6">
                       <div className="space-y-2">
                         <Label htmlFor="name">Full Name *</Label>
@@ -319,7 +357,7 @@ export default function ContactPage(): React.JSX.Element {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <a
-                    href="https://wa.me/15559876543"
+                    href="https://wa.me/23355301044"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block"
@@ -329,16 +367,10 @@ export default function ContactPage(): React.JSX.Element {
                       Chat on WhatsApp
                     </Button>
                   </a>
-                  <a href="tel:+15551234567" className="block">
+                  <a href="tel:+23355301044" className="block">
                     <Button variant="outline" className="w-full justify-start">
                       <Phone className="w-4 h-4 mr-2" />
                       Call Us Now
-                    </Button>
-                  </a>
-                  <a href="mailto:support@schoolflow.com" className="block">
-                    <Button variant="outline" className="w-full justify-start">
-                      <Mail className="w-4 h-4 mr-2" />
-                      Email Support
                     </Button>
                   </a>
                 </CardContent>
@@ -379,10 +411,7 @@ export default function ContactPage(): React.JSX.Element {
                       Visit Our Office
                     </h3>
                     <p className="text-muted-foreground">
-                      123 Education Ave, Suite 456
-                    </p>
-                    <p className="text-muted-foreground">
-                      San Francisco, CA 94102
+                      Accra, Ghana
                     </p>
                   </div>
                 </div>

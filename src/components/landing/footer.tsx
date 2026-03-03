@@ -21,7 +21,7 @@ export function Footer(): React.JSX.Element {
             </p>
           </div>
 
-          {/* Product */}
+          {/*   Product */}
           <div>
             <h3 className="font-semibold mb-4">Product</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
@@ -39,14 +39,6 @@ export function Footer(): React.JSX.Element {
                   className="hover:text-foreground transition-colors"
                 >
                   Login
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/register"
-                  className="hover:text-foreground transition-colors"
-                >
-                  Register
                 </Link>
               </li>
             </ul>
