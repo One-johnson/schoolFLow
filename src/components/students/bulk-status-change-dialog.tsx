@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import type { Id } from '../../../convex/_generated/dataModel';
-import { useAuth } from '@/hooks/useAuth';
 import {
   Dialog,
   DialogContent,
@@ -41,6 +40,7 @@ interface BulkStatusChangeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onStatusChanged?: () => void;
+  updatedBy: string;
 }
 
 export function BulkStatusChangeDialog({
@@ -48,8 +48,8 @@ export function BulkStatusChangeDialog({
   open,
   onOpenChange,
   onStatusChanged,
+  updatedBy,
 }: BulkStatusChangeDialogProps): React.JSX.Element {
-  const { user } = useAuth();
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
@@ -67,7 +67,7 @@ export function BulkStatusChangeDialog({
       const result = await bulkUpdateStatus({
         studentIds: students.map((s) => s._id as Id<'students'>),
         status: selectedStatus as 'active' | 'inactive' | 'fresher' | 'continuing' | 'transferred' | 'graduated',
-        updatedBy: user?.email || 'unknown',
+        updatedBy,
       });
 
       if (result.successCount > 0) {

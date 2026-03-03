@@ -27,7 +27,12 @@ export const getYearsBySchool = query({
       .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))
       .collect();
     
-    return years.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+    return years.sort((a, b) => {
+      const aDate = a.startDate ? new Date(a.startDate).getTime() : 0;
+      const bDate = b.startDate ? new Date(b.startDate).getTime() : 0;
+      if (aDate !== bDate) return bDate - aDate;
+      return (b.yearName || '').localeCompare(a.yearName || '');
+    });
   },
 });
 
@@ -80,8 +85,8 @@ export const addAcademicYear = mutation({
   args: {
     schoolId: v.string(),
     yearName: v.string(),
-    startDate: v.string(),
-    endDate: v.string(),
+    startDate: v.optional(v.string()),
+    endDate: v.optional(v.string()),
     description: v.optional(v.string()),
     setAsCurrent: v.boolean(),
     createdBy: v.string(),
@@ -109,18 +114,19 @@ export const addAcademicYear = mutation({
     const yearCode = generateYearCode();
     const now = new Date().toISOString();
 
-    // Determine status based on dates and setAsCurrent flag
+    // Determine status based on dates and setAsCurrent flag (dates optional - academic year = 3 terms)
     let status: 'active' | 'upcoming' | 'completed' | 'archived' = 'upcoming';
-    const today = new Date();
-    const start = new Date(args.startDate);
-    const end = new Date(args.endDate);
-
     if (args.setAsCurrent) {
       status = 'active';
-    } else if (today >= start && today <= end) {
-      status = 'active';
-    } else if (today > end) {
-      status = 'completed';
+    } else if (args.startDate && args.endDate) {
+      const today = new Date();
+      const start = new Date(args.startDate);
+      const end = new Date(args.endDate);
+      if (today >= start && today <= end) {
+        status = 'active';
+      } else if (today > end) {
+        status = 'completed';
+      }
     }
 
     const yearId = await ctx.db.insert('academicYears', {
@@ -158,8 +164,8 @@ export const updateAcademicYear = mutation({
   args: {
     yearId: v.id('academicYears'),
     yearName: v.string(),
-    startDate: v.string(),
-    endDate: v.string(),
+    startDate: v.optional(v.string()),
+    endDate: v.optional(v.string()),
     description: v.optional(v.string()),
     updatedBy: v.string(),
   },
@@ -178,8 +184,8 @@ export const updateAcademicYear = mutation({
 
     await ctx.db.patch(args.yearId, {
       yearName: args.yearName,
-      startDate: args.startDate,
-      endDate: args.endDate,
+      ...(args.startDate !== undefined && { startDate: args.startDate }),
+      ...(args.endDate !== undefined && { endDate: args.endDate }),
       description: args.description,
       updatedAt: now,
     });
@@ -433,6 +439,11 @@ export const getActiveAcademicYears = query({
       })
     );
 
-    return yearsWithTerms.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+    return yearsWithTerms.sort((a, b) => {
+      const aDate = a.startDate ? new Date(a.startDate).getTime() : 0;
+      const bDate = b.startDate ? new Date(b.startDate).getTime() : 0;
+      if (aDate !== bDate) return bDate - aDate;
+      return (b.yearName || '').localeCompare(a.yearName || '');
+    });
   },
 });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, JSX } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation } from 'convex/react';
 import { api } from '@/../convex/_generated/api';
 import type { Id } from '@/../convex/_generated/dataModel';
@@ -16,14 +16,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import type { DateRange } from 'react-day-picker';
 
 interface AcademicYear {
   _id: Id<'academicYears'>;
   yearName: string;
-  startDate: string;
-  endDate: string;
+  startDate?: string;
+  endDate?: string;
   description?: string;
   status: 'active' | 'upcoming' | 'completed' | 'archived';
   isCurrentYear: boolean;
@@ -43,8 +47,7 @@ export function EditAcademicYearDialog({
   updatedBy,
 }: EditAcademicYearDialogProps): React.JSX.Element {
   const [yearName, setYearName] = useState<string>('');
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [description, setDescription] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -53,8 +56,14 @@ export function EditAcademicYearDialog({
   useEffect(() => {
     if (academicYear) {
       setYearName(academicYear.yearName);
-      setStartDate(academicYear.startDate);
-      setEndDate(academicYear.endDate);
+      setDateRange(
+        academicYear.startDate && academicYear.endDate
+          ? {
+              from: new Date(academicYear.startDate),
+              to: new Date(academicYear.endDate),
+            }
+          : undefined
+      );
       setDescription(academicYear.description || '');
     }
   }, [academicYear]);
@@ -62,12 +71,12 @@ export function EditAcademicYearDialog({
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     
-    if (!yearName || !startDate || !endDate) {
+    if (!yearName || !dateRange?.from || !dateRange?.to) {
       toast.error('Please fill in all required fields');
       return;
     }
 
-    if (new Date(startDate) >= new Date(endDate)) {
+    if (dateRange.from >= dateRange.to) {
       toast.error('End date must be after start date');
       return;
     }
@@ -78,8 +87,8 @@ export function EditAcademicYearDialog({
       await updateAcademicYear({
         yearId: academicYear._id,
         yearName,
-        startDate,
-        endDate,
+        startDate: format(dateRange.from, 'yyyy-MM-dd'),
+        endDate: format(dateRange.to, 'yyyy-MM-dd'),
         description: description || undefined,
         updatedBy,
       });
@@ -118,32 +127,37 @@ export function EditAcademicYearDialog({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="startDate">
-                  Start Date <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="startDate"
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="endDate">
-                  End Date <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="endDate"
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  required
-                />
-              </div>
+            <div className="space-y-2">
+              <Label>Date Range <span className="text-red-500">*</span></Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateRange?.from ? (
+                      dateRange.to ? (
+                        <>
+                          {format(dateRange.from, 'LLL dd, y')} -{' '}
+                          {format(dateRange.to, 'LLL dd, y')}
+                        </>
+                      ) : (
+                        format(dateRange.from, 'LLL dd, y')
+                      )
+                    ) : (
+                      <span>Pick a date range</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    initialFocus
+                    mode="range"
+                    defaultMonth={dateRange?.from}
+                    selected={dateRange}
+                    onSelect={setDateRange}
+                    numberOfMonths={2}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="space-y-2">

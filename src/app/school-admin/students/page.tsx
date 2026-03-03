@@ -157,11 +157,15 @@ export default function StudentsPage(): React.JSX.Element {
         | "transferred"
         | "graduated",
     ): Promise<void> => {
+      if (!schoolAdmin?._id) {
+        toast.error("User not authenticated");
+        return;
+      }
       try {
         await updateStudentStatus({
           studentId,
           status: newStatus,
-          updatedBy: "",
+          updatedBy: schoolAdmin._id,
         });
         toast.success(`Student status updated to ${newStatus}`);
       } catch (error) {
@@ -169,7 +173,7 @@ export default function StudentsPage(): React.JSX.Element {
         console.error(error);
       }
     },
-    [updateStudentStatus],
+    [updateStudentStatus, schoolAdmin],
   );
 
   const getStatusBadge = useCallback((status: string): React.JSX.Element => {
@@ -903,6 +907,7 @@ export default function StudentsPage(): React.JSX.Element {
         open={bulkStatusDialogOpen}
         onOpenChange={setBulkStatusDialogOpen}
         onStatusChanged={() => setSelectedStudents([])}
+        updatedBy={schoolAdmin?._id ?? ''}
       />
     </div>
   );

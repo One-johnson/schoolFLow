@@ -191,8 +191,8 @@ export default function TeachersPage(): React.JSX.Element {
       qualifications: teacher.qualifications.join(', '),
       dateOfBirth: teacher.dateOfBirth,
       address: teacher.address,
+      emergencyContactName: teacher.emergencyContactName,
       emergencyContact: teacher.emergencyContact,
-      emergencyPhone: teacher.emergencyContact,
     }];
 
     if (format === 'csv') {
@@ -217,8 +217,8 @@ export default function TeachersPage(): React.JSX.Element {
       qualifications: teacher.qualifications.join(', '),
       dateOfBirth: teacher.dateOfBirth,
       address: teacher.address,
+      emergencyContactName: teacher.emergencyContactName,
       emergencyContact: teacher.emergencyContact,
-      emergencyPhone: teacher.emergencyContact,
     }));
 
     if (format === 'csv') {

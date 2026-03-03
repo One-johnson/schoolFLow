@@ -52,8 +52,8 @@ export default function SchoolAdminDashboard(): React.JSX.Element {
   );
 
   const notifications = useQuery(
-    api.notifications.list,
-    currentAdmin ? {} : "skip",
+    api.notifications.getNotificationsBySchoolAdmin,
+    currentAdmin?._id ? { recipientId: currentAdmin._id } : "skip",
   );
 
   const dashboardStats = useQuery(

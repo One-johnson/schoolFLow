@@ -29,6 +29,7 @@ import {
 import { toast } from "sonner";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Unified notification type
 type UnifiedNotification = {
@@ -62,11 +63,9 @@ export default function NotificationsPage(): React.JSX.Element {
   );
 
   // Query both notification types
-  const allPlatformNotifications = useQuery(api.notifications.list);
-  const platformNotifications = allPlatformNotifications?.filter(
-    (notif) =>
-      notif.recipientRole === "school_admin" &&
-      (!notif.recipientId || notif.recipientId === schoolAdmin?._id),
+  const platformNotifications = useQuery(
+    api.notifications.getNotificationsBySchoolAdmin,
+    schoolAdmin?._id ? { recipientId: schoolAdmin._id } : "skip",
   );
 
   type EventNotificationDoc = {
@@ -149,8 +148,11 @@ export default function NotificationsPage(): React.JSX.Element {
 
   const handleMarkAllAsRead = async (): Promise<void> => {
     try {
-      // Mark all platform notifications as read
-      await markAllPlatformAsRead({});
+      // Mark all platform notifications as read (only this school admin's)
+      await markAllPlatformAsRead({
+        recipientRole: "school_admin",
+        recipientId: schoolAdmin?._id,
+      });
 
       // Mark all event notifications as read (one by one for now)
       const unreadEventNotifs = (eventNotifications || []).filter(
@@ -235,12 +237,29 @@ export default function NotificationsPage(): React.JSX.Element {
     (n) => n.type === "event" && !n.read,
   ).length;
 
-  if (!schoolAdmin) {
+  if (schoolAdmin === undefined) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-9 w-48 mb-2" />
+          <Skeleton className="h-5 w-64" />
+        </div>
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  if (schoolAdmin === null) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Loading...</h2>
-          <p className="text-muted-foreground">Please wait</p>
+        <div className="text-center space-y-4">
+          <h2 className="text-2xl font-bold">Account not found</h2>
+          <p className="text-muted-foreground">
+            Your account could not be found. Please contact support.
+          </p>
+          <Button variant="outline" onClick={() => router.push("/school-admin")}>
+            Return to Dashboard
+          </Button>
         </div>
       </div>
     );
@@ -282,7 +301,7 @@ export default function NotificationsPage(): React.JSX.Element {
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsList className="grid w-full grid-cols-3 mb-6" aria-label="Notification categories">
               <TabsTrigger value="all">
                 All
                 {unreadCount > 0 && (

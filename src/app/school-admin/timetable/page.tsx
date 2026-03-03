@@ -104,13 +104,13 @@ interface Assignment {
 export default function TimetablePage(): React.JSX.Element {
   const { user } = useAuth();
   const convex = useConvex();
-  const schoolId = user?.schoolId || '';
 
-  // Get current admin to fetch school information
+  // Get current admin and use schoolId from admin (more reliable than session)
   const currentAdmin = useQuery(
     api.schoolAdmins.getByEmail,
     user?.email ? { email: user.email } : 'skip'
   );
+  const schoolId = currentAdmin?.schoolId || '';
 
   const schoolCreationRequests = useQuery(
     api.schoolCreationRequests.getByAdmin,

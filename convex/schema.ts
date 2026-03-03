@@ -506,8 +506,8 @@ export default defineSchema({
     schoolId: v.string(),
     yearCode: v.string(), // Auto-generated: AY + 6 random digits (e.g., AY123456)
     yearName: v.string(), // e.g., "2024/2025", "2025/2026"
-    startDate: v.string(),
-    endDate: v.string(),
+    startDate: v.optional(v.string()), // Optional: academic year is made up of 3 terms; dates may be unknown
+    endDate: v.optional(v.string()),
     status: v.union(
       v.literal('active'),
       v.literal('upcoming'),

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, JSX } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -21,6 +22,7 @@ import { TicketDetailDialog } from '@/components/support/ticket-detail-dialog';
 import { TicketForm } from '@/components/support/ticket-form';
 import { useAuth } from '@/hooks/useAuth';
 import { formatDistanceToNow } from 'date-fns';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface SupportTicket {
   _id: Id<'supportTickets'>;
@@ -83,6 +85,7 @@ const faqs = [
 ];
 
 export default function SchoolAdminSupportPage(): React.JSX.Element {
+  const router = useRouter();
   const { user } = useAuth();
   const [selectedTicketId, setSelectedTicketId] = useState<Id<'supportTickets'> | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
@@ -176,6 +179,39 @@ export default function SchoolAdminSupportPage(): React.JSX.Element {
   const handleTicketSuccess = (): void => {
     setActiveTab('tickets');
   };
+
+  if (schoolAdmin === undefined) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-9 w-48 mb-2" />
+          <Skeleton className="h-5 w-64" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+        </div>
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  if (schoolAdmin === null) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center space-y-4">
+          <h2 className="text-2xl font-bold">Account not found</h2>
+          <p className="text-muted-foreground">
+            Your account could not be found. Please contact support.
+          </p>
+          <Button variant="outline" onClick={() => router.push('/school-admin')}>
+            Return to Dashboard
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -115,7 +115,7 @@ export default function FeesPage(): React.JSX.Element {
   const [deletePaymentOpen, setDeletePaymentOpen] = useState<boolean>(false);
   const [selectedCategory, setSelectedCategory] = useState<FeeCategory | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<FeePayment | null>(null);
-  const [classFilter, setClassFilter] = useState<string>('');
+  const [classFilter, setClassFilter] = useState<string>('all');
 
   // Fetch school data
   const schoolAdmin = useQuery(
@@ -163,13 +163,13 @@ export default function FeesPage(): React.JSX.Element {
   // Filter payments by class
   const filteredPayments = useMemo(() => {
     if (!payments) return [];
-    if (!classFilter) return payments;
+    if (!classFilter || classFilter === 'all') return payments;
     return payments.filter(p => p.classId === classFilter);
   }, [payments, classFilter]);
 
   const filteredOutstandingPayments = useMemo(() => {
     if (!outstandingPayments) return [];
-    if (!classFilter) return outstandingPayments;
+    if (!classFilter || classFilter === 'all') return outstandingPayments;
     return outstandingPayments.filter(p => p.classId === classFilter);
   }, [outstandingPayments, classFilter]);
 
@@ -728,7 +728,7 @@ export default function FeesPage(): React.JSX.Element {
                       <SelectValue placeholder="All classes" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="All">All Classes</SelectItem>
+                      <SelectItem value="all">All Classes</SelectItem>
                       {classes?.map((cls) => (
                         <SelectItem key={cls._id} value={cls.classCode}>
                           {cls.className}
@@ -782,7 +782,7 @@ export default function FeesPage(): React.JSX.Element {
                       <SelectValue placeholder="All classes" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="All">All Classes</SelectItem>
+                      <SelectItem value="all">All Classes</SelectItem>
                       {classes?.map((cls) => (
                         <SelectItem key={cls._id} value={cls.classCode}>
                           {cls.className}

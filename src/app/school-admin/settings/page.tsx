@@ -10,14 +10,26 @@ import { Bell, Shield, User, Key } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { PasswordChangeDialog } from '@/components/password-change-dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function SettingsPage(): React.JSX.Element {
   const router = useRouter();
-    const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [passwordDialogOpen, setPasswordDialogOpen] = useState<boolean>(false);
+  const [deactivateDialogOpen, setDeactivateDialogOpen] = useState<boolean>(false);
+  const [isDeactivating, setIsDeactivating] = useState<boolean>(false);
   const [isSavingNotifications, setIsSavingNotifications] = useState<boolean>(false);
   const [isSavingAccount, setIsSavingAccount] = useState<boolean>(false);
 
@@ -32,6 +44,7 @@ export default function SettingsPage(): React.JSX.Element {
   );
   
   const updateUserSettings = useMutation(api.userSettings.updateSchoolAdmin);
+  const updateAdminStatus = useMutation(api.schoolAdmins.updateStatus);
 
   const [notifications, setNotifications] = useState({
     emailNotifications: true,
@@ -80,6 +93,27 @@ export default function SettingsPage(): React.JSX.Element {
       console.error(error);
     } finally {
       setIsSavingNotifications(false);
+    }
+  };
+
+  const handleDeactivate = async (): Promise<void> => {
+    if (!currentAdmin?._id) return;
+    setIsDeactivating(true);
+    try {
+      await updateAdminStatus({
+        id: currentAdmin._id,
+        status: 'inactive',
+        reason: 'Self-deactivated by user',
+      });
+      toast.success('Account deactivated. You will be signed out.');
+      setDeactivateDialogOpen(false);
+      await logout();
+      router.push('/');
+    } catch (error) {
+      toast.error('Failed to deactivate account');
+      console.error(error);
+    } finally {
+      setIsDeactivating(false);
     }
   };
 
@@ -285,7 +319,11 @@ export default function SettingsPage(): React.JSX.Element {
                   Temporarily disable your account
                 </p>
               </div>
-              <Button variant="destructive" size="sm">
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setDeactivateDialogOpen(true)}
+              >
                 Deactivate
               </Button>
             </div>
@@ -298,6 +336,31 @@ export default function SettingsPage(): React.JSX.Element {
         onOpenChange={setPasswordDialogOpen}
         userRole="school_admin"
       />
+
+      <AlertDialog open={deactivateDialogOpen} onOpenChange={setDeactivateDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deactivate Account</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to deactivate your account? You will be signed out
+              and will need to contact support to reactivate.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeactivating}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeactivate();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeactivating}
+            >
+              {isDeactivating ? 'Deactivating...' : 'Deactivate'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

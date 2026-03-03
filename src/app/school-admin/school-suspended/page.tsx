@@ -23,7 +23,7 @@ const currentAdmin = useQuery(
 
   const school = useQuery(
     api.schools.getByAdminId,
-    currentAdmin && currentAdmin.schoolId ? { adminId: currentAdmin.schoolId } : 'skip'
+    currentAdmin ? { adminId: currentAdmin._id } : 'skip'
   );
 
   const handleLogout = (): void => {
@@ -43,7 +43,7 @@ const currentAdmin = useQuery(
         <CardContent className="space-y-6">
           <Alert className="border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-900">
             <AlertDescription className="text-gray-900 dark:text-gray-100">
-              Your school <strong>{school?.name || 'has'}</strong> has been suspended by a system administrator.
+              Your school{school?.name ? ` ${school.name} ` : ' '}has been suspended by a system administrator.
             </AlertDescription>
           </Alert>
 

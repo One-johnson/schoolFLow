@@ -51,7 +51,7 @@ export function MobileHeader(): React.JSX.Element {
   const pathname = usePathname();
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
-  const notifications = useQuery(api.notifications.list) || [];
+  const notifications = useQuery(api.notifications.getNotificationsBySuperAdmin) || [];
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const getInitials = (name: string): string => {

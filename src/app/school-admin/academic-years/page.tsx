@@ -49,6 +49,7 @@ import { ViewTermDialog } from '@/components/academic-years/view-term-dialog';
 import { DeleteTermDialog } from '@/components/academic-years/delete-term-dialog';
 import { BulkDeleteTermsDialog } from '@/components/academic-years/bulk-delete-terms-dialog';
 import { DataTable, createSortableHeader, createSelectColumn } from '@/components/ui/data-table';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { ColumnDef } from '@tanstack/react-table';
 import { exportToCSV, exportToPDF } from '../../../lib/exports';
 
@@ -57,8 +58,8 @@ interface AcademicYear {
   schoolId: string;
   yearCode: string;
   yearName: string;
-  startDate: string;
-  endDate: string;
+  startDate?: string;
+  endDate?: string;
   status: 'active' | 'upcoming' | 'completed' | 'archived';
   isCurrentYear: boolean;
   description?: string;
@@ -327,12 +328,18 @@ export default function AcademicYearsPage(): React.JSX.Element {
     {
       accessorKey: 'startDate',
       header: createSortableHeader('Start Date'),
-      cell: ({ row }) => new Date(row.getValue('startDate')).toLocaleDateString(),
+      cell: ({ row }) => {
+        const val = row.getValue('startDate') as string | undefined;
+        return val ? new Date(val).toLocaleDateString() : '—';
+      },
     },
     {
       accessorKey: 'endDate',
       header: createSortableHeader('End Date'),
-      cell: ({ row }) => new Date(row.getValue('endDate')).toLocaleDateString(),
+      cell: ({ row }) => {
+        const val = row.getValue('endDate') as string | undefined;
+        return val ? new Date(val).toLocaleDateString() : '—';
+      },
     },
     {
       accessorKey: 'status',
@@ -556,12 +563,37 @@ export default function AcademicYearsPage(): React.JSX.Element {
     },
   ], [getTermStatusBadge, handleSetCurrentTerm, handleTermStatusChange]);
 
-  if (!user || !schoolAdmin || !school) {
+  if (schoolAdmin === null) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <p className="text-muted-foreground">Loading...</p>
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="text-center space-y-4">
+          <h2 className="text-2xl font-bold">Account not found</h2>
+          <p className="text-muted-foreground">
+            Your account could not be found. Please contact support.
+          </p>
+          <Button variant="outline" onClick={() => (window.location.href = "/school-admin")}>
+            Return to Dashboard
+          </Button>
         </div>
+      </div>
+    );
+  }
+
+  if (!user || schoolAdmin === undefined || school === undefined) {
+    return (
+      <div className="container mx-auto py-6 space-y-6">
+        <div>
+          <Skeleton className="h-9 w-64 mb-2" />
+          <Skeleton className="h-5 w-96" />
+        </div>
+        <Skeleton className="h-10 w-48" />
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+        </div>
+        <Skeleton className="h-96 w-full" />
       </div>
     );
   }
@@ -753,7 +785,15 @@ export default function AcademicYearsPage(): React.JSX.Element {
                           <CardContent className="space-y-3">
                             <div className="flex items-center justify-between">
                               <span className="text-sm text-muted-foreground">Duration:</span>
-                              <span className="text-sm font-medium">{new Date(year.startDate).toLocaleDateString()} - {new Date(year.endDate).toLocaleDateString()}</span>
+                              <span className="text-sm font-medium">
+                                {year.startDate && year.endDate
+                                  ? `${new Date(year.startDate).toLocaleDateString()} - ${new Date(year.endDate).toLocaleDateString()}`
+                                  : year.startDate
+                                    ? `From ${new Date(year.startDate).toLocaleDateString()}`
+                                    : year.endDate
+                                      ? `Until ${new Date(year.endDate).toLocaleDateString()}`
+                                      : 'Not set'}
+                              </span>
                             </div>
                             <div className="flex items-center justify-between">
                               <span className="text-sm text-muted-foreground">Status:</span>

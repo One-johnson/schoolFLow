@@ -31,8 +31,10 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { exportToCSV, exportToPDF } from "@/lib/exports";
+import { toast } from "sonner";
 import { ReportCardSheet } from "@/components/exams/report-card-sheet";
 import { DataTable, createSortableHeader } from "@/components/ui/data-table";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { ColumnDef } from "@tanstack/react-table";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -230,26 +232,49 @@ function ExportButtons({
 
 export default function ReportsPage(): React.JSX.Element {
   const { user } = useAuth();
-  const schoolId = user?.schoolId || "";
+  const schoolAdmin = useQuery(
+    api.schoolAdmins.getByEmail,
+    user?.email ? { email: user.email } : 'skip'
+  );
+  const schoolId = schoolAdmin?.schoolId || '';
 
   // ─── Data Queries ───────────────────────────────────────────────────────────
-  const students = useQuery(api.students.getStudentsBySchool, { schoolId });
-  const teachers = useQuery(api.teachers.getTeachersBySchool, { schoolId });
-  const attendance = useQuery(api.attendance.getAttendanceBySchool, {
-    schoolId,
-  });
-  const feePayments = useQuery(api.feePayments.getPaymentsBySchool, {
-    schoolId,
-  });
-  const events = useQuery(api.events.getEventsBySchool, { schoolId });
-  const reportCards = useQuery(api.reportCards.getReportCardsBySchool, {
-    schoolId,
-  });
-  const classes = useQuery(api.classes.getClassesBySchool, { schoolId });
-  const terms = useQuery(api.terms.getTermsBySchool, { schoolId });
-  const academicYears = useQuery(api.academicYears.getYearsBySchool, {
-    schoolId,
-  });
+  const students = useQuery(
+    api.students.getStudentsBySchool,
+    schoolId ? { schoolId } : 'skip'
+  );
+  const teachers = useQuery(
+    api.teachers.getTeachersBySchool,
+    schoolId ? { schoolId } : 'skip'
+  );
+  const attendance = useQuery(
+    api.attendance.getAttendanceBySchool,
+    schoolId ? { schoolId } : 'skip'
+  );
+  const feePayments = useQuery(
+    api.feePayments.getPaymentsBySchool,
+    schoolId ? { schoolId } : 'skip'
+  );
+  const events = useQuery(
+    api.events.getEventsBySchool,
+    schoolId ? { schoolId } : 'skip'
+  );
+  const reportCards = useQuery(
+    api.reportCards.getReportCardsBySchool,
+    schoolId ? { schoolId } : 'skip'
+  );
+  const classes = useQuery(
+    api.classes.getClassesBySchool,
+    schoolId ? { schoolId } : 'skip'
+  );
+  const terms = useQuery(
+    api.terms.getTermsBySchool,
+    schoolId ? { schoolId } : 'skip'
+  );
+  const academicYears = useQuery(
+    api.academicYears.getYearsBySchool,
+    schoolId ? { schoolId } : 'skip'
+  );
 
   // ─── Filter States ──────────────────────────────────────────────────────────
   const [studentFilterClass, setStudentFilterClass] = useState("all");
@@ -696,6 +721,7 @@ export default function ReportsPage(): React.JSX.Element {
             setShowView(true);
           }}
           title="View Report"
+          aria-label="View report card"
         >
           <Eye className="h-4 w-4" />
         </Button>
@@ -706,205 +732,307 @@ export default function ReportsPage(): React.JSX.Element {
   // ─── Export Handlers ────────────────────────────────────────────────────────
   const exportStudentsCSV = (): void => {
     if (!filteredStudents.length) return;
-    exportToCSV(
-      filteredStudents.map((s) => ({
-        Name: `${s.firstName} ${s.lastName}`,
-        "Admission No.": s.admissionNumber || "—",
-        Class: s.className,
-        Department: s.department,
-        Gender: s.gender,
-        Status: s.status,
-        "Admission Date": s.admissionDate || "—",
-      })),
-      "students-report",
-    );
+    try {
+      exportToCSV(
+        filteredStudents.map((s) => ({
+          Name: `${s.firstName} ${s.lastName}`,
+          "Admission No.": s.admissionNumber || "—",
+          Class: s.className,
+          Department: s.department,
+          Gender: s.gender,
+          Status: s.status,
+          "Admission Date": s.admissionDate || "—",
+        })),
+        "students-report",
+      );
+      toast.success("Students report exported as CSV");
+    } catch (error) {
+      toast.error("Failed to export students report");
+      console.error(error);
+    }
   };
   const exportStudentsPDF = (): void => {
     if (!filteredStudents.length) return;
-    exportToPDF(
-      filteredStudents.map((s) => ({
-        Name: `${s.firstName} ${s.lastName}`,
-        "Adm. No.": s.admissionNumber || "—",
-        Class: s.className,
-        Department: s.department,
-        Gender: s.gender,
-        Status: s.status,
-      })),
-      "students-report",
-      "Students Report",
-    );
+    try {
+      exportToPDF(
+        filteredStudents.map((s) => ({
+          Name: `${s.firstName} ${s.lastName}`,
+          "Adm. No.": s.admissionNumber || "—",
+          Class: s.className,
+          Department: s.department,
+          Gender: s.gender,
+          Status: s.status,
+        })),
+        "students-report",
+        "Students Report",
+      );
+      toast.success("Students report exported as PDF");
+    } catch (error) {
+      toast.error("Failed to export students report");
+      console.error(error);
+    }
   };
 
   const exportTeachersCSV = (): void => {
     if (!filteredTeachers.length) return;
-    exportToCSV(
-      filteredTeachers.map((t) => ({
-        Name: `${t.firstName} ${t.lastName}`,
-        Email: t.email,
-        Phone: t.phone || "—",
-        Subjects: t.subjects?.join(", ") || "—",
-        Employment: t.employmentType,
-        Status: t.status,
-      })),
-      "teachers-report",
-    );
+    try {
+      exportToCSV(
+        filteredTeachers.map((t) => ({
+          Name: `${t.firstName} ${t.lastName}`,
+          Email: t.email,
+          Phone: t.phone || "—",
+          Subjects: t.subjects?.join(", ") || "—",
+          Employment: t.employmentType,
+          Status: t.status,
+        })),
+        "teachers-report",
+      );
+      toast.success("Teachers report exported as CSV");
+    } catch (error) {
+      toast.error("Failed to export teachers report");
+      console.error(error);
+    }
   };
   const exportTeachersPDF = (): void => {
     if (!filteredTeachers.length) return;
-    exportToPDF(
-      filteredTeachers.map((t) => ({
-        Name: `${t.firstName} ${t.lastName}`,
-        Email: t.email,
-        Subjects: t.subjects?.join(", ") || "—",
-        Employment: t.employmentType,
-        Status: t.status,
-      })),
-      "teachers-report",
-      "Teachers Report",
-    );
+    try {
+      exportToPDF(
+        filteredTeachers.map((t) => ({
+          Name: `${t.firstName} ${t.lastName}`,
+          Email: t.email,
+          Subjects: t.subjects?.join(", ") || "—",
+          Employment: t.employmentType,
+          Status: t.status,
+        })),
+        "teachers-report",
+        "Teachers Report",
+      );
+      toast.success("Teachers report exported as PDF");
+    } catch (error) {
+      toast.error("Failed to export teachers report");
+      console.error(error);
+    }
   };
 
   const exportAttendanceCSV = (): void => {
     if (!filteredAttendance.length) return;
-    exportToCSV(
-      filteredAttendance.map((a) => ({
-        Class: a.className,
-        Date: a.date,
-        Session: a.session,
-        Present: String(a.presentCount),
-        Absent: String(a.absentCount),
-        Late: String(a.lateCount),
-        Excused: String(a.excusedCount),
-        "Total Students": String(a.totalStudents),
-        Status: a.status,
-        "Marked By": a.markedByName || "—",
-      })),
-      "attendance-report",
-    );
+    try {
+      exportToCSV(
+        filteredAttendance.map((a) => ({
+          Class: a.className,
+          Date: a.date,
+          Session: a.session,
+          Present: String(a.presentCount),
+          Absent: String(a.absentCount),
+          Late: String(a.lateCount),
+          Excused: String(a.excusedCount),
+          "Total Students": String(a.totalStudents),
+          Status: a.status,
+          "Marked By": a.markedByName || "—",
+        })),
+        "attendance-report",
+      );
+      toast.success("Attendance report exported as CSV");
+    } catch (error) {
+      toast.error("Failed to export attendance report");
+      console.error(error);
+    }
   };
   const exportAttendancePDF = (): void => {
     if (!filteredAttendance.length) return;
-    exportToPDF(
-      filteredAttendance.map((a) => ({
-        Class: a.className,
-        Date: a.date,
-        Session: a.session,
-        Present: String(a.presentCount),
-        Absent: String(a.absentCount),
-        Late: String(a.lateCount),
-        Excused: String(a.excusedCount),
-        Total: String(a.totalStudents),
-        Status: a.status,
-      })),
-      "attendance-report",
-      "Attendance Report",
-    );
+    try {
+      exportToPDF(
+        filteredAttendance.map((a) => ({
+          Class: a.className,
+          Date: a.date,
+          Session: a.session,
+          Present: String(a.presentCount),
+          Absent: String(a.absentCount),
+          Late: String(a.lateCount),
+          Excused: String(a.excusedCount),
+          Total: String(a.totalStudents),
+          Status: a.status,
+        })),
+        "attendance-report",
+        "Attendance Report",
+      );
+      toast.success("Attendance report exported as PDF");
+    } catch (error) {
+      toast.error("Failed to export attendance report");
+      console.error(error);
+    }
   };
 
   const exportFeesCSV = (): void => {
     if (!filteredFees.length) return;
-    exportToCSV(
-      filteredFees.map((f) => ({
-        Student: f.studentName,
-        Class: f.className,
-        Receipt: f.receiptNumber || "—",
-        "Amount Due": String(f.totalAmountDue),
-        "Amount Paid": String(f.totalAmountPaid),
-        Balance: String(f.totalBalance),
-        Status: f.paymentStatus,
-        Method: f.paymentMethod || "—",
-        Date: f.paymentDate || "—",
-      })),
-      "fees-report",
-    );
+    try {
+      exportToCSV(
+        filteredFees.map((f) => ({
+          Student: f.studentName,
+          Class: f.className,
+          Receipt: f.receiptNumber || "—",
+          "Amount Due": String(f.totalAmountDue),
+          "Amount Paid": String(f.totalAmountPaid),
+          Balance: String(f.totalBalance),
+          Status: f.paymentStatus,
+          Method: f.paymentMethod || "—",
+          Date: f.paymentDate || "—",
+        })),
+        "fees-report",
+      );
+      toast.success("Fees report exported as CSV");
+    } catch (error) {
+      toast.error("Failed to export fees report");
+      console.error(error);
+    }
   };
   const exportFeesPDF = (): void => {
     if (!filteredFees.length) return;
-    exportToPDF(
-      filteredFees.map((f) => ({
-        Student: f.studentName,
-        Class: f.className,
-        Due: f.totalAmountDue.toLocaleString(),
-        Paid: f.totalAmountPaid.toLocaleString(),
-        Balance: f.totalBalance.toLocaleString(),
-        Status: f.paymentStatus,
-        Date: f.paymentDate || "—",
-      })),
-      "fees-report",
-      "Fee Payments Report",
-    );
+    try {
+      exportToPDF(
+        filteredFees.map((f) => ({
+          Student: f.studentName,
+          Class: f.className,
+          Due: f.totalAmountDue.toLocaleString(),
+          Paid: f.totalAmountPaid.toLocaleString(),
+          Balance: f.totalBalance.toLocaleString(),
+          Status: f.paymentStatus,
+          Date: f.paymentDate || "—",
+        })),
+        "fees-report",
+        "Fee Payments Report",
+      );
+      toast.success("Fees report exported as PDF");
+    } catch (error) {
+      toast.error("Failed to export fees report");
+      console.error(error);
+    }
   };
 
   const exportEventsCSV = (): void => {
     if (!filteredEvents.length) return;
-    exportToCSV(
-      filteredEvents.map((e) => ({
-        Event: e.eventTitle,
-        Type: e.eventType,
-        "Start Date": e.startDate,
-        "End Date": e.endDate,
-        Location: e.location || "—",
-        Audience: e.audienceType,
-        "Venue Type": e.venueType,
-        Status: e.status,
-      })),
-      "events-report",
-    );
+    try {
+      exportToCSV(
+        filteredEvents.map((e) => ({
+          Event: e.eventTitle,
+          Type: e.eventType,
+          "Start Date": e.startDate,
+          "End Date": e.endDate,
+          Location: e.location || "—",
+          Audience: e.audienceType,
+          "Venue Type": e.venueType,
+          Status: e.status,
+        })),
+        "events-report",
+      );
+      toast.success("Events report exported as CSV");
+    } catch (error) {
+      toast.error("Failed to export events report");
+      console.error(error);
+    }
   };
   const exportEventsPDF = (): void => {
     if (!filteredEvents.length) return;
-    exportToPDF(
-      filteredEvents.map((e) => ({
-        Event: e.eventTitle,
-        Type: e.eventType,
-        Start: e.startDate,
-        End: e.endDate,
-        Location: e.location || "—",
-        Audience: e.audienceType,
-        Status: e.status,
-      })),
-      "events-report",
-      "Events Report",
-    );
+    try {
+      exportToPDF(
+        filteredEvents.map((e) => ({
+          Event: e.eventTitle,
+          Type: e.eventType,
+          Start: e.startDate,
+          End: e.endDate,
+          Location: e.location || "—",
+          Audience: e.audienceType,
+          Status: e.status,
+        })),
+        "events-report",
+        "Events Report",
+      );
+      toast.success("Events report exported as PDF");
+    } catch (error) {
+      toast.error("Failed to export events report");
+      console.error(error);
+    }
   };
 
   const exportReportCardsCSV = (): void => {
     if (!filteredReportCards.length) return;
-    exportToCSV(
-      filteredReportCards.map((r) => ({
-        "Report Code": r.reportCode,
-        "Student Name": r.studentName,
-        Class: r.className,
-        "Academic Year": r.academicYearName || "—",
-        Term: r.termName || "—",
-        "Total Score": r.totalScore,
-        "Raw Score": r.rawScore,
-        Percentage: `${r.percentage}%`,
-        Grade: r.overallGrade,
-        Position: r.position || "—",
-        Status: r.status,
-        "Published Date": r.publishedAt || "—",
-      })),
-      "report-cards",
-    );
+    try {
+      exportToCSV(
+        filteredReportCards.map((r) => ({
+          "Report Code": r.reportCode,
+          "Student Name": r.studentName,
+          Class: r.className,
+          "Academic Year": r.academicYearName || "—",
+          Term: r.termName || "—",
+          "Total Score": r.totalScore,
+          "Raw Score": r.rawScore,
+          Percentage: `${r.percentage}%`,
+          Grade: r.overallGrade,
+          Position: r.position || "—",
+          Status: r.status,
+          "Published Date": r.publishedAt || "—",
+        })),
+        "report-cards",
+      );
+      toast.success("Report cards exported as CSV");
+    } catch (error) {
+      toast.error("Failed to export report cards");
+      console.error(error);
+    }
   };
   const exportReportCardsPDF = (): void => {
     if (!filteredReportCards.length) return;
-    exportToPDF(
-      filteredReportCards.map((r) => ({
-        Student: r.studentName,
-        Class: r.className,
-        Term: r.termName || "—",
-        Score: `${r.totalScore} / ${r.rawScore}`,
-        Percentage: `${r.percentage}%`,
-        Grade: r.overallGrade,
-        Position: r.position ? `#${r.position}` : "—",
-        Status: r.status,
-      })),
-      "report-cards",
-      "Report Cards Summary",
-    );
+    try {
+      exportToPDF(
+        filteredReportCards.map((r) => ({
+          Student: r.studentName,
+          Class: r.className,
+          Term: r.termName || "—",
+          Score: `${r.totalScore} / ${r.rawScore}`,
+          Percentage: `${r.percentage}%`,
+          Grade: r.overallGrade,
+          Position: r.position ? `#${r.position}` : "—",
+          Status: r.status,
+        })),
+        "report-cards",
+        "Report Cards Summary",
+      );
+      toast.success("Report cards exported as PDF");
+    } catch (error) {
+      toast.error("Failed to export report cards");
+      console.error(error);
+    }
   };
+
+  // ─── Loading & null handling ───────────────────────────────────────────────
+  if (schoolAdmin === undefined) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-8 w-48 mb-2" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-96 w-full" />
+      </div>
+    );
+  }
+
+  if (schoolAdmin === null) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center space-y-4">
+          <h2 className="text-2xl font-bold">Account not found</h2>
+          <p className="text-muted-foreground">
+            Your account could not be found. Please contact support.
+          </p>
+          <Button variant="outline" onClick={() => (window.location.href = "/school-admin")}>
+            Return to Dashboard
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   // ─── Reusable: Class Filter ─────────────────────────────────────────────────
   const ClassFilter = ({
@@ -942,7 +1070,7 @@ export default function ReportsPage(): React.JSX.Element {
       </div>
 
       <Tabs defaultValue="students">
-        <TabsList className="flex flex-wrap h-auto gap-1">
+        <TabsList className="flex flex-wrap h-auto gap-1" aria-label="Report categories">
           <TabsTrigger value="students">
             <Users className="h-3.5 w-3.5 mr-1.5" />
             Students
