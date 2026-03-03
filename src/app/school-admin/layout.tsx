@@ -37,7 +37,7 @@ export default function SchoolAdminLayout({
 
   // Get school data if admin has created a school
   const schools = useQuery(api.schools.list);
-  const school = schools?.find((s) => s.adminId === schoolAdmin?.schoolId);
+  const school = schools?.find((s) => s.adminId === schoolAdmin?._id);
 
   useEffect(() => {
     if (!loading && schoolAdmin !== undefined) {

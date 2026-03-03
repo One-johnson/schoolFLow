@@ -64,7 +64,7 @@ export function DesktopHeader(): React.JSX.Element {
   const [showSearch, setShowSearch] = useState<boolean>(false);
   const { user, logout } = useAuth();
 
-  const notifications = useQuery(api.notifications.list) || [];
+  const notifications = useQuery(api.notifications.getNotificationsBySuperAdmin) || [];
 
   useEffect(() => {
     const down = (e: KeyboardEvent): void => {

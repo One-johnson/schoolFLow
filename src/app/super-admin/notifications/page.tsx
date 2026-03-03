@@ -30,16 +30,18 @@ import {
 } from '@/components/ui/alert-dialog';
 
 export default function NotificationsPage(): React.JSX.Element {
-  const notifications = useQuery(api.notifications.list) || [];
+  const notifications = useQuery(api.notifications.getNotificationsBySuperAdmin) || [];
   const markAsRead = useMutation(api.notifications.markAsRead);
   const markAllAsRead = useMutation(api.notifications.markAllAsRead);
   const deleteSingle = useMutation(api.notifications.deleteSingle);
   const deleteAll = useMutation(api.notifications.deleteAll);
   const bulkDelete = useMutation(api.notifications.bulkDelete);
+  const clearAll = useMutation(api.notifications.clearAll);
 
   const [selectedIds, setSelectedIds] = useState<Set<Id<'notifications'>>>(new Set());
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState<boolean>(false);
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState<boolean>(false);
+  const [showClearAllDialog, setShowClearAllDialog] = useState<boolean>(false);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -55,7 +57,7 @@ export default function NotificationsPage(): React.JSX.Element {
 
   const handleMarkAllAsRead = async (): Promise<void> => {
     try {
-      await markAllAsRead({});
+      await markAllAsRead({ recipientRole: 'super_admin' });
       toast.success('All notifications marked as read');
     } catch (error) {
       toast.error('Failed to mark all as read');
@@ -79,7 +81,7 @@ export default function NotificationsPage(): React.JSX.Element {
   const handleDeleteAll = async (): Promise<void> => {
     setIsDeleting(true);
     try {
-      const count = await deleteAll({});
+      const count = await deleteAll({ recipientRole: 'super_admin' });
       toast.success(`Deleted ${count} notifications`);
       setSelectedIds(new Set());
       setShowDeleteAllDialog(false);
@@ -100,6 +102,20 @@ export default function NotificationsPage(): React.JSX.Element {
       setShowBulkDeleteDialog(false);
     } catch (error) {
       toast.error('Failed to delete selected notifications');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleClearAll = async (): Promise<void> => {
+    setIsDeleting(true);
+    try {
+      const count = await clearAll({});
+      toast.success(`Cleared ${count} notifications. New ones will appear as events occur.`);
+      setSelectedIds(new Set());
+      setShowClearAllDialog(false);
+    } catch (error) {
+      toast.error('Failed to clear notifications');
     } finally {
       setIsDeleting(false);
     }
@@ -164,6 +180,14 @@ export default function NotificationsPage(): React.JSX.Element {
               Delete All
             </Button>
           )}
+          <Button 
+            onClick={() => setShowClearAllDialog(true)} 
+            variant="outline" 
+            className="gap-2"
+            title="Clear all platform notifications. New ones will be created as events occur."
+          >
+            Clear All (Reset)
+          </Button>
         </div>
       </div>
 
@@ -324,6 +348,28 @@ export default function NotificationsPage(): React.JSX.Element {
               className="bg-red-600 hover:bg-red-700"
             >
               {isDeleting ? 'Deleting...' : 'Delete Selected'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Clear All (Reset) Dialog */}
+      <AlertDialog open={showClearAllDialog} onOpenChange={setShowClearAllDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear All Platform Notifications?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete ALL notifications (super admin and school admin). New notifications will be created automatically as events occur (e.g. school creation requests, trial warnings). Use this to fix any notification display issues.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleClearAll} 
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? 'Clearing...' : 'Clear All'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

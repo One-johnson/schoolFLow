@@ -127,7 +127,10 @@ export function DesktopHeader(): React.JSX.Element {
   const [selectedEntity, setSelectedEntity]   = useState<SelectedEntity | null>(null);
   const [showDetail, setShowDetail]           = useState(false);
 
-  const notifications = useQuery(api.notifications.list);
+  const notifications = useQuery(
+    api.notifications.getNotificationsBySchoolAdmin,
+    user?.userId ? { recipientId: user.userId } : 'skip'
+  );
   const unreadCount = notifications?.filter((n) => !n.read).length || 0;
 
   // Data for search

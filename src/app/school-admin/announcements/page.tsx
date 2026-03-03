@@ -33,21 +33,27 @@ interface Announcement {
 
 export default function AnnouncementsPage(): React.JSX.Element {
   const { user } = useAuth();
+  const schoolAdmin = useQuery(
+    api.schoolAdmins.getByEmail,
+    user?.email ? { email: user.email } : 'skip'
+  );
+  const schoolId = schoolAdmin?.schoolId || '';
+
   const publishAnnouncement = useMutation(api.announcements.publish);
   const archiveAnnouncement = useMutation(api.announcements.archive);
 
-  const drafts = useQuery(api.announcements.getBySchool, {
-    schoolId: user?.schoolId || '',
-    status: 'draft',
-  });
-  const published = useQuery(api.announcements.getBySchool, {
-    schoolId: user?.schoolId || '',
-    status: 'published',
-  });
-  const archived = useQuery(api.announcements.getBySchool, {
-    schoolId: user?.schoolId || '',
-    status: 'archived',
-  });
+  const drafts = useQuery(
+    api.announcements.getBySchool,
+    schoolId ? { schoolId, status: 'draft' } : 'skip'
+  );
+  const published = useQuery(
+    api.announcements.getBySchool,
+    schoolId ? { schoolId, status: 'published' } : 'skip'
+  );
+  const archived = useQuery(
+    api.announcements.getBySchool,
+    schoolId ? { schoolId, status: 'archived' } : 'skip'
+  );
 
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
@@ -193,7 +199,7 @@ export default function AnnouncementsPage(): React.JSX.Element {
 
       {/* Tabs */}
       <Tabs defaultValue="draft">
-        <TabsList>
+        <TabsList aria-label="Announcement status">
           <TabsTrigger value="draft">
             Drafts
             {drafts && drafts.length > 0 && (

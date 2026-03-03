@@ -98,6 +98,20 @@ export default function CreateSchoolPage(): React.JSX.Element {
       return;
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email.trim())) {
+      toast.error("Please enter a valid email address");
+      setLoading(false);
+      return;
+    }
+
+    const phoneRegex = /^[\d\s\-+()]{10,}$/;
+    if (formData.phone && !phoneRegex.test(formData.phone.trim())) {
+      toast.error("Please enter a valid phone number (at least 10 digits)");
+      setLoading(false);
+      return;
+    }
+
     try {
       await createSchoolRequest({
         schoolAdminId: currentAdmin._id,

@@ -9,6 +9,28 @@ export const list = query({
   },
 });
 
+// Notifications for super admin only (recipientRole === 'super_admin')
+export const getNotificationsBySuperAdmin = query({
+  args: {},
+  handler: async (ctx) => {
+    const notifications = await ctx.db.query('notifications').order('desc').collect();
+    return notifications.filter((n) => n.recipientRole === 'super_admin');
+  },
+});
+
+// Notifications for school admin (recipientRole === 'school_admin', with optional recipientId)
+export const getNotificationsBySchoolAdmin = query({
+  args: { recipientId: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const notifications = await ctx.db.query('notifications').order('desc').collect();
+    return notifications.filter(
+      (n) =>
+        n.recipientRole === 'school_admin' &&
+        (!n.recipientId || (args.recipientId && n.recipientId === args.recipientId))
+    );
+  },
+});
+
 export const create = mutation({
   args: {
     title: v.string(),
@@ -44,19 +66,27 @@ export const markAsRead = mutation({
 });
 
 export const markAllAsRead = mutation({
-  args: { recipientId: v.optional(v.string()) },
+  args: {
+    recipientId: v.optional(v.string()),
+    recipientRole: v.optional(v.union(v.literal('super_admin'), v.literal('school_admin'))),
+  },
   handler: async (ctx, args) => {
-    let query = ctx.db.query('notifications').filter((q) => q.eq(q.field('read'), false));
-    
-    if (args.recipientId) {
-      query = query.filter((q) => q.eq(q.field('recipientId'), args.recipientId));
+    let notifications = await ctx.db
+      .query('notifications')
+      .filter((q) => q.eq(q.field('read'), false))
+      .collect();
+
+    if (args.recipientRole) {
+      notifications = notifications.filter((n) => n.recipientRole === args.recipientRole);
     }
-    
-    const notifications = await query.collect();
+    if (args.recipientId) {
+      notifications = notifications.filter(
+        (n) => !n.recipientId || n.recipientId === args.recipientId
+      );
+    }
+
     for (const notification of notifications) {
-      await ctx.db.patch(notification._id, {
-        read: true,
-      });
+      await ctx.db.patch(notification._id, { read: true });
     }
     return notifications.length;
   },
@@ -71,15 +101,22 @@ export const deleteSingle = mutation({
 });
 
 export const deleteAll = mutation({
-  args: { recipientId: v.optional(v.string()) },
+  args: {
+    recipientId: v.optional(v.string()),
+    recipientRole: v.optional(v.union(v.literal('super_admin'), v.literal('school_admin'))),
+  },
   handler: async (ctx, args) => {
-    let query = ctx.db.query('notifications');
-    
-    if (args.recipientId) {
-      query = query.filter((q) => q.eq(q.field('recipientId'), args.recipientId));
+    let notifications = await ctx.db.query('notifications').collect();
+
+    if (args.recipientRole) {
+      notifications = notifications.filter((n) => n.recipientRole === args.recipientRole);
     }
-    
-    const notifications = await query.collect();
+    if (args.recipientId) {
+      notifications = notifications.filter(
+        (n) => !n.recipientId || n.recipientId === args.recipientId
+      );
+    }
+
     for (const notification of notifications) {
       await ctx.db.delete(notification._id);
     }
@@ -94,6 +131,18 @@ export const bulkDelete = mutation({
       await ctx.db.delete(id);
     }
     return args.ids.length;
+  },
+});
+
+// Clear all notifications (for reset/fix - new ones will be created as events occur)
+export const clearAll = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const notifications = await ctx.db.query('notifications').collect();
+    for (const notification of notifications) {
+      await ctx.db.delete(notification._id);
+    }
+    return notifications.length;
   },
 });
 

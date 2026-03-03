@@ -16,8 +16,8 @@ interface AcademicYear {
   _id: Id<'academicYears'>;
   yearCode: string;
   yearName: string;
-  startDate: string;
-  endDate: string;
+  startDate?: string;
+  endDate?: string;
   description?: string;
   status: 'active' | 'upcoming' | 'completed' | 'archived';
   isCurrentYear: boolean;
@@ -94,19 +94,27 @@ export function ViewAcademicYearDialog({
               </div>
             )}
 
-            <div className="border-t pt-4">
-              <div className="space-y-3">
-                <div className="flex items-start gap-2">
-                  <Calendar className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">Duration</p>
-                    <p className="text-sm text-muted-foreground">
-                      {formatDate(academicYear.startDate)} - {formatDate(academicYear.endDate)}
-                    </p>
+            {(academicYear.startDate || academicYear.endDate) && (
+              <div className="border-t pt-4">
+                <div className="space-y-3">
+                  <div className="flex items-start gap-2">
+                    <Calendar className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">Duration</p>
+                      <p className="text-sm text-muted-foreground">
+                        {academicYear.startDate && academicYear.endDate
+                          ? `${formatDate(academicYear.startDate)} - ${formatDate(academicYear.endDate)}`
+                          : academicYear.startDate
+                            ? `From ${formatDate(academicYear.startDate)}`
+                            : academicYear.endDate
+                              ? `Until ${formatDate(academicYear.endDate)}`
+                              : '—'}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {academicYear.description && (
               <div className="border-t pt-4">

@@ -11,6 +11,7 @@ import { api } from '../../../../convex/_generated/api';
 import { toast } from 'sonner';
 import { User, Mail, Building2, Calendar, Shield } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function ProfilePage(): React.JSX.Element {
@@ -54,6 +55,13 @@ export default function ProfilePage(): React.JSX.Element {
       return;
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email.trim())) {
+      toast.error('Please enter a valid email address');
+      setLoading(false);
+      return;
+    }
+
     try {
       await updateAdmin({
         id: currentAdmin._id,
@@ -73,12 +81,29 @@ export default function ProfilePage(): React.JSX.Element {
     }
   };
 
-  if (!currentAdmin) {
+  if (currentAdmin === undefined) {
+    return (
+      <div className="max-w-3xl mx-auto space-y-6">
+        <div>
+          <Skeleton className="h-9 w-48 mb-2" />
+          <Skeleton className="h-5 w-64" />
+        </div>
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  if (currentAdmin === null) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Loading...</h2>
-          <p className="text-muted-foreground">Please wait</p>
+        <div className="text-center space-y-4">
+          <h2 className="text-2xl font-bold">Account not found</h2>
+          <p className="text-muted-foreground">
+            Your account could not be found. Please contact support.
+          </p>
+          <Button variant="outline" onClick={() => router.push("/school-admin")}>
+            Return to Dashboard
+          </Button>
         </div>
       </div>
     );

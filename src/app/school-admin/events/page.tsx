@@ -94,7 +94,11 @@ interface Event {
 
 export default function EventsPage(): React.JSX.Element {
   const { user } = useAuth();
-  const schoolId = user?.schoolId;
+  const schoolAdmin = useQuery(
+    api.schoolAdmins.getByEmail,
+    user?.email ? { email: user.email } : 'skip'
+  );
+  const schoolId = schoolAdmin?.schoolId;
 
   // States for dialogs
   const [showAddDialog, setShowAddDialog] = useState<boolean>(false);
@@ -110,7 +114,7 @@ export default function EventsPage(): React.JSX.Element {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  // Fetch data
+  // Fetch data (use schoolAdmin.schoolId for consistency; skip when admin/school not loaded)
   const events = useQuery(
     api.events.getEventsBySchool,
     schoolId ? { schoolId } : 'skip'
@@ -400,7 +404,7 @@ export default function EventsPage(): React.JSX.Element {
 
       {/* Tabs */}
       <Tabs defaultValue="list" className="space-y-4">
-        <TabsList>
+        <TabsList aria-label="Event view options">
           <TabsTrigger value="list">
             <List className="mr-2 h-4 w-4" />
             List View
