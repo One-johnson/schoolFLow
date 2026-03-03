@@ -139,6 +139,14 @@ export default function TeacherLoginPage(): React.JSX.Element {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+              <div className="flex justify-end">
+                <Link
+                  href="/forgot-password"
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <p className="text-xs text-muted-foreground">
                 First time? Use your Teacher ID as your password.
               </p>

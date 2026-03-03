@@ -23,12 +23,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Plus, Shield, ShieldCheck, ShieldAlert, UserPlus } from 'lucide-react';
+import { MoreHorizontal, Plus, Shield, ShieldCheck, ShieldAlert, UserPlus, Key } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { AddAdminDialog } from '../../../components/add-admin-dialog';
 import { EditRoleDialog } from '../../../components/edit-admin-dialog';
-import { DeleteAdminDialog } from'../../../components/delete-admin-dialog';
+import { DeleteAdminDialog } from '../../../components/delete-admin-dialog';
+import { PasswordResetDialog } from '@/components/password-reset-dialog';
 interface SuperAdmin {
   _id: Id<'superAdmins'>;
   _creationTime: number;
@@ -47,6 +48,7 @@ export default function ManageAdminsPage(): React.JSX.Element {
   const [selectedAdmin, setSelectedAdmin] = React.useState<SuperAdmin | null>(null);
   const [showEditDialog, setShowEditDialog] = React.useState<boolean>(false);
   const [showDeleteDialog, setShowDeleteDialog] = React.useState<boolean>(false);
+  const [showResetDialog, setShowResetDialog] = React.useState<boolean>(false);
 
   // Queries
   const admins = useQuery(api.superAdmins.list);
@@ -277,6 +279,17 @@ export default function ManageAdminsPage(): React.JSX.Element {
                               Activate
                             </DropdownMenuItem>
                           )}
+                          {canManageAdmin(admin.role) && admin._id !== currentAdmin._id && admin.status === 'active' && (
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedAdmin(admin);
+                                setShowResetDialog(true);
+                              }}
+                            >
+                              <Key className="h-4 w-4 mr-2" />
+                              Reset Password
+                            </DropdownMenuItem>
+                          )}
                           {canManageAdmin(admin.role) && admin._id !== currentAdmin._id && (
                             <>
                               <DropdownMenuSeparator />
@@ -327,6 +340,14 @@ export default function ManageAdminsPage(): React.JSX.Element {
             open={showDeleteDialog}
             onOpenChange={setShowDeleteDialog}
             admin={selectedAdmin}
+          />
+          <PasswordResetDialog
+            open={showResetDialog}
+            onOpenChange={setShowResetDialog}
+            role="super-admin"
+            userId={selectedAdmin._id}
+            userName={selectedAdmin.name}
+            userEmail={selectedAdmin.email}
           />
         </>
       )}

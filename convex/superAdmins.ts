@@ -172,6 +172,27 @@ export const remove = mutation({
   },
 });
 
+// Reset password (called from API route after super admin verification)
+export const resetPassword = mutation({
+  args: {
+    id: v.id('superAdmins'),
+    hashedPassword: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const admin = await ctx.db.get(args.id);
+
+    if (!admin) {
+      throw new Error('Super admin not found');
+    }
+
+    await ctx.db.patch(args.id, {
+      password: args.hashedPassword,
+    });
+
+    return args.id;
+  },
+});
+
 // Get statistics
 export const getStats = query({
   args: {},

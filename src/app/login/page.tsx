@@ -154,7 +154,7 @@ export default function LoginPage(): React.JSX.Element {
               </div>
               <div className="flex justify-end">
                 <Link
-                  href="/contact"
+                  href="/forgot-password"
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Forgot password?
