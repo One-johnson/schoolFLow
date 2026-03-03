@@ -429,6 +429,7 @@ export default function ActivityPage(): React.JSX.Element {
             </CardHeader>
             <CardContent>
               <DataTable
+                storageKey="super-activity-login"
                 columns={loginColumns}
                 data={loginHistory}
                 searchKey="ipAddress"
@@ -512,6 +513,7 @@ export default function ActivityPage(): React.JSX.Element {
             </CardHeader>
             <CardContent>
               <DataTable
+                storageKey="super-activity-sessions"
                 columns={sessionColumns}
                 data={activeSessions}
                 searchKey="ipAddress"

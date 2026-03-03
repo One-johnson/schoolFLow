@@ -347,6 +347,7 @@ export default function SupportPage(): React.JSX.Element {
             </CardHeader>
             <CardContent>
               <DataTable
+                storageKey="super-support"
                 columns={columns}
                 data={filteredTickets}
                 searchKey="subject"

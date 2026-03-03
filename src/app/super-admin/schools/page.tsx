@@ -450,6 +450,7 @@ This action cannot be undone. All data will be lost.`,
         </CardHeader>
         <CardContent>
           <DataTable
+            storageKey="super-schools"
             columns={columns}
             data={filteredData}
             searchKey="name"

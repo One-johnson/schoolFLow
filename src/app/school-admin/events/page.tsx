@@ -429,9 +429,10 @@ export default function EventsPage(): React.JSX.Element {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <DataTable
-                columns={columns}
-                data={filteredEvents || []}
+<DataTable
+              storageKey="events"
+              columns={columns}
+              data={filteredEvents || []}
                 searchKey="eventTitle"
               />
             </CardContent>

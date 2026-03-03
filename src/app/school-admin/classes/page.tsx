@@ -55,7 +55,7 @@ interface Class {
   className: string;
   grade: string;
   section?: string;
-  departmentId: string;
+  departmentId: Id<'departments'>;
   classTeacherId?: string;
   capacity?: number;
   currentStudentCount: number;
@@ -172,7 +172,7 @@ export default function ClassesPage(): React.JSX.Element {
     }
   ) || [];
 
-  const getDepartmentBadge = (departmentId: string): React.JSX.Element => {
+  const getDepartmentBadge = (departmentId: Id<'departments'>): React.JSX.Element => {
     const dept = departmentMap.get(departmentId);
     const colors = ['bg-orange-500', 'bg-pink-500', 'bg-blue-500', 'bg-purple-500', 'bg-green-500'];
     const idx = departments?.findIndex((d) => d._id === departmentId) ?? 0;
@@ -540,6 +540,7 @@ export default function ClassesPage(): React.JSX.Element {
 
               {viewMode === 'table' ? (
                 <DataTable
+                  storageKey="classes"
                   columns={columns}
                   data={filteredClasses}
                   searchKey="className"

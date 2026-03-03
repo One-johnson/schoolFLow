@@ -534,6 +534,7 @@ export default function SubjectsPage(): React.JSX.Element {
 
               {viewMode === 'table' ? (
                 <DataTable
+                  storageKey="subjects"
                   columns={columns}
                   data={filteredSubjects}
                   searchKey="subjectName"

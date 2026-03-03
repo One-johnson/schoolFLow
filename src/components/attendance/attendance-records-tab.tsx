@@ -267,9 +267,10 @@ export function AttendanceRecordsTab({ schoolId, adminId, adminName }: Attendanc
 
         {/* Table */}
         {filteredAttendance && (
-          <DataTable
-            columns={columns}
-            data={filteredAttendance}
+<DataTable
+          storageKey="attendance-records"
+          columns={columns}
+          data={filteredAttendance}
             searchKey="className"
             searchPlaceholder="Search by class..."
           />

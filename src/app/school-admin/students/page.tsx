@@ -828,6 +828,7 @@ export default function StudentsPage(): React.JSX.Element {
               </div>
 
               <DataTable
+                storageKey="students"
                 columns={columns}
                 data={filteredStudents}
                 searchKey="firstName"
