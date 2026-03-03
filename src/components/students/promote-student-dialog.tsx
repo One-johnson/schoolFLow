@@ -32,7 +32,7 @@ interface Student {
   lastName: string;
   className: string;
   classId: string;
-  department: 'creche' | 'kindergarten' | 'primary' | 'junior_high';
+  departmentId: string;
 }
 
 interface PromoteStudentDialogProps {
@@ -59,6 +59,10 @@ export function PromoteStudentDialog({
     api.classes.getClassesBySchool,
     schoolAdmin?.schoolId ? { schoolId: schoolAdmin.schoolId } : 'skip'
   );
+  const departments = useQuery(
+    api.departments.getDepartmentsBySchool,
+    schoolAdmin?.schoolId ? { schoolId: schoolAdmin.schoolId } : 'skip'
+  );
 
   const transferStudent = useMutation(api.students.transferStudent);
 
@@ -81,7 +85,7 @@ export function PromoteStudentDialog({
         studentId: student._id as Id<'students'>,
         newClassId: selectedClass.classCode,
         newClassName: selectedClass.className,
-        newDepartment: selectedClass.department,
+        newDepartmentId: selectedClass.departmentId,
         updatedBy: user?.email || 'unknown',
       });
 
@@ -136,11 +140,14 @@ export function PromoteStudentDialog({
               <SelectContent>
                 {classes
                   ?.filter((c) => c.classCode !== student.classId)
-                  .map((classItem) => (
-                    <SelectItem key={classItem._id} value={classItem.classCode}>
-                      {classItem.className} - {classItem.department}
-                    </SelectItem>
-                  ))}
+                  .map((classItem) => {
+                    const deptName = departments?.find((d) => d._id === classItem.departmentId)?.name ?? classItem.departmentId;
+                    return (
+                      <SelectItem key={classItem._id} value={classItem.classCode}>
+                        {classItem.className} - {deptName}
+                      </SelectItem>
+                    );
+                  })}
               </SelectContent>
             </Select>
           </div>
@@ -156,8 +163,8 @@ export function PromoteStudentDialog({
                 </div>
                 <div>
                   <span className="text-muted-foreground">Department:</span>
-                  <p className="font-medium capitalize">
-                    {selectedClass.department.replace('_', ' ')}
+                  <p className="font-medium">
+                    {departments?.find((d) => d._id === selectedClass.departmentId)?.name ?? selectedClass.departmentId}
                   </p>
                 </div>
               </div>

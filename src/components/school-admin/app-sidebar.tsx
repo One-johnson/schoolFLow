@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
+  Layers,
   School,
   CreditCard,
   Bell,
@@ -73,6 +74,7 @@ const navGroups: Array<{
     icon: School,
     items: [
       { title: 'My School', icon: School, url: '/school-admin/school' },
+      { title: 'Departments', icon: Layers, url: '/school-admin/departments' },
       { title: 'Academic Years', icon: Calendar, url: '/school-admin/academic-years' },
     ],
   },

@@ -21,7 +21,7 @@ interface Class {
   className: string;
   grade: string;
   section?: string;
-  department: 'creche' | 'kindergarten' | 'primary' | 'junior_high';
+  departmentId: string;
   classTeacherId?: string;
   capacity?: number;
   currentStudentCount: number;
@@ -41,26 +41,15 @@ export function ViewClassDialog({
   onOpenChange,
   classData,
 }: ViewClassDialogProps): React.JSX.Element {
-  // Fetch teacher details if classTeacherId exists
   const teacher = useQuery(
     api.teachers.getTeacherById,
     classData.classTeacherId ? { teacherId: classData.classTeacherId as Id<'teachers'> } : 'skip'
   );
 
-  const getDepartmentBadge = (department: string): React.JSX.Element => {
-    switch (department) {
-      case 'creche':
-        return <Badge className="bg-orange-500">Creche</Badge>;
-      case 'kindergarten':
-        return <Badge className="bg-pink-500">Kindergarten</Badge>;
-      case 'primary':
-        return <Badge className="bg-blue-500">Primary</Badge>;
-      case 'junior_high':
-        return <Badge className="bg-purple-500">Junior High</Badge>;
-      default:
-        return <Badge>{department}</Badge>;
-    }
-  };
+  const department = useQuery(
+    api.departments.getDepartmentById,
+    classData.departmentId ? { departmentId: classData.departmentId as Id<'departments'> } : 'skip'
+  );
 
   const getStatusBadge = (status: string): React.JSX.Element => {
     switch (status) {
@@ -106,7 +95,7 @@ export function ViewClassDialog({
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Department</p>
-                {getDepartmentBadge(classData.department)}
+                <Badge className="bg-blue-500">{department?.name ?? 'Loading...'}</Badge>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Status</p>

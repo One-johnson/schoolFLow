@@ -48,19 +48,16 @@ interface EditAnnouncementDialogProps {
   onSuccess: () => void;
 }
 
-const DEPARTMENTS = [
-  { value: 'creche', label: 'Creche' },
-  { value: 'kindergarten', label: 'Kindergarten' },
-  { value: 'primary', label: 'Primary' },
-  { value: 'junior_high', label: 'Junior High' },
-];
-
 export function EditAnnouncementDialog({ open, onOpenChange, announcement, onSuccess }: EditAnnouncementDialogProps): React.JSX.Element {
   const { user } = useAuth();
   const updateAnnouncement = useMutation(api.announcements.update);
   const classes = useQuery(api.classes.getClassesBySchool, {
     schoolId: user?.schoolId || '',
   });
+  const departments = useQuery(
+    api.departments.getDepartmentsBySchool,
+    user?.schoolId ? { schoolId: user.schoolId } : 'skip'
+  );
 
   const [title, setTitle] = useState(announcement.title);
   const [content, setContent] = useState(announcement.content);
@@ -81,8 +78,8 @@ export function EditAnnouncementDialog({ open, onOpenChange, announcement, onSuc
       return cls?.className || '';
     }
     if (targetType === 'department') {
-      const dept = DEPARTMENTS.find((d) => d.value === targetId);
-      return dept?.label || '';
+      const dept = departments?.find((d) => d._id === targetId);
+      return dept?.name || '';
     }
     return '';
   };
@@ -182,9 +179,9 @@ export function EditAnnouncementDialog({ open, onOpenChange, announcement, onSuc
                   <SelectValue placeholder="Choose a department" />
                 </SelectTrigger>
                 <SelectContent>
-                  {DEPARTMENTS.map((dept) => (
-                    <SelectItem key={dept.value} value={dept.value}>
-                      {dept.label}
+                  {departments?.map((dept) => (
+                    <SelectItem key={dept._id} value={dept._id}>
+                      {dept.name} ({dept.code})
                     </SelectItem>
                   ))}
                 </SelectContent>

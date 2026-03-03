@@ -37,7 +37,7 @@ interface ClassEntry {
   className: string;
   grade: string;
   section: string;
-  department: 'kindergarten' | 'primary' | 'junior_high';
+  departmentId: string;
   classTeacherId: string;
   capacity: string;
 }
@@ -55,7 +55,7 @@ export function BulkAddClassesDialog({
       className: '',
       grade: '',
       section: '',
-      department: 'primary',
+      departmentId: '',
       classTeacherId: '',
       capacity: '',
     },
@@ -63,7 +63,11 @@ export function BulkAddClassesDialog({
 
   const addBulkClasses = useMutation(api.classes.addBulkClasses);
 
-  // Fetch teachers for selection
+  const departments = useQuery(
+    api.departments.getDepartmentsBySchool,
+    schoolId ? { schoolId } : 'skip'
+  );
+
   const teachers = useQuery(
     api.teachers.getTeachersBySchool,
     { schoolId }
@@ -78,7 +82,7 @@ export function BulkAddClassesDialog({
         className: '',
         grade: '',
         section: '',
-        department: 'primary',
+        departmentId: departments?.[0]?._id ?? '',
         classTeacherId: '',
         capacity: '',
       },
@@ -101,7 +105,7 @@ export function BulkAddClassesDialog({
 
     try {
       // Validation
-      const invalidClasses = classes.filter(c => !c.className || !c.grade || !c.department);
+      const invalidClasses = classes.filter(c => !c.className || !c.grade || !c.departmentId);
       if (invalidClasses.length > 0) {
         toast.error('Please fill in class name, grade, and department for all entries');
         setIsSubmitting(false);
@@ -112,7 +116,7 @@ export function BulkAddClassesDialog({
         className: c.className,
         grade: c.grade,
         section: c.section || undefined,
-        department: c.department,
+        departmentId: c.departmentId,
         classTeacherId: c.classTeacherId || undefined,
         capacity: c.capacity ? parseInt(c.capacity) : undefined,
       }));
@@ -142,7 +146,7 @@ export function BulkAddClassesDialog({
           className: '',
           grade: '',
           section: '',
-          department: 'primary',
+          departmentId: departments?.[0]?._id ?? '',
           classTeacherId: '',
           capacity: '',
         },
@@ -225,18 +229,20 @@ export function BulkAddClassesDialog({
                   <div className="space-y-2">
                     <Label>Department *</Label>
                     <Select 
-                      value={classEntry.department} 
+                      value={classEntry.departmentId} 
                       onValueChange={(value: string) => 
-                        updateClassEntry(classEntry.id, 'department', value)
+                        updateClassEntry(classEntry.id, 'departmentId', value)
                       }
                     >
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder={departments?.length ? 'Select department' : 'No departments'} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="kindergarten">Kindergarten</SelectItem>
-                        <SelectItem value="primary">Primary</SelectItem>
-                        <SelectItem value="junior_high">Junior High</SelectItem>
+                        {departments?.map((dept) => (
+                          <SelectItem key={dept._id} value={dept._id}>
+                            {dept.name} ({dept.code})
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { JSX, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/../convex/_generated/api';
 import {
@@ -41,14 +41,18 @@ export function AddClassDialog({
     className: '',
     grade: '',
     section: '',
-    department: 'primary' as 'creche' | 'kindergarten' | 'primary' | 'junior_high',
+    departmentId: '',
     classTeacherId: '',
     capacity: '',
   });
 
   const addClass = useMutation(api.classes.addClass);
 
-  // Fetch teachers for selection
+  const departments = useQuery(
+    api.departments.getDepartmentsBySchool,
+    schoolId ? { schoolId } : 'skip'
+  );
+
   const teachers = useQuery(
     api.teachers.getTeachersBySchool,
     { schoolId }
@@ -64,7 +68,7 @@ export function AddClassDialog({
 
     try {
       // Validation
-      if (!formData.className || !formData.grade || !formData.department) {
+      if (!formData.className || !formData.grade || !formData.departmentId) {
         toast.error('Please fill in all required fields');
         setIsSubmitting(false);
         return;
@@ -75,7 +79,7 @@ export function AddClassDialog({
         className: formData.className,
         grade: formData.grade,
         section: formData.section || undefined,
-        department: formData.department,
+        departmentId: formData.departmentId,
         classTeacherId: formData.classTeacherId || undefined,
         capacity: formData.capacity ? parseInt(formData.capacity) : undefined,
         createdBy,
@@ -88,7 +92,7 @@ export function AddClassDialog({
         className: '',
         grade: '',
         section: '',
-        department: 'primary',
+        departmentId: formData.departmentId,
         classTeacherId: '',
         capacity: '',
       });
@@ -150,17 +154,23 @@ export function AddClassDialog({
           {/* Department */}
           <div className="space-y-2">
             <Label htmlFor="department">Department *</Label>
-            <Select value={formData.department} onValueChange={(value: string) => handleInputChange('department', value)}>
+            <Select value={formData.departmentId} onValueChange={(value: string) => handleInputChange('departmentId', value)}>
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder={departments?.length ? 'Select department' : 'No departments - add some first'} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="creche">Creche</SelectItem>
-                <SelectItem value="kindergarten">Kindergarten</SelectItem>
-                <SelectItem value="primary">Primary</SelectItem>
-                <SelectItem value="junior_high">Junior High</SelectItem>
+                {departments?.map((dept) => (
+                  <SelectItem key={dept._id} value={dept._id}>
+                    {dept.name} ({dept.code})
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
+            {(!departments || departments.length === 0) && (
+              <p className="text-sm text-muted-foreground">
+                Add departments from the Departments page first.
+              </p>
+            )}
           </div>
 
           {/* Class Teacher */}

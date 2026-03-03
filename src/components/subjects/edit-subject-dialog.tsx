@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, JSX } from 'react';
-import { useMutation } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/../convex/_generated/api';
 import type { Id } from '@/../convex/_generated/dataModel';
 import {
@@ -32,7 +32,7 @@ interface Subject {
   subjectName: string;
   description?: string;
   category: 'core' | 'elective' | 'extracurricular';
-  department: 'creche' | 'kindergarten' | 'primary' | 'junior_high';
+  departmentId: string;
   status: 'active' | 'inactive';
   createdAt: string;
   updatedAt: string;
@@ -57,10 +57,14 @@ export function EditSubjectDialog({
     subjectName: '',
     description: '',
     category: 'core' as 'core' | 'elective' | 'extracurricular',
-    department: 'primary' as 'creche' | 'kindergarten' | 'primary' | 'junior_high',
+    departmentId: '',
   });
 
   const updateSubject = useMutation(api.subjects.updateSubject);
+  const departments = useQuery(
+    api.departments.getDepartmentsBySchool,
+    subjectData.schoolId ? { schoolId: subjectData.schoolId } : 'skip'
+  );
 
   useEffect(() => {
     if (subjectData) {
@@ -68,7 +72,7 @@ export function EditSubjectDialog({
         subjectName: subjectData.subjectName,
         description: subjectData.description || '',
         category: subjectData.category,
-        department: subjectData.department,
+        departmentId: subjectData.departmentId,
       });
     }
   }, [subjectData]);
@@ -83,7 +87,7 @@ export function EditSubjectDialog({
 
     try {
       // Validation
-      if (!formData.subjectName || !formData.category || !formData.department) {
+      if (!formData.subjectName || !formData.category || !formData.departmentId) {
         toast.error('Please fill in all required fields');
         setIsSubmitting(false);
         return;
@@ -94,7 +98,7 @@ export function EditSubjectDialog({
         subjectName: formData.subjectName,
         description: formData.description || undefined,
         category: formData.category,
-        department: formData.department,
+        departmentId: formData.departmentId,
         updatedBy,
       });
 
@@ -171,15 +175,16 @@ export function EditSubjectDialog({
 
             <div className="space-y-2">
               <Label htmlFor="department">Department *</Label>
-              <Select value={formData.department} onValueChange={(value: string) => handleInputChange('department', value)}>
+              <Select value={formData.departmentId} onValueChange={(value: string) => handleInputChange('departmentId', value)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="creche">Creche</SelectItem>
-                  <SelectItem value="kindergarten">Kindergarten</SelectItem>
-                  <SelectItem value="primary">Primary</SelectItem>
-                  <SelectItem value="junior_high">Junior High</SelectItem>
+                  {departments?.map((dept) => (
+                    <SelectItem key={dept._id} value={dept._id}>
+                      {dept.name} ({dept.code})
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

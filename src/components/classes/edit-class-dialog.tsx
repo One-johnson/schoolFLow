@@ -31,7 +31,7 @@ interface Class {
   className: string;
   grade: string;
   section?: string;
-  department: 'creche' | 'kindergarten' | 'primary' | 'junior_high';
+  departmentId: Id<'departments'>;
   classTeacherId?: string;
   capacity?: number;
   currentStudentCount: number;
@@ -56,14 +56,18 @@ export function EditClassDialog({
     className: classData.className,
     grade: classData.grade,
     section: classData.section || '',
-    department: classData.department,
+    departmentId: classData.departmentId,
     classTeacherId: classData.classTeacherId || '',
     capacity: classData.capacity?.toString() || '',
   });
 
   const updateClass = useMutation(api.classes.updateClass);
 
-  // Fetch teachers for selection
+  const departments = useQuery(
+    api.departments.getDepartmentsBySchool,
+    classData.schoolId ? { schoolId: classData.schoolId } : 'skip'
+  );
+
   const teachers = useQuery(
     api.teachers.getTeachersBySchool,
     { schoolId: classData.schoolId }
@@ -74,7 +78,7 @@ export function EditClassDialog({
       className: classData.className,
       grade: classData.grade,
       section: classData.section || '',
-      department: classData.department,
+      departmentId: classData.departmentId,
       classTeacherId: classData.classTeacherId || '',
       capacity: classData.capacity?.toString() || '',
     });
@@ -94,7 +98,7 @@ export function EditClassDialog({
         className: formData.className,
         grade: formData.grade,
         section: formData.section || undefined,
-        department: formData.department,
+        departmentId: formData.departmentId,
         classTeacherId: formData.classTeacherId || undefined,
         capacity: formData.capacity ? parseInt(formData.capacity) : undefined,
         updatedBy,
@@ -155,15 +159,16 @@ export function EditClassDialog({
           {/* Department */}
           <div className="space-y-2">
             <Label htmlFor="department">Department</Label>
-            <Select value={formData.department} onValueChange={(value: string) => handleInputChange('department', value)}>
+            <Select value={formData.departmentId} onValueChange={(value: string) => handleInputChange('departmentId', value)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="creche">Creche</SelectItem>
-                <SelectItem value="kindergarten">Kindergarten</SelectItem>
-                <SelectItem value="primary">Primary</SelectItem>
-                <SelectItem value="junior_high">Junior High</SelectItem>
+                {departments?.map((dept) => (
+                  <SelectItem key={dept._id} value={dept._id}>
+                    {dept.name} ({dept.code})
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

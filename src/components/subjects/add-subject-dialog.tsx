@@ -1,7 +1,7 @@
 'use client';
 
-import { JSX, useState } from 'react';
-import { useMutation } from 'convex/react';
+import { useState } from 'react';
+import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/../convex/_generated/api';
 import {
   Dialog,
@@ -42,10 +42,14 @@ export function AddSubjectDialog({
     subjectName: '',
     description: '',
     category: 'core' as 'core' | 'elective' | 'extracurricular',
-    department: 'primary' as 'creche' | 'kindergarten' | 'primary' | 'junior_high',
+    departmentId: '',
   });
 
   const addSubject = useMutation(api.subjects.addSubject);
+  const departments = useQuery(
+    api.departments.getDepartmentsBySchool,
+    schoolId ? { schoolId } : 'skip'
+  );
 
   const handleInputChange = (field: string, value: string): void => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -57,7 +61,7 @@ export function AddSubjectDialog({
 
     try {
       // Validation
-      if (!formData.subjectName || !formData.category || !formData.department) {
+      if (!formData.subjectName || !formData.category || !formData.departmentId) {
         toast.error('Please fill in all required fields');
         setIsSubmitting(false);
         return;
@@ -68,7 +72,7 @@ export function AddSubjectDialog({
         subjectName: formData.subjectName,
         description: formData.description || undefined,
         category: formData.category,
-        department: formData.department,
+        departmentId: formData.departmentId,
         createdBy,
       });
 
@@ -79,7 +83,7 @@ export function AddSubjectDialog({
         subjectName: '',
         description: '',
         category: 'core',
-        department: 'primary',
+        departmentId: formData.departmentId,
       });
       
       onOpenChange(false);
@@ -143,15 +147,16 @@ export function AddSubjectDialog({
 
             <div className="space-y-2">
               <Label htmlFor="department">Department *</Label>
-              <Select value={formData.department} onValueChange={(value: string) => handleInputChange('department', value)}>
+              <Select value={formData.departmentId} onValueChange={(value: string) => handleInputChange('departmentId', value)}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder={departments?.length ? 'Select department' : 'No departments'} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="creche">Creche</SelectItem>
-                  <SelectItem value="kindergarten">Kindergarten</SelectItem>
-                  <SelectItem value="primary">Primary</SelectItem>
-                  <SelectItem value="junior_high">Junior High</SelectItem>
+                  {departments?.map((dept) => (
+                    <SelectItem key={dept._id} value={dept._id}>
+                      {dept.name} ({dept.code})
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

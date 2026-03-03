@@ -101,17 +101,12 @@ export const getStudentsByClass = query({
 export const getStudentsByDepartment = query({
   args: {
     schoolId: v.string(),
-    department: v.union(
-      v.literal("creche"),
-      v.literal("kindergarten"),
-      v.literal("primary"),
-      v.literal("junior_high"),
-    ),
+    departmentId: v.id("departments"),
   },
   handler: async (ctx, args) => {
     const students = await ctx.db
       .query("students")
-      .withIndex("by_department", (q) => q.eq("department", args.department))
+      .withIndex("by_department", (q) => q.eq("departmentId", args.departmentId))
       .filter((q) => q.eq(q.field("schoolId"), args.schoolId))
       .collect();
 
@@ -145,18 +140,11 @@ export const getStudentStats = query({
       (s) => s.status === "graduated",
     ).length;
 
-    const crecheStudents = students.filter(
-      (s) => s.department === "creche",
-    ).length;
-    const kindergartenStudents = students.filter(
-      (s) => s.department === "kindergarten",
-    ).length;
-    const primaryStudents = students.filter(
-      (s) => s.department === "primary",
-    ).length;
-    const juniorHighStudents = students.filter(
-      (s) => s.department === "junior_high",
-    ).length;
+    const byDepartment: Record<string, number> = {};
+    for (const s of students) {
+      const id = s.departmentId;
+      byDepartment[id] = (byDepartment[id] ?? 0) + 1;
+    }
 
     // Count by class
     const classCounts = students.reduce(
@@ -175,12 +163,7 @@ export const getStudentStats = query({
       continuing: continuingStudents,
       transferred: transferredStudents,
       graduated: graduatedStudents,
-      byDepartment: {
-        creche: crecheStudents,
-        kindergarten: kindergartenStudents,
-        primary: primaryStudents,
-        juniorHigh: juniorHighStudents,
-      },
+      byDepartment,
       byClass: classCounts,
     };
   },
@@ -229,12 +212,7 @@ export const addStudent = mutation({
     address: v.string(),
     classId: v.string(),
     className: v.string(),
-    department: v.union(
-      v.literal("creche"),
-      v.literal("kindergarten"),
-      v.literal("primary"),
-      v.literal("junior_high"),
-    ),
+    departmentId: v.id("departments"),
     rollNumber: v.optional(v.string()),
     admissionDate: v.string(),
     parentName: v.string(),
@@ -326,7 +304,7 @@ export const addStudent = mutation({
       address: args.address,
       classId: args.classId,
       className: args.className,
-      department: args.department,
+      departmentId: args.departmentId,
       rollNumber: args.rollNumber,
       admissionDate: args.admissionDate,
       parentName: args.parentName,
@@ -401,14 +379,7 @@ export const updateStudent = mutation({
     address: v.optional(v.string()),
     classId: v.optional(v.string()),
     className: v.optional(v.string()),
-    department: v.optional(
-      v.union(
-        v.literal("creche"),
-        v.literal("kindergarten"),
-        v.literal("primary"),
-        v.literal("junior_high"),
-      ),
-    ),
+    departmentId: v.optional(v.id("departments")),
     rollNumber: v.optional(v.string()),
     admissionDate: v.optional(v.string()),
     parentName: v.optional(v.string()),
@@ -487,7 +458,7 @@ export const updateStudent = mutation({
     if (args.address !== undefined) updateData.address = args.address;
     if (args.classId !== undefined) updateData.classId = args.classId;
     if (args.className !== undefined) updateData.className = args.className;
-    if (args.department !== undefined) updateData.department = args.department;
+    if (args.departmentId !== undefined) updateData.departmentId = args.departmentId;
     if (args.rollNumber !== undefined) updateData.rollNumber = args.rollNumber;
     if (args.admissionDate !== undefined)
       updateData.admissionDate = args.admissionDate;
@@ -726,12 +697,7 @@ export const transferStudent = mutation({
     studentId: v.id("students"),
     newClassId: v.string(),
     newClassName: v.string(),
-    newDepartment: v.union(
-      v.literal("creche"),
-      v.literal("kindergarten"),
-      v.literal("primary"),
-      v.literal("junior_high"),
-    ),
+    newDepartmentId: v.id("departments"),
     updatedBy: v.string(),
   },
   handler: async (ctx, args) => {
@@ -778,7 +744,7 @@ export const transferStudent = mutation({
     await ctx.db.patch(args.studentId, {
       classId: args.newClassId,
       className: args.newClassName,
-      department: args.newDepartment,
+      departmentId: args.newDepartmentId,
       updatedAt: now,
     });
 
@@ -804,12 +770,7 @@ export const promoteStudents = mutation({
     studentIds: v.array(v.id("students")),
     newClassId: v.string(),
     newClassName: v.string(),
-    newDepartment: v.union(
-      v.literal("creche"),
-      v.literal("kindergarten"),
-      v.literal("primary"),
-      v.literal("junior_high"),
-    ),
+    newDepartmentId: v.id("departments"),
     updatedBy: v.string(),
   },
   handler: async (ctx, args) => {
@@ -844,7 +805,7 @@ export const promoteStudents = mutation({
         await ctx.db.patch(studentId, {
           classId: args.newClassId,
           className: args.newClassName,
-          department: args.newDepartment,
+          departmentId: args.newDepartmentId,
           status: "continuing",
           updatedAt: now,
         });

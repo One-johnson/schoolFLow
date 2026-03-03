@@ -424,6 +424,11 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps):
       }
 
       const selectedClass = classes?.find((c) => c.classCode === formData.classId);
+      if (!selectedClass?.departmentId) {
+        toast.error('Please select a class with a valid department');
+        setIsSubmitting(false);
+        return;
+      }
 
       const result = await addStudent({
         schoolId: user?.schoolId || '',
@@ -439,7 +444,7 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps):
         address: formData.address,
         classId: formData.classId,
         className: selectedClass?.className || '',
-        department: selectedClass?.department || 'primary',
+        departmentId: selectedClass?.departmentId,
         rollNumber: formData.rollNumber || undefined,
         admissionDate: formData.admissionDate,
         parentName: formData.parentName,

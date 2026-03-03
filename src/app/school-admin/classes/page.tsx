@@ -1,6 +1,6 @@
 'use client';
 
-import { JSX, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/../convex/_generated/api';
 import type { Id } from '@/../convex/_generated/dataModel';
@@ -55,7 +55,7 @@ interface Class {
   className: string;
   grade: string;
   section?: string;
-  department: 'creche' | 'kindergarten' | 'primary' | 'junior_high';
+  departmentId: string;
   classTeacherId?: string;
   capacity?: number;
   currentStudentCount: number;
@@ -99,7 +99,23 @@ export default function ClassesPage(): React.JSX.Element {
     schoolAdmin?.schoolId ? { schoolId: schoolAdmin.schoolId } : 'skip'
   );
 
+  const departments = useQuery(
+    api.departments.getDepartmentsBySchool,
+    schoolAdmin?.schoolId ? { schoolId: schoolAdmin.schoolId } : 'skip'
+  );
+
+  const seedDefaultDepartments = useMutation(api.departments.seedDefaultDepartments);
   const updateClassStatus = useMutation(api.classes.updateClassStatus);
+
+  // Seed default departments when school has none
+  useEffect(() => {
+    if (schoolAdmin?.schoolId && schoolAdmin._id && departments && departments.length === 0) {
+      seedDefaultDepartments({
+        schoolId: schoolAdmin.schoolId,
+        createdBy: schoolAdmin._id,
+      }).catch(() => {});
+    }
+  }, [schoolAdmin?.schoolId, schoolAdmin?._id, departments?.length, seedDefaultDepartments]);
 
   // Show loading only while data is being fetched
   if (!user) {
@@ -145,28 +161,22 @@ export default function ClassesPage(): React.JSX.Element {
     );
   }
 
+  const departmentMap = new Map(departments?.map((d) => [d._id, d]) ?? []);
+
   // Filter classes based on status and department
   const filteredClasses = classes?.filter(
     (classData: Class) => {
       const statusMatch = statusFilter === 'all' || classData.status === statusFilter;
-      const departmentMatch = departmentFilter === 'all' || classData.department === departmentFilter;
+      const departmentMatch = departmentFilter === 'all' || classData.departmentId === departmentFilter;
       return statusMatch && departmentMatch;
     }
   ) || [];
 
-  const getDepartmentBadge = (department: string): React.JSX.Element => {
-    switch (department) {
-      case 'creche':
-        return <Badge className="bg-orange-500">Creche</Badge>;
-      case 'kindergarten':
-        return <Badge className="bg-pink-500">Kindergarten</Badge>;
-      case 'primary':
-        return <Badge className="bg-blue-500">Primary</Badge>;
-      case 'junior_high':
-        return <Badge className="bg-purple-500">Junior High</Badge>;
-      default:
-        return <Badge>{department}</Badge>;
-    }
+  const getDepartmentBadge = (departmentId: string): React.JSX.Element => {
+    const dept = departmentMap.get(departmentId);
+    const colors = ['bg-orange-500', 'bg-pink-500', 'bg-blue-500', 'bg-purple-500', 'bg-green-500'];
+    const idx = departments?.findIndex((d) => d._id === departmentId) ?? 0;
+    return <Badge className={colors[idx % colors.length]}>{dept?.name ?? 'Unknown'}</Badge>;
   };
 
   const getStatusBadge = (status: string): React.JSX.Element => {
@@ -201,7 +211,7 @@ export default function ClassesPage(): React.JSX.Element {
       className: classData.className,
       grade: classData.grade,
       section: classData.section || 'N/A',
-      department: classData.department,
+      department: departmentMap.get(classData.departmentId)?.name ?? 'N/A',
       capacity: classData.capacity || 0,
       currentStudents: classData.currentStudentCount,
       status: classData.status,
@@ -222,7 +232,7 @@ export default function ClassesPage(): React.JSX.Element {
       className: classData.className,
       grade: classData.grade,
       section: classData.section || 'N/A',
-      department: classData.department,
+      department: departmentMap.get(classData.departmentId)?.name ?? 'N/A',
       capacity: classData.capacity || 0,
       currentStudents: classData.currentStudentCount,
       status: classData.status,
@@ -264,9 +274,9 @@ export default function ClassesPage(): React.JSX.Element {
       cell: ({ row }) => row.getValue('section') || 'N/A',
     },
     {
-      accessorKey: 'department',
+      accessorKey: 'departmentId',
       header: 'Department',
-      cell: ({ row }) => getDepartmentBadge(row.getValue('department')),
+      cell: ({ row }) => getDepartmentBadge(row.getValue('departmentId')),
     },
     {
       accessorKey: 'currentStudentCount',
@@ -429,47 +439,25 @@ export default function ClassesPage(): React.JSX.Element {
       </div>
 
       {/* Department Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="transition-all duration-200 hover:shadow-lg hover:scale-105 cursor-pointer">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Creche</CardTitle>
-            <Baby className="h-4 w-4 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{classStats?.creche || 0}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="transition-all duration-200 hover:shadow-lg hover:scale-105 cursor-pointer">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Kindergarten</CardTitle>
-            <Baby className="h-4 w-4 text-pink-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{classStats?.kindergarten || 0}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="transition-all duration-200 hover:shadow-lg hover:scale-105 cursor-pointer">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Primary</CardTitle>
-            <BookOpen className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{classStats?.primary || 0}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="transition-all duration-200 hover:shadow-lg hover:scale-105 cursor-pointer">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Junior High</CardTitle>
-            <GraduationCap className="h-4 w-4 text-purple-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{classStats?.juniorHigh || 0}</div>
-          </CardContent>
-        </Card>
-      </div>
+      {departments && departments.length > 0 && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {departments.map((dept, idx) => {
+            const colors = ['text-orange-500', 'text-pink-500', 'text-blue-500', 'text-purple-500', 'text-green-500'];
+            const count = classStats?.byDepartment?.[dept._id] ?? 0;
+            return (
+              <Card key={dept._id} className="transition-all duration-200 hover:shadow-lg hover:scale-105 cursor-pointer">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">{dept.name}</CardTitle>
+                  <Baby className={`h-4 w-4 ${colors[idx % colors.length]}`} />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{count}</div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
       {/* Classes Table/Card View */}
       <Card>
@@ -540,10 +528,11 @@ export default function ClassesPage(): React.JSX.Element {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Departments</SelectItem>
-                      <SelectItem value="creche">Creche</SelectItem>
-                      <SelectItem value="kindergarten">Kindergarten</SelectItem>
-                      <SelectItem value="primary">Primary</SelectItem>
-                      <SelectItem value="junior_high">Junior High</SelectItem>
+                      {departments?.map((dept) => (
+                        <SelectItem key={dept._id} value={dept._id}>
+                          {dept.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -594,7 +583,7 @@ export default function ClassesPage(): React.JSX.Element {
                       <CardContent className="space-y-3">
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-muted-foreground">Department:</span>
-                          {getDepartmentBadge(classData.department)}
+                          {getDepartmentBadge(classData.departmentId)}
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-muted-foreground">Grade:</span>

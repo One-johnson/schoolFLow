@@ -54,7 +54,7 @@ export const getEventsBySchool = query({
     venueType: 'on_campus' | 'off_campus' | 'virtual';
     audienceType: 'all_school' | 'specific_classes' | 'specific_departments' | 'staff_only' | 'custom';
     targetClasses?: string[];
-    targetDepartments?: Array<'creche' | 'kindergarten' | 'primary' | 'junior_high'>;
+    targetDepartmentIds?: string[];
     isRecurring: boolean;
     recurrencePattern?: 'daily' | 'weekly' | 'monthly' | 'termly' | 'yearly';
     recurrenceEndDate?: string;
@@ -226,12 +226,7 @@ export const createEvent = mutation({
       v.literal('custom')
     ),
     targetClasses: v.optional(v.array(v.string())),
-    targetDepartments: v.optional(v.array(v.union(
-      v.literal('creche'),
-      v.literal('kindergarten'),
-      v.literal('primary'),
-      v.literal('junior_high')
-    ))),
+    targetDepartmentIds: v.optional(v.array(v.id('departments'))),
     isRecurring: v.boolean(),
     recurrencePattern: v.optional(v.union(
       v.literal('daily'),
@@ -284,7 +279,7 @@ export const createEvent = mutation({
       venueType: args.venueType,
       audienceType: args.audienceType,
       targetClasses: args.targetClasses,
-      targetDepartments: args.targetDepartments,
+      targetDepartmentIds: args.targetDepartmentIds,
       isRecurring: args.isRecurring,
       recurrencePattern: args.recurrencePattern,
       recurrenceEndDate: args.recurrenceEndDate,
@@ -419,12 +414,7 @@ export const updateEvent = mutation({
       v.literal('custom')
     )),
     targetClasses: v.optional(v.array(v.string())),
-    targetDepartments: v.optional(v.array(v.union(
-      v.literal('creche'),
-      v.literal('kindergarten'),
-      v.literal('primary'),
-      v.literal('junior_high')
-    ))),
+    targetDepartmentIds: v.optional(v.array(v.id('departments'))),
     requiresRSVP: v.optional(v.boolean()),
     rsvpDeadline: v.optional(v.string()),
     maxAttendees: v.optional(v.number()),
@@ -466,7 +456,7 @@ export const updateEvent = mutation({
     if (args.venueType !== undefined) updates.venueType = args.venueType;
     if (args.audienceType !== undefined) updates.audienceType = args.audienceType;
     if (args.targetClasses !== undefined) updates.targetClasses = args.targetClasses;
-    if (args.targetDepartments !== undefined) updates.targetDepartments = args.targetDepartments;
+    if (args.targetDepartmentIds !== undefined) updates.targetDepartmentIds = args.targetDepartmentIds;
     if (args.requiresRSVP !== undefined) updates.requiresRSVP = args.requiresRSVP;
     if (args.rsvpDeadline !== undefined) updates.rsvpDeadline = args.rsvpDeadline;
     if (args.maxAttendees !== undefined) updates.maxAttendees = args.maxAttendees;

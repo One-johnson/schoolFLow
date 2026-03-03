@@ -62,21 +62,21 @@ export const getClassStats = query({
 
     const activeClasses = classes.filter((c) => c.status === 'active').length;
     const inactiveClasses = classes.filter((c) => c.status === 'inactive').length;
-    const crecheClasses = classes.filter((c) => c.department === 'creche').length;
-    const kindergartenClasses = classes.filter((c) => c.department === 'kindergarten').length;
-    const primaryClasses = classes.filter((c) => c.department === 'primary').length;
-    const juniorHighClasses = classes.filter((c) => c.department === 'junior_high').length;
     const totalStudents = classes.reduce((sum, c) => sum + c.currentStudentCount, 0);
     const totalCapacity = classes.reduce((sum, c) => sum + (c.capacity || 0), 0);
+
+    // Group by department
+    const byDepartment: Record<string, number> = {};
+    for (const c of classes) {
+      const id = c.departmentId;
+      byDepartment[id] = (byDepartment[id] ?? 0) + 1;
+    }
 
     return {
       total: classes.length,
       active: activeClasses,
       inactive: inactiveClasses,
-      creche: crecheClasses,
-      kindergarten: kindergartenClasses,
-      primary: primaryClasses,
-      juniorHigh: juniorHighClasses,
+      byDepartment,
       totalStudents,
       totalCapacity,
     };
@@ -90,7 +90,7 @@ export const addClass = mutation({
     className: v.string(),
     grade: v.string(),
     section: v.optional(v.string()),
-    department: v.union(v.literal('creche'), v.literal('kindergarten'), v.literal('primary'), v.literal('junior_high')),
+    departmentId: v.id('departments'),
     classTeacherId: v.optional(v.string()),
     capacity: v.optional(v.number()),
     createdBy: v.string(),
@@ -137,7 +137,7 @@ export const addClass = mutation({
       className: args.className,
       grade: args.grade,
       section: args.section,
-      department: args.department,
+      departmentId: args.departmentId,
       classTeacherId: args.classTeacherId,
       capacity: args.capacity,
       currentStudentCount: 0,
@@ -171,7 +171,7 @@ export const addBulkClasses = mutation({
       className: v.string(),
       grade: v.string(),
       section: v.optional(v.string()),
-      department: v.union(v.literal('creche'), v.literal('kindergarten'), v.literal('primary'), v.literal('junior_high')),
+      departmentId: v.id('departments'),
       classTeacherId: v.optional(v.string()),
       capacity: v.optional(v.number()),
     })),
@@ -225,7 +225,7 @@ export const addBulkClasses = mutation({
         className: classData.className,
         grade: classData.grade,
         section: classData.section,
-        department: classData.department,
+        departmentId: classData.departmentId,
         classTeacherId: classData.classTeacherId,
         capacity: classData.capacity,
         currentStudentCount: 0,
@@ -266,7 +266,7 @@ export const updateClass = mutation({
     className: v.optional(v.string()),
     grade: v.optional(v.string()),
     section: v.optional(v.string()),
-    department: v.optional(v.union(v.literal('creche'), v.literal('kindergarten'), v.literal('primary'), v.literal('junior_high'))),
+    departmentId: v.optional(v.id('departments')),
     classTeacherId: v.optional(v.string()),
     capacity: v.optional(v.number()),
     currentStudentCount: v.optional(v.number()),
@@ -308,7 +308,7 @@ export const updateClass = mutation({
     if (args.className !== undefined) updateData.className = args.className;
     if (args.grade !== undefined) updateData.grade = args.grade;
     if (args.section !== undefined) updateData.section = args.section;
-    if (args.department !== undefined) updateData.department = args.department;
+    if (args.departmentId !== undefined) updateData.departmentId = args.departmentId;
     if (args.classTeacherId !== undefined) updateData.classTeacherId = args.classTeacherId;
     if (args.capacity !== undefined) updateData.capacity = args.capacity;
     if (args.currentStudentCount !== undefined) updateData.currentStudentCount = args.currentStudentCount;

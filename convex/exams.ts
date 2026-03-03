@@ -35,14 +35,7 @@ export const createExam = mutation({
     termId: v.optional(v.string()),
     startDate: v.string(),
     endDate: v.string(),
-    department: v.optional(
-      v.union(
-        v.literal('creche'),
-        v.literal('kindergarten'),
-        v.literal('primary'),
-        v.literal('junior_high')
-      )
-    ),
+    departmentId: v.optional(v.id('departments')),
     targetClasses: v.optional(v.array(v.string())),
     subjects: v.string(), // JSON string
     totalMarks: v.number(),
@@ -68,7 +61,7 @@ export const createExam = mutation({
       termId: args.termId,
       startDate: args.startDate,
       endDate: args.endDate,
-      department: args.department,
+      departmentId: args.departmentId,
       targetClasses: args.targetClasses,
       subjects: args.subjects,
       totalMarks: args.totalMarks,

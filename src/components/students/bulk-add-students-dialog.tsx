@@ -39,7 +39,7 @@ interface ParsedStudent {
   address: string;
   classId: string;
   className: string;
-  department: 'creche' | 'kindergarten' | 'primary' | 'junior_high';
+  departmentId: string;
   rollNumber?: string;
   admissionDate: string;
   parentName: string;
@@ -183,7 +183,7 @@ John,Doe,,2015-05-15,male,john.doe@example.com,+1234567890,123 Main St,CLS123456
               address: row.address,
               classId: row.classId,
               className: selectedClass.className,
-              department: selectedClass.department,
+              departmentId: selectedClass.departmentId,
               rollNumber: row.rollNumber || undefined,
               admissionDate: row.admissionDate,
               parentName: row.parentName,

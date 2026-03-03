@@ -40,13 +40,14 @@ export function CreateFeeStructureDialog({
 }: CreateFeeStructureDialogProps): React.JSX.Element {
   const [structureName, setStructureName] = useState<string>('');
   const [selectedClass, setSelectedClass] = useState<string>('');
-  const [selectedDepartment, setSelectedDepartment] = useState<string>('');
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('');
   const [dueDate, setDueDate] = useState<string>('');
   const [feeItems, setFeeItems] = useState<FeeItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
 
   const categories = useQuery(api.feeCategories.getCategoriesBySchool, { schoolId });
   const classes = useQuery(api.classes.getClassesBySchool, { schoolId });
+  const departments = useQuery(api.departments.getDepartmentsBySchool, schoolId ? { schoolId } : 'skip');
   const createStructure = useMutation(api.feeStructures.createFeeStructure);
 
   const availableCategories = useMemo(() => {
@@ -122,7 +123,7 @@ export function CreateFeeStructureDialog({
         schoolId,
         structureName: structureName.trim(),
         classId: selectedClass || undefined,
-        department: selectedDepartment ? selectedDepartment as 'creche' | 'kindergarten' | 'primary' | 'junior_high' : undefined,
+        departmentId: selectedDepartmentId || undefined,
         fees: JSON.stringify(feeItems),
         totalAmount,
         dueDate: dueDate || undefined,
@@ -144,7 +145,7 @@ export function CreateFeeStructureDialog({
     totalAmount,
     schoolId,
     selectedClass,
-    selectedDepartment,
+    selectedDepartmentId,
     dueDate,
     createdBy,
     createStructure,
@@ -154,7 +155,7 @@ export function CreateFeeStructureDialog({
   const resetForm = (): void => {
     setStructureName('');
     setSelectedClass('');
-    setSelectedDepartment('');
+    setSelectedDepartmentId('');
     setDueDate('');
     setFeeItems([]);
   };
@@ -202,16 +203,17 @@ export function CreateFeeStructureDialog({
           {/* Department Selection */}
           <div className="space-y-2">
             <Label htmlFor="department">Department (Optional)</Label>
-            <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+            <Select value={selectedDepartmentId} onValueChange={setSelectedDepartmentId}>
               <SelectTrigger>
                 <SelectValue placeholder="Select department" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                <SelectItem value="creche">Crèche</SelectItem>
-                <SelectItem value="kindergarten">Kindergarten</SelectItem>
-                <SelectItem value="primary">Primary</SelectItem>
-                <SelectItem value="junior_high">Junior High</SelectItem>
+                <SelectItem value="">None</SelectItem>
+                {departments?.map((dept) => (
+                  <SelectItem key={dept._id} value={dept._id}>
+                    {dept.name} ({dept.code})
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
