@@ -306,7 +306,7 @@ export default function FeaturesPage(): React.JSX.Element {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button asChild size="lg">
-                <Link href="/register">Get Started Free</Link>
+                <Link href="/login">Login</Link>
               </Button>
               <Button asChild size="lg" variant="outline">
                 <Link href="/contact">Contact Sales</Link>

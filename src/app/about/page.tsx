@@ -49,16 +49,16 @@ const values = [
 
 const team = [
   {
-    name: "Sarah Johnson",
-    role: "Chief Executive Officer",
+    name: "Prince Johnson",
+    role: "CEO & Founder",
     image: "",
-    bio: "15+ years in EdTech, former VP at leading education platform",
+    bio: "Strong foundation in EdTech and a seasoned developer",
   },
   {
-    name: "Michael Chen",
-    role: "Chief Technology Officer",
+    name: "Dr. Simon Annan",
+    role: "Mentor & Chief Technical Officer",
     image: "",
-    bio: "Former Google engineer, passionate about scalable education solutions",
+    bio: "Guiding our technical vision and platform architecture",
   },
   {
     name: "Emily Rodriguez",
@@ -84,7 +84,7 @@ const faqs = [
   {
     question: "How secure is SchoolFlow?",
     answer:
-      "Security is our top priority. We use enterprise-grade encryption for data at rest and in transit, implement strict access controls, maintain comprehensive audit logs, and are fully GDPR compliant. Our infrastructure is hosted on secure cloud servers with regular backups and 99.9% uptime guarantee.",
+      "Security is our top priority. We use encryption for data at rest and in transit, implement strict access controls, maintain comprehensive audit logs, and host on secure cloud infrastructure with regular backups. We are committed to data protection best practices.",
   },
   {
     question: "Can I customize SchoolFlow for my specific needs?",
@@ -94,7 +94,7 @@ const faqs = [
   {
     question: "What kind of support do you provide?",
     answer:
-      "We provide 24/7 email support, comprehensive documentation, video tutorials, and dedicated account managers for enterprise clients. Our support team includes former school administrators who understand your unique challenges.",
+      "We provide responsive support via phone and WhatsApp during office hours (Mon–Fri 9am–6pm GMT, Sat 10am–4pm GMT). As an early partner, you will receive hands-on onboarding and direct access to our team. Documentation and training materials are available to help you get started.",
   },
   {
     question: "How does the pricing work?",
@@ -104,12 +104,12 @@ const faqs = [
   {
     question: "How long does implementation take?",
     answer:
-      "Most schools are up and running within 2-4 weeks. This includes data migration, staff training, and system configuration. We provide dedicated onboarding support to ensure a smooth transition.",
+      "We aim to have schools up and running within 2–4 weeks, including setup, staff training, and configuration. As an early partner, you will receive dedicated onboarding support to ensure a smooth transition.",
   },
   {
     question: "Can SchoolFlow integrate with our existing systems?",
     answer:
-      "Yes! SchoolFlow offers APIs and integrations with popular educational tools, payment gateways, and communication platforms. Our technical team can work with you to set up custom integrations as needed.",
+      "SchoolFlow is built with extensibility in mind. We support integrations with payment gateways and educational tools. Our technical team can discuss custom integration options based on your requirements.",
   },
   {
     question: "What happens to our data if we decide to leave?",
@@ -119,42 +119,56 @@ const faqs = [
   {
     question: "Is training provided for school staff?",
     answer:
-      "Yes! We provide comprehensive training including live onboarding sessions, video tutorials, detailed documentation, and ongoing support. We also offer train-the-trainer programs for larger implementations.",
+      "Yes. We provide live onboarding sessions, documentation, and ongoing support to help your staff get the most out of SchoolFlow. Training is tailored to your school's needs.",
   },
   {
     question: "How often do you release updates?",
     answer:
-      "We release minor updates and bug fixes weekly, with major feature releases quarterly. All updates are automatic and require no downtime. We maintain a public roadmap and welcome feature suggestions from our community.",
+      "We release updates regularly, with bug fixes and improvements as needed and major features on a planned schedule. Updates are automatic and require no downtime. We welcome feedback and feature suggestions from our partners.",
+  },
+  {
+    question: "Will parents have access to their child's information?",
+    answer:
+      "Yes. We plan to add a parents portal where guardians can securely access information about their ward—attendance, grades, reports, fees, and more. This keeps families informed and engaged in their child's education.",
   },
 ];
 
 const milestones = [
   {
-    year: "2020",
-    title: "Company Founded",
-    description:
-      "SchoolFlow was born from a vision to simplify school management",
-  },
-  {
-    year: "2021",
-    title: "50+ Schools",
-    description:
-      "Reached our first major milestone with schools across 5 states",
-  },
-  {
     year: "2022",
-    title: "Enterprise Features",
-    description: "Launched advanced analytics and multi-tenant capabilities",
+    title: "The Idea Was Born",
+    description:
+      "SchoolFlow began with a simple observation: schools spend too much time on administration and too little on what matters—teaching and student success. We set out to build a platform that changes that.",
   },
   {
     year: "2023",
-    title: "500+ Schools",
-    description: "Expanded to serve over 10,000 students nationwide",
+    title: "Research & Validation",
+    description:
+      "We spent time with school administrators, understanding their workflows, pain points, and aspirations. This research shaped our product roadmap and confirmed the need for a modern, multi-tenant school management platform.",
   },
   {
     year: "2024",
-    title: "International Expansion",
-    description: "Now serving schools across 15 countries globally",
+    title: "Platform Development",
+    description:
+      "We built the core platform—subscription management, multi-school oversight, audit logging, and the tools super admins need to run their operations efficiently and transparently.",
+  },
+  {
+    year: "2025",
+    title: "School Admin & Teacher Experience",
+    description:
+      "We expanded the platform with core features for school administrators and teachers—attendance, gradebooks, timetables, reports, and the tools that power daily operations and classroom workflows.",
+  },
+  {
+    year: "2026",
+    title: "Launch & Partner Onboarding",
+    description:
+      "We plan to launch SchoolFlow and welcome our first partner schools. Our focus is on exceptional onboarding, support, and growing together with the institutions that place their trust in us.",
+  },
+  {
+    year: "Coming Soon",
+    title: "Parents Portal",
+    description:
+      "We plan to introduce a parents portal where guardians can access information about their ward—attendance, grades, reports, fees, and more—keeping families informed and engaged in their child's education.",
   },
 ];
 
@@ -303,7 +317,7 @@ export default function AboutPage(): React.JSX.Element {
           >
             <h2 className="text-3xl md:text-4xl font-bold mb-4">Our Journey</h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              From startup to trusted partner for schools worldwide
+              From concept to a platform ready to serve schools
             </p>
           </motion.div>
 
