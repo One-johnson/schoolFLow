@@ -21,6 +21,7 @@ import {
   Activity,
   ChevronDown,
   UserCircle,
+  Key,
 } from 'lucide-react';
 
 import {
@@ -60,6 +61,7 @@ const navGroups: Array<{
       { href: '/super-admin/profile', icon: User, label: 'Profile Management' },
       { href: '/super-admin/manage-admins', icon: Shield, label: 'Manage Admins' },
       { href: '/super-admin/school-admins', icon: Users, label: 'School Admins' },
+      { href: '/super-admin/password-reset', icon: Key, label: 'Password Reset' },
     ],
   },
   {

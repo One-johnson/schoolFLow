@@ -12,38 +12,54 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Copy, CheckCircle2, Key, AlertCircle, Mail } from 'lucide-react';
-import type { Id } from '../../convex/_generated/dataModel';
 
-interface AdminPasswordResetDialogProps {
+type ResetRole = 'school-admin' | 'teacher' | 'super-admin';
+
+interface PasswordResetDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  adminId: Id<'schoolAdmins'> | null;
-  adminName: string;
-  adminEmail: string;
+  role: ResetRole;
+  userId: string;
+  userName: string;
+  userEmail: string;
   onSuccess?: () => void;
 }
 
-export function AdminPasswordResetDialog({
+const API_ENDPOINTS: Record<ResetRole, string> = {
+  'school-admin': '/api/auth/reset-password-admin',
+  teacher: '/api/auth/reset-password-teacher',
+  'super-admin': '/api/auth/reset-password-super-admin',
+};
+
+const API_BODY_KEYS: Record<ResetRole, string> = {
+  'school-admin': 'adminId',
+  teacher: 'teacherId',
+  'super-admin': 'superAdminId',
+};
+
+export function PasswordResetDialog({
   open,
   onOpenChange,
-  adminId,
-  adminName,
-  adminEmail,
+  role,
+  userId,
+  userName,
+  userEmail,
   onSuccess,
-}: AdminPasswordResetDialogProps): React.JSX.Element {
+}: PasswordResetDialogProps): React.JSX.Element {
   const [loading, setLoading] = useState(false);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const handleReset = async (): Promise<void> => {
-    if (!adminId) return;
+  const endpoint = API_ENDPOINTS[role];
+  const bodyKey = API_BODY_KEYS[role];
 
+  const handleReset = async (): Promise<void> => {
     setLoading(true);
     try {
-      const response = await fetch('/api/auth/reset-password-admin', {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminId }),
+        body: JSON.stringify({ [bodyKey]: userId }),
       });
 
       const data = await response.json();
@@ -55,8 +71,7 @@ export function AdminPasswordResetDialog({
       } else {
         toast.error(data.message || 'Failed to reset password');
       }
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (error) {
+    } catch {
       toast.error('An error occurred while resetting password');
     } finally {
       setLoading(false);
@@ -65,31 +80,33 @@ export function AdminPasswordResetDialog({
 
   const handleCopy = async (): Promise<void> => {
     if (!tempPassword) return;
-
     try {
       await navigator.clipboard.writeText(tempPassword);
       setCopied(true);
       toast.success('Password copied to clipboard');
       setTimeout(() => setCopied(false), 2000);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (error) {
+    } catch {
       toast.error('Failed to copy password');
     }
   };
 
   const handleCopyAndComposeEmail = async (): Promise<void> => {
     if (!tempPassword) return;
-
     try {
       await navigator.clipboard.writeText(tempPassword);
       const subject = encodeURIComponent('Password Reset - SchoolFlow');
+      const loginPortal =
+        role === 'teacher'
+          ? 'Teacher portal'
+          : role === 'super-admin'
+            ? 'Super Admin portal'
+            : 'School Admin portal';
       const body = encodeURIComponent(
-        `Hi ${adminName},\n\nYour SchoolFlow password has been reset. Here is your temporary password:\n\n${tempPassword}\n\nPlease log in at the School Admin portal and change your password immediately after signing in.\n\nBest regards,\nSchoolFlow Team`
+        `Hi ${userName},\n\nYour SchoolFlow password has been reset. Here is your temporary password:\n\n${tempPassword}\n\nPlease log in at the ${loginPortal} and change your password immediately after signing in.\n\nBest regards,\nSchoolFlow Team`
       );
-      window.open(`mailto:${adminEmail}?subject=${subject}&body=${body}`, '_blank');
+      window.open(`mailto:${userEmail}?subject=${subject}&body=${body}`, '_blank');
       toast.success('Password copied! Compose window opened.');
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (error) {
+    } catch {
       toast.error('Failed to open email');
     }
   };
@@ -109,7 +126,7 @@ export function AdminPasswordResetDialog({
             <DialogTitle>Reset Password</DialogTitle>
           </div>
           <DialogDescription>
-            Generate a new temporary password for this school admin
+            Generate a new temporary password for this user
           </DialogDescription>
         </DialogHeader>
 
@@ -117,12 +134,12 @@ export function AdminPasswordResetDialog({
           <div className="space-y-4">
             <div className="p-4 bg-muted rounded-lg space-y-2">
               <div>
-                <Label className="text-xs text-muted-foreground">Admin Name</Label>
-                <p className="font-medium">{adminName}</p>
+                <Label className="text-xs text-muted-foreground">Name</Label>
+                <p className="font-medium">{userName}</p>
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground">Email</Label>
-                <p className="font-medium text-sm">{adminEmail}</p>
+                <p className="font-medium text-sm">{userEmail}</p>
               </div>
             </div>
 
@@ -133,7 +150,7 @@ export function AdminPasswordResetDialog({
                 <ul className="list-disc list-inside space-y-1 text-xs">
                   <li>Generate a new secure temporary password</li>
                   <li>Invalidate the current password</li>
-                  <li>Require the admin to change password on next login</li>
+                  <li>User must use the new password on next login</li>
                 </ul>
               </div>
             </div>
@@ -191,9 +208,9 @@ export function AdminPasswordResetDialog({
                     📋 Next Steps:
                   </p>
                   <ol className="list-decimal list-inside text-xs text-blue-800 dark:text-blue-200 space-y-1">
-                    <li>Share this password securely with {adminName}</li>
-                    <li>They can log in using their School ID or email</li>
-                    <li>They will be required to change this password immediately</li>
+                    <li>Share this password securely with {userName}</li>
+                    <li>Use &quot;Copy & compose email&quot; to open Gmail</li>
+                    <li>User will log in with the new password</li>
                   </ol>
                 </div>
 

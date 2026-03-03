@@ -1,8 +1,11 @@
 'use client'
 
+import { useCallback, useEffect, useState } from 'react';
 import { LandingHeader } from '@/components/landing/header';
 import { Footer } from '@/components/landing/footer';
+import { ContactFAB } from '@/components/landing/contact-fab';
 import { motion } from 'framer-motion';
+import useEmblaCarousel from 'embla-carousel-react';
 import { 
   Building2, 
   Users, 
@@ -18,7 +21,10 @@ import {
   Lock,
   Activity,
   UserCog,
-  Clock
+  Clock,
+  GraduationCap,
+  ClipboardCheck,
+  BookOpen
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -221,34 +227,159 @@ const features = [
       'Account suspension controls'
     ],
     color: 'text-slate-500'
+  },
+  {
+    icon: Building2,
+    title: 'School Admin Portal',
+    description: 'Full-featured dashboard for school administrators to run daily operations.',
+    benefits: [
+      'Teachers, classes, students & subjects',
+      'Timetable & attendance management',
+      'Exams, reports & fee management',
+      'Events, announcements & notifications',
+      'Academic years & school configuration'
+    ],
+    color: 'text-blue-600'
+  },
+  {
+    icon: GraduationCap,
+    title: 'Teacher Portal',
+    description: 'Mobile-first portal for teachers to manage classrooms and students.',
+    benefits: [
+      'Student list & class overview',
+      'Digital attendance marking',
+      'Gradebook & exam marks entry',
+      'Timetable, calendar & reports',
+      'Messages & export tools'
+    ],
+    color: 'text-emerald-600'
+  },
+  {
+    icon: ClipboardCheck,
+    title: 'Attendance & Timetables',
+    description: 'Digital attendance tracking and timetable management across the school.',
+    benefits: [
+      'Daily attendance by class',
+      'Timetable creation & editing',
+      'Attendance reports & exports',
+      'Session-based tracking',
+      'Bulk attendance entry'
+    ],
+    color: 'text-amber-600'
+  },
+  {
+    icon: BookOpen,
+    title: 'Exams & Gradebook',
+    description: 'Manage exams, enter marks, and generate grade reports.',
+    benefits: [
+      'Exam creation & management',
+      'Marks entry by class & subject',
+      'Grading scales & report cards',
+      'Analytics & performance tracking',
+      'Export to PDF'
+    ],
+    color: 'text-violet-600'
+  },
+  {
+    icon: Users,
+    title: 'Parents Portal (Coming Soon)',
+    description: 'Guardians will access attendance, grades, fees, and reports for their ward.',
+    benefits: [
+      'View child attendance & grades',
+      'Fee status & payment history',
+      'Report cards & progress',
+      'Secure, role-based access',
+      'Stay informed and engaged'
+    ],
+    color: 'text-sky-500'
   }
 ];
 
+const heroSlides = [
+  {
+    badge: 'Super Admin',
+    headline: 'Oversee Multiple Schools',
+    description: 'Centralized dashboard, subscriptions, approvals, and platform-wide analytics.',
+  },
+  {
+    badge: 'School Admin',
+    headline: 'Run Your School',
+    description: 'Teachers, classes, timetable, attendance, exams, fees, and events—all in one place.',
+  },
+  {
+    badge: 'Teacher Portal',
+    headline: 'Manage Your Classroom',
+    description: 'Attendance, gradebook, marks, reports, and messages—built for daily teaching.',
+  },
+  {
+    badge: 'Coming Soon',
+    headline: 'Parents Portal',
+    description: 'Guardians will access attendance, grades, and fees for their ward.',
+  },
+];
+
 export default function FeaturesPage(): React.JSX.Element {
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, duration: 25 });
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return;
+    setSelectedIndex(emblaApi.selectedScrollSnap());
+  }, [emblaApi]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    onSelect();
+    emblaApi.on('select', onSelect);
+    const autoplay = setInterval(() => emblaApi.scrollNext(), 4500);
+    return () => {
+      clearInterval(autoplay);
+      emblaApi.off('select', onSelect);
+    };
+  }, [emblaApi, onSelect]);
+
+  const scrollTo = useCallback((index: number) => emblaApi?.scrollTo(index), [emblaApi]);
+
   return (
     <div className="min-h-screen bg-background">
       <LandingHeader />
       
-      {/* Hero Section */}
+      {/* Hero Section with Carousel */}
       <section className="pt-32 pb-16 px-4">
-        <div className="max-w-7xl mx-auto text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <Badge className="mb-4" variant="outline">
-              Comprehensive Features
-            </Badge>
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              Everything You Need to Manage
-              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> Multiple Schools</span>
-            </h1>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
-              SchoolFlow provides a complete suite of tools designed specifically for multi-tenant school management. 
-              From billing to analytics, we've got you covered.
-            </p>
-          </motion.div>
+        <div className="max-w-7xl mx-auto">
+          <div className="overflow-hidden rounded-2xl bg-muted/50 border" ref={emblaRef}>
+            <div className="flex">
+              {heroSlides.map((slide, index) => (
+                <div key={index} className="flex-[0_0_100%] min-w-0">
+                  <div className="px-8 py-16 md:py-24 text-center">
+                    <Badge className="mb-4" variant="outline">
+                      {slide.badge}
+                    </Badge>
+                    <h1 className="text-3xl md:text-5xl font-bold mb-4">
+                      <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                        {slide.headline}
+                      </span>
+                    </h1>
+                    <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
+                      {slide.description}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="flex justify-center gap-2 mt-4">
+            {heroSlides.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => scrollTo(index)}
+                className={`h-2 rounded-full transition-all ${
+                  index === selectedIndex ? 'w-8 bg-primary' : 'w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50'
+                }`}
+                aria-label={`Go to slide ${index + 1}`}
+              />
+            ))}
+          </div>
         </div>
       </section>
 
@@ -302,7 +433,7 @@ export default function FeaturesPage(): React.JSX.Element {
               Ready to Transform Your School Management?
             </h2>
             <p className="text-xl text-muted-foreground mb-8">
-              Join hundreds of schools already using SchoolFlow to streamline their operations.
+              SchoolFlow is ready to help you streamline operations and focus on what matters—student success.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button asChild size="lg">
@@ -317,6 +448,7 @@ export default function FeaturesPage(): React.JSX.Element {
       </section>
 
       <Footer />
+      <ContactFAB />
     </div>
   );
 }

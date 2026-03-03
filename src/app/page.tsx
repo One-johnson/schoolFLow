@@ -4,6 +4,7 @@ import { Hero } from "@/components/landing/hero";
 import { Features } from "@/components/landing/features";
 import { Stats } from "@/components/landing/stats";
 import { Footer } from "@/components/landing/footer";
+import { ContactFAB } from "@/components/landing/contact-fab";
 
 export default function LandingPage(): React.JSX.Element {
   return (
@@ -15,6 +16,7 @@ export default function LandingPage(): React.JSX.Element {
         <Features />
       </main>
       <Footer />
+      <ContactFAB />
     </div>
   );
 }

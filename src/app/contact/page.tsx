@@ -2,6 +2,7 @@
 
 import { LandingHeader } from "@/components/landing/header";
 import { Footer } from "@/components/landing/footer";
+import { ContactFAB } from "@/components/landing/contact-fab";
 import { motion } from "framer-motion";
 import { Phone, MapPin, MessageSquare, Send, Clock } from "lucide-react";
 import {
@@ -56,7 +57,6 @@ export default function ContactPage(): React.JSX.Element {
     phone: "",
     subject: "",
     message: "",
-    botcheck: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -82,7 +82,7 @@ export default function ContactPage(): React.JSX.Element {
           phone: formData.phone,
           subject: formData.subject,
           message: formData.message,
-          botcheck: formData.botcheck,
+          botcheck: false,
         }),
       });
 
@@ -96,7 +96,6 @@ export default function ContactPage(): React.JSX.Element {
           phone: "",
           subject: "",
           message: "",
-          botcheck: "",
         });
       } else {
         toast.error(result.message || "Failed to send message. Please try again.");
@@ -207,17 +206,13 @@ export default function ContactPage(): React.JSX.Element {
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* Honeypot - hidden from users, bots will fill it */}
+                    {/* Honeypot - Web3Forms requires checkbox, hidden off-screen to avoid hydration mismatch */}
                     <div className="absolute -left-[9999px] top-0" aria-hidden="true">
                       <input
-                        type="text"
+                        type="checkbox"
                         name="botcheck"
                         tabIndex={-1}
-                        autoComplete="off"
-                        value={formData.botcheck}
-                        onChange={(e) =>
-                          setFormData((prev) => ({ ...prev, botcheck: e.target.value }))
-                        }
+                        defaultChecked={false}
                       />
                     </div>
 
@@ -422,6 +417,7 @@ export default function ContactPage(): React.JSX.Element {
       </section>
 
       <Footer />
+      <ContactFAB />
     </div>
   );
 }

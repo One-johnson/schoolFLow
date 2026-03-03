@@ -3,12 +3,19 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, Menu, X } from "lucide-react";
+import { GraduationCap, Menu, X, Sun, Moon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTheme } from "next-themes";
 
 export function LandingHeader(): React.JSX.Element {
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const handleScroll = (): void => {
@@ -78,6 +85,20 @@ export function LandingHeader(): React.JSX.Element {
 
           {/* CTA Buttons */}
           <div className="hidden md:flex items-center gap-3">
+            {mounted && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              >
+                {theme === "dark" ? (
+                  <Sun className="h-4 w-4" />
+                ) : (
+                  <Moon className="h-4 w-4" />
+                )}
+              </Button>
+            )}
             <Link href="/login">
               <Button size="sm" className="relative overflow-hidden group">
                 <span className="relative z-10">Login</span>
@@ -139,6 +160,24 @@ export function LandingHeader(): React.JSX.Element {
                 Contact
               </Link>
               <div className="flex flex-col gap-2 pt-2 border-t border-border">
+                {mounted && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start"
+                    onClick={() => {
+                      setTheme(theme === "dark" ? "light" : "dark");
+                      setIsMobileMenuOpen(false);
+                    }}
+                  >
+                    {theme === "dark" ? (
+                      <Sun className="h-4 w-4 mr-2" />
+                    ) : (
+                      <Moon className="h-4 w-4 mr-2" />
+                    )}
+                    {theme === "dark" ? "Light Mode" : "Dark Mode"}
+                  </Button>
+                )}
                 <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
                   <Button size="sm" className="w-full">
                     Login
