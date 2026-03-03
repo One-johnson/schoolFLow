@@ -45,7 +45,7 @@ interface Student {
   address: string;
   classId: string;
   className: string;
-  department: 'creche' | 'kindergarten' | 'primary' | 'junior_high';
+  departmentId: string;
   rollNumber?: string;
   admissionDate: string;
   parentName: string;
@@ -330,7 +330,7 @@ export function EditStudentDialog({ student, open, onOpenChange }: EditStudentDi
         address: formData.address,
         classId: formData.classId,
         className: selectedClass?.className || formData.className,
-        department: selectedClass?.department || formData.department,
+        departmentId: selectedClass?.departmentId || formData.departmentId,
         rollNumber: formData.rollNumber || undefined,
         admissionDate: formData.admissionDate,
         parentName: formData.parentName,

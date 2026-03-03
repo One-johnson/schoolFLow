@@ -899,6 +899,7 @@ export default function SchoolAdminsPage(): React.JSX.Element {
         </CardHeader>
         <CardContent>
           <DataTable
+            storageKey="super-school-admins"
             columns={columns}
             data={filteredAdmins}
             searchKey="name"

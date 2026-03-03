@@ -27,7 +27,7 @@ interface ExamCardProps {
     status: 'draft' | 'scheduled' | 'ongoing' | 'completed' | 'published';
     weightage: number;
     subjects?: string;
-    department?: 'creche' | 'kindergarten' | 'primary' | 'junior_high';
+    departmentId?: string;
     unlocked?: boolean;
     unlockedBy?: string;
     unlockedByName?: string;
@@ -47,11 +47,10 @@ export function ExamCard({ exam, onView, onEdit, onDelete, onEnterMarks, onViewM
   
   // Get marks statistics for this exam
   const marksStats = useQuery(api.marks.getExamMarksStats, { examId: exam._id });
-  
-  const formatDepartment = (dept?: string): string => {
-    if (!dept) return 'N/A';
-    return dept.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-  };
+  const department = useQuery(
+    api.departments.getDepartmentById,
+    exam.departmentId ? { departmentId: exam.departmentId } : 'skip'
+  );
   
   // Calculate progress percentage
   const getMarksProgress = (): { percentage: number; text: string } => {
@@ -225,7 +224,7 @@ export function ExamCard({ exam, onView, onEdit, onDelete, onEnterMarks, onViewM
             <span className="font-medium text-black dark:text-gray-300">Type:</span> {exam.examType.replace('_', ' ')}
           </div>
           <div className="text-xs text-black dark:text-gray-400 text-right">
-            <span className="font-medium text-black dark:text-gray-300">Department:</span> {formatDepartment(exam.department)}
+            <span className="font-medium text-black dark:text-gray-300">Department:</span> {department?.name ?? 'N/A'}
           </div>
         </div>
       </CardContent>

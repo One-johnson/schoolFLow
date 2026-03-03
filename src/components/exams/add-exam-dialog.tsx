@@ -49,19 +49,28 @@ export function AddExamDialog({ open, onOpenChange, schoolId }: AddExamDialogPro
   const [termId, setTermId] = useState<string>('');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
-  const [department, setDepartment] = useState<string>('primary');
+  const [departmentId, setDepartmentId] = useState<string>('');
   const [weightage, setWeightage] = useState<string>('50');
   const [instructions, setInstructions] = useState<string>('');
   const [subjects, setSubjects] = useState<Subject[]>([{ name: '', maxMarks: 100 }]);
 
+  const departments = useQuery(
+    api.departments.getDepartmentsBySchool,
+    schoolId ? { schoolId } : 'skip'
+  );
+
   // Query subjects by department
   const departmentSubjects = useQuery(
     api.subjects.getSubjectsByDepartment,
-    department ? { 
-      schoolId, 
-      department: department as 'creche' | 'kindergarten' | 'primary' | 'junior_high' 
-    } : 'skip'
+    departmentId ? { schoolId, departmentId } : 'skip'
   );
+
+  // Set default department when departments load
+  useEffect(() => {
+    if (departments?.length && !departmentId) {
+      setDepartmentId(departments[0]._id);
+    }
+  }, [departments, departmentId]);
 
   // Auto-populate subjects when department changes
   useEffect(() => {
@@ -73,15 +82,16 @@ export function AddExamDialog({ open, onOpenChange, schoolId }: AddExamDialogPro
           id: subj._id,
         }))
       );
+      const deptName = departments?.find((d) => d._id === departmentId)?.name ?? departmentId;
       toast({
         title: 'Subjects Loaded',
-        description: `Loaded ${departmentSubjects.length} subject(s) for ${department}`,
+        description: `Loaded ${departmentSubjects.length} subject(s) for ${deptName}`,
       });
     } else if (departmentSubjects && departmentSubjects.length === 0) {
       setSubjects([{ name: '', maxMarks: 100 }]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [departmentSubjects, department]);
+  }, [departmentSubjects, departmentId]);
 
 
 
@@ -123,7 +133,7 @@ export function AddExamDialog({ open, onOpenChange, schoolId }: AddExamDialogPro
         termId,
         startDate,
         endDate,
-        department: department as 'creche' | 'kindergarten' | 'primary' | 'junior_high',
+        departmentId: departmentId || undefined,
         weightage: Number(weightage),
         instructions: instructions || undefined,
         subjects: JSON.stringify(validSubjects),
@@ -262,15 +272,16 @@ export function AddExamDialog({ open, onOpenChange, schoolId }: AddExamDialogPro
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="department">Department *</Label>
-              <Select value={department} onValueChange={setDepartment} required>
+              <Select value={departmentId} onValueChange={setDepartmentId} required>
                 <SelectTrigger id="department">
-                  <SelectValue />
+                  <SelectValue placeholder="Select department" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="creche">Creche</SelectItem>
-                  <SelectItem value="kindergarten">Kindergarten</SelectItem>
-                  <SelectItem value="primary">Primary</SelectItem>
-                  <SelectItem value="junior_high">Junior High</SelectItem>
+                  {departments?.map((dept) => (
+                    <SelectItem key={dept._id} value={dept._id}>
+                      {dept.name} ({dept.code})
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -290,7 +301,7 @@ export function AddExamDialog({ open, onOpenChange, schoolId }: AddExamDialogPro
           </div>
 
           <div className="space-y-2">
-            <Label>Subjects * {departmentSubjects && departmentSubjects.length > 0 && <span className="text-sm text-muted-foreground">(Auto-loaded from {department})</span>}</Label>
+            <Label>Subjects * {departmentSubjects && departmentSubjects.length > 0 && <span className="text-sm text-muted-foreground">(Auto-loaded from {departments?.find((d) => d._id === departmentId)?.name ?? 'department'})</span>}</Label>
             {subjects.length > 0 && subjects[0].name !== '' ? (
               <div className="space-y-2">
                 {subjects.map((subject, index) => (
@@ -314,7 +325,7 @@ export function AddExamDialog({ open, onOpenChange, schoolId }: AddExamDialogPro
               </div>
             ) : (
               <div className="text-sm text-muted-foreground p-4 border rounded-md bg-muted/50">
-                No subjects found for {department}. Please add subjects in the Subjects section first.
+                No subjects found for {departments?.find((d) => d._id === departmentId)?.name ?? 'this department'}. Please add subjects in the Subjects section first.
               </div>
             )}
           </div>

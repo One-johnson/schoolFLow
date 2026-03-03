@@ -30,7 +30,7 @@ interface Student {
   phone?: string;
   address: string;
   className: string;
-  department: 'creche' | 'kindergarten' | 'primary' | 'junior_high';
+  departmentId: string;
   rollNumber?: string;
   admissionDate: string;
   parentName: string;
@@ -60,6 +60,11 @@ interface ViewStudentDialogProps {
 }
 
 export function ViewStudentDialog({ student, open, onOpenChange }: ViewStudentDialogProps): React.JSX.Element {
+  const department = useQuery(
+    api.departments.getDepartmentById,
+    student.departmentId ? { departmentId: student.departmentId } : 'skip'
+  );
+
   // Fetch photo and document URLs from storage
   const photoUrl = useQuery(
     api.photos.getFileUrl,
@@ -82,16 +87,6 @@ export function ViewStudentDialog({ student, open, onOpenChange }: ViewStudentDi
     };
 
     return <Badge variant={variants[status] || 'default'}>{status}</Badge>;
-  };
-
-  const getDepartmentLabel = (dept: string): string => {
-    const labels: Record<string, string> = {
-      creche: 'Creche',
-      kindergarten: 'Kindergarten',
-      primary: 'Primary',
-      junior_high: 'Junior High',
-    };
-    return labels[dept] || dept;
   };
 
   const formatDate = (dateString: string): string => {
@@ -141,7 +136,7 @@ export function ViewStudentDialog({ student, open, onOpenChange }: ViewStudentDi
                   </div>
                   <div>
                     <span className="text-muted-foreground">Department:</span>{' '}
-                    <span className="font-medium">{getDepartmentLabel(student.department)}</span>
+                    <span className="font-medium">{department?.name ?? student.departmentId}</span>
                   </div>
                 </div>
               </div>
@@ -211,7 +206,7 @@ export function ViewStudentDialog({ student, open, onOpenChange }: ViewStudentDi
                 </div>
                 <div>
                   <span className="text-muted-foreground">Department:</span>{' '}
-                  <span className="font-medium">{getDepartmentLabel(student.department)}</span>
+                  <span className="font-medium">{department?.name ?? student.departmentId}</span>
                 </div>
                 {student.rollNumber && (
                   <div>

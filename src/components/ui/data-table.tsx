@@ -35,6 +35,8 @@ import {
 } from '@/components/ui/table';
 import { JSX } from 'react';
 
+const COLUMN_VISIBILITY_STORAGE_PREFIX = 'datatable-column-visibility-';
+
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
@@ -46,6 +48,22 @@ interface DataTableProps<TData, TValue> {
   exportFormats?: ('json' | 'csv' | 'pdf')[];
   onExport?: (rows: TData[], format: 'json' | 'csv' | 'pdf') => void;
   onSelectionChange?: (rows: TData[]) => void;
+  /** When provided, column visibility is persisted to localStorage under this key */
+  storageKey?: string;
+}
+
+function loadColumnVisibility(storageKey: string): VisibilityState {
+  if (typeof window === 'undefined') return {};
+  try {
+    const stored = localStorage.getItem(COLUMN_VISIBILITY_STORAGE_PREFIX + storageKey);
+    if (stored) {
+      const parsed = JSON.parse(stored) as VisibilityState;
+      return typeof parsed === 'object' && parsed !== null ? parsed : {};
+    }
+  } catch {
+    // ignore parse errors
+  }
+  return {};
 }
 
 export function DataTable<TData, TValue>({
@@ -59,10 +77,13 @@ export function DataTable<TData, TValue>({
   exportFormats = ['json', 'csv', 'pdf'],
   onExport,
   onSelectionChange,
+  storageKey,
 }: DataTableProps<TData, TValue>): React.JSX.Element {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(() =>
+    storageKey ? loadColumnVisibility(storageKey) : {}
+  );
   const [rowSelection, setRowSelection] = React.useState({});
   const [globalFilter, setGlobalFilter] = React.useState<string>('');
 
@@ -76,7 +97,19 @@ export function DataTable<TData, TValue>({
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    onColumnVisibilityChange: setColumnVisibility,
+    onColumnVisibilityChange: (updater) => {
+      setColumnVisibility((prev) => {
+        const next = typeof updater === 'function' ? updater(prev) : prev;
+        if (storageKey && typeof window !== 'undefined') {
+          try {
+            localStorage.setItem(COLUMN_VISIBILITY_STORAGE_PREFIX + storageKey, JSON.stringify(next));
+          } catch {
+            // ignore quota errors
+          }
+        }
+        return next;
+      });
+    },
     onRowSelectionChange: setRowSelection,
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn: (row, columnId, filterValue) => {

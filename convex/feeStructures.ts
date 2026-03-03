@@ -15,12 +15,7 @@ export const createFeeStructure = mutation({
     academicYearId: v.optional(v.string()),
     termId: v.optional(v.string()),
     classId: v.optional(v.string()),
-    department: v.optional(v.union(
-      v.literal('creche'),
-      v.literal('kindergarten'),
-      v.literal('primary'),
-      v.literal('junior_high')
-    )),
+    departmentId: v.optional(v.id('departments')),
     fees: v.string(), // JSON stringified array
     totalAmount: v.number(),
     dueDate: v.optional(v.string()),
@@ -37,7 +32,7 @@ export const createFeeStructure = mutation({
       academicYearId: args.academicYearId,
       termId: args.termId,
       classId: args.classId,
-      department: args.department,
+      departmentId: args.departmentId,
       fees: args.fees,
       totalAmount: args.totalAmount,
       dueDate: args.dueDate,
@@ -107,12 +102,7 @@ export const updateFeeStructure = mutation({
     academicYearId: v.optional(v.string()),
     termId: v.optional(v.string()),
     classId: v.optional(v.string()),
-    department: v.optional(v.union(
-      v.literal('creche'),
-      v.literal('kindergarten'),
-      v.literal('primary'),
-      v.literal('junior_high')
-    )),
+    departmentId: v.optional(v.id('departments')),
     fees: v.optional(v.string()),
     totalAmount: v.optional(v.number()),
     dueDate: v.optional(v.string()),

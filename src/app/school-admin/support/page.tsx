@@ -297,9 +297,10 @@ export default function SchoolAdminSupportPage(): React.JSX.Element {
                   </Button>
                 </div>
               ) : (
-                <DataTable
-                  columns={columns}
-                  data={myTickets}
+<DataTable
+                storageKey="school-support"
+                columns={columns}
+                data={myTickets}
                   searchKey="subject"
                   searchPlaceholder="Search your tickets..."
                 />

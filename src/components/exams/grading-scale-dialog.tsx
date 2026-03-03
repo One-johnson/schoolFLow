@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { useMutation } from 'convex/react';
-import { api } from '../../../convex/_generated/api';
+import { useState, useEffect } from 'react';
+import { useMutation, useQuery } from 'convex/react';
+import { api } from '@/../convex/_generated/api';
 import {
   Dialog,
   DialogContent,
@@ -43,7 +43,18 @@ export function GradingScaleDialog({ open, onOpenChange, schoolId }: GradingScal
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [scaleName, setScaleName] = useState<string>('');
-  const [department, setDepartment] = useState<string>('primary');
+  const [departmentId, setDepartmentId] = useState<string>('');
+
+  const departments = useQuery(
+    api.departments.getDepartmentsBySchool,
+    schoolId ? { schoolId } : 'skip'
+  );
+
+  useEffect(() => {
+    if (departments?.length && !departmentId) {
+      setDepartmentId(departments[0]._id);
+    }
+  }, [departments, departmentId]);
   const [grades, setGrades] = useState<Grade[]>([
     { grade: '1', minPercent: 80, maxPercent: 100, remark: 'Excellent' },
     { grade: '2', minPercent: 70, maxPercent: 79, remark: 'Very Good' },
@@ -82,7 +93,7 @@ export function GradingScaleDialog({ open, onOpenChange, schoolId }: GradingScal
       await createGradingScale({
         schoolId,
         scaleName,
-        department: department as 'creche' | 'kindergarten' | 'primary' | 'junior_high',
+        departmentId: departmentId || undefined,
         grades: JSON.stringify(grades),
         createdBy: '',
         isDefault: false
@@ -94,7 +105,7 @@ export function GradingScaleDialog({ open, onOpenChange, schoolId }: GradingScal
       });
 
       setScaleName('');
-      setDepartment('primary');
+      setDepartmentId(departments?.[0]?._id ?? '');
       onOpenChange(false);
     } catch (error) {
       toast({
@@ -131,16 +142,18 @@ export function GradingScaleDialog({ open, onOpenChange, schoolId }: GradingScal
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="department">Department *</Label>
-              <Select value={department} onValueChange={setDepartment} required>
+              <Label htmlFor="department">Department</Label>
+              <Select value={departmentId} onValueChange={setDepartmentId}>
                 <SelectTrigger id="department">
-                  <SelectValue />
+                  <SelectValue placeholder="Select department (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="creche">Creche</SelectItem>
-                  <SelectItem value="kindergarten">Kindergarten</SelectItem>
-                  <SelectItem value="primary">Primary</SelectItem>
-                  <SelectItem value="junior_high">Junior High</SelectItem>
+                  <SelectItem value="">All departments</SelectItem>
+                  {departments?.map((dept) => (
+                    <SelectItem key={dept._id} value={dept._id}>
+                      {dept.name} ({dept.code})
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

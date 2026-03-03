@@ -1168,7 +1168,7 @@ export default function ReportsPage(): React.JSX.Element {
               disabled={filteredStudents.length === 0}
             />
           </div>
-          <DataTable columns={studentColumns} data={filteredStudents} />
+          <DataTable storageKey="reports-students" columns={studentColumns} data={filteredStudents} />
         </TabsContent>
 
         {/* ─── Teachers Tab ───────────────────────────────────────────────────── */}
@@ -1249,7 +1249,7 @@ export default function ReportsPage(): React.JSX.Element {
               disabled={filteredTeachers.length === 0}
             />
           </div>
-          <DataTable columns={teacherColumns} data={filteredTeachers} />
+          <DataTable storageKey="reports-teachers" columns={teacherColumns} data={filteredTeachers} />
         </TabsContent>
 
         {/* ─── Attendance Tab ─────────────────────────────────────────────────── */}
@@ -1299,7 +1299,7 @@ export default function ReportsPage(): React.JSX.Element {
               disabled={filteredAttendance.length === 0}
             />
           </div>
-          <DataTable columns={attendanceColumns} data={filteredAttendance} />
+          <DataTable storageKey="reports-attendance" columns={attendanceColumns} data={filteredAttendance} />
         </TabsContent>
 
         {/* ─── Fees Tab ───────────────────────────────────────────────────────── */}
@@ -1363,7 +1363,7 @@ export default function ReportsPage(): React.JSX.Element {
               disabled={filteredFees.length === 0}
             />
           </div>
-          <DataTable columns={feeColumns} data={filteredFees} />
+          <DataTable storageKey="reports-fees" columns={feeColumns} data={filteredFees} />
         </TabsContent>
 
         {/* ─── Events Tab ─────────────────────────────────────────────────────── */}
@@ -1447,7 +1447,7 @@ export default function ReportsPage(): React.JSX.Element {
               disabled={filteredEvents.length === 0}
             />
           </div>
-          <DataTable columns={eventColumns} data={filteredEvents} />
+          <DataTable storageKey="reports-events" columns={eventColumns} data={filteredEvents} />
         </TabsContent>
 
         {/* ─── Report Cards Tab ───────────────────────────────────────────────── */}
@@ -1552,7 +1552,7 @@ export default function ReportsPage(): React.JSX.Element {
               disabled={filteredReportCards.length === 0}
             />
           </div>
-          <DataTable columns={reportCardColumns} data={filteredReportCards} />
+          <DataTable storageKey="reports-reportcards" columns={reportCardColumns} data={filteredReportCards} />
         </TabsContent>
       </Tabs>
 

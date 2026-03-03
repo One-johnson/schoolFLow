@@ -21,6 +21,10 @@ interface ViewExamDialogProps {
 
 export function ViewExamDialog({ open, onOpenChange, examId }: ViewExamDialogProps) {
   const exam = useQuery(api.exams.getExamById, { examId });
+  const department = useQuery(
+    api.departments.getDepartmentById,
+    exam?.departmentId ? { departmentId: exam.departmentId } : 'skip'
+  );
 
   if (!exam) {
     return null;
@@ -50,7 +54,7 @@ export function ViewExamDialog({ open, onOpenChange, examId }: ViewExamDialogPro
             </div>
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">Department</p>
-              <p className="font-medium capitalize">{exam.department || 'N/A'}</p>
+              <p className="font-medium">{department?.name ?? 'N/A'}</p>
             </div>
           </div>
 

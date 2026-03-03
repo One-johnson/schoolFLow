@@ -773,6 +773,7 @@ export default function SubscriptionsPage(): React.JSX.Element {
                     </div>
                   )}
                   <DataTable
+                    storageKey="super-subscriptions"
                     columns={columns}
                     data={filteredTableData}
                     searchKey="schoolAdminEmail"

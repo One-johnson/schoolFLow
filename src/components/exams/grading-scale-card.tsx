@@ -1,17 +1,19 @@
 'use client';
 
+import { useQuery } from 'convex/react';
+import { api } from '@/../convex/_generated/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Edit, Trash2, CheckCircle } from 'lucide-react';
-import type { Id } from '../../../convex/_generated/dataModel';
+import type { Id } from '@/../convex/_generated/dataModel';
 
 interface GradingScaleCardProps {
   scale: {
     _id: Id<'gradingScales'>;
     scaleCode: string;
     scaleName: string;
-    department?: string;
+    departmentId?: string;
     grades: string;
     isDefault: boolean;
     status: 'active' | 'inactive';
@@ -22,6 +24,10 @@ interface GradingScaleCardProps {
 
 export function GradingScaleCard({ scale, onEdit, onDelete }: GradingScaleCardProps) {
   const grades = JSON.parse(scale.grades);
+  const department = useQuery(
+    api.departments.getDepartmentById,
+    scale.departmentId ? { departmentId: scale.departmentId } : 'skip'
+  );
 
   return (
     <Card>
@@ -45,10 +51,10 @@ export function GradingScaleCard({ scale, onEdit, onDelete }: GradingScaleCardPr
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {scale.department && (
+        {department && (
           <div className="text-sm">
             <span className="text-muted-foreground">Department:</span>{' '}
-            <span className="font-medium capitalize">{scale.department}</span>
+            <span className="font-medium">{department.name}</span>
           </div>
         )}
 

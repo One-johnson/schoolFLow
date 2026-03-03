@@ -80,7 +80,7 @@ interface Student {
   address: string;
   classId: string;
   className: string;
-  department: "creche" | "kindergarten" | "primary" | "junior_high";
+  departmentId: string;
   rollNumber?: string;
   admissionDate: string;
   parentName: string;
@@ -143,6 +143,11 @@ export default function StudentsPage(): React.JSX.Element {
     schoolAdmin?.schoolId ? { schoolId: schoolAdmin.schoolId } : "skip",
   );
 
+  const departments = useQuery(
+    api.departments.getDepartmentsBySchool,
+    schoolAdmin?.schoolId ? { schoolId: schoolAdmin.schoolId } : "skip",
+  );
+
   const updateStudentStatus = useMutation(api.students.updateStudentStatus);
 
   // Memoize callback and columns BEFORE any conditional returns
@@ -195,20 +200,10 @@ export default function StudentsPage(): React.JSX.Element {
     }
   }, []);
 
-  const getDepartmentBadge = useCallback((department: string): React.JSX.Element => {
-    switch (department) {
-      case "creche":
-        return <Badge variant="outline">Creche</Badge>;
-      case "kindergarten":
-        return <Badge variant="outline">Kindergarten</Badge>;
-      case "primary":
-        return <Badge variant="outline">Primary</Badge>;
-      case "junior_high":
-        return <Badge variant="outline">Junior High</Badge>;
-      default:
-        return <Badge variant="outline">{department}</Badge>;
-    }
-  }, []);
+  const getDepartmentBadge = useCallback((departmentId: string): React.JSX.Element => {
+    const dept = departments?.find((d) => d._id === departmentId);
+    return <Badge variant="outline">{dept?.name ?? departmentId}</Badge>;
+  }, [departments]);
 
   // Export handlers
   const handleExportSingle = useCallback(
@@ -226,7 +221,7 @@ export default function StudentsPage(): React.JSX.Element {
           phone: student.phone || "",
           address: student.address,
           className: student.className,
-          department: student.department,
+          department: departments?.find((d) => d._id === student.departmentId)?.name ?? student.departmentId,
           rollNumber: student.rollNumber || "",
           admissionDate: student.admissionDate,
           parentName: student.parentName,
@@ -252,7 +247,7 @@ export default function StudentsPage(): React.JSX.Element {
         toast.success("Student exported as PDF");
       }
     },
-    [],
+    [departments],
   );
 
   const handleExportBulk = useCallback(
@@ -269,7 +264,7 @@ export default function StudentsPage(): React.JSX.Element {
         phone: student.phone || "",
         address: student.address,
         className: student.className,
-        department: student.department,
+        department: departments?.find((d) => d._id === student.departmentId)?.name ?? student.departmentId,
         rollNumber: student.rollNumber || "",
         admissionDate: student.admissionDate,
         parentName: student.parentName,
@@ -290,7 +285,7 @@ export default function StudentsPage(): React.JSX.Element {
         toast.success(`${studentsToExport.length} students exported as PDF`);
       }
     },
-    [],
+    [departments],
   );
 
   // Define columns for DataTable with useMemo to prevent recreation on every render
@@ -334,9 +329,9 @@ export default function StudentsPage(): React.JSX.Element {
         header: createSortableHeader("Class"),
       },
       {
-        accessorKey: "department",
+        accessorKey: "departmentId",
         header: "Department",
-        cell: ({ row }) => getDepartmentBadge(row.getValue("department")),
+        cell: ({ row }) => getDepartmentBadge(row.getValue("departmentId")),
       },
       {
         accessorKey: "parentName",
@@ -509,6 +504,7 @@ export default function StudentsPage(): React.JSX.Element {
       getStatusBadge,
       getDepartmentBadge,
       handleExportSingle,
+      departments,
     ],
   );
 
@@ -526,7 +522,7 @@ export default function StudentsPage(): React.JSX.Element {
         const statusMatch =
           statusFilter === "all" || student.status === statusFilter;
         const departmentMatch =
-          departmentFilter === "all" || student.department === departmentFilter;
+          departmentFilter === "all" || student.departmentId === departmentFilter;
         const genderMatch =
           genderFilter === "all" || student.gender === genderFilter;
         const classMatch =
@@ -791,10 +787,11 @@ export default function StudentsPage(): React.JSX.Element {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Departments</SelectItem>
-                      <SelectItem value="creche">Creche</SelectItem>
-                      <SelectItem value="kindergarten">Kindergarten</SelectItem>
-                      <SelectItem value="primary">Primary</SelectItem>
-                      <SelectItem value="junior_high">Junior High</SelectItem>
+                      {departments?.map((dept) => (
+                        <SelectItem key={dept._id} value={dept._id}>
+                          {dept.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -831,6 +828,7 @@ export default function StudentsPage(): React.JSX.Element {
               </div>
 
               <DataTable
+                storageKey="students"
                 columns={columns}
                 data={filteredStudents}
                 searchKey="firstName"

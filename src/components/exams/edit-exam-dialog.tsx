@@ -53,17 +53,20 @@ export function EditExamDialog({ open, onOpenChange, examId, schoolId, adminId }
   const [termId, setTermId] = useState<string>('');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
-  const [department, setDepartment] = useState<string>('primary');
+  const [departmentId, setDepartmentId] = useState<string>('');
   const [weightage, setWeightage] = useState<string>('50');
   const [instructions, setInstructions] = useState<string>('');
   const [subjects, setSubjects] = useState<Subject[]>([{ name: '', maxMarks: 100 }]);
+
+  const departments = useQuery(
+    api.departments.getDepartmentsBySchool,
+    schoolId ? { schoolId } : 'skip'
+  );
+
   // Query subjects by department - always load for the exam's department
   const departmentSubjects = useQuery(
     api.subjects.getSubjectsByDepartment,
-    department ? { 
-      schoolId, 
-      department: department as 'creche' | 'kindergarten' | 'primary' | 'junior_high' 
-    } : 'skip'
+    departmentId ? { schoolId, departmentId } : 'skip'
   );
 
   // Initialize form with exam data
@@ -75,7 +78,7 @@ export function EditExamDialog({ open, onOpenChange, examId, schoolId, adminId }
       setTermId(exam.termId ?? "");
       setStartDate(exam.startDate);
       setEndDate(exam.endDate);
-      setDepartment(exam.department || 'primary');
+      setDepartmentId(exam.departmentId ?? '');
       setWeightage(String(exam.weightage));
       setInstructions(exam.instructions || '');
     }
@@ -259,15 +262,16 @@ export function EditExamDialog({ open, onOpenChange, examId, schoolId, adminId }
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="department">Department *</Label>
-              <Select value={department} onValueChange={setDepartment} required disabled>
+              <Select value={departmentId} onValueChange={setDepartmentId} required disabled>
                 <SelectTrigger id="department" className="opacity-60">
-                  <SelectValue />
+                  <SelectValue placeholder="Select department" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="creche">Creche</SelectItem>
-                  <SelectItem value="kindergarten">Kindergarten</SelectItem>
-                  <SelectItem value="primary">Primary</SelectItem>
-                  <SelectItem value="junior_high">Junior High</SelectItem>
+                  {departments?.map((dept) => (
+                    <SelectItem key={dept._id} value={dept._id}>
+                      {dept.name} ({dept.code})
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">Department cannot be changed after exam creation</p>
@@ -288,7 +292,7 @@ export function EditExamDialog({ open, onOpenChange, examId, schoolId, adminId }
           </div>
 
           <div className="space-y-2">
-            <Label>Subjects * <span className="text-sm text-muted-foreground">(Loaded from {department})</span></Label>
+            <Label>Subjects * <span className="text-sm text-muted-foreground">(Loaded from {departments?.find((d) => d._id === departmentId)?.name ?? 'department'})</span></Label>
             {subjects.length > 0 && subjects[0].name !== '' ? (
               <div className="space-y-2">
                 {subjects.map((subject, index) => (
@@ -312,7 +316,7 @@ export function EditExamDialog({ open, onOpenChange, examId, schoolId, adminId }
               </div>
             ) : (
               <div className="text-sm text-muted-foreground p-4 border rounded-md bg-muted/50">
-                No subjects found for {department}. Cannot edit this exam.
+                No subjects found for {departments?.find((d) => d._id === departmentId)?.name ?? 'this department'}. Cannot edit this exam.
               </div>
             )}
           </div>

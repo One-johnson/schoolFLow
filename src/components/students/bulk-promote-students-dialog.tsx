@@ -34,7 +34,7 @@ interface Student {
   lastName: string;
   className: string;
   classId: string;
-  department: 'creche' | 'kindergarten' | 'primary' | 'junior_high';
+  departmentId: string;
 }
 
 interface BulkPromoteStudentsDialogProps {
@@ -63,6 +63,10 @@ export function BulkPromoteStudentsDialog({
     api.classes.getClassesBySchool,
     schoolAdmin?.schoolId ? { schoolId: schoolAdmin.schoolId } : 'skip'
   );
+  const departments = useQuery(
+    api.departments.getDepartmentsBySchool,
+    schoolAdmin?.schoolId ? { schoolId: schoolAdmin.schoolId } : 'skip'
+  );
 
   const promoteStudents = useMutation(api.students.promoteStudents);
 
@@ -85,7 +89,7 @@ export function BulkPromoteStudentsDialog({
         studentIds: students.map((s) => s._id as Id<'students'>),
         newClassId: selectedClass.classCode,
         newClassName: selectedClass.className,
-        newDepartment: selectedClass.department,
+        newDepartmentId: selectedClass.departmentId,
         updatedBy: user?.email || 'unknown',
       });
 
@@ -175,11 +179,14 @@ export function BulkPromoteStudentsDialog({
                 <SelectValue placeholder="Select target class" />
               </SelectTrigger>
               <SelectContent>
-                {classes?.map((classItem) => (
-                  <SelectItem key={classItem._id} value={classItem.classCode}>
-                    {classItem.className} - {classItem.department}
-                  </SelectItem>
-                ))}
+                {classes?.map((classItem) => {
+                  const deptName = departments?.find((d) => d._id === classItem.departmentId)?.name ?? classItem.departmentId;
+                  return (
+                    <SelectItem key={classItem._id} value={classItem.classCode}>
+                      {classItem.className} - {deptName}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
@@ -195,8 +202,8 @@ export function BulkPromoteStudentsDialog({
                 </div>
                 <div>
                   <span className="text-muted-foreground">Department:</span>
-                  <p className="font-medium capitalize">
-                    {selectedClass.department.replace('_', ' ')}
+                  <p className="font-medium">
+                    {departments?.find((d) => d._id === selectedClass.departmentId)?.name ?? selectedClass.departmentId}
                   </p>
                 </div>
                 <div>

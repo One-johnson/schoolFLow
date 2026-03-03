@@ -52,14 +52,7 @@ export const createGradingScale = mutation({
   args: {
     schoolId: v.string(),
     scaleName: v.string(),
-    department: v.optional(
-      v.union(
-        v.literal('creche'),
-        v.literal('kindergarten'),
-        v.literal('primary'),
-        v.literal('junior_high')
-      )
-    ),
+    departmentId: v.optional(v.id('departments')),
     grades: v.string(), // JSON string
     isDefault: v.boolean(),
     createdBy: v.string(),
@@ -86,7 +79,7 @@ export const createGradingScale = mutation({
       schoolId: args.schoolId,
       scaleCode,
       scaleName: args.scaleName,
-      department: args.department,
+      departmentId: args.departmentId,
       grades: args.grades,
       isDefault: args.isDefault,
       status: 'active',

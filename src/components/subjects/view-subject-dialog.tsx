@@ -1,5 +1,7 @@
 'use client';
 
+import { useQuery } from 'convex/react';
+import { api } from '@/../convex/_generated/api';
 import type { Id } from '@/../convex/_generated/dataModel';
 import {
   Dialog,
@@ -19,7 +21,7 @@ interface Subject {
   subjectName: string;
   description?: string;
   category: 'core' | 'elective' | 'extracurricular';
-  department: 'creche' | 'kindergarten' | 'primary' | 'junior_high';
+  departmentId: string;
   status: 'active' | 'inactive';
   createdAt: string;
   updatedAt: string;
@@ -37,19 +39,20 @@ export function ViewSubjectDialog({
   onOpenChange,
   subjectData,
 }: ViewSubjectDialogProps): React.JSX.Element {
-  const getDepartmentBadge = (department: string): React.JSX.Element => {
-    switch (department) {
-      case 'creche':
-        return <Badge className="bg-orange-500">Creche</Badge>;
-      case 'kindergarten':
-        return <Badge className="bg-pink-500">Kindergarten</Badge>;
-      case 'primary':
-        return <Badge className="bg-blue-500">Primary</Badge>;
-      case 'junior_high':
-        return <Badge className="bg-purple-500">Junior High</Badge>;
-      default:
-        return <Badge>{department}</Badge>;
-    }
+  const department = useQuery(
+    api.departments.getDepartmentById,
+    subjectData.departmentId ? { departmentId: subjectData.departmentId } : 'skip'
+  );
+
+  const getDepartmentBadge = (): React.JSX.Element => {
+    const colors: Record<string, string> = {
+      creche: 'bg-orange-500',
+      kindergarten: 'bg-pink-500',
+      primary: 'bg-blue-500',
+      junior_high: 'bg-purple-500',
+    };
+    const color = department ? (colors[department.code?.toLowerCase() ?? ''] ?? 'bg-gray-500') : 'bg-gray-500';
+    return <Badge className={color}>{department?.name ?? subjectData.departmentId}</Badge>;
   };
 
   const getCategoryBadge = (category: string): React.JSX.Element => {
@@ -112,7 +115,7 @@ export function ViewSubjectDialog({
               
               <div>
                 <p className="text-sm text-muted-foreground">Department</p>
-                <div className="mt-1">{getDepartmentBadge(subjectData.department)}</div>
+                <div className="mt-1">{getDepartmentBadge()}</div>
               </div>
             </div>
 

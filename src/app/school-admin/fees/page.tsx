@@ -754,6 +754,7 @@ export default function FeesPage(): React.JSX.Element {
                 </div>
               ) : (
                 <DataTable
+                  storageKey="fees-payments"
                   columns={paymentColumns}
                   data={filteredPayments}
                   searchKey="studentName"
@@ -810,6 +811,7 @@ export default function FeesPage(): React.JSX.Element {
                 </div>
               ) : (
                 <DataTable
+                  storageKey="fees-outstanding"
                   columns={outstandingColumns}
                   data={filteredOutstandingPayments}
                   searchKey="studentName"
@@ -844,6 +846,7 @@ export default function FeesPage(): React.JSX.Element {
                 </div>
               ) : (
                 <DataTable
+                  storageKey="fees-categories"
                   columns={categoryColumns}
                   data={categories}
                   searchKey="categoryName"

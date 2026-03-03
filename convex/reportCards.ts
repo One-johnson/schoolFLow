@@ -32,20 +32,20 @@ function generateReportCode(): string {
 async function getGradingScaleForDepartment(
   ctx: MutationCtx,
   schoolId: string,
-  department: string | undefined,
+  departmentId: Id<"departments"> | undefined,
 ): Promise<{
   _id: Id<"gradingScales">;
   scaleName: string;
   grades: string;
 } | null> {
   // Try to find scale for specific department
-  if (department) {
+  if (departmentId) {
     const departmentScale = await ctx.db
       .query("gradingScales")
       .withIndex("by_school", (q) => q.eq("schoolId", schoolId))
       .filter((q) =>
         q.and(
-          q.eq(q.field("department"), department),
+          q.eq(q.field("departmentId"), departmentId),
           q.eq(q.field("status"), "active"),
         ),
       )
@@ -156,7 +156,7 @@ export const generateReportCard = mutation({
     const gradingScale = await getGradingScaleForDepartment(
       ctx,
       args.schoolId,
-      classDoc.department,
+      classDoc.departmentId,
     );
 
     let overallGrade: string = "9";
@@ -421,7 +421,7 @@ export const generateReportCards = mutation({
         const gradingScale = await getGradingScaleForDepartment(
           ctx,
           exam.schoolId,
-          classDoc.department,
+          classDoc.departmentId,
         );
 
         let overallGrade: string = "9";

@@ -51,7 +51,7 @@ interface EventFormData {
   venueType: 'on_campus' | 'off_campus' | 'virtual';
   audienceType: 'all_school' | 'specific_classes' | 'specific_departments' | 'staff_only';
   targetClasses?: string[];
-  targetDepartments?: Array<'creche' | 'kindergarten' | 'primary' | 'junior_high'>;
+  targetDepartmentIds?: string[];
   requiresRSVP: boolean;
   rsvpDeadline?: Date;
   maxAttendees?: number;
@@ -68,10 +68,12 @@ export function AddEventDialog({ open, onOpenChange, schoolId, adminId }: AddEve
   const [eventType, setEventType] = useState<string>('other');
   const [venueType, setVenueType] = useState<string>('on_campus');
   const [audienceType, setAudienceType] = useState<string>('all_school');
+  const [targetDepartmentIds, setTargetDepartmentIds] = useState<string[]>([]);
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<EventFormData>();
   const createEvent = useMutation(api.events.createEvent);
   const classes = useQuery(api.classes.getClassesBySchool, { schoolId });
+  const departments = useQuery(api.departments.getDepartmentsBySchool, schoolId ? { schoolId } : 'skip');
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
@@ -98,7 +100,7 @@ export function AddEventDialog({ open, onOpenChange, schoolId, adminId }: AddEve
         venueType: venueType as EventFormData['venueType'],
         audienceType: audienceType as EventFormData['audienceType'],
         targetClasses: audienceType === 'specific_classes' ? data.targetClasses : undefined,
-        targetDepartments: audienceType === 'specific_departments' ? data.targetDepartments : undefined,
+        targetDepartmentIds: audienceType === 'specific_departments' ? targetDepartmentIds : undefined,
         isRecurring: false,
         sendNotification,
         requiresRSVP,
@@ -115,6 +117,7 @@ export function AddEventDialog({ open, onOpenChange, schoolId, adminId }: AddEve
       setIsAllDay(true);
       setRequiresRSVP(false);
       setSendNotification(true);
+      setTargetDepartmentIds([]);
       onOpenChange(false);
     } catch (error) {
       toast.error('Failed to create event');
@@ -270,6 +273,30 @@ export function AddEventDialog({ open, onOpenChange, schoolId, adminId }: AddEve
               </SelectContent>
             </Select>
           </div>
+
+          {audienceType === 'specific_departments' && (
+            <div className="space-y-2 pl-6">
+              <Label>Select Departments</Label>
+              <div className="flex flex-wrap gap-2">
+                {departments?.map((dept) => (
+                  <div key={dept._id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`dept-${dept._id}`}
+                      checked={targetDepartmentIds.includes(dept._id)}
+                      onCheckedChange={(checked: boolean) => {
+                        setTargetDepartmentIds((prev) =>
+                          checked ? [...prev, dept._id] : prev.filter((id) => id !== dept._id)
+                        );
+                      }}
+                    />
+                    <Label htmlFor={`dept-${dept._id}`} className="cursor-pointer font-normal">
+                      {dept.name}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* RSVP Settings */}
           <div className="space-y-4">

@@ -37,7 +37,6 @@ import {
   GraduationCap,
   Award,
   Lightbulb,
-  Baby,
 } from 'lucide-react';
 import { AddSubjectDialog } from '@/components/subjects/add-subject-dialog';
 import { EditSubjectDialog } from '@/components/subjects/edit-subject-dialog';
@@ -55,7 +54,7 @@ interface Subject {
   subjectName: string;
   description?: string;
   category: 'core' | 'elective' | 'extracurricular';
-  department: 'creche' | 'kindergarten' | 'primary' | 'junior_high';
+  departmentId: string;
   status: 'active' | 'inactive';
   createdAt: string;
   updatedAt: string;
@@ -94,6 +93,11 @@ export default function SubjectsPage(): React.JSX.Element {
 
   const subjectStats = useQuery(
     api.subjects.getSubjectStats,
+    schoolAdmin?.schoolId ? { schoolId: schoolAdmin.schoolId } : 'skip'
+  );
+
+  const departments = useQuery(
+    api.departments.getDepartmentsBySchool,
     schoolAdmin?.schoolId ? { schoolId: schoolAdmin.schoolId } : 'skip'
   );
 
@@ -147,25 +151,22 @@ export default function SubjectsPage(): React.JSX.Element {
   const filteredSubjects = subjects?.filter(
     (subject: Subject) => {
       const statusMatch = statusFilter === 'all' || subject.status === statusFilter;
-      const departmentMatch = departmentFilter === 'all' || subject.department === departmentFilter;
+      const departmentMatch = departmentFilter === 'all' || subject.departmentId === departmentFilter;
       const categoryMatch = categoryFilter === 'all' || subject.category === categoryFilter;
       return statusMatch && departmentMatch && categoryMatch;
     }
   ) || [];
 
-  const getDepartmentBadge = (department: string): React.JSX.Element => {
-    switch (department) {
-      case 'creche':
-        return <Badge className="bg-orange-500">Creche</Badge>;
-      case 'kindergarten':
-        return <Badge className="bg-pink-500">Kindergarten</Badge>;
-      case 'primary':
-        return <Badge className="bg-blue-500">Primary</Badge>;
-      case 'junior_high':
-        return <Badge className="bg-purple-500">Junior High</Badge>;
-      default:
-        return <Badge>{department}</Badge>;
-    }
+  const getDepartmentBadge = (departmentId: string): React.JSX.Element => {
+    const dept = departments?.find((d) => d._id === departmentId);
+    const colors: Record<string, string> = {
+      creche: 'bg-orange-500',
+      kindergarten: 'bg-pink-500',
+      primary: 'bg-blue-500',
+      junior_high: 'bg-purple-500',
+    };
+    const color = dept ? (colors[dept.code?.toLowerCase() ?? ''] ?? 'bg-gray-500') : 'bg-gray-500';
+    return <Badge className={color}>{dept?.name ?? departmentId}</Badge>;
   };
 
   const getCategoryBadge = (category: string): React.JSX.Element => {
@@ -208,11 +209,12 @@ export default function SubjectsPage(): React.JSX.Element {
 
   // Export handlers
   const handleExportSingle = (subject: Subject, format: 'csv' | 'pdf'): void => {
+    const deptName = departments?.find((d) => d._id === subject.departmentId)?.name ?? subject.departmentId;
     const exportData = [{
       subjectCode: subject.subjectCode,
       subjectName: subject.subjectName,
       category: subject.category,
-      department: subject.department,
+      department: deptName,
       description: subject.description || 'N/A',
       status: subject.status,
     }];
@@ -227,14 +229,17 @@ export default function SubjectsPage(): React.JSX.Element {
   };
 
   const handleExportBulk = (subjectsToExport: Subject[], format: 'csv' | 'pdf'): void => {
-    const exportData = subjectsToExport.map(subject => ({
-      subjectCode: subject.subjectCode,
-      subjectName: subject.subjectName,
-      category: subject.category,
-      department: subject.department,
-      description: subject.description || 'N/A',
-      status: subject.status,
-    }));
+    const exportData = subjectsToExport.map(subject => {
+      const deptName = departments?.find((d) => d._id === subject.departmentId)?.name ?? subject.departmentId;
+      return {
+        subjectCode: subject.subjectCode,
+        subjectName: subject.subjectName,
+        category: subject.category,
+        department: deptName,
+        description: subject.description || 'N/A',
+        status: subject.status,
+      };
+    });
 
     if (format === 'csv') {
       exportToCSV(exportData, 'subjects');
@@ -268,9 +273,9 @@ export default function SubjectsPage(): React.JSX.Element {
       cell: ({ row }) => getCategoryBadge(row.getValue('category')),
     },
     {
-      accessorKey: 'department',
+      accessorKey: 'departmentId',
       header: 'Department',
-      cell: ({ row }) => getDepartmentBadge(row.getValue('department')),
+      cell: ({ row }) => getDepartmentBadge(row.getValue('departmentId')),
     },
     {
       accessorKey: 'status',
@@ -421,45 +426,17 @@ export default function SubjectsPage(): React.JSX.Element {
 
       {/* Department Stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="transition-all duration-200 hover:shadow-lg hover:scale-105 cursor-pointer">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Creche</CardTitle>
-            <Baby className="h-4 w-4 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{subjectStats?.creche || 0}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="transition-all duration-200 hover:shadow-lg hover:scale-105 cursor-pointer">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Kindergarten</CardTitle>
-            <Baby className="h-4 w-4 text-pink-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{subjectStats?.kindergarten || 0}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="transition-all duration-200 hover:shadow-lg hover:scale-105 cursor-pointer">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Primary</CardTitle>
-            <BookOpen className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{subjectStats?.primary || 0}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="transition-all duration-200 hover:shadow-lg hover:scale-105 cursor-pointer">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Junior High</CardTitle>
-            <GraduationCap className="h-4 w-4 text-purple-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{subjectStats?.juniorHigh || 0}</div>
-          </CardContent>
-        </Card>
+        {departments?.map((dept) => (
+          <Card key={dept._id} className="transition-all duration-200 hover:shadow-lg hover:scale-105 cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">{dept.name}</CardTitle>
+              <BookOpen className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{subjectStats?.byDepartment?.[dept._id] ?? 0}</div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* Subjects Table/Card View */}
@@ -545,10 +522,11 @@ export default function SubjectsPage(): React.JSX.Element {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Departments</SelectItem>
-                      <SelectItem value="creche">Creche</SelectItem>
-                      <SelectItem value="kindergarten">Kindergarten</SelectItem>
-                      <SelectItem value="primary">Primary</SelectItem>
-                      <SelectItem value="junior_high">Junior High</SelectItem>
+                      {departments?.map((dept) => (
+                        <SelectItem key={dept._id} value={dept._id}>
+                          {dept.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -556,6 +534,7 @@ export default function SubjectsPage(): React.JSX.Element {
 
               {viewMode === 'table' ? (
                 <DataTable
+                  storageKey="subjects"
                   columns={columns}
                   data={filteredSubjects}
                   searchKey="subjectName"
@@ -603,7 +582,7 @@ export default function SubjectsPage(): React.JSX.Element {
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-muted-foreground">Department:</span>
-                          {getDepartmentBadge(subject.department)}
+                          {getDepartmentBadge(subject.departmentId)}
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-muted-foreground">Status:</span>

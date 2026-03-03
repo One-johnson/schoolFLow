@@ -18,6 +18,7 @@ import type * as classes from "../classes.js";
 import type * as clearDatabase from "../clearDatabase.js";
 import type * as crons from "../crons.js";
 import type * as dashboard from "../dashboard.js";
+import type * as departments from "../departments.js";
 import type * as eventNotifications from "../eventNotifications.js";
 import type * as eventRSVPs from "../eventRSVPs.js";
 import type * as events from "../events.js";
@@ -80,6 +81,7 @@ declare const fullApi: ApiFromModules<{
   clearDatabase: typeof clearDatabase;
   crons: typeof crons;
   dashboard: typeof dashboard;
+  departments: typeof departments;
   eventNotifications: typeof eventNotifications;
   eventRSVPs: typeof eventRSVPs;
   events: typeof events;

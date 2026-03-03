@@ -54,17 +54,14 @@ interface Subject {
   maxMarks: number;
 }
 
-const departmentNames: Record<string, string> = {
-  creche: 'Creche',
-  kindergarten: 'Kindergarten',
-  primary: 'Primary',
-  junior_high: 'Junior High',
-};
-
 export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: MarksEntryDialogProps) {
   const { toast } = useToast();
   const exam = useQuery(api.exams.getExamById, { examId });
   const allClasses = useQuery(api.classes.getClassesBySchool, { schoolId });
+  const department = useQuery(
+    api.departments.getDepartmentById,
+    exam?.departmentId ? { departmentId: exam.departmentId } : 'skip'
+  );
   const enterMarks = useMutation(api.marks.enterMarks);
 
   const [selectedClassId, setSelectedClassId] = useState<string>('');
@@ -75,8 +72,8 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
 
   // Filter classes by exam department
   const classes = allClasses?.filter((cls) => {
-    if (!exam?.department) return true;
-    return cls.department === exam.department;
+    if (!exam?.departmentId) return true;
+    return cls.departmentId === exam.departmentId;
   });
 
   // Get the selected class to find its classCode
@@ -414,9 +411,9 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
         <DialogHeader>
           <DialogTitle>
             {existingMarks && existingMarks.length > 0 ? 'View & Edit Marks' : 'Enter Marks'} - {exam?.examName}
-            {exam?.department && (
+            {department && (
               <span className="text-sm font-normal text-muted-foreground ml-2">
-                ({departmentNames[exam.department as keyof typeof departmentNames]})
+                ({department.name})
               </span>
             )}
           </DialogTitle>
@@ -441,9 +438,9 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
                   ))}
                 </SelectContent>
               </Select>
-              {exam?.department && classes && classes.length === 0 && (
+              {exam?.departmentId && classes && classes.length === 0 && (
                 <p className="text-xs text-muted-foreground">
-                  No {departmentNames[exam.department as keyof typeof departmentNames]} classes found
+                  No {department?.name ?? 'matching'} classes found
                 </p>
               )}
             </div>

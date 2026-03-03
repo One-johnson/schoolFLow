@@ -186,6 +186,7 @@ export default function AuditLogsPage(): React.JSX.Element {
             </div>
           ) : (
             <DataTable
+              storageKey="super-audit-logs"
               columns={columns}
               data={filteredData}
               searchKey="action"

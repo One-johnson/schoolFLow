@@ -555,9 +555,10 @@ export default function TeachersPage(): React.JSX.Element {
                 </div>
               </div>
               
-              <DataTable
-                columns={columns}
-                data={filteredTeachers}
+<DataTable
+              storageKey="teachers"
+              columns={columns}
+              data={filteredTeachers}
                 searchKey="firstName"
                 searchPlaceholder="Search by first name..."
                 exportFormats={['csv', 'pdf']}

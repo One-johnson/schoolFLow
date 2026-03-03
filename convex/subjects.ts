@@ -1,18 +1,13 @@
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
+import type { Id } from './_generated/dataModel';
 
-// Generate subject code: department initials + 4 random digits
-function generateSubjectCode(department: 'creche' | 'kindergarten' | 'primary' | 'junior_high'): string {
-  const departmentInitials: Record<string, string> = {
-    creche: 'CR',
-    kindergarten: 'KG',
-    primary: 'PR',
-    junior_high: 'JH',
-  };
-  
-  const initials = departmentInitials[department];
-  const randomDigits = Math.floor(1000 + Math.random() * 9000); // 4 random digits
-  return `${initials}${randomDigits}`;
+// Generate subject code: department code + 4 random digits
+async function generateSubjectCode(ctx: { db: { get: (id: Id<'departments'>) => Promise<{ code: string } | null> } }, departmentId: Id<'departments'>): Promise<string> {
+  const department = await ctx.db.get(departmentId);
+  const code = department?.code?.slice(0, 3).toUpperCase() ?? 'XX';
+  const randomDigits = Math.floor(1000 + Math.random() * 9000);
+  return `${code}${randomDigits}`;
 }
 
 // Query: Get all subjects for a school
@@ -44,18 +39,13 @@ export const getSubjectById = query({
 export const getSubjectsByDepartment = query({
   args: { 
     schoolId: v.string(),
-    department: v.union(
-      v.literal('creche'), 
-      v.literal('kindergarten'), 
-      v.literal('primary'), 
-      v.literal('junior_high')
-    )
+    departmentId: v.id('departments'),
   },
   handler: async (ctx, args) => {
     const subjects = await ctx.db
       .query('subjects')
       .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))
-      .filter((q) => q.eq(q.field('department'), args.department))
+      .filter((q) => q.eq(q.field('departmentId'), args.departmentId))
       .collect();
 
     return subjects.filter((s) => s.status === 'active');
@@ -76,10 +66,11 @@ export const getSubjectStats = query({
     const coreSubjects = subjects.filter((s) => s.category === 'core').length;
     const electiveSubjects = subjects.filter((s) => s.category === 'elective').length;
     const extracurricularSubjects = subjects.filter((s) => s.category === 'extracurricular').length;
-    const crecheSubjects = subjects.filter((s) => s.department === 'creche').length;
-    const kindergartenSubjects = subjects.filter((s) => s.department === 'kindergarten').length;
-    const primarySubjects = subjects.filter((s) => s.department === 'primary').length;
-    const juniorHighSubjects = subjects.filter((s) => s.department === 'junior_high').length;
+    const byDepartment: Record<string, number> = {};
+    for (const s of subjects) {
+      const id = s.departmentId;
+      byDepartment[id] = (byDepartment[id] ?? 0) + 1;
+    }
 
     return {
       total: subjects.length,
@@ -88,10 +79,7 @@ export const getSubjectStats = query({
       core: coreSubjects,
       elective: electiveSubjects,
       extracurricular: extracurricularSubjects,
-      creche: crecheSubjects,
-      kindergarten: kindergartenSubjects,
-      primary: primarySubjects,
-      juniorHigh: juniorHighSubjects,
+      byDepartment,
     };
   },
 });
@@ -103,7 +91,7 @@ export const addSubject = mutation({
     subjectName: v.string(),
     description: v.optional(v.string()),
     category: v.union(v.literal('core'), v.literal('elective'), v.literal('extracurricular')),
-    department: v.union(v.literal('creche'), v.literal('kindergarten'), v.literal('primary'), v.literal('junior_high')),
+    departmentId: v.id('departments'),
     color: v.optional(v.string()),
     createdBy: v.string(),
   },
@@ -115,7 +103,7 @@ export const addSubject = mutation({
       .filter((q) => 
         q.and(
           q.eq(q.field('subjectName'), args.subjectName),
-          q.eq(q.field('department'), args.department)
+          q.eq(q.field('departmentId'), args.departmentId)
         )
       )
       .first();
@@ -125,7 +113,7 @@ export const addSubject = mutation({
     }
 
     // Generate unique subject code
-    let subjectCode = generateSubjectCode(args.department);
+    let subjectCode = await generateSubjectCode(ctx, args.departmentId);
     let existingCode = await ctx.db
       .query('subjects')
       .withIndex('by_subject_code', (q) => q.eq('subjectCode', subjectCode))
@@ -133,7 +121,7 @@ export const addSubject = mutation({
 
     // Ensure unique code
     while (existingCode) {
-      subjectCode = generateSubjectCode(args.department);
+      subjectCode = await generateSubjectCode(ctx, args.departmentId);
       existingCode = await ctx.db
         .query('subjects')
         .withIndex('by_subject_code', (q) => q.eq('subjectCode', subjectCode))
@@ -148,7 +136,7 @@ export const addSubject = mutation({
       subjectName: args.subjectName,
       description: args.description,
       category: args.category,
-      department: args.department,
+      departmentId: args.departmentId,
       color: args.color,
       status: 'active',
       createdAt: now,
@@ -180,7 +168,7 @@ export const addBulkSubjects = mutation({
       subjectName: v.string(),
       description: v.optional(v.string()),
       category: v.union(v.literal('core'), v.literal('elective'), v.literal('extracurricular')),
-      department: v.union(v.literal('creche'), v.literal('kindergarten'), v.literal('primary'), v.literal('junior_high')),
+      departmentId: v.id('departments'),
       color: v.optional(v.string()),
     })),
     createdBy: v.string(),
@@ -197,7 +185,7 @@ export const addBulkSubjects = mutation({
         .filter((q) => 
           q.and(
             q.eq(q.field('subjectName'), subjectData.subjectName),
-            q.eq(q.field('department'), subjectData.department)
+            q.eq(q.field('departmentId'), subjectData.departmentId)
           )
         )
         .first();
@@ -212,14 +200,14 @@ export const addBulkSubjects = mutation({
       }
 
       // Generate unique subject code
-      let subjectCode = generateSubjectCode(subjectData.department);
+      let subjectCode = await generateSubjectCode(ctx, subjectData.departmentId);
       let existingCode = await ctx.db
         .query('subjects')
         .withIndex('by_subject_code', (q) => q.eq('subjectCode', subjectCode))
         .first();
 
       while (existingCode) {
-        subjectCode = generateSubjectCode(subjectData.department);
+        subjectCode = await generateSubjectCode(ctx, subjectData.departmentId);
         existingCode = await ctx.db
           .query('subjects')
           .withIndex('by_subject_code', (q) => q.eq('subjectCode', subjectCode))
@@ -232,7 +220,7 @@ export const addBulkSubjects = mutation({
         subjectName: subjectData.subjectName,
         description: subjectData.description,
         category: subjectData.category,
-        department: subjectData.department,
+        departmentId: subjectData.departmentId,
         color: subjectData.color,
         status: 'active',
         createdAt: now,
@@ -271,7 +259,7 @@ export const updateSubject = mutation({
     subjectName: v.optional(v.string()),
     description: v.optional(v.string()),
     category: v.optional(v.union(v.literal('core'), v.literal('elective'), v.literal('extracurricular'))),
-    department: v.optional(v.union(v.literal('creche'), v.literal('kindergarten'), v.literal('primary'), v.literal('junior_high'))),
+    departmentId: v.optional(v.id('departments')),
     color: v.optional(v.string()),
     status: v.optional(v.union(v.literal('active'), v.literal('inactive'))),
     updatedBy: v.string(),
@@ -285,14 +273,14 @@ export const updateSubject = mutation({
 
     // If subject name is being updated, check for duplicates in the same department
     if (args.subjectName && args.subjectName !== subject.subjectName) {
-      const targetDepartment = args.department || subject.department;
+      const targetDepartmentId = args.departmentId ?? subject.departmentId;
       const existingSubject = await ctx.db
         .query('subjects')
         .withIndex('by_school', (q) => q.eq('schoolId', subject.schoolId))
         .filter((q) => 
           q.and(
             q.eq(q.field('subjectName'), args.subjectName),
-            q.eq(q.field('department'), targetDepartment)
+            q.eq(q.field('departmentId'), targetDepartmentId)
           )
         )
         .first();
@@ -302,14 +290,14 @@ export const updateSubject = mutation({
       }
     }
     // If only department is being updated, check for duplicates with existing name
-    else if (args.department && args.department !== subject.department) {
+    else if (args.departmentId && args.departmentId !== subject.departmentId) {
       const existingSubject = await ctx.db
         .query('subjects')
         .withIndex('by_school', (q) => q.eq('schoolId', subject.schoolId))
         .filter((q) => 
           q.and(
             q.eq(q.field('subjectName'), subject.subjectName),
-            q.eq(q.field('department'), args.department)
+            q.eq(q.field('departmentId'), args.departmentId)
           )
         )
         .first();
@@ -329,17 +317,17 @@ export const updateSubject = mutation({
     if (args.description !== undefined) updateData.description = args.description;
     if (args.category !== undefined) updateData.category = args.category;
     if (args.color !== undefined) updateData.color = args.color;
-    if (args.department !== undefined) {
-      updateData.department = args.department;
+    if (args.departmentId !== undefined) {
+      updateData.departmentId = args.departmentId;
       // Regenerate subject code if department changes
-      let subjectCode = generateSubjectCode(args.department);
+      let subjectCode = await generateSubjectCode(ctx, args.departmentId);
       let existingCode = await ctx.db
         .query('subjects')
         .withIndex('by_subject_code', (q) => q.eq('subjectCode', subjectCode))
         .first();
 
       while (existingCode && existingCode._id !== args.subjectId) {
-        subjectCode = generateSubjectCode(args.department);
+        subjectCode = await generateSubjectCode(ctx, args.departmentId);
         existingCode = await ctx.db
           .query('subjects')
           .withIndex('by_subject_code', (q) => q.eq('subjectCode', subjectCode))

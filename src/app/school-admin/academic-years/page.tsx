@@ -727,6 +727,7 @@ export default function AcademicYearsPage(): React.JSX.Element {
 
                   {viewMode === 'table' ? (
                     <DataTable
+                      storageKey="academic-years"
                       columns={yearColumns}
                       data={filteredYears}
                       searchKey="yearName"
@@ -948,6 +949,7 @@ export default function AcademicYearsPage(): React.JSX.Element {
 
                   {viewMode === 'table' ? (
                     <DataTable
+                      storageKey="academic-terms"
                       columns={termColumns}
                       data={filteredTerms}
                       searchKey="termName"

@@ -1,7 +1,7 @@
 'use client';
 
-import { JSX, useState } from 'react';
-import { useMutation } from 'convex/react';
+import { JSX, useState, useEffect } from 'react';
+import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/../convex/_generated/api';
 import {
   Dialog,
@@ -31,7 +31,7 @@ interface SubjectInput {
   subjectName: string;
   description: string;
   category: 'core' | 'elective' | 'extracurricular';
-  department: 'creche' | 'kindergarten' | 'primary' | 'junior_high';
+  departmentId: string;
 }
 
 interface BulkAddSubjectsDialogProps {
@@ -48,9 +48,24 @@ export function BulkAddSubjectsDialog({
   createdBy,
 }: BulkAddSubjectsDialogProps): React.JSX.Element {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const departments = useQuery(
+    api.departments.getDepartmentsBySchool,
+    schoolId ? { schoolId } : 'skip'
+  );
+
+  const defaultDeptId = departments?.[0]?._id ?? '';
+
   const [subjects, setSubjects] = useState<SubjectInput[]>([
-    { id: '1', subjectName: '', description: '', category: 'core', department: 'primary' },
+    { id: '1', subjectName: '', description: '', category: 'core', departmentId: '' },
   ]);
+
+  useEffect(() => {
+    if (defaultDeptId && subjects.some((s) => !s.departmentId)) {
+      setSubjects((prev) =>
+        prev.map((s) => ({ ...s, departmentId: s.departmentId || defaultDeptId }))
+      );
+    }
+  }, [defaultDeptId]);
 
   const addBulkSubjects = useMutation(api.subjects.addBulkSubjects);
 
@@ -62,7 +77,7 @@ export function BulkAddSubjectsDialog({
         subjectName: '', 
         description: '', 
         category: 'core', 
-        department: 'primary' 
+        departmentId: defaultDeptId 
       },
     ]);
   };
@@ -87,10 +102,12 @@ export function BulkAddSubjectsDialog({
 
     try {
       // Validation
-      const validSubjects = subjects.filter((s) => s.subjectName.trim() !== '');
+      const validSubjects = subjects.filter(
+        (s) => s.subjectName.trim() !== '' && s.departmentId
+      );
       
       if (validSubjects.length === 0) {
-        toast.error('Please add at least one subject with a name');
+        toast.error('Please add at least one subject with a name and department');
         setIsSubmitting(false);
         return;
       }
@@ -101,7 +118,7 @@ export function BulkAddSubjectsDialog({
           subjectName: s.subjectName,
           description: s.description || undefined,
           category: s.category,
-          department: s.department,
+          departmentId: s.departmentId,
         })),
         createdBy,
       });
@@ -117,7 +134,7 @@ export function BulkAddSubjectsDialog({
       }
       
       // Reset form
-      setSubjects([{ id: '1', subjectName: '', description: '', category: 'core', department: 'primary' }]);
+      setSubjects([{ id: '1', subjectName: '', description: '', category: 'core', departmentId: defaultDeptId }]);
       onOpenChange(false);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to add subjects');
@@ -200,17 +217,18 @@ export function BulkAddSubjectsDialog({
                       <div className="space-y-2">
                         <Label>Department *</Label>
                         <Select
-                          value={subject.department}
-                          onValueChange={(value: string) => updateSubject(subject.id, 'department', value)}
+                          value={subject.departmentId}
+                          onValueChange={(value: string) => updateSubject(subject.id, 'departmentId', value)}
                         >
                           <SelectTrigger>
-                            <SelectValue />
+                            <SelectValue placeholder="Select department" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="creche">Creche</SelectItem>
-                            <SelectItem value="kindergarten">Kindergarten</SelectItem>
-                            <SelectItem value="primary">Primary</SelectItem>
-                            <SelectItem value="junior_high">Junior High</SelectItem>
+                            {departments?.map((dept) => (
+                              <SelectItem key={dept._id} value={dept._id}>
+                                {dept.name} ({dept.code})
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>

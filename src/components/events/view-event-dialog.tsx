@@ -1,11 +1,13 @@
 'use client';
 
+import { useQuery } from 'convex/react';
+import { api } from '@/../convex/_generated/api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, MapPin, Users, Tag } from 'lucide-react';
-import type { Id } from '../../../convex/_generated/dataModel';
-import { formatEventDateRange, getEventTypeLabel, getVenueTypeLabel, getAudienceTypeLabel, getDepartmentLabel } from '@/lib/event-utils';
+import { Calendar, MapPin, Users, Tag } from 'lucide-react';
+import type { Id } from '@/../convex/_generated/dataModel';
+import { formatEventDateRange, getEventTypeLabel, getVenueTypeLabel, getAudienceTypeLabel } from '@/lib/event-utils';
 import { JSX } from 'react';
 
 interface ViewEventDialogProps {
@@ -13,6 +15,7 @@ interface ViewEventDialogProps {
   onOpenChange: (open: boolean) => void;
   event: {
     _id: Id<'events'>;
+    schoolId?: string;
     eventCode: string;
     eventTitle: string;
     eventDescription?: string;
@@ -26,7 +29,7 @@ interface ViewEventDialogProps {
     venueType: string;
     audienceType: string;
     targetClasses?: string[];
-    targetDepartments?: string[];
+    targetDepartmentIds?: string[];
     requiresRSVP: boolean;
     rsvpDeadline?: string;
     maxAttendees?: number;
@@ -37,6 +40,15 @@ interface ViewEventDialogProps {
 }
 
 export function ViewEventDialog({ open, onOpenChange, event }: ViewEventDialogProps): React.JSX.Element {
+  const departments = useQuery(
+    api.departments.getDepartmentsBySchool,
+    event?.schoolId ? { schoolId: event.schoolId } : 'skip'
+  );
+
+  const targetDepartmentNames = (event?.targetDepartmentIds ?? [])
+    .map((id) => departments?.find((d) => d._id === id)?.name)
+    .filter(Boolean);
+
   if (!event) return <></>;
 
   return (
@@ -106,11 +118,11 @@ export function ViewEventDialog({ open, onOpenChange, event }: ViewEventDialogPr
               <p className="text-sm text-muted-foreground">
                 {getAudienceTypeLabel(event.audienceType)}
               </p>
-              {event.targetDepartments && event.targetDepartments.length > 0 && (
+              {targetDepartmentNames.length > 0 && (
                 <div className="mt-1 flex flex-wrap gap-1">
-                  {event.targetDepartments.map((dept: string) => (
-                    <Badge key={dept} variant="outline" className="text-xs">
-                      {getDepartmentLabel(dept)}
+                  {targetDepartmentNames.map((name) => (
+                    <Badge key={name} variant="outline" className="text-xs">
+                      {name}
                     </Badge>
                   ))}
                 </div>

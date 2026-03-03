@@ -337,13 +337,24 @@ export default defineSchema({
     .index('by_status', ['status'])
     .index('by_email', ['email']),
 
+  departments: defineTable({
+    schoolId: v.string(),
+    name: v.string(),
+    code: v.string(), // 2-3 chars for subject codes, e.g., "PR", "SH"
+    sortOrder: v.optional(v.number()),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+    createdBy: v.string(),
+  })
+    .index('by_school', ['schoolId']),
+
   classes: defineTable({
     schoolId: v.string(),
     classCode: v.string(), // Auto-generated: CLS + 6 random digits
     className: v.string(), // e.g., "Grade 1A", "Form 3B"
     grade: v.string(), // e.g., "1", "2", "Form 1"
     section: v.optional(v.string()), // e.g., "A", "B"
-    department: v.union(v.literal('creche'), v.literal('kindergarten'), v.literal('primary'), v.literal('junior_high')),
+    departmentId: v.id('departments'),
     classTeacherId: v.optional(v.string()), // Teacher ID from teachers table
     capacity: v.optional(v.number()),
     currentStudentCount: v.number(),
@@ -356,16 +367,16 @@ export default defineSchema({
     .index('by_school', ['schoolId'])
     .index('by_class_code', ['classCode'])
     .index('by_status', ['status'])
-    .index('by_department', ['department'])
+    .index('by_department', ['departmentId'])
     .index('by_teacher', ['classTeacherId']),
 
   subjects: defineTable({
     schoolId: v.string(),
-    subjectCode: v.string(), // Auto-generated: department initials + 4 random digits (e.g., CR0234, KG1245)
+    subjectCode: v.string(), // Auto-generated: department code + 4 random digits (e.g., CR0234, KG1245)
     subjectName: v.string(),
     description: v.optional(v.string()),
     category: v.union(v.literal('core'), v.literal('elective'), v.literal('extracurricular')),
-    department: v.union(v.literal('creche'), v.literal('kindergarten'), v.literal('primary'), v.literal('junior_high')),
+    departmentId: v.id('departments'),
     color: v.optional(v.string()), // Hex color code for visual identification (e.g., #3b82f6)
     status: v.union(v.literal('active'), v.literal('inactive')),
     createdAt: v.string(),
@@ -375,7 +386,7 @@ export default defineSchema({
     .index('by_school', ['schoolId'])
     .index('by_subject_code', ['subjectCode'])
     .index('by_status', ['status'])
-    .index('by_department', ['department'])
+    .index('by_department', ['departmentId'])
     .index('by_category', ['category']),
 
   students: defineTable({
@@ -406,12 +417,7 @@ export default defineSchema({
     // Academic Information
     classId: v.string(), // References classes table
     className: v.string(), // Denormalized for easy access
-    department: v.union(
-      v.literal('creche'),
-      v.literal('kindergarten'),
-      v.literal('primary'),
-      v.literal('junior_high')
-    ),
+    departmentId: v.id('departments'),
     rollNumber: v.optional(v.string()),
     admissionDate: v.string(),
     
@@ -460,7 +466,7 @@ export default defineSchema({
     .index('by_admission_number', ['admissionNumber'])
     .index('by_class', ['classId'])
     .index('by_status', ['status'])
-    .index('by_department', ['department'])
+    .index('by_department', ['departmentId'])
     .index('by_email', ['email']),
 
   photos: defineTable({
@@ -650,12 +656,7 @@ export default defineSchema({
     academicYearId: v.optional(v.string()),
     termId: v.optional(v.string()),
     classId: v.optional(v.string()), // If specific to a class
-    department: v.optional(v.union(
-      v.literal('creche'),
-      v.literal('kindergarten'),
-      v.literal('primary'),
-      v.literal('junior_high')
-    )),
+    departmentId: v.optional(v.id('departments')),
     fees: v.string(), // JSON array of { categoryId, categoryName, amount }
     totalAmount: v.number(), // Sum of all fees
     dueDate: v.optional(v.string()),
@@ -667,7 +668,7 @@ export default defineSchema({
     .index('by_school', ['schoolId'])
     .index('by_structure_code', ['structureCode'])
     .index('by_class', ['schoolId', 'classId'])
-    .index('by_department', ['schoolId', 'department'])
+    .index('by_department', ['schoolId', 'departmentId'])
     .index('by_status', ['status']),
 
   feePayments: defineTable({
@@ -843,12 +844,7 @@ export default defineSchema({
       v.literal('custom')
     ),
     targetClasses: v.optional(v.array(v.string())), // Class IDs
-    targetDepartments: v.optional(v.array(v.union(
-      v.literal('creche'),
-      v.literal('kindergarten'),
-      v.literal('primary'),
-      v.literal('junior_high')
-    ))),
+    targetDepartmentIds: v.optional(v.array(v.id('departments'))),
     isRecurring: v.boolean(),
     recurrencePattern: v.optional(v.union(
       v.literal('daily'),
@@ -991,12 +987,7 @@ export default defineSchema({
     termId: v.optional(v.string()),
     startDate: v.string(),
     endDate: v.string(),
-    department: v.optional(v.union(
-      v.literal('creche'),
-      v.literal('kindergarten'),
-      v.literal('primary'),
-      v.literal('junior_high')
-    )),
+    departmentId: v.optional(v.id('departments')),
     targetClasses: v.optional(v.array(v.string())), // Class IDs
     subjects: v.string(), // JSON array of {subjectId, subjectName, maxMarks, date, time}
     totalMarks: v.number(), // Total marks across all subjects
@@ -1076,12 +1067,7 @@ export default defineSchema({
     schoolId: v.string(),
     scaleCode: v.string(), // Auto-generated: GRD + 6 digits
     scaleName: v.string(), // e.g., "Primary Grading", "JHS Grading"
-    department: v.optional(v.union(
-      v.literal('creche'),
-      v.literal('kindergarten'),
-      v.literal('primary'),
-      v.literal('junior_high')
-    )),
+    departmentId: v.optional(v.id('departments')),
     grades: v.string(), // JSON: [{grade: 1, minPercent: 80, maxPercent: 100, remark: "Excellent"}]
     isDefault: v.boolean(),
     status: v.union(v.literal('active'), v.literal('inactive')),
