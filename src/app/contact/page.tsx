@@ -2,6 +2,7 @@
 
 import { LandingHeader } from "@/components/landing/header";
 import { Footer } from "@/components/landing/footer";
+import { ContactFAB } from "@/components/landing/contact-fab";
 import { motion } from "framer-motion";
 import { Phone, MapPin, MessageSquare, Send, Clock } from "lucide-react";
 import {
@@ -422,6 +423,7 @@ export default function ContactPage(): React.JSX.Element {
       </section>
 
       <Footer />
+      <ContactFAB />
     </div>
   );
 }

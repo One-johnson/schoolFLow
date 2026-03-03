@@ -1,18 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Eye, EyeOff, Mail, Lock, GraduationCap } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, GraduationCap, Sun, Moon, ArrowLeft } from 'lucide-react';
 import { useTeacherAuth } from '@/hooks/useTeacherAuth';
+import { useTheme } from 'next-themes';
 
 export default function TeacherLoginPage(): React.JSX.Element {
   const { login } = useTeacherAuth();
   const router = useRouter();
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -51,9 +55,41 @@ export default function TeacherLoginPage(): React.JSX.Element {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex flex-col bg-muted/30">
+      {/* Header with back link and theme toggle */}
+      <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-16 bg-background/80 backdrop-blur-lg border-b border-border">
+        <Link
+          href="/"
+          className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to home
+        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2">
+            <GraduationCap className="h-6 w-6 text-primary" />
+            <span className="font-bold text-lg">SchoolFlow</span>
+          </Link>
+          {mounted && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
+          )}
+        </div>
+      </header>
+
+      <div className="flex-1 flex items-center justify-center px-4 pt-16">
+        <Card className="w-full max-w-md">
         <CardHeader className="text-center space-y-4">
           <div className="flex justify-center">
             <div className="p-3 rounded-full bg-primary/10">
@@ -110,9 +146,16 @@ export default function TeacherLoginPage(): React.JSX.Element {
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Signing in...' : 'Sign In'}
             </Button>
+            <p className="text-center text-sm text-muted-foreground">
+              Are you an admin?{' '}
+              <Link href="/login" className="text-primary hover:underline">
+                Sign in here
+              </Link>
+            </p>
           </form>
         </CardContent>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 }
