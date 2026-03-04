@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/../convex/_generated/api';
+import type { Id } from '@/../convex/_generated/dataModel';
 import {
   Dialog,
   DialogContent,
@@ -79,7 +80,7 @@ export function AddClassDialog({
         className: formData.className,
         grade: formData.grade,
         section: formData.section || undefined,
-        departmentId: formData.departmentId,
+        departmentId: formData.departmentId as Id<'departments'>,
         classTeacherId: formData.classTeacherId || undefined,
         capacity: formData.capacity ? parseInt(formData.capacity) : undefined,
         createdBy,

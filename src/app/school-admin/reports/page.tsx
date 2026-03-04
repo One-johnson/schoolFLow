@@ -46,7 +46,7 @@ interface Student {
   admissionNumber?: string;
   classId: string;
   className: string;
-  department: string;
+  departmentId: string;
   gender: string;
   status: string;
   admissionDate?: string;
@@ -267,6 +267,10 @@ export default function ReportsPage(): React.JSX.Element {
     api.classes.getClassesBySchool,
     schoolId ? { schoolId } : 'skip'
   );
+  const departments = useQuery(
+    api.departments.getDepartmentsBySchool,
+    schoolId ? { schoolId } : 'skip'
+  );
   const terms = useQuery(
     api.terms.getTermsBySchool,
     schoolId ? { schoolId } : 'skip'
@@ -298,7 +302,7 @@ export default function ReportsPage(): React.JSX.Element {
   // ─── Filtered Data ──────────────────────────────────────────────────────────
   const filteredStudents = useMemo(() => {
     if (!students) return [];
-    return (students as Student[]).filter((s) => {
+    return students.filter((s) => {
       if (studentFilterClass !== "all" && s.classId !== studentFilterClass)
         return false;
       if (studentFilterStatus !== "all" && s.status !== studentFilterStatus)
@@ -445,7 +449,7 @@ export default function ReportsPage(): React.JSX.Element {
   }, [filteredReportCards]);
 
   // ─── Column Definitions ─────────────────────────────────────────────────────
-  const studentColumns: ColumnDef<Student>[] = [
+  const studentColumns: ColumnDef<Student>[] = useMemo(() => [
     {
       accessorKey: "firstName",
       header: createSortableHeader("Name"),
@@ -461,9 +465,12 @@ export default function ReportsPage(): React.JSX.Element {
       header: createSortableHeader("Class"),
     },
     {
-      accessorKey: "department",
+      accessorKey: "departmentId",
       header: "Department",
-      cell: ({ row }) => capitalize(row.original.department),
+      cell: ({ row }) => {
+        const dept = departments?.find((d) => d._id === row.original.departmentId);
+        return dept?.name ?? row.original.departmentId;
+      },
     },
     {
       accessorKey: "gender",
@@ -483,7 +490,7 @@ export default function ReportsPage(): React.JSX.Element {
           ? shortDate(row.original.admissionDate)
           : "—",
     },
-  ];
+  ], [departments]);
 
   const teacherColumns: ColumnDef<Teacher>[] = [
     {
@@ -738,7 +745,7 @@ export default function ReportsPage(): React.JSX.Element {
           Name: `${s.firstName} ${s.lastName}`,
           "Admission No.": s.admissionNumber || "—",
           Class: s.className,
-          Department: s.department,
+          Department: departments?.find((d) => d._id === s.departmentId)?.name ?? s.departmentId,
           Gender: s.gender,
           Status: s.status,
           "Admission Date": s.admissionDate || "—",
@@ -759,7 +766,7 @@ export default function ReportsPage(): React.JSX.Element {
           Name: `${s.firstName} ${s.lastName}`,
           "Adm. No.": s.admissionNumber || "—",
           Class: s.className,
-          Department: s.department,
+          Department: departments?.find((d) => d._id === s.departmentId)?.name ?? s.departmentId,
           Gender: s.gender,
           Status: s.status,
         })),

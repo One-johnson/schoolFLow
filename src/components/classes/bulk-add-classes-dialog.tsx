@@ -3,6 +3,7 @@
 import { JSX, useState } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/../convex/_generated/api';
+import type { Id } from '@/../convex/_generated/dataModel';
 import {
   Dialog,
   DialogContent,
@@ -116,7 +117,7 @@ export function BulkAddClassesDialog({
         className: c.className,
         grade: c.grade,
         section: c.section || undefined,
-        departmentId: c.departmentId,
+        departmentId: c.departmentId as Id<'departments'>,
         classTeacherId: c.classTeacherId || undefined,
         capacity: c.capacity ? parseInt(c.capacity) : undefined,
       }));

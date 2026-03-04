@@ -78,6 +78,10 @@ export default function ExamsPage() {
     api.classes.getClassesBySchool,
     schoolId ? { schoolId } : "skip",
   );
+  const departments = useQuery(
+    api.departments.getDepartmentsBySchool,
+    schoolId ? { schoolId } : "skip",
+  );
   const terms = useQuery(
     api.terms.getTermsBySchool,
     schoolId ? { schoolId } : "skip",
@@ -496,10 +500,11 @@ export default function ExamsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Departments</SelectItem>
-                  <SelectItem value="creche">Creche</SelectItem>
-                  <SelectItem value="kindergarten">Kindergarten</SelectItem>
-                  <SelectItem value="primary">Primary</SelectItem>
-                  <SelectItem value="junior_high">Junior High</SelectItem>
+                  {departments?.map((dept) => (
+                    <SelectItem key={dept._id} value={dept._id}>
+                      {dept.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -523,7 +528,7 @@ export default function ExamsPage() {
                   const classDoc = classes?.find(
                     (c) => c.classCode === r.classId,
                   );
-                  return classDoc?.department === reportFilterDepartment;
+                  return classDoc?.departmentId === reportFilterDepartment;
                 })
                 .map((report) => (
                   <Card
