@@ -1242,8 +1242,9 @@ export default defineSchema({
       v.literal('completed'),
       v.literal('locked')
     ),
-    markedBy: v.string(), // Admin ID
+    markedBy: v.string(), // Admin or Teacher ID
     markedByName: v.string(),
+    markedByRole: v.optional(v.union(v.literal('admin'), v.literal('teacher'))),
     markedAt: v.string(),
     notes: v.optional(v.string()),
     createdAt: v.string(),
@@ -1307,6 +1308,7 @@ export default defineSchema({
     lockAfterHours: v.optional(v.number()), // Hours after marking
     requireAdminApproval: v.boolean(),
     notifyParentsOnAbsence: v.boolean(),
+    allowAdminToMarkAttendance: v.optional(v.boolean()), // Default true when not set
     createdAt: v.string(),
     updatedAt: v.string(),
   })

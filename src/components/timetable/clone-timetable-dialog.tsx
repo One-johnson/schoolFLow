@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useMemo} from 'react';
-import { useMutation } from 'convex/react';
+import { useState, useMemo, useEffect } from 'react';
+import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import {
   Dialog,
@@ -44,6 +44,8 @@ interface CloneTimetableDialogProps {
   availableClasses: Class[];
   schoolId: string;
   createdBy: string;
+  academicYearId?: string;
+  termId?: string;
 }
 
 export function CloneTimetableDialog({
@@ -53,13 +55,46 @@ export function CloneTimetableDialog({
   availableClasses,
   schoolId,
   createdBy,
+  academicYearId: defaultAcademicYearId,
+  termId: defaultTermId,
 }: CloneTimetableDialogProps): React.JSX.Element {
   const cloneTimetable = useMutation(api.timetableTemplates.cloneTimetable);
+
+  const academicYears = useQuery(
+    api.academicYears.getYearsBySchool,
+    schoolId ? { schoolId } : 'skip'
+  );
+  const terms = useQuery(
+    api.terms.getTermsBySchool,
+    schoolId ? { schoolId } : 'skip'
+  );
+  const currentYear = useQuery(
+    api.academicYears.getCurrentYear,
+    schoolId ? { schoolId } : 'skip'
+  );
+  const currentTerm = useQuery(
+    api.terms.getCurrentTerm,
+    schoolId ? { schoolId } : 'skip'
+  );
 
   const [sourceTimetableId, setSourceTimetableId] = useState<string>('');
   const [targetClassId, setTargetClassId] = useState<string>('');
   const [includeAssignments, setIncludeAssignments] = useState<boolean>(false);
+  const [selectedAcademicYearId, setSelectedAcademicYearId] = useState<string>('');
+  const [selectedTermId, setSelectedTermId] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (open) {
+      setSelectedAcademicYearId(defaultAcademicYearId || currentYear?._id || '');
+    }
+  }, [open, defaultAcademicYearId, currentYear]);
+
+  useEffect(() => {
+    if (open) {
+      setSelectedTermId(defaultTermId || currentTerm?._id || '');
+    }
+  }, [open, defaultTermId, currentTerm]);
 
   const selectedTimetable = useMemo(() => {
     return timetables.find(t => t._id === sourceTimetableId);
@@ -92,6 +127,8 @@ export function CloneTimetableDialog({
         schoolId,
         createdBy,
         includeAssignments,
+        academicYearId: selectedAcademicYearId || undefined,
+        termId: selectedTermId || undefined,
       });
 
       toast.success(`Timetable cloned to ${selectedClass.className} successfully`);
@@ -100,6 +137,8 @@ export function CloneTimetableDialog({
       setSourceTimetableId('');
       setTargetClassId('');
       setIncludeAssignments(false);
+      setSelectedAcademicYearId(defaultAcademicYearId || currentYear?._id || '');
+      setSelectedTermId(defaultTermId || currentTerm?._id || '');
       onOpenChange(false);
     } catch (error) {
       console.error('Clone timetable error:', error);
@@ -137,6 +176,56 @@ export function CloneTimetableDialog({
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Academic Year */}
+            {academicYears && academicYears.length > 0 && (
+              <div className="grid gap-2">
+                <Label htmlFor="academicYear">Academic Year</Label>
+                <Select
+                  value={selectedAcademicYearId}
+                  onValueChange={(v) => {
+                    setSelectedAcademicYearId(v);
+                    setSelectedTermId('');
+                  }}
+                >
+                  <SelectTrigger id="academicYear">
+                    <SelectValue placeholder="Select academic year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {academicYears.map((y) => (
+                      <SelectItem key={y._id} value={y._id}>
+                        {y.yearName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Term */}
+            {terms && terms.length > 0 && (
+              <div className="grid gap-2">
+                <Label htmlFor="term">Term</Label>
+                <Select value={selectedTermId} onValueChange={setSelectedTermId}>
+                  <SelectTrigger id="term">
+                    <SelectValue placeholder="Select term" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {terms
+                      .filter(
+                        (t) =>
+                          !selectedAcademicYearId ||
+                          t.academicYearId === selectedAcademicYearId
+                      )
+                      .map((t) => (
+                        <SelectItem key={t._id} value={t._id}>
+                          {t.termName} {t.academicYearName ? `(${t.academicYearName})` : ''}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* Target Class */}
             <div className="grid gap-2">

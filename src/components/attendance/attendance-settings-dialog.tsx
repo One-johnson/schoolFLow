@@ -41,6 +41,7 @@ export function AttendanceSettingsDialog({
   const [lockAfterHours, setLockAfterHours] = useState<number>(24);
   const [requireAdminApproval, setRequireAdminApproval] = useState<boolean>(false);
   const [notifyParentsOnAbsence, setNotifyParentsOnAbsence] = useState<boolean>(false);
+  const [allowAdminToMarkAttendance, setAllowAdminToMarkAttendance] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   const settings = useQuery(api.attendance.getAttendanceSettings, { schoolId });
@@ -59,6 +60,7 @@ export function AttendanceSettingsDialog({
       setLockAfterHours(settings.lockAfterHours || 24);
       setRequireAdminApproval(settings.requireAdminApproval);
       setNotifyParentsOnAbsence(settings.notifyParentsOnAbsence);
+      setAllowAdminToMarkAttendance(settings.allowAdminToMarkAttendance ?? true);
     }
   }, [settings]);
 
@@ -80,6 +82,7 @@ export function AttendanceSettingsDialog({
         lockAfterHours,
         requireAdminApproval,
         notifyParentsOnAbsence,
+        allowAdminToMarkAttendance,
       });
 
       toast.success('Settings saved successfully');
@@ -248,6 +251,19 @@ export function AttendanceSettingsDialog({
               <Switch
                 checked={notifyParentsOnAbsence}
                 onCheckedChange={setNotifyParentsOnAbsence}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Allow Admin to Mark Attendance</Label>
+                <p className="text-sm text-muted-foreground">
+                  Let school admins mark attendance (e.g. for coverage or corrections)
+                </p>
+              </div>
+              <Switch
+                checked={allowAdminToMarkAttendance}
+                onCheckedChange={setAllowAdminToMarkAttendance}
               />
             </div>
           </div>

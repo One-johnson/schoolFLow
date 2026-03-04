@@ -292,6 +292,23 @@ export const addPeriod = mutation({
     periodType: v.union(v.literal('class'), v.literal('break')),
   },
   handler: async (ctx, args) => {
+    // Validate start time is before end time
+    if (timeToMinutes(args.startTime) >= timeToMinutes(args.endTime)) {
+      throw new Error('Start time must be before end time');
+    }
+
+    // Check for duplicate period name
+    const existingPeriods = await ctx.db
+      .query('periods')
+      .withIndex('by_timetable', (q) => q.eq('timetableId', args.timetableId))
+      .collect();
+    const hasDuplicate = existingPeriods.some(
+      (p) => p.periodName.toLowerCase() === args.periodName.trim().toLowerCase()
+    );
+    if (hasDuplicate) {
+      throw new Error(`A period named "${args.periodName.trim()}" already exists in this timetable`);
+    }
+
     const weekdays: Day[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
     const duration = calculateDuration(args.startTime, args.endTime);
 

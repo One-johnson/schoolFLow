@@ -188,6 +188,7 @@ export default function TeacherAttendancePage() {
           totalStudents: students.length,
           markedBy: teacher.id,
           markedByName: markedByName,
+          markedByRole: 'teacher',
         });
 
         for (const [studentId, status] of attendance.entries()) {

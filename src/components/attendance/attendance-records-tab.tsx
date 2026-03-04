@@ -1,12 +1,15 @@
 'use client';
 
-import { JSX, useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '@/../convex/_generated/api';
+import { format } from 'date-fns';
+import type { DateRange } from 'react-day-picker';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -24,7 +27,7 @@ import {
 import { DataTable } from '@/components/ui/data-table';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Trash2, Eye, Lock, Unlock, MoreHorizontal } from 'lucide-react';
+import { CalendarIcon, Edit, Trash2, Eye, Lock, Unlock, MoreHorizontal } from 'lucide-react';
 import { SessionBadge } from './session-badge';
 import { ViewAttendanceDialog } from './view-attendance-dialog';
 import { EditAttendanceDialog } from './edit-attendance-dialog';
@@ -50,6 +53,7 @@ interface AttendanceRecord {
   status: 'pending' | 'completed' | 'locked';
   markedBy: string;
   markedByName: string;
+  markedByRole?: 'admin' | 'teacher';
   markedAt: string;
   notes?: string;
   createdAt: string;
@@ -63,8 +67,7 @@ interface AttendanceRecordsTabProps {
 }
 
 export function AttendanceRecordsTab({ schoolId, adminId, adminName }: AttendanceRecordsTabProps): React.JSX.Element {
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedClass, setSelectedClass] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | null>(null);
@@ -82,8 +85,8 @@ export function AttendanceRecordsTab({ schoolId, adminId, adminName }: Attendanc
   const classes = useQuery(api.classes.getClassesBySchool, { schoolId });
 
   const filteredAttendance = attendance?.filter((record) => {
-    if (startDate && record.date < startDate) return false;
-    if (endDate && record.date > endDate) return false;
+    if (dateRange?.from && record.date < format(dateRange.from, 'yyyy-MM-dd')) return false;
+    if (dateRange?.to && record.date > format(dateRange.to, 'yyyy-MM-dd')) return false;
     if (selectedClass !== 'all' && record.classId !== selectedClass) return false;
     if (selectedStatus !== 'all' && record.status !== selectedStatus) return false;
     return true;
@@ -131,6 +134,28 @@ export function AttendanceRecordsTab({ schoolId, adminId, adminName }: Attendanc
         };
         const { label, variant } = statusConfig[row.original.status as keyof typeof statusConfig];
         return <Badge variant={variant}>{label}</Badge>;
+      },
+    },
+    {
+      accessorKey: 'markedByName',
+      header: 'Marked by',
+      cell: ({ row }) => {
+        const { markedByName, markedByRole } = row.original;
+        return (
+          <div className="flex items-center gap-2">
+            <span>{markedByName}</span>
+            {markedByRole === 'admin' && (
+              <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
+                Admin
+              </Badge>
+            )}
+            {markedByRole === 'teacher' && (
+              <Badge variant="outline" className="text-blue-600 border-blue-300 bg-blue-50">
+                Teacher
+              </Badge>
+            )}
+          </div>
+        );
       },
     },
     {
@@ -216,22 +241,37 @@ export function AttendanceRecordsTab({ schoolId, adminId, adminName }: Attendanc
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Filters */}
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-3">
           <div className="space-y-2">
-            <Label>Start Date</Label>
-            <Input
-              type="date"
-              value={startDate}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setStartDate(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>End Date</Label>
-            <Input
-              type="date"
-              value={endDate}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEndDate(e.target.value)}
-            />
+            <Label>Date Range</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full justify-start text-left font-normal">
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateRange?.from ? (
+                    dateRange.to ? (
+                      <>
+                        {format(dateRange.from, 'LLL dd, y')} - {format(dateRange.to, 'LLL dd, y')}
+                      </>
+                    ) : (
+                      format(dateRange.from, 'LLL dd, y')
+                    )
+                  ) : (
+                    <span>Pick a date range</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  initialFocus
+                  mode="range"
+                  defaultMonth={dateRange?.from}
+                  selected={dateRange}
+                  onSelect={setDateRange}
+                  numberOfMonths={2}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="space-y-2">
             <Label>Class</Label>
