@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useMutation, useQuery } from 'convex/react';
-import { api } from '../../../convex/_generated/api';
+import { api } from '@/../convex/_generated/api';
+import type { Id } from '@/../convex/_generated/dataModel';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -100,7 +101,7 @@ export function AddEventDialog({ open, onOpenChange, schoolId, adminId }: AddEve
         venueType: venueType as EventFormData['venueType'],
         audienceType: audienceType as EventFormData['audienceType'],
         targetClasses: audienceType === 'specific_classes' ? data.targetClasses : undefined,
-        targetDepartmentIds: audienceType === 'specific_departments' ? targetDepartmentIds : undefined,
+        targetDepartmentIds: audienceType === 'specific_departments' ? (targetDepartmentIds as Id<'departments'>[]) : undefined,
         isRecurring: false,
         sendNotification,
         requiresRSVP,

@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import { useMutation, useQuery } from 'convex/react';
+import type { Id } from '@/../convex/_generated/dataModel';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -234,6 +235,7 @@ John,Doe,,2015-05-15,male,john.doe@example.com,+1234567890,123 Main St,CLS123456
           await addStudent({
             schoolId: user?.schoolId || '',
             ...student,
+            departmentId: student.departmentId as Id<'departments'>,
             createdBy: user?.userId || '',
           });
           successCount++;

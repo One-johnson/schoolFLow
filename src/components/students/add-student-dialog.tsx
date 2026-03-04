@@ -2,6 +2,7 @@
 
 import { useState, useEffect, JSX } from 'react';
 import { useMutation, useQuery } from 'convex/react';
+import type { Id } from '@/../convex/_generated/dataModel';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -444,7 +445,7 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps):
         address: formData.address,
         classId: formData.classId,
         className: selectedClass?.className || '',
-        departmentId: selectedClass?.departmentId,
+        departmentId: selectedClass.departmentId as Id<'departments'>,
         rollNumber: formData.rollNumber || undefined,
         admissionDate: formData.admissionDate,
         parentName: formData.parentName,

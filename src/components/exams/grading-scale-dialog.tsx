@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/../convex/_generated/api';
+import type { Id } from '@/../convex/_generated/dataModel';
 import {
   Dialog,
   DialogContent,
@@ -93,7 +94,7 @@ export function GradingScaleDialog({ open, onOpenChange, schoolId }: GradingScal
       await createGradingScale({
         schoolId,
         scaleName,
-        departmentId: departmentId || undefined,
+        departmentId: departmentId ? (departmentId as Id<'departments'>) : undefined,
         grades: JSON.stringify(grades),
         createdBy: '',
         isDefault: false

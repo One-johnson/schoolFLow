@@ -98,7 +98,7 @@ export function EditSubjectDialog({
         subjectName: formData.subjectName,
         description: formData.description || undefined,
         category: formData.category,
-        departmentId: formData.departmentId,
+        departmentId: formData.departmentId as Id<'departments'>,
         updatedBy,
       });
 

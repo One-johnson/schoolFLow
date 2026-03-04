@@ -98,7 +98,7 @@ export function EditClassDialog({
         className: formData.className,
         grade: formData.grade,
         section: formData.section || undefined,
-        departmentId: formData.departmentId,
+        departmentId: formData.departmentId as Id<'departments'>,
         classTeacherId: formData.classTeacherId || undefined,
         capacity: formData.capacity ? parseInt(formData.capacity) : undefined,
         updatedBy,

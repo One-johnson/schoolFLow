@@ -26,7 +26,7 @@ export function GradingScaleCard({ scale, onEdit, onDelete }: GradingScaleCardPr
   const grades = JSON.parse(scale.grades);
   const department = useQuery(
     api.departments.getDepartmentById,
-    scale.departmentId ? { departmentId: scale.departmentId } : 'skip'
+    scale.departmentId ? { departmentId: scale.departmentId as Id<'departments'> } : 'skip'
   );
 
   return (

@@ -64,9 +64,12 @@ export function EditExamDialog({ open, onOpenChange, examId, schoolId, adminId }
   );
 
   // Query subjects by department - always load for the exam's department
+  const departmentSubjectsArgs = departmentId
+    ? { schoolId, departmentId: departmentId as Id<'departments'> }
+    : 'skip';
   const departmentSubjects = useQuery(
     api.subjects.getSubjectsByDepartment,
-    departmentId ? { schoolId, departmentId } : 'skip'
+    departmentSubjectsArgs
   );
 
   // Initialize form with exam data

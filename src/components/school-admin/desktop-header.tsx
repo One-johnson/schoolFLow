@@ -54,7 +54,7 @@ interface StudentResult {
   lastName: string;
   admissionNumber?: string;
   className: string;
-  department: string;
+  departmentId?: string;
   gender: string;
   status: string;
   email?: string;
@@ -136,6 +136,7 @@ export function DesktopHeader(): React.JSX.Element {
   // Data for search
   const students = useQuery(api.students.getStudentsBySchool, { schoolId: user?.schoolId || '' });
   const teachers = useQuery(api.teachers.getTeachersBySchool, { schoolId: user?.schoolId || '' });
+  const departments = useQuery(api.departments.getDepartmentsBySchool, { schoolId: user?.schoolId || '' });
 
   // ⌘K / Ctrl+K shortcut
   useEffect(() => {
@@ -149,11 +150,16 @@ export function DesktopHeader(): React.JSX.Element {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
+  const departmentMap = useMemo(() => {
+    if (!departments) return new Map<string, string>();
+    return new Map(departments.map((d) => [d._id, d.name]));
+  }, [departments]);
+
   // Filtered results — only populate when query is non-empty
   const filteredStudents = useMemo(() => {
     if (!students || !searchQuery.trim()) return [];
     const q = searchQuery.toLowerCase();
-    return (students as StudentResult[]).filter((s) => {
+    return students.filter((s) => {
       const name = `${s.firstName} ${s.lastName}`.toLowerCase();
       return name.includes(q) || (s.admissionNumber?.toLowerCase().includes(q) ?? false);
     });
@@ -353,7 +359,7 @@ export function DesktopHeader(): React.JSX.Element {
 
                 <div className="grid grid-cols-2 gap-x-6 gap-y-3">
                   <DetailRow label="Class"      value={s.className} />
-                  <DetailRow label="Department" value={capitalize(s.department)} />
+                  <DetailRow label="Department" value={s.departmentId ? capitalize(departmentMap.get(s.departmentId) ?? '—') : '—'} />
                   <DetailRow label="Gender"     value={capitalize(s.gender)} />
                   {s.dateOfBirth   && <DetailRow label="Date of Birth" value={formatDate(s.dateOfBirth)} />}
                   {s.email         && <DetailRow label="Email"         value={s.email} />}

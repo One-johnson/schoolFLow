@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useMutation, useQuery } from 'convex/react';
+import type { Id } from '@/../convex/_generated/dataModel';
 import { api } from '@/../convex/_generated/api';
 import {
   Dialog,
@@ -72,7 +73,7 @@ export function AddSubjectDialog({
         subjectName: formData.subjectName,
         description: formData.description || undefined,
         category: formData.category,
-        departmentId: formData.departmentId,
+        departmentId: formData.departmentId as Id<'departments'>,
         createdBy,
       });
 
