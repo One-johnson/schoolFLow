@@ -2,6 +2,7 @@
 
 import { JSX, useState, useEffect } from 'react';
 import { useMutation, useQuery } from 'convex/react';
+import type { Id } from '@/../convex/_generated/dataModel';
 import { api } from '@/../convex/_generated/api';
 import {
   Dialog,
@@ -118,7 +119,7 @@ export function BulkAddSubjectsDialog({
           subjectName: s.subjectName,
           description: s.description || undefined,
           category: s.category,
-          departmentId: s.departmentId,
+          departmentId: s.departmentId as Id<'departments'>,
         })),
         createdBy,
       });

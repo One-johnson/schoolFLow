@@ -41,7 +41,7 @@ export function ViewSubjectDialog({
 }: ViewSubjectDialogProps): React.JSX.Element {
   const department = useQuery(
     api.departments.getDepartmentById,
-    subjectData.departmentId ? { departmentId: subjectData.departmentId } : 'skip'
+    subjectData.departmentId ? { departmentId: subjectData.departmentId as Id<'departments'> } : 'skip'
   );
 
   const getDepartmentBadge = (): React.JSX.Element => {

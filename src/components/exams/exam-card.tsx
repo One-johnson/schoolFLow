@@ -49,7 +49,7 @@ export function ExamCard({ exam, onView, onEdit, onDelete, onEnterMarks, onViewM
   const marksStats = useQuery(api.marks.getExamMarksStats, { examId: exam._id });
   const department = useQuery(
     api.departments.getDepartmentById,
-    exam.departmentId ? { departmentId: exam.departmentId } : 'skip'
+    exam.departmentId ? { departmentId: exam.departmentId as Id<'departments'> } : 'skip'
   );
   
   // Calculate progress percentage

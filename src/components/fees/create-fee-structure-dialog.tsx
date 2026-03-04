@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo, JSX } from 'react';
 import { useMutation, useQuery } from 'convex/react';
+import type { Id } from '@/../convex/_generated/dataModel';
 import { api } from '../../../convex/_generated/api';
 import {
   Dialog,
@@ -123,7 +124,7 @@ export function CreateFeeStructureDialog({
         schoolId,
         structureName: structureName.trim(),
         classId: selectedClass || undefined,
-        departmentId: selectedDepartmentId || undefined,
+        departmentId: selectedDepartmentId ? (selectedDepartmentId as Id<'departments'>) : undefined,
         fees: JSON.stringify(feeItems),
         totalAmount,
         dueDate: dueDate || undefined,

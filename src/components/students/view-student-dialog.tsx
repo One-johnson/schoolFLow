@@ -2,6 +2,7 @@
 
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
+import type { Id } from '@/../convex/_generated/dataModel';
 import {
   Dialog,
   DialogContent,
@@ -62,7 +63,7 @@ interface ViewStudentDialogProps {
 export function ViewStudentDialog({ student, open, onOpenChange }: ViewStudentDialogProps): React.JSX.Element {
   const department = useQuery(
     api.departments.getDepartmentById,
-    student.departmentId ? { departmentId: student.departmentId } : 'skip'
+    student.departmentId ? { departmentId: student.departmentId as Id<'departments'> } : 'skip'
   );
 
   // Fetch photo and document URLs from storage

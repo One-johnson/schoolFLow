@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/../convex/_generated/api';
+import type { Id } from '@/../convex/_generated/dataModel';
 import {
   Dialog,
   DialogContent,
@@ -62,7 +63,7 @@ export function AddExamDialog({ open, onOpenChange, schoolId }: AddExamDialogPro
   // Query subjects by department
   const departmentSubjects = useQuery(
     api.subjects.getSubjectsByDepartment,
-    departmentId ? { schoolId, departmentId } : 'skip'
+    departmentId ? { schoolId, departmentId: departmentId as Id<'departments'> } : 'skip'
   );
 
   // Set default department when departments load
@@ -133,7 +134,7 @@ export function AddExamDialog({ open, onOpenChange, schoolId }: AddExamDialogPro
         termId,
         startDate,
         endDate,
-        departmentId: departmentId || undefined,
+        departmentId: departmentId ? (departmentId as Id<'departments'>) : undefined,
         weightage: Number(weightage),
         instructions: instructions || undefined,
         subjects: JSON.stringify(validSubjects),

@@ -60,7 +60,7 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
   const allClasses = useQuery(api.classes.getClassesBySchool, { schoolId });
   const department = useQuery(
     api.departments.getDepartmentById,
-    exam?.departmentId ? { departmentId: exam.departmentId } : 'skip'
+    exam?.departmentId ? { departmentId: exam.departmentId as Id<'departments'> } : 'skip'
   );
   const enterMarks = useMutation(api.marks.enterMarks);
 

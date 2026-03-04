@@ -330,7 +330,7 @@ export function EditStudentDialog({ student, open, onOpenChange }: EditStudentDi
         address: formData.address,
         classId: formData.classId,
         className: selectedClass?.className || formData.className,
-        departmentId: selectedClass?.departmentId || formData.departmentId,
+        departmentId: (selectedClass?.departmentId || formData.departmentId) as Id<'departments'>,
         rollNumber: formData.rollNumber || undefined,
         admissionDate: formData.admissionDate,
         parentName: formData.parentName,

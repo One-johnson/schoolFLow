@@ -23,7 +23,7 @@ export function ViewExamDialog({ open, onOpenChange, examId }: ViewExamDialogPro
   const exam = useQuery(api.exams.getExamById, { examId });
   const department = useQuery(
     api.departments.getDepartmentById,
-    exam?.departmentId ? { departmentId: exam.departmentId } : 'skip'
+    exam?.departmentId ? { departmentId: exam.departmentId as Id<'departments'> } : 'skip'
   );
 
   if (!exam) {
