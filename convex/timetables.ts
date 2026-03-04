@@ -4,14 +4,26 @@ import type { Id } from './_generated/dataModel';
 
 type Day = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday';
 
-// Get all timetables for a school
+// Get all timetables for a school (optionally filtered by academic year and/or term)
 export const getTimetables = query({
-  args: { schoolId: v.string() },
+  args: {
+    schoolId: v.string(),
+    academicYearId: v.optional(v.string()),
+    termId: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
-    const timetables = await ctx.db
+    let timetables = await ctx.db
       .query('timetables')
       .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))
       .collect();
+
+    if (args.academicYearId) {
+      timetables = timetables.filter((t) => t.academicYearId === args.academicYearId);
+    }
+    if (args.termId) {
+      timetables = timetables.filter((t) => t.termId === args.termId);
+    }
+
     return timetables;
   },
 });
@@ -111,7 +123,20 @@ export const getTimetablesByTeacher = query({
   },
 });
 
-// Create a new weekly timetable with default periods for all weekdays
+const DEFAULT_PERIODS = [
+  { name: 'Assembly', startTime: '07:30', endTime: '08:00', type: 'break' as const },
+  { name: 'Period 1', startTime: '08:00', endTime: '09:10', type: 'class' as const },
+  { name: 'Period 2', startTime: '09:10', endTime: '10:20', type: 'class' as const },
+  { name: 'Break Time', startTime: '10:20', endTime: '10:40', type: 'break' as const },
+  { name: 'Period 3', startTime: '10:45', endTime: '11:55', type: 'class' as const },
+  { name: 'Period 4', startTime: '11:55', endTime: '13:05', type: 'class' as const },
+  { name: 'Lunch Time', startTime: '13:05', endTime: '13:35', type: 'break' as const },
+  { name: 'Period 5', startTime: '13:35', endTime: '14:45', type: 'class' as const },
+  { name: 'Period 6', startTime: '14:45', endTime: '15:55', type: 'class' as const },
+  { name: 'Closing', startTime: '15:55', endTime: '16:00', type: 'break' as const },
+];
+
+// Create a new weekly timetable with default or custom period structure
 export const createTimetable = mutation({
   args: {
     schoolId: v.string(),
@@ -120,6 +145,7 @@ export const createTimetable = mutation({
     academicYearId: v.optional(v.string()),
     termId: v.optional(v.string()),
     createdBy: v.string(),
+    periodStructure: v.optional(v.string()), // JSON array of { periodName, startTime, endTime, periodType }
   },
   handler: async (ctx, args) => {
     // Check if timetable already exists for this class
@@ -147,33 +173,28 @@ export const createTimetable = mutation({
       createdBy: args.createdBy,
     });
 
-    // Default periods structure
-    const defaultPeriods = [
-      { name: 'Assembly', startTime: '07:30', endTime: '08:00', type: 'break' as const },
-      { name: 'Period 1', startTime: '08:00', endTime: '09:10', type: 'class' as const },
-      { name: 'Period 2', startTime: '09:10', endTime: '10:20', type: 'class' as const },
-      { name: 'Break Time', startTime: '10:20', endTime: '10:40', type: 'break' as const },
-      { name: 'Period 3', startTime: '10:45', endTime: '11:55', type: 'class' as const },
-      { name: 'Period 4', startTime: '11:55', endTime: '13:05', type: 'class' as const },
-      { name: 'Lunch Time', startTime: '13:05', endTime: '13:35', type: 'break' as const },
-      { name: 'Period 5', startTime: '13:35', endTime: '14:45', type: 'class' as const },
-      { name: 'Period 6', startTime: '14:45', endTime: '15:55', type: 'class' as const },
-      { name: 'Closing', startTime: '15:55', endTime: '16:00', type: 'break' as const },
-    ];
+    type PeriodDef = { periodName?: string; name?: string; startTime: string; endTime: string; periodType?: 'class' | 'break'; type?: 'class' | 'break' };
+    const periodsToCreate: PeriodDef[] = args.periodStructure
+      ? (JSON.parse(args.periodStructure) as PeriodDef[])
+      : DEFAULT_PERIODS;
 
     // Create periods for all 5 weekdays
     const weekdays: Day[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
 
     for (const day of weekdays) {
-      for (const period of defaultPeriods) {
+      for (const period of periodsToCreate) {
+        const periodName = ('periodName' in period ? period.periodName : period.name) ?? 'Period';
+        const periodType = ('periodType' in period ? period.periodType : period.type) ?? 'class';
+        const startTime = period.startTime ?? '08:00';
+        const endTime = period.endTime ?? '09:00';
         await ctx.db.insert('periods', {
           timetableId,
           day,
-          periodName: period.name,
-          startTime: period.startTime,
-          endTime: period.endTime,
-          periodType: period.type,
-          duration: calculateDuration(period.startTime, period.endTime),
+          periodName,
+          startTime,
+          endTime,
+          periodType,
+          duration: calculateDuration(startTime, endTime),
           createdAt: new Date().toISOString(),
         });
       }
@@ -258,6 +279,64 @@ export const bulkDeleteTimetables = mutation({
       // Delete timetable
       await ctx.db.delete(timetableId);
     }
+  },
+});
+
+// Add a new period to a timetable (creates for all 5 weekdays)
+export const addPeriod = mutation({
+  args: {
+    timetableId: v.id('timetables'),
+    periodName: v.string(),
+    startTime: v.string(),
+    endTime: v.string(),
+    periodType: v.union(v.literal('class'), v.literal('break')),
+  },
+  handler: async (ctx, args) => {
+    const weekdays: Day[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+    const duration = calculateDuration(args.startTime, args.endTime);
+
+    for (const day of weekdays) {
+      await ctx.db.insert('periods', {
+        timetableId: args.timetableId,
+        day,
+        periodName: args.periodName,
+        startTime: args.startTime,
+        endTime: args.endTime,
+        periodType: args.periodType,
+        duration,
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    return args.timetableId;
+  },
+});
+
+// Remove a period from a timetable (removes from all 5 weekdays and any assignments)
+export const removePeriod = mutation({
+  args: {
+    timetableId: v.id('timetables'),
+    periodName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const periods = await ctx.db
+      .query('periods')
+      .withIndex('by_timetable', (q) => q.eq('timetableId', args.timetableId))
+      .filter((q) => q.eq(q.field('periodName'), args.periodName))
+      .collect();
+
+    for (const period of periods) {
+      const assignment = await ctx.db
+        .query('timetableAssignments')
+        .withIndex('by_period', (q) => q.eq('periodId', period._id))
+        .first();
+      if (assignment) {
+        await ctx.db.delete(assignment._id);
+      }
+      await ctx.db.delete(period._id);
+    }
+
+    return args.timetableId;
   },
 });
 
@@ -440,6 +519,47 @@ export const swapPeriodAssignments = mutation({
 
     if (!period1 || !period2) {
       throw new Error('Period not found');
+    }
+
+    // Validate no teacher conflicts after swap
+    if (assignment1) {
+      const otherAssignments = await ctx.db
+        .query('timetableAssignments')
+        .withIndex('by_teacher', (q) =>
+          q.eq('schoolId', assignment1.schoolId).eq('teacherId', assignment1.teacherId)
+        )
+        .filter((q) => q.eq(q.field('day'), period2.day))
+        .collect();
+
+      for (const a of otherAssignments) {
+        if (a.periodId !== args.periodId1 && a.periodId !== args.periodId2) {
+          if (checkTimeOverlap(period2.startTime, period2.endTime, a.startTime, a.endTime)) {
+            throw new Error(
+              `Swap would cause conflict: ${assignment1.teacherName} is already assigned to ${a.className} during this time on ${period2.day}`
+            );
+          }
+        }
+      }
+    }
+
+    if (assignment2) {
+      const otherAssignments = await ctx.db
+        .query('timetableAssignments')
+        .withIndex('by_teacher', (q) =>
+          q.eq('schoolId', assignment2.schoolId).eq('teacherId', assignment2.teacherId)
+        )
+        .filter((q) => q.eq(q.field('day'), period1.day))
+        .collect();
+
+      for (const a of otherAssignments) {
+        if (a.periodId !== args.periodId1 && a.periodId !== args.periodId2) {
+          if (checkTimeOverlap(period1.startTime, period1.endTime, a.startTime, a.endTime)) {
+            throw new Error(
+              `Swap would cause conflict: ${assignment2.teacherName} is already assigned to ${a.className} during this time on ${period1.day}`
+            );
+          }
+        }
+      }
     }
 
     // If both have assignments, swap them
