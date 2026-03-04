@@ -18,7 +18,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const convex = getConvexClient();
   try {
     const body = await request.json();
-    const { email, password } = body;
+    const rawEmail = body.email as string | undefined;
+    const rawPassword = body.password as string | undefined;
+    const email = typeof rawEmail === 'string' ? rawEmail.trim() : '';
+    const password = typeof rawPassword === 'string' ? rawPassword.trim() : '';
 
     // Extract IP and device information
     const ipAddress = extractIpAddress(request.headers);
@@ -114,43 +117,66 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    // Try School Admin login
+    // Try School Admin login (schoolId is case-insensitive; email is case-sensitive)
     const schoolAdmins = await convex.query(api.schoolAdmins.list);
+    const emailLower = email.toLowerCase();
     const schoolAdmin = schoolAdmins?.find(
-      (admin) => admin.schoolId === email || admin.email === email
+      (admin) =>
+        (admin.schoolId && admin.schoolId.toUpperCase() === email.toUpperCase()) ||
+        admin.email.toLowerCase() === emailLower
     );
 
-    if (schoolAdmin) {
+    // If not found by admin record, try lookup via school (admin.schoolId may have been updated after approval)
+    let resolvedAdmin = schoolAdmin;
+    if (!resolvedAdmin && email.toUpperCase().startsWith('SCH')) {
+      const school = await convex.query(api.schools.getBySchoolId, {
+        schoolId: email.toUpperCase(),
+      });
+      if (school?.adminId) {
+        resolvedAdmin =
+          schoolAdmins?.find((a) => a._id.toString() === school.adminId) ??
+          undefined;
+      }
+    }
+
+    if (resolvedAdmin) {
       let isValidPassword = false;
 
       // Check hashed password first
-      if (schoolAdmin.password) {
-        isValidPassword = await PasswordManager.verify(password, schoolAdmin.password);
+      if (resolvedAdmin.password) {
+        isValidPassword = await PasswordManager.verify(password, resolvedAdmin.password);
       }
 
-      // Verify against hashed tempPassword if set
-      if (!isValidPassword && schoolAdmin.tempPassword) {
-        isValidPassword = await PasswordManager.verify(password, schoolAdmin.tempPassword);
-        if (isValidPassword) {
-          // Promote to permanent hashed password and clear tempPassword
-          const hashedPassword = await PasswordManager.hash(password);
-          await convex.mutation(api.schoolAdmins.updatePassword, {
-            email: schoolAdmin.email,
-            password: hashedPassword,
-          });
-        }
+      // Verify against hashed tempPassword if set (original credential from creation)
+      if (!isValidPassword && resolvedAdmin.tempPassword) {
+        isValidPassword = await PasswordManager.verify(password, resolvedAdmin.tempPassword);
+      }
+
+      // Allow current schoolId as password when tempPassword is still set (e.g. after school approval,
+      // admin.schoolId was updated to custom ID; user expects "school ID as password" to work)
+      if (!isValidPassword && resolvedAdmin.tempPassword && resolvedAdmin.schoolId) {
+        isValidPassword = resolvedAdmin.schoolId.toUpperCase() === password.toUpperCase();
       }
 
       if (isValidPassword) {
+        // Promote temp password to permanent if it was temp
+        if (resolvedAdmin.tempPassword) {
+          const hashedPassword = await PasswordManager.hash(password);
+          await convex.mutation(api.schoolAdmins.updatePassword, {
+            email: resolvedAdmin.email,
+            password: hashedPassword,
+          });
+        }
+
         // Check account status
-        if (schoolAdmin.status === 'inactive') {
+        if (resolvedAdmin.status === 'inactive') {
           return NextResponse.json(
             { success: false, message: 'Your account has been deactivated. Please contact support.' },
             { status: 403 }
           );
         }
 
-        if (schoolAdmin.status === 'suspended') {
+        if (resolvedAdmin.status === 'suspended') {
           return NextResponse.json(
             { success: false, message: 'Your account has been suspended. Your trial may have expired.' },
             { status: 403 }
@@ -161,7 +187,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
 
         await convex.mutation(api.loginHistory.create, {
-          userId: schoolAdmin._id.toString(),
+          userId: resolvedAdmin._id.toString(),
           userRole: 'school_admin',
           status: 'success',
           ipAddress,
@@ -173,7 +199,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         });
 
         await convex.mutation(api.sessions.create, {
-          userId: schoolAdmin._id.toString(),
+          userId: resolvedAdmin._id.toString(),
           userRole: 'school_admin',
           sessionToken,
           ipAddress,
@@ -188,7 +214,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         // Check for suspicious activity
         await convex.mutation(api.securityAlerts.detectSuspiciousActivity, {
-          userId: schoolAdmin._id.toString(),
+          userId: resolvedAdmin._id.toString(),
           userRole: 'school_admin',
           ipAddress,
           device: deviceInfo.device,
@@ -203,7 +229,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       } else {
         // Track failed login
         await convex.mutation(api.loginHistory.create, {
-          userId: schoolAdmin._id.toString(),
+          userId: resolvedAdmin._id.toString(),
           userRole: 'school_admin',
           status: 'failed',
           ipAddress,
