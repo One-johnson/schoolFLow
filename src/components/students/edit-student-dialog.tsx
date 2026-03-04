@@ -287,9 +287,82 @@ export function EditStudentDialog({ student, open, onOpenChange }: EditStudentDi
     setAllergies(allergies.filter((_, i) => i !== index));
   };
 
+  const validateEmail = (email: string): string | undefined => {
+    if (!email) return undefined;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) return 'Invalid email format';
+    return undefined;
+  };
+
+  const validatePhone = (phone: string): string | undefined => {
+    if (!phone) return undefined;
+    const phoneRegex = /^[+]?[\d\s\-()]+$/;
+    if (!phoneRegex.test(phone)) return 'Invalid phone format';
+    if (phone.replace(/\D/g, '').length < 10) return 'Phone must be at least 10 digits';
+    return undefined;
+  };
+
   const handleSubmit = async (): Promise<void> => {
     if (!formData.firstName || !formData.lastName) {
       toast.error('Please enter first and last name');
+      return;
+    }
+
+    if (!formData.dateOfBirth) {
+      toast.error('Please enter date of birth');
+      return;
+    }
+
+    if (!formData.address) {
+      toast.error('Please enter address');
+      return;
+    }
+
+    if (!formData.classId) {
+      toast.error('Please select a class');
+      return;
+    }
+
+    if (!formData.admissionDate) {
+      toast.error('Please enter admission date');
+      return;
+    }
+
+    const emailErr = validateEmail(formData.email || '');
+    if (emailErr) {
+      toast.error(emailErr);
+      return;
+    }
+
+    const phoneErr = validatePhone(formData.phone || '');
+    if (phoneErr) {
+      toast.error(phoneErr);
+      return;
+    }
+
+    if (!formData.parentName || !formData.parentEmail || !formData.parentPhone) {
+      toast.error('Please enter parent/guardian information');
+      return;
+    }
+
+    const parentEmailErr = validateEmail(formData.parentEmail);
+    if (parentEmailErr) {
+      toast.error(`Parent: ${parentEmailErr}`);
+      return;
+    }
+
+    const parentPhoneErr = validatePhone(formData.parentPhone);
+    if (parentPhoneErr) {
+      toast.error(`Parent: ${parentPhoneErr}`);
+      return;
+    }
+
+    if (
+      !formData.emergencyContactName ||
+      !formData.emergencyContactPhone ||
+      !formData.emergencyContactRelationship
+    ) {
+      toast.error('Please enter emergency contact information');
       return;
     }
 
@@ -576,13 +649,24 @@ export function EditStudentDialog({ student, open, onOpenChange }: EditStudentDi
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label htmlFor="rollNumber">Roll Number</Label>
-                  <Input
-                    id="rollNumber"
-                    value={formData.rollNumber || ''}
-                    onChange={(e) => setFormData({ ...formData, rollNumber: e.target.value })}
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="rollNumber">Roll Number</Label>
+                    <Input
+                      id="rollNumber"
+                      value={formData.rollNumber || ''}
+                      onChange={(e) => setFormData({ ...formData, rollNumber: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="admissionDate">Admission Date</Label>
+                    <Input
+                      id="admissionDate"
+                      type="date"
+                      value={formData.admissionDate}
+                      onChange={(e) => setFormData({ ...formData, admissionDate: e.target.value })}
+                    />
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="birthCertificate">Birth Certificate</Label>
@@ -789,7 +873,7 @@ export function EditStudentDialog({ student, open, onOpenChange }: EditStudentDi
                   </div>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {medicalConditions.map((condition, index) => (
-                      <Badge key={index} variant="secondary">
+                      <Badge key={`${condition}-${index}`} variant="secondary">
                         {condition}
                         <X
                           className="h-3 w-3 ml-1 cursor-pointer"
@@ -820,7 +904,7 @@ export function EditStudentDialog({ student, open, onOpenChange }: EditStudentDi
                   </div>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {allergies.map((allergy, index) => (
-                      <Badge key={index} variant="secondary">
+                      <Badge key={`${allergy}-${index}`} variant="secondary">
                         {allergy}
                         <X
                           className="h-3 w-3 ml-1 cursor-pointer"
