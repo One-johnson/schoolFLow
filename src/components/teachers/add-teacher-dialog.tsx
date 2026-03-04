@@ -58,6 +58,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { DatePicker } from '@/components/ui/date-picker';
 import Image from 'next/image';
 
 interface AddTeacherDialogProps {
@@ -151,7 +152,7 @@ export function AddTeacherDialog({
     api.departments.getDepartmentsBySchool,
     schoolId ? { schoolId } : 'skip'
   );
-  const departmentSubjects = useQuery(
+  const schoolSubjects = useQuery(
     api.subjects.getSubjectsByDepartment,
     schoolId && selectedDepartmentId
       ? { schoolId, departmentId: selectedDepartmentId as Id<'departments'> }
@@ -706,18 +707,13 @@ export function AddTeacherDialog({
                     <Label htmlFor="dateOfBirth">
                       Date of Birth <span className="text-red-500">*</span>
                     </Label>
-                    <Input
+                    <DatePicker
                       id="dateOfBirth"
-                      type="date"
                       value={formData.dateOfBirth}
-                      onChange={(e) =>
-                        handleInputChange("dateOfBirth", e.target.value)
-                      }
-                      className={
-                        errors.dateOfBirth && touchedFields.has("dateOfBirth")
-                          ? "border-red-500"
-                          : ""
-                      }
+                      onChange={(v) => handleInputChange("dateOfBirth", v)}
+                      placeholder="Select date of birth"
+                      error={!!(errors.dateOfBirth && touchedFields.has("dateOfBirth"))}
+                      disableFuture
                     />
                     {errors.dateOfBirth && touchedFields.has("dateOfBirth") && (
                       <p className="text-xs text-red-500 flex items-center gap-1">
@@ -819,19 +815,13 @@ export function AddTeacherDialog({
                     <Label htmlFor="employmentDate">
                       Employment Date <span className="text-red-500">*</span>
                     </Label>
-                    <Input
+                    <DatePicker
                       id="employmentDate"
-                      type="date"
                       value={formData.employmentDate}
-                      onChange={(e) =>
-                        handleInputChange("employmentDate", e.target.value)
-                      }
-                      className={
-                        errors.employmentDate &&
-                        touchedFields.has("employmentDate")
-                          ? "border-red-500"
-                          : ""
-                      }
+                      onChange={(v) => handleInputChange("employmentDate", v)}
+                      placeholder="Select employment date"
+                      error={!!(errors.employmentDate && touchedFields.has("employmentDate"))}
+                      disableFuture={false}
                     />
                     {errors.employmentDate &&
                       touchedFields.has("employmentDate") && (
@@ -941,9 +931,9 @@ export function AddTeacherDialog({
                         </SelectContent>
                       </Select>
                     </div>
-                    {selectedDepartment && departmentSubjects && departmentSubjects.length > 0 && (
+                    {selectedDepartment && schoolSubjects && schoolSubjects.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mb-2">
-                        {departmentSubjects
+                        {schoolSubjects
                           .filter(
                             (s) =>
                               !subjects.includes(
@@ -1167,7 +1157,8 @@ export function AddTeacherDialog({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Teacher Addition</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
+            <AlertDialogDescription asChild>
+              <div className="text-muted-foreground text-sm space-y-2">
               <p>Please review the teacher details:</p>
               <div className="bg-muted p-4 rounded-lg space-y-1 text-sm">
                 <p>
@@ -1188,6 +1179,7 @@ export function AddTeacherDialog({
                 </p>
               </div>
               <p>Are you sure you want to add this teacher?</p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

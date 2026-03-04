@@ -241,7 +241,7 @@ export function DataTable<TData, TValue>({
           </Button>
         )}
       </div>
-      <div className="rounded-md border dark:border-gray-800">
+      <div className="rounded-md border dark:border-gray-800 overflow-x-auto">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (

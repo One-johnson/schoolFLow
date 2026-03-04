@@ -31,6 +31,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { DatePicker } from '@/components/ui/date-picker';
 import type { Teacher } from '@/types';
 
 interface EditTeacherDialogProps {
@@ -376,12 +377,13 @@ export function EditTeacherDialog({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="dateOfBirth">Date of Birth <span className="text-red-500">*</span></Label>
-                  <Input
+                  <DatePicker
                     id="dateOfBirth"
-                    type="date"
                     value={formData.dateOfBirth}
-                    onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
-                    className={errors.dateOfBirth && touchedFields.has('dateOfBirth') ? 'border-red-500' : ''}
+                    onChange={(v) => handleInputChange('dateOfBirth', v)}
+                    placeholder="Select date of birth"
+                    error={!!(errors.dateOfBirth && touchedFields.has('dateOfBirth'))}
+                    disableFuture
                   />
                   {errors.dateOfBirth && touchedFields.has('dateOfBirth') && (
                     <p className="text-xs text-red-500 flex items-center gap-1">
@@ -482,12 +484,13 @@ export function EditTeacherDialog({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="employmentDate">Employment Date <span className="text-red-500">*</span></Label>
-                  <Input
+                  <DatePicker
                     id="employmentDate"
-                    type="date"
                     value={formData.employmentDate}
-                    onChange={(e) => handleInputChange('employmentDate', e.target.value)}
-                    className={errors.employmentDate && touchedFields.has('employmentDate') ? 'border-red-500' : ''}
+                    onChange={(v) => handleInputChange('employmentDate', v)}
+                    placeholder="Select employment date"
+                    error={!!(errors.employmentDate && touchedFields.has('employmentDate'))}
+                    disableFuture={false}
                   />
                   {errors.employmentDate && touchedFields.has('employmentDate') && (
                     <p className="text-xs text-red-500 flex items-center gap-1">

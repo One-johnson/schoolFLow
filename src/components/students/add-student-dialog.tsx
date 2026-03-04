@@ -50,6 +50,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { DatePicker } from '@/components/ui/date-picker';
 
 interface AddStudentDialogProps {
   open: boolean;
@@ -713,11 +714,12 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps):
                     <Label htmlFor="dateOfBirth">
                       Date of Birth <span className="text-red-500">*</span>
                     </Label>
-                    <Input
+                    <DatePicker
                       id="dateOfBirth"
-                      type="date"
                       value={formData.dateOfBirth}
-                      onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                      onChange={(v) => setFormData({ ...formData, dateOfBirth: v })}
+                      placeholder="Select date of birth"
+                      disableFuture
                     />
                   </div>
                   <div>
@@ -837,11 +839,12 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps):
                     <Label htmlFor="admissionDate">
                       Admission Date <span className="text-red-500">*</span>
                     </Label>
-                    <Input
+                    <DatePicker
                       id="admissionDate"
-                      type="date"
                       value={formData.admissionDate}
-                      onChange={(e) => setFormData({ ...formData, admissionDate: e.target.value })}
+                      onChange={(v) => setFormData({ ...formData, admissionDate: v })}
+                      placeholder="Select admission date"
+                      disableFuture={false}
                     />
                   </div>
                 </div>

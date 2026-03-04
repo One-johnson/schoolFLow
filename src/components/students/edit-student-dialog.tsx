@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -544,11 +545,12 @@ export function EditStudentDialog({ student, open, onOpenChange }: EditStudentDi
                   </div>
                   <div>
                     <Label htmlFor="dateOfBirth">Date of Birth</Label>
-                    <Input
+                    <DatePicker
                       id="dateOfBirth"
-                      type="date"
                       value={formData.dateOfBirth}
-                      onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                      onChange={(v) => setFormData({ ...formData, dateOfBirth: v })}
+                      placeholder="Select date of birth"
+                      disableFuture
                     />
                   </div>
                   <div>
@@ -660,11 +662,12 @@ export function EditStudentDialog({ student, open, onOpenChange }: EditStudentDi
                   </div>
                   <div>
                     <Label htmlFor="admissionDate">Admission Date</Label>
-                    <Input
+                    <DatePicker
                       id="admissionDate"
-                      type="date"
                       value={formData.admissionDate}
-                      onChange={(e) => setFormData({ ...formData, admissionDate: e.target.value })}
+                      onChange={(v) => setFormData({ ...formData, admissionDate: v })}
+                      placeholder="Select admission date"
+                      disableFuture={false}
                     />
                   </div>
                 </div>
