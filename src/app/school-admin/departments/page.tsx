@@ -73,8 +73,16 @@ export default function DepartmentsPage(): React.JSX.Element {
     );
   }
 
-  const schoolId = schoolAdmin.schoolId ?? '';
-  const createdBy = schoolAdmin._id ?? '';
+  const schoolId = schoolAdmin?.schoolId ?? '';
+  const createdBy = schoolAdmin?._id ?? undefined;
+
+  if (!schoolId || !createdBy) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-muted-foreground">No school or school admin profile found</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -163,14 +171,14 @@ export default function DepartmentsPage(): React.JSX.Element {
       <AddDepartmentDialog
         open={showAddDialog}
         onOpenChange={setShowAddDialog}
-        schoolId={schoolId}
-        createdBy={createdBy}
+        schoolId={schoolId as Id<'schools'>}
+        createdBy={createdBy as Id<'schoolAdmins'>}
       />
       <EditDepartmentDialog
         open={showEditDialog}
         onOpenChange={setShowEditDialog}
         department={selectedDepartment}
-        updatedBy={createdBy}
+        updatedBy={createdBy as Id<'schoolAdmins'>}
       />
       <DeleteDepartmentDialog
         open={showDeleteDialog}

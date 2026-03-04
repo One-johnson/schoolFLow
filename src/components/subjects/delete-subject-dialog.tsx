@@ -22,7 +22,7 @@ interface Subject {
   subjectName: string;
   description?: string;
   category: 'core' | 'elective' | 'extracurricular';
-  department: 'creche' | 'kindergarten' | 'primary' | 'junior_high';
+  departmentId: string;
   status: 'active' | 'inactive';
   createdAt: string;
   updatedAt: string;
