@@ -20,8 +20,18 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import {
   Plus,
   Search,
@@ -119,10 +129,28 @@ export default function TimetablePage(): React.JSX.Element {
 
   const approvedSchool = schoolCreationRequests?.find((req: { status: string }) => req.status === 'approved');
 
+  // Academic year and term filter state
+  const [filterAcademicYearId, setFilterAcademicYearId] = useState<string>('all');
+  const [filterTermId, setFilterTermId] = useState<string>('all');
+
   // Queries
+  const academicYears = useQuery(
+    api.academicYears.getYearsBySchool,
+    schoolId ? { schoolId } : 'skip'
+  );
+  const terms = useQuery(
+    api.terms.getTermsBySchool,
+    schoolId ? { schoolId } : 'skip'
+  );
   const timetables = useQuery(
     api.timetables.getTimetables,
-    schoolId ? { schoolId } : 'skip'
+    schoolId
+      ? {
+          schoolId,
+          academicYearId: filterAcademicYearId !== 'all' ? filterAcademicYearId : undefined,
+          termId: filterTermId !== 'all' ? filterTermId : undefined,
+        }
+      : 'skip'
   ) as Timetable[] | undefined;
 
   const classes = useQuery(
@@ -383,6 +411,25 @@ export default function TimetablePage(): React.JSX.Element {
     setShowBulkDeleteDialog(true);
   }, [selectedTimetableIds]);
 
+  const handleToggleTimetable = useCallback((timetableId: Id<'timetables'>): void => {
+    setSelectedRows((prev) => ({
+      ...prev,
+      [timetableId]: !prev[timetableId],
+    }));
+  }, []);
+
+  const handleSelectAll = useCallback((): void => {
+    const allSelected = filteredTimetables.reduce(
+      (acc, t) => ({ ...acc, [t._id]: true }),
+      {} as Record<string, boolean>
+    );
+    setSelectedRows(allSelected);
+  }, [filteredTimetables]);
+
+  const handleClearSelection = useCallback((): void => {
+    setSelectedRows({});
+  }, []);
+
   const activeClasses = useMemo(() => {
     return classes?.filter(c => c.status === 'active') || [];
   }, [classes]);
@@ -458,6 +505,43 @@ export default function TimetablePage(): React.JSX.Element {
 
             {/* Filters */}
             <div className="flex flex-wrap gap-2">
+              {academicYears && academicYears.length > 0 && (
+                <Select value={filterAcademicYearId} onValueChange={setFilterAcademicYearId}>
+                  <SelectTrigger className="w-[160px]">
+                    <Filter className="mr-2 h-4 w-4" />
+                    <SelectValue placeholder="Academic year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Years</SelectItem>
+                    {academicYears.map((y) => (
+                      <SelectItem key={y._id} value={y._id}>
+                        {y.yearName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {terms && terms.length > 0 && (
+                <Select value={filterTermId} onValueChange={setFilterTermId}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Term" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Terms</SelectItem>
+                    {terms
+                      .filter(
+                        (t) =>
+                          filterAcademicYearId === 'all' ||
+                          t.academicYearId === filterAcademicYearId
+                      )
+                      .map((t) => (
+                        <SelectItem key={t._id} value={t._id}>
+                          {t.termName}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              )}
               <Select value={selectedClass} onValueChange={setSelectedClass}>
                 <SelectTrigger className="w-[180px]">
                   <Filter className="mr-2 h-4 w-4" />
@@ -517,49 +601,66 @@ export default function TimetablePage(): React.JSX.Element {
                   )}
 
                   <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-xs text-muted-foreground">
-                    Teacher Schedule
-                  </DropdownMenuLabel>
-                  
-                  {activeTeachers.length === 0 ? (
-                    <DropdownMenuItem disabled>
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger disabled={activeTeachers.length === 0}>
                       <Users className="mr-2 h-4 w-4" />
-                      No teachers available
-                    </DropdownMenuItem>
-                  ) : (
-                    activeTeachers.slice(0, 10).map((teacher) => (
-                      <DropdownMenuItem
-                        key={teacher._id}
-                        onClick={() => handleExportTeacherSchedule(teacher._id)}
-                        disabled={exportingTeacher === teacher._id}
-                      >
-                        <Users className="mr-2 h-4 w-4" />
-                        {exportingTeacher === teacher._id 
-                          ? 'Exporting...' 
-                          : `${teacher.firstName} ${teacher.lastName}`
-                        }
-                      </DropdownMenuItem>
-                    ))
-                  )}
-                  
-                  {activeTeachers.length > 10 && (
-                    <DropdownMenuItem disabled className="text-xs text-muted-foreground">
-                      + {activeTeachers.length - 10} more teachers...
-                    </DropdownMenuItem>
-                  )}
+                      Teacher Schedule ({activeTeachers.length})
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="max-h-[280px] overflow-y-auto">
+                      {activeTeachers.length === 0 ? (
+                        <DropdownMenuItem disabled>
+                          No teachers available
+                        </DropdownMenuItem>
+                      ) : (
+                        activeTeachers.map((teacher) => (
+                          <DropdownMenuItem
+                            key={teacher._id}
+                            onClick={() => handleExportTeacherSchedule(teacher._id)}
+                            disabled={exportingTeacher === teacher._id}
+                          >
+                            <Users className="mr-2 h-4 w-4" />
+                            {exportingTeacher === teacher._id 
+                              ? 'Exporting...' 
+                              : `${teacher.firstName} ${teacher.lastName}`
+                            }
+                          </DropdownMenuItem>
+                        ))
+                      )}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* Bulk Delete */}
-              {selectedTimetableIds.length > 0 && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleBulkDelete}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete Selected ({selectedTimetableIds.length})
-                </Button>
+              {/* Selection Actions */}
+              {filteredTimetables.length > 0 && (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleSelectAll}
+                  >
+                    Select All
+                  </Button>
+                  {selectedTimetableIds.length > 0 && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleClearSelection}
+                      >
+                        Clear Selection
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleBulkDelete}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete Selected ({selectedTimetableIds.length})
+                      </Button>
+                    </>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -588,51 +689,65 @@ export default function TimetablePage(): React.JSX.Element {
             )}
           </Card>
         ) : (
-          <div className="space-y-6">
+          <Accordion type="single" collapsible className="space-y-4">
             {Object.entries(groupedTimetables).map(([classId, classTimetables]) => {
               const className = classTimetables[0]?.className || 'Unknown Class';
               const timetableId = classTimetables[0]?._id;
-              
+
               return (
-                <Card key={classId} className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-semibold">{className}</h3>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedTimetableForTemplate(timetableId);
-                          setShowSaveTemplateDialog(true);
-                        }}
-                      >
-                        <Save className="mr-2 h-4 w-4" />
-                        Save as Template
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => timetableId && handleExportClassTimetable(timetableId)}
-                        disabled={exportingClass === timetableId}
-                      >
-                        <Download className="mr-2 h-4 w-4" />
-                        {exportingClass === timetableId ? 'Exporting...' : 'Export PDF'}
-                      </Button>
+                <AccordionItem key={classId} value={classId} className="border rounded-lg px-4 bg-card">
+                  <AccordionTrigger className="hover:no-underline py-4">
+                    <div className="flex items-center justify-between w-full pr-4">
+                      <div className="flex items-center gap-3">
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            id={`select-${timetableId}`}
+                            checked={selectedRows[timetableId] ?? false}
+                            onCheckedChange={() => timetableId && handleToggleTimetable(timetableId)}
+                          />
+                        </div>
+                        <span className="text-xl font-semibold">{className}</span>
+                      </div>
+                      <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            if (timetableId) {
+                              setSelectedTimetableForTemplate(timetableId);
+                              setShowSaveTemplateDialog(true);
+                            }
+                          }}
+                        >
+                          <Save className="mr-2 h-4 w-4" />
+                          Save as Template
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => timetableId && handleExportClassTimetable(timetableId)}
+                          disabled={exportingClass === timetableId}
+                        >
+                          <Download className="mr-2 h-4 w-4" />
+                          {exportingClass === timetableId ? 'Exporting...' : 'Export PDF'}
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                  
-                  <TimetableView
-                    timetables={classTimetables}
-                    classId={classId}
-                    className={className}
-                    schoolId={schoolId}
-                    teachers={activeTeachers}
-                    onDelete={handleDeleteClick}
-                  />
-                </Card>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <TimetableView
+                      timetables={classTimetables}
+                      classId={classId}
+                      className={className}
+                      schoolId={schoolId}
+                      teachers={activeTeachers}
+                      onDelete={handleDeleteClick}
+                    />
+                  </AccordionContent>
+                </AccordionItem>
               );
             })}
-          </div>
+          </Accordion>
         )}
 
         {/* Dialogs */}
@@ -641,6 +756,8 @@ export default function TimetablePage(): React.JSX.Element {
           onOpenChange={setShowAddDialog}
           schoolId={schoolId}
           classes={availableClasses}
+          academicYearId={filterAcademicYearId !== 'all' ? filterAcademicYearId : undefined}
+          termId={filterTermId !== 'all' ? filterTermId : undefined}
         />
 
         <DeleteTimetableDialog

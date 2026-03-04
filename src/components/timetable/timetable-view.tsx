@@ -13,23 +13,29 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Edit2, Check, X, UserPlus, GripVertical } from 'lucide-react';
+import { Trash2, Edit2, Check, X, UserPlus, GripVertical, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Id } from '../../../convex/_generated/dataModel';
 import { AssignTeacherDialog } from './assign-teacher-dialog';
 import { ConflictBadge } from './conflict-badge';
 import { convertTo12Hour } from '@/lib/timeUtils';
-import {
-  DndContext,
-  DragEndEvent,
-  DragOverlay,
-  DragStartEvent,
-  useSensor,
-  useSensors,
-  PointerSensor,
-  closestCenter,
-} from '@dnd-kit/core';
 
 type Day = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday';
 
@@ -102,16 +108,22 @@ export function TimetableView({
   const updatePeriod = useMutation(api.timetables.updatePeriod);
   const removeAssignment = useMutation(api.timetables.removeAssignment);
   const swapPeriods = useMutation(api.timetables.swapPeriodAssignments);
+  const addPeriod = useMutation(api.timetables.addPeriod);
+  const removePeriod = useMutation(api.timetables.removePeriod);
 
   const [editingPeriod, setEditingPeriod] = useState<Id<'periods'> | null>(null);
+  const [showAddPeriodDialog, setShowAddPeriodDialog] = useState<boolean>(false);
+  const [newPeriodName, setNewPeriodName] = useState<string>('');
+  const [newPeriodStartTime, setNewPeriodStartTime] = useState<string>('08:00');
+  const [newPeriodEndTime, setNewPeriodEndTime] = useState<string>('09:00');
+  const [newPeriodType, setNewPeriodType] = useState<'class' | 'break'>('class');
+  const [isAddingPeriod, setIsAddingPeriod] = useState<boolean>(false);
   const [editStartTime, setEditStartTime] = useState<string>('');
   const [editEndTime, setEditEndTime] = useState<string>('');
   const [showAssignDialog, setShowAssignDialog] = useState<boolean>(false);
   const [selectedPeriod, setSelectedPeriod] = useState<Period | null>(null);
   const [selectedTimetableId, setSelectedTimetableId] = useState<Id<'timetables'> | null>(null);
   const [selectedDay, setSelectedDay] = useState<Day | null>(null);
-  const [activePeriodId, setActivePeriodId] = useState<Id<'periods'> | null>(null);
-  const [draggedAssignment, setDraggedAssignment] = useState<Assignment | null>(null);
 
   // Get the first (and only) timetable for this class
   const timetable = timetables[0];
@@ -205,35 +217,10 @@ export function TimetableView({
     return periodsByDay?.[day]?.find(p => p.periodName === periodName);
   };
 
-  // Drag and drop handlers
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    })
-  );
-
-  const handleDragStart = (event: DragStartEvent): void => {
-    const periodId = event.active.id as Id<'periods'>;
-    setActivePeriodId(periodId);
-    
-    const assignment = getAssignmentForPeriod(periodId);
-    if (assignment) {
-      setDraggedAssignment(assignment);
-    }
-  };
-
-  const handleDragEnd = async (event: DragEndEvent): Promise<void> => {
-    const { active, over } = event;
-    
-    setActivePeriodId(null);
-    setDraggedAssignment(null);
-
-    if (!over || active.id === over.id) return;
-
-    const sourcePeriodId = active.id as Id<'periods'>;
-    const targetPeriodId = over.id as Id<'periods'>;
+  const handleDrop = async (e: React.DragEvent, targetPeriodId: Id<'periods'>): Promise<void> => {
+    e.preventDefault();
+    const sourcePeriodId = e.dataTransfer.getData('periodId') as Id<'periods'>;
+    if (!sourcePeriodId || sourcePeriodId === targetPeriodId) return;
 
     try {
       await swapPeriods({
@@ -244,6 +231,45 @@ export function TimetableView({
     } catch (error) {
       console.error('Swap error:', error);
       toast.error('Failed to swap assignments');
+    }
+  };
+
+  const handleAddPeriod = async (e: React.FormEvent): Promise<void> => {
+    e.preventDefault();
+    if (!timetable || !newPeriodName.trim()) {
+      toast.error('Please enter a period name');
+      return;
+    }
+    setIsAddingPeriod(true);
+    try {
+      await addPeriod({
+        timetableId: timetable._id,
+        periodName: newPeriodName.trim(),
+        startTime: newPeriodStartTime,
+        endTime: newPeriodEndTime,
+        periodType: newPeriodType,
+      });
+      toast.success('Period added successfully');
+      setShowAddPeriodDialog(false);
+      setNewPeriodName('');
+      setNewPeriodStartTime('08:00');
+      setNewPeriodEndTime('09:00');
+      setNewPeriodType('class');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to add period');
+    } finally {
+      setIsAddingPeriod(false);
+    }
+  };
+
+  const handleRemovePeriod = async (periodName: string): Promise<void> => {
+    if (!timetable) return;
+    if (!confirm(`Remove "${periodName}" from all days? Any teacher assignments will be removed.`)) return;
+    try {
+      await removePeriod({ timetableId: timetable._id, periodName });
+      toast.success(`Period "${periodName}" removed`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to remove period');
     }
   };
 
@@ -264,23 +290,27 @@ export function TimetableView({
             <ConflictBadge conflicts={conflicts} />
           )}
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onDelete(timetable._id)}
-        >
-          <Trash2 className="h-4 w-4 text-destructive mr-2" />
-          Delete Timetable
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowAddPeriodDialog(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Period
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onDelete(timetable._id)}
+          >
+            <Trash2 className="h-4 w-4 text-destructive mr-2" />
+            Delete Timetable
+          </Button>
+        </div>
       </div>
 
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="rounded-md border overflow-x-auto">
+      <div className="rounded-md border overflow-x-auto">
           <Table>
           <TableHeader>
             <TableRow>
@@ -309,6 +339,15 @@ export function TimetableView({
                             Break
                           </Badge>
                         )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemovePeriod(mondayPeriod.periodName)}
+                          className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                          title="Remove period"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
                       </div>
                       <div className="text-xs text-muted-foreground">
                         {isEditing ? (
@@ -400,34 +439,16 @@ export function TimetableView({
                         style={{
                           backgroundColor: assignment?.subjectColor ? lightenColor(assignment.subjectColor) : 'transparent',
                         }}
+                        onDragOver={(e: React.DragEvent) => e.preventDefault()}
+                        onDrop={(e: React.DragEvent) => handleDrop(e, period._id)}
                       >
                         {assignment ? (
                           <div 
                             className="flex flex-col gap-1 cursor-move hover:ring-2 hover:ring-primary/50 rounded p-1"
                             draggable
-                            onDragStart={() => {
-                              setActivePeriodId(period._id);
-                              setDraggedAssignment(assignment);
-                            }}
-                            onDragEnd={() => {
-                              setActivePeriodId(null);
-                              setDraggedAssignment(null);
-                            }}
-                            onDragOver={(e: React.DragEvent) => e.preventDefault()}
-                            onDrop={async (e: React.DragEvent) => {
-                              e.preventDefault();
-                              if (activePeriodId && activePeriodId !== period._id) {
-                                try {
-                                  await swapPeriods({
-                                    periodId1: activePeriodId,
-                                    periodId2: period._id,
-                                  });
-                                  toast.success('Assignments swapped');
-                                // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                                } catch (error) {
-                                  toast.error('Failed to swap');
-                                }
-                              }
+                            onDragStart={(e: React.DragEvent) => {
+                              e.dataTransfer.setData('periodId', period._id);
+                              e.dataTransfer.effectAllowed = 'move';
                             }}
                           >
                             <div className="text-sm font-medium flex items-center gap-2">
@@ -481,15 +502,70 @@ export function TimetableView({
           </Table>
         </div>
 
-        <DragOverlay>
-          {draggedAssignment && (
-            <div className="bg-white border-2 border-primary rounded p-2 shadow-lg">
-              <div className="text-sm font-medium">{draggedAssignment.subjectName}</div>
-              <div className="text-xs text-muted-foreground">{draggedAssignment.teacherName}</div>
+      {/* Add Period Dialog */}
+      <Dialog open={showAddPeriodDialog} onOpenChange={setShowAddPeriodDialog}>
+        <DialogContent className="sm:max-w-[400px]">
+          <form onSubmit={handleAddPeriod}>
+            <DialogHeader>
+              <DialogTitle>Add Period</DialogTitle>
+              <DialogDescription>
+                Add a new period to the timetable. It will be created for all weekdays (Monday-Friday).
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="periodName">Period Name *</Label>
+                <Input
+                  id="periodName"
+                  value={newPeriodName}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewPeriodName(e.target.value)}
+                  placeholder="e.g., Period 7"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="startTime">Start Time</Label>
+                  <Input
+                    id="startTime"
+                    type="time"
+                    value={newPeriodStartTime}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewPeriodStartTime(e.target.value)}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="endTime">End Time</Label>
+                  <Input
+                    id="endTime"
+                    type="time"
+                    value={newPeriodEndTime}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewPeriodEndTime(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="periodType">Type</Label>
+                <Select value={newPeriodType} onValueChange={(v: 'class' | 'break') => setNewPeriodType(v)}>
+                  <SelectTrigger id="periodType">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="class">Class</SelectItem>
+                    <SelectItem value="break">Break</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          )}
-        </DragOverlay>
-      </DndContext>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setShowAddPeriodDialog(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isAddingPeriod || !newPeriodName.trim()}>
+                {isAddingPeriod ? 'Adding...' : 'Add Period'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Assign Teacher Dialog */}
       {selectedPeriod && selectedTimetableId && selectedDay && (
