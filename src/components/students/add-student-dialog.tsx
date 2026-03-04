@@ -40,6 +40,17 @@ import {
   FileText,
   Loader2,
 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { DatePicker } from '@/components/ui/date-picker';
 
 interface AddStudentDialogProps {
   open: boolean;
@@ -131,33 +142,100 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps):
   const [secondaryContactOpen, setSecondaryContactOpen] = useState<boolean>(false);
   const [emergencyOpen, setEmergencyOpen] = useState<boolean>(false);
   const [medicalOpen, setMedicalOpen] = useState<boolean>(false);
+  const [showDraftRestoreDialog, setShowDraftRestoreDialog] = useState<boolean>(false);
+  const [pendingDraft, setPendingDraft] = useState<{
+    formData: FormData;
+    medicalConditions: string[];
+    allergies: string[];
+    photoPreview: string;
+  } | null>(null);
 
-  // Load draft on mount
+  // Check for draft when dialog opens - show confirmation instead of auto-loading
   useEffect(() => {
     if (open) {
       const savedDraft = localStorage.getItem(DRAFT_KEY);
       if (savedDraft) {
         try {
-          const draft = JSON.parse(savedDraft);
-          setFormData(draft.formData || formData);
-          setMedicalConditions(draft.medicalConditions || []);
-          setAllergies(draft.allergies || []);
+          const draft = JSON.parse(savedDraft) as {
+            formData?: Record<string, unknown>;
+            medicalConditions?: string[];
+            allergies?: string[];
+            photoPreview?: string;
+          };
+          if (draft.formData) {
+            const fd = draft.formData;
+            setPendingDraft({
+              formData: {
+                firstName: String(fd.firstName ?? ''),
+                lastName: String(fd.lastName ?? ''),
+                middleName: String(fd.middleName ?? ''),
+                dateOfBirth: String(fd.dateOfBirth ?? ''),
+                gender: (fd.gender === 'female' || fd.gender === 'other' ? fd.gender : fd.gender === 'male' ? 'male' : '') as FormData['gender'],
+                nationality: String(fd.nationality ?? ''),
+                religion: String(fd.religion ?? ''),
+                email: String(fd.email ?? ''),
+                phone: String(fd.phone ?? ''),
+                address: String(fd.address ?? ''),
+                classId: String(fd.classId ?? ''),
+                rollNumber: String(fd.rollNumber ?? ''),
+                admissionDate: String(fd.admissionDate ?? new Date().toISOString().split('T')[0]),
+                parentName: String(fd.parentName ?? ''),
+                parentEmail: String(fd.parentEmail ?? ''),
+                parentPhone: String(fd.parentPhone ?? ''),
+                parentOccupation: String(fd.parentOccupation ?? ''),
+                relationship: (fd.relationship === 'father' || fd.relationship === 'mother' || fd.relationship === 'guardian' ? fd.relationship : '') as FormData['relationship'],
+                secondaryContactName: String(fd.secondaryContactName ?? ''),
+                secondaryContactPhone: String(fd.secondaryContactPhone ?? ''),
+                secondaryContactRelationship: String(fd.secondaryContactRelationship ?? ''),
+                emergencyContactName: String(fd.emergencyContactName ?? ''),
+                emergencyContactPhone: String(fd.emergencyContactPhone ?? ''),
+                emergencyContactRelationship: String(fd.emergencyContactRelationship ?? ''),
+              },
+              medicalConditions: draft.medicalConditions || [],
+              allergies: draft.allergies || [],
+              photoPreview: draft.photoPreview || '',
+            });
+            setShowDraftRestoreDialog(true);
+          }
         } catch (error) {
-          console.error('Failed to load draft:', error);
+          console.error('Failed to parse draft:', error);
         }
+      } else {
+        setShowDraftRestoreDialog(false);
+        setPendingDraft(null);
       }
+    } else {
+      setShowDraftRestoreDialog(false);
+      setPendingDraft(null);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Auto-save draft (excluding photos)
+  const handleRestoreDraft = (): void => {
+    if (pendingDraft) {
+      setFormData(pendingDraft.formData);
+      setMedicalConditions(pendingDraft.medicalConditions);
+      setAllergies(pendingDraft.allergies);
+      setPhotoPreview(pendingDraft.photoPreview);
+      setPendingDraft(null);
+      setShowDraftRestoreDialog(false);
+    }
+  };
+
+  const handleDiscardDraft = (): void => {
+    localStorage.removeItem(DRAFT_KEY);
+    setPendingDraft(null);
+    setShowDraftRestoreDialog(false);
+  };
+
+  // Auto-save draft (including photo preview)
   useEffect(() => {
-    if (open) {
+    if (open && !showDraftRestoreDialog) {
       const timer = setTimeout(() => {
         const draftData = {
           formData,
           medicalConditions,
           allergies,
+          photoPreview,
         };
         try {
           localStorage.setItem(DRAFT_KEY, JSON.stringify(draftData));
@@ -168,7 +246,7 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps):
 
       return () => clearTimeout(timer);
     }
-  }, [formData, medicalConditions, allergies, open]);
+  }, [formData, medicalConditions, allergies, photoPreview, open, showDraftRestoreDialog]);
 
   const calculateProgress = (): number => {
     const requiredFields = [
@@ -269,6 +347,7 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps):
       formData,
       medicalConditions,
       allergies,
+      photoPreview,
     };
     localStorage.setItem(DRAFT_KEY, JSON.stringify(draftData));
     toast.success('Draft saved successfully');
@@ -315,6 +394,21 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps):
     toast.success('Form cleared');
   };
 
+  const validateEmail = (email: string): string | undefined => {
+    if (!email) return undefined;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) return 'Invalid email format';
+    return undefined;
+  };
+
+  const validatePhone = (phone: string): string | undefined => {
+    if (!phone) return undefined;
+    const phoneRegex = /^[+]?[\d\s\-()]+$/;
+    if (!phoneRegex.test(phone)) return 'Invalid phone format';
+    if (phone.replace(/\D/g, '').length < 10) return 'Phone must be at least 10 digits';
+    return undefined;
+  };
+
   const handleSubmit = async (): Promise<void> => {
     // Validation
     if (!formData.firstName || !formData.lastName) {
@@ -342,8 +436,37 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps):
       return;
     }
 
+    if (!formData.admissionDate) {
+      toast.error('Please enter admission date');
+      return;
+    }
+
+    const emailErr = validateEmail(formData.email);
+    if (emailErr) {
+      toast.error(emailErr);
+      return;
+    }
+
+    const phoneErr = validatePhone(formData.phone);
+    if (phoneErr) {
+      toast.error(phoneErr);
+      return;
+    }
+
     if (!formData.parentName || !formData.parentEmail || !formData.parentPhone) {
       toast.error('Please enter parent/guardian information');
+      return;
+    }
+
+    const parentEmailErr = validateEmail(formData.parentEmail);
+    if (parentEmailErr) {
+      toast.error(`Parent: ${parentEmailErr}`);
+      return;
+    }
+
+    const parentPhoneErr = validatePhone(formData.parentPhone);
+    if (parentPhoneErr) {
+      toast.error(`Parent: ${parentPhoneErr}`);
       return;
     }
 
@@ -501,6 +624,7 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps):
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="min-w-2xl max-h-[90vh] flex flex-col overflow-y-auto">
         <DialogHeader className="shrink-0">
@@ -590,11 +714,12 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps):
                     <Label htmlFor="dateOfBirth">
                       Date of Birth <span className="text-red-500">*</span>
                     </Label>
-                    <Input
+                    <DatePicker
                       id="dateOfBirth"
-                      type="date"
                       value={formData.dateOfBirth}
-                      onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                      onChange={(v) => setFormData({ ...formData, dateOfBirth: v })}
+                      placeholder="Select date of birth"
+                      disableFuture
                     />
                   </div>
                   <div>
@@ -714,11 +839,12 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps):
                     <Label htmlFor="admissionDate">
                       Admission Date <span className="text-red-500">*</span>
                     </Label>
-                    <Input
+                    <DatePicker
                       id="admissionDate"
-                      type="date"
                       value={formData.admissionDate}
-                      onChange={(e) => setFormData({ ...formData, admissionDate: e.target.value })}
+                      onChange={(v) => setFormData({ ...formData, admissionDate: v })}
+                      placeholder="Select admission date"
+                      disableFuture={false}
                     />
                   </div>
                 </div>
@@ -928,7 +1054,7 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps):
                   </div>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {medicalConditions.map((condition, index) => (
-                      <Badge key={index} variant="secondary">
+                      <Badge key={`${condition}-${index}`} variant="secondary">
                         {condition}
                         <X
                           className="h-3 w-3 ml-1 cursor-pointer"
@@ -959,7 +1085,7 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps):
                   </div>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {allergies.map((allergy, index) => (
-                      <Badge key={index} variant="secondary">
+                      <Badge key={`${allergy}-${index}`} variant="secondary">
                         {allergy}
                         <X
                           className="h-3 w-3 ml-1 cursor-pointer"
@@ -1001,5 +1127,21 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps):
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={showDraftRestoreDialog} onOpenChange={setShowDraftRestoreDialog}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Restore draft?</AlertDialogTitle>
+          <AlertDialogDescription>
+            A previously saved draft was found. Would you like to restore it or start fresh?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={handleDiscardDraft}>Start fresh</AlertDialogCancel>
+          <AlertDialogAction onClick={handleRestoreDraft}>Restore draft</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

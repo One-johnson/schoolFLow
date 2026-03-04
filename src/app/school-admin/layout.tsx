@@ -5,6 +5,8 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from 'convex/react';
 import { api } from '@/../convex/_generated/api';
+import { ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/school-admin/app-sidebar';
 import { DesktopHeader } from '@/components/school-admin/desktop-header';
@@ -115,15 +117,37 @@ export default function SchoolAdminLayout({
     );
   }
 
+  const isDashboard = pathname === '/school-admin' || pathname === '/school-admin/';
+  const hideBackButton = [
+    '/school-admin/create-school',
+    '/school-admin/access-blocked',
+    '/school-admin/school-suspended',
+    '/school-admin/school-deleted',
+  ].some((p) => pathname.startsWith(p));
+  const showBackButton = !isDashboard && !hideBackButton;
+
   return (
     <SidebarProvider>
       <div className="hidden md:block">
         <AppSidebar />
       </div>
-      <SidebarInset className="w-full">
+      <SidebarInset className="w-full min-w-0">
         <DesktopHeader />
         <MobileHeader />
-        <main className="p-4 md:p-8">{children}</main>
+        <main className="p-4 md:p-8 min-w-0">
+          {showBackButton && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => router.back()}
+              className="mb-4 -ml-2"
+              aria-label="Go back"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          )}
+          {children}
+        </main>
       </SidebarInset>
     </SidebarProvider>
   );
