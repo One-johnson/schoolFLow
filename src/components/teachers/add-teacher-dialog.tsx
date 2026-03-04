@@ -187,6 +187,7 @@ export function AddTeacherDialog({
             formData?: Record<string, unknown>;
             qualifications?: string[];
             subjects?: string[];
+            selectedDepartmentId?: string;
             photoUrl?: string;
             photoPreview?: string;
           };
