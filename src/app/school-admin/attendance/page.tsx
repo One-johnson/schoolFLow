@@ -29,6 +29,7 @@ import { DailyRegisterExportDialog } from '@/components/attendance/daily-registe
 import { StudentCertificateDialog } from '@/components/attendance/student-certificate-dialog';
 import { ClassPerformanceDialog } from '@/components/attendance/class-performance-dialog';
 import { AbsenteeReportDialog } from '@/components/attendance/absentee-report-dialog';
+import { AttendanceSummaryDialog } from '@/components/attendance/attendance-summary-dialog';
 
 export default function AttendancePage(): React.JSX.Element {
   const router = useRouter();
@@ -41,11 +42,15 @@ export default function AttendancePage(): React.JSX.Element {
   const [showStudentCertificateDialog, setShowStudentCertificateDialog] = useState<boolean>(false);
   const [showClassPerformanceDialog, setShowClassPerformanceDialog] = useState<boolean>(false);
   const [showAbsenteeReportDialog, setShowAbsenteeReportDialog] = useState<boolean>(false);
+  const [showAttendanceSummaryDialog, setShowAttendanceSummaryDialog] = useState<boolean>(false);
 
   const handleSelectReportType = (type: 'daily' | 'summary' | 'certificate' | 'performance' | 'absentee'): void => {
     switch (type) {
       case 'daily':
         setShowDailyRegisterDialog(true);
+        break;
+      case 'summary':
+        setShowAttendanceSummaryDialog(true);
         break;
       case 'certificate':
         setShowStudentCertificateDialog(true);
@@ -83,6 +88,13 @@ export default function AttendancePage(): React.JSX.Element {
     api.attendance.getPendingAttendance,
     currentAdmin?.schoolId ? { schoolId: currentAdmin.schoolId } : 'skip'
   );
+
+  const attendanceSettings = useQuery(
+    api.attendance.getAttendanceSettings,
+    currentAdmin?.schoolId ? { schoolId: currentAdmin.schoolId } : 'skip'
+  );
+
+  const allowAdminToMark = attendanceSettings?.allowAdminToMarkAttendance ?? true;
 
   useEffect(() => {
     if (currentAdmin && !currentAdmin.hasActiveSubscription) {
@@ -150,14 +162,18 @@ export default function AttendancePage(): React.JSX.Element {
           <Button variant="outline" onClick={() => setShowSettingsDialog(true)}>
             Settings
           </Button>
-          <Button variant="outline" onClick={() => setShowBulkMarkDialog(true)}>
-            <ClipboardCheck className="mr-2 h-4 w-4" />
-            Bulk Mark
-          </Button>
-          <Button onClick={() => setShowMarkDialog(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Mark Attendance
-          </Button>
+          {allowAdminToMark && (
+            <>
+              <Button variant="outline" onClick={() => setShowBulkMarkDialog(true)}>
+                <ClipboardCheck className="mr-2 h-4 w-4" />
+                Bulk Mark
+              </Button>
+              <Button onClick={() => setShowMarkDialog(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Mark Attendance
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -194,7 +210,7 @@ export default function AttendancePage(): React.JSX.Element {
       </div>
 
       {/* Pending Classes Alert */}
-      {pendingCount > 0 && (
+      {pendingCount > 0 && allowAdminToMark && (
         <Card className="border-orange-500 bg-orange-50">
           <CardContent className="flex items-center gap-4 p-4">
             <AlertCircle className="h-5 w-5 text-orange-600" />
@@ -259,8 +275,8 @@ export default function AttendancePage(): React.JSX.Element {
         </TabsContent>
       </Tabs>
 
-      {/* Dialogs */}
-      {showMarkDialog && (
+      {/* Dialogs - only render when allowAdminToMark to avoid flashing */}
+      {showMarkDialog && allowAdminToMark && (
         <MarkAttendanceDialog
           schoolId={currentAdmin.schoolId}
           adminId={currentAdmin._id}
@@ -270,7 +286,7 @@ export default function AttendancePage(): React.JSX.Element {
         />
       )}
 
-      {showBulkMarkDialog && (
+      {showBulkMarkDialog && allowAdminToMark && (
         <BulkMarkAttendanceDialog
           schoolId={currentAdmin.schoolId}
           adminId={currentAdmin._id}
@@ -329,6 +345,15 @@ export default function AttendancePage(): React.JSX.Element {
         <AbsenteeReportDialog
           open={showAbsenteeReportDialog}
           onOpenChange={setShowAbsenteeReportDialog}
+          schoolId={currentAdmin.schoolId}
+          schoolName={school?.name || ''}
+        />
+      )}
+
+      {showAttendanceSummaryDialog && (
+        <AttendanceSummaryDialog
+          open={showAttendanceSummaryDialog}
+          onOpenChange={setShowAttendanceSummaryDialog}
           schoolId={currentAdmin.schoolId}
           schoolName={school?.name || ''}
         />

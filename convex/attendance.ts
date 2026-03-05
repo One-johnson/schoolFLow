@@ -46,12 +46,25 @@ export const createAttendance = mutation({
     totalStudents: v.number(),
     markedBy: v.string(),
     markedByName: v.string(),
+    markedByRole: v.optional(v.union(v.literal("admin"), v.literal("teacher"))),
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const callerSchoolId = await getVerifiedSchoolId(ctx, args.markedBy);
     if (callerSchoolId !== args.schoolId) {
       throw new Error("Unauthorized: You do not belong to this school");
+    }
+
+    // When admin marks, verify setting allows it
+    if (args.markedByRole === "admin") {
+      const settings = await ctx.db
+        .query("attendanceSettings")
+        .withIndex("by_school", (q) => q.eq("schoolId", args.schoolId))
+        .first();
+      const allowAdmin = settings?.allowAdminToMarkAttendance ?? true;
+      if (!allowAdmin) {
+        throw new Error("Admin marking is disabled in attendance settings");
+      }
     }
 
     const now = new Date().toISOString();
@@ -74,6 +87,7 @@ export const createAttendance = mutation({
       status: "pending",
       markedBy: args.markedBy,
       markedByName: args.markedByName,
+      markedByRole: args.markedByRole,
       markedAt: now,
       notes: args.notes,
       createdAt: now,
@@ -394,11 +408,24 @@ export const bulkMarkAttendance = mutation({
     termId: v.optional(v.string()),
     markedBy: v.string(),
     markedByName: v.string(),
+    markedByRole: v.optional(v.union(v.literal("admin"), v.literal("teacher"))),
   },
   handler: async (ctx, args) => {
     const callerSchoolId = await getVerifiedSchoolId(ctx, args.markedBy);
     if (callerSchoolId !== args.schoolId) {
       throw new Error("Unauthorized: You do not belong to this school");
+    }
+
+    // When admin marks, verify setting allows it
+    if (args.markedByRole === "admin") {
+      const settings = await ctx.db
+        .query("attendanceSettings")
+        .withIndex("by_school", (q) => q.eq("schoolId", args.schoolId))
+        .first();
+      const allowAdmin = settings?.allowAdminToMarkAttendance ?? true;
+      if (!allowAdmin) {
+        throw new Error("Admin marking is disabled in attendance settings");
+      }
     }
 
     const now = new Date().toISOString();
@@ -471,6 +498,7 @@ export const bulkMarkAttendance = mutation({
           status: "completed",
           markedBy: args.markedBy,
           markedByName: args.markedByName,
+          markedByRole: args.markedByRole,
           markedAt: now,
           createdAt: now,
           updatedAt: now,
@@ -539,6 +567,75 @@ export const getAttendanceBySchool = query({
       .withIndex("by_school", (q) => q.eq("schoolId", args.schoolId))
       .order("desc")
       .collect();
+  },
+});
+
+// Get class attendance summary (per-student stats for a date range)
+export const getClassAttendanceSummary = query({
+  args: {
+    schoolId: v.string(),
+    classId: v.string(),
+    startDate: v.string(),
+    endDate: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const records = await ctx.db
+      .query("attendanceRecords")
+      .withIndex("by_class", (q) =>
+        q.eq("schoolId", args.schoolId).eq("classId", args.classId),
+      )
+      .collect();
+
+    const filtered = records.filter(
+      (r) => r.date >= args.startDate && r.date <= args.endDate,
+    );
+
+    const studentStats = new Map<
+      string,
+      {
+        studentName: string;
+        totalDays: number;
+        present: number;
+        absent: number;
+        late: number;
+        excused: number;
+      }
+    >();
+
+    for (const record of filtered) {
+      const existing = studentStats.get(record.studentId) || {
+        studentName: record.studentName,
+        totalDays: 0,
+        present: 0,
+        absent: 0,
+        late: 0,
+        excused: 0,
+      };
+
+      existing.totalDays++;
+      if (record.status === "present") existing.present++;
+      else if (record.status === "absent") existing.absent++;
+      else if (record.status === "late") existing.late++;
+      else if (record.status === "excused") existing.excused++;
+
+      studentStats.set(record.studentId, existing);
+    }
+
+    return Array.from(studentStats.values()).map((stats) => ({
+      studentName: stats.studentName,
+      totalDays: stats.totalDays,
+      present: stats.present,
+      absent: stats.absent,
+      late: stats.late,
+      excused: stats.excused,
+      percentage:
+        stats.totalDays > 0
+          ? Math.round(
+              ((stats.present + stats.late + stats.excused) / stats.totalDays) *
+                100,
+            )
+          : 0,
+    }));
   },
 });
 
@@ -771,10 +868,14 @@ export const getAttendanceSettings = query({
         lockAfterHours: 24,
         requireAdminApproval: false,
         notifyParentsOnAbsence: false,
+        allowAdminToMarkAttendance: true,
       };
     }
 
-    return settings;
+    return {
+      ...settings,
+      allowAdminToMarkAttendance: settings.allowAdminToMarkAttendance ?? true,
+    };
   },
 });
 
@@ -1116,6 +1217,7 @@ export const saveAttendanceSettings = mutation({
     lockAfterHours: v.optional(v.number()),
     requireAdminApproval: v.boolean(),
     notifyParentsOnAbsence: v.boolean(),
+    allowAdminToMarkAttendance: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const callerSchoolId = await getVerifiedSchoolId(ctx, args.updatedBy);
@@ -1143,6 +1245,7 @@ export const saveAttendanceSettings = mutation({
         lockAfterHours: args.lockAfterHours,
         requireAdminApproval: args.requireAdminApproval,
         notifyParentsOnAbsence: args.notifyParentsOnAbsence,
+        allowAdminToMarkAttendance: args.allowAdminToMarkAttendance ?? true,
         updatedAt: now,
       });
       return existingSettings._id;
@@ -1161,6 +1264,7 @@ export const saveAttendanceSettings = mutation({
       lockAfterHours: args.lockAfterHours,
       requireAdminApproval: args.requireAdminApproval,
       notifyParentsOnAbsence: args.notifyParentsOnAbsence,
+      allowAdminToMarkAttendance: args.allowAdminToMarkAttendance ?? true,
       createdAt: now,
       updatedAt: now,
     });

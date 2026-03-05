@@ -92,6 +92,7 @@ export function BulkMarkAttendanceDialog({
         defaultStatus,
         markedBy: adminId,
         markedByName: adminName,
+        markedByRole: 'admin',
       });
 
       setResults(bulkResults);

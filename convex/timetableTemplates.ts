@@ -78,6 +78,8 @@ export const applyTemplate = mutation({
     classId: v.string(),
     className: v.string(),
     createdBy: v.string(),
+    academicYearId: v.optional(v.string()),
+    termId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // Check if timetable already exists for this class
@@ -111,6 +113,8 @@ export const applyTemplate = mutation({
       schoolId: args.schoolId,
       classId: args.classId,
       className: args.className,
+      academicYearId: args.academicYearId,
+      termId: args.termId,
       status: 'active',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -150,6 +154,8 @@ export const cloneTimetable = mutation({
     schoolId: v.string(),
     createdBy: v.string(),
     includeAssignments: v.boolean(),
+    academicYearId: v.optional(v.string()),
+    termId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // Check if timetable already exists for target class
@@ -170,13 +176,13 @@ export const cloneTimetable = mutation({
       throw new Error('Source timetable not found');
     }
 
-    // Create new timetable
+    // Create new timetable (use provided year/term or inherit from source)
     const newTimetableId = await ctx.db.insert('timetables', {
       schoolId: args.schoolId,
       classId: args.targetClassId,
       className: args.targetClassName,
-      academicYearId: sourceTimetable.academicYearId,
-      termId: sourceTimetable.termId,
+      academicYearId: args.academicYearId ?? sourceTimetable.academicYearId,
+      termId: args.termId ?? sourceTimetable.termId,
       status: 'active',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

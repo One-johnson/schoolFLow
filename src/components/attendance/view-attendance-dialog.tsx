@@ -92,7 +92,19 @@ export function ViewAttendanceDialog({
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Marked By</div>
-              <div className="font-medium">{attendance.markedByName}</div>
+              <div className="font-medium flex items-center gap-2">
+                {attendance.markedByName}
+                {attendance.markedByRole === 'admin' && (
+                  <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
+                    Admin
+                  </Badge>
+                )}
+                {attendance.markedByRole === 'teacher' && (
+                  <Badge variant="outline" className="text-blue-600 border-blue-300 bg-blue-50">
+                    Teacher
+                  </Badge>
+                )}
+              </div>
             </div>
           </div>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, JSX } from 'react';
+import { useState, useMemo, useCallback, useEffect, JSX } from 'react';
 import { useQuery, useConvex } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { useAuth } from '@/hooks/useAuth';
@@ -182,6 +182,11 @@ export default function TimetablePage(): React.JSX.Element {
 
   // Selected rows for bulk operations
   const [selectedRows, setSelectedRows] = useState<Record<string, boolean>>({});
+
+  // Reset term filter when academic year changes (selected term may not belong to new year)
+  useEffect(() => {
+    setFilterTermId('all');
+  }, [filterAcademicYearId]);
 
   // Filter timetables
   const filteredTimetables = useMemo(() => {
@@ -791,6 +796,8 @@ export default function TimetablePage(): React.JSX.Element {
           availableClasses={availableClasses}
           schoolId={schoolId}
           createdBy={user.userId || ''}
+          academicYearId={filterAcademicYearId !== 'all' ? filterAcademicYearId : undefined}
+          termId={filterTermId !== 'all' ? filterTermId : undefined}
         />
 
         <ApplyTemplateDialog
@@ -799,6 +806,8 @@ export default function TimetablePage(): React.JSX.Element {
           availableClasses={availableClasses}
           schoolId={schoolId}
           createdBy={user.userId || ''}
+          academicYearId={filterAcademicYearId !== 'all' ? filterAcademicYearId : undefined}
+          termId={filterTermId !== 'all' ? filterTermId : undefined}
         />
       </div>
   );
