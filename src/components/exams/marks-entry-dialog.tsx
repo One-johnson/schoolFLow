@@ -25,6 +25,7 @@ import { Loader2, Save, Download, Upload, CheckCircle2, AlertCircle, Info } from
 import type { Id } from '../../../convex/_generated/dataModel';
 
 import { Badge } from '@/components/ui/badge';
+import { PhotoCell } from '@/components/students/photo-cell';
 import { CSVMarksImportDialog } from './csv-marks-import-dialog';
 import {
   Table,
@@ -45,6 +46,9 @@ interface MarksEntryDialogProps {
 interface StudentMark {
   studentId: string;
   studentName: string;
+  firstName?: string;
+  lastName?: string;
+  photoStorageId?: string;
   subjects: Record<string, { classScore: number; examScore: number }>;
 }
 
@@ -150,6 +154,9 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
         return {
           studentId: s.studentId,
           studentName: `${s.firstName} ${s.lastName}`,
+          firstName: s.firstName,
+          lastName: s.lastName,
+          photoStorageId: s.photoStorageId,
           subjects: subjectsMap,
         };
       });
@@ -420,7 +427,8 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
             )}
           </DialogTitle>
           <DialogDescription>
-            Exam ID: {exam?.examCode} • Grid view - {existingMarks && existingMarks.length > 0 ? 'Edit existing marks or add new ones' : 'Enter marks for all subjects at once'}
+            Exam ID: {exam?.examCode}
+            {department ? ` • Department: ${department.name}` : ''} • Grid view - {existingMarks && existingMarks.length > 0 ? 'Edit existing marks or add new ones' : 'Enter marks for all subjects at once'}
           </DialogDescription>
         </DialogHeader>
 
@@ -532,7 +540,14 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
                         return (
                           <TableRow key={student.studentId} className="hover:bg-muted/30">
                             <TableCell className="p-3 font-medium border-r">
-                              {student.studentName}
+                              <div className="flex items-center gap-2">
+                                <PhotoCell
+                                  photoStorageId={student.photoStorageId as Id<'_storage'> | undefined}
+                                  firstName={student.firstName ?? ''}
+                                  lastName={student.lastName ?? ''}
+                                />
+                                <span>{student.studentName}</span>
+                              </div>
                             </TableCell>
                             {subjects.map((subject) => {
                               const marks = student.subjects[subject.name];
