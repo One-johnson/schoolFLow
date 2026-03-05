@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/../convex/_generated/api";
 import {
@@ -99,6 +99,15 @@ export default function ExamsPage() {
   );
 
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [filterAcademicYearId, setFilterAcademicYearId] = useState<string>("all");
+  const [filterTermId, setFilterTermId] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterDepartmentId, setFilterDepartmentId] = useState<string>("all");
+
+  useEffect(() => {
+    if (filterAcademicYearId !== "all") setFilterTermId("all");
+  }, [filterAcademicYearId]);
+
   const [showAddExam, setShowAddExam] = useState<boolean>(false);
   const [showEditExam, setShowEditExam] = useState<boolean>(false);
   const [showViewExam, setShowViewExam] = useState<boolean>(false);
@@ -137,11 +146,20 @@ export default function ExamsPage() {
   const [showReportSheet, setShowReportSheet] = useState<boolean>(false);
   const [deleteReportName, setDeleteReportName] = useState<string>("");
 
-  const filteredExams = exams?.filter(
-    (exam) =>
+  const filteredExams = exams?.filter((exam) => {
+    const matchesSearch =
       exam.examName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      exam.examCode.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+      exam.examCode.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesYear =
+      filterAcademicYearId === "all" || exam.academicYearId === filterAcademicYearId;
+    const matchesTerm =
+      filterTermId === "all" || exam.termId === filterTermId;
+    const matchesStatus =
+      filterStatus === "all" || exam.status === filterStatus;
+    const matchesDept =
+      filterDepartmentId === "all" || exam.departmentId === filterDepartmentId;
+    return matchesSearch && matchesYear && matchesTerm && matchesStatus && matchesDept;
+  });
 
   const stats = {
     total: exams?.length || 0,
@@ -324,8 +342,8 @@ export default function ExamsPage() {
 
         {/* Exams Tab */}
         <TabsContent value="exams" className="space-y-4">
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search exams..."
@@ -334,6 +352,73 @@ export default function ExamsPage() {
                 className="pl-10"
               />
             </div>
+            {academicYears && academicYears.length > 0 && (
+              <Select
+                value={filterAcademicYearId}
+                onValueChange={setFilterAcademicYearId}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Academic Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All years</SelectItem>
+                  {academicYears.map((y) => (
+                    <SelectItem key={y._id} value={y._id}>
+                      {y.yearName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {terms && terms.length > 0 && (
+              <Select value={filterTermId} onValueChange={setFilterTermId}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Term" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All terms</SelectItem>
+                  {(filterAcademicYearId === "all"
+                    ? terms
+                    : terms.filter((t) => t.academicYearId === filterAcademicYearId)
+                  ).map((t) => (
+                    <SelectItem key={t._id} value={t._id}>
+                      {t.termName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="scheduled">Scheduled</SelectItem>
+                <SelectItem value="ongoing">Ongoing</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="published">Published</SelectItem>
+              </SelectContent>
+            </Select>
+            {departments && departments.length > 0 && (
+              <Select
+                value={filterDepartmentId}
+                onValueChange={setFilterDepartmentId}
+              >
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Department" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All departments</SelectItem>
+                  {departments.map((d) => (
+                    <SelectItem key={d._id} value={d._id}>
+                      {d.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           {filteredExams && filteredExams.length > 0 ? (
@@ -903,11 +988,14 @@ export default function ExamsPage() {
       {/* Dialogs */}
       {schoolId && (
         <>
-          <AddExamDialog
-            open={showAddExam}
-            onOpenChange={setShowAddExam}
-            schoolId={schoolId}
-          />
+          {currentAdmin && (
+            <AddExamDialog
+              open={showAddExam}
+              onOpenChange={setShowAddExam}
+              schoolId={schoolId}
+              adminId={currentAdmin._id}
+            />
+          )}
 
           {selectedExamId && (
             <>

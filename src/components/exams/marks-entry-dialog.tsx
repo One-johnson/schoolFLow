@@ -93,7 +93,7 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
 
   const subjects: Subject[] = exam?.subjects ? JSON.parse(exam.subjects) : [];
 
-  // Load draft from localStorage
+  // Load draft from localStorage (toast omitted from deps to avoid infinite loop - it's not referentially stable)
   useEffect(() => {
     if (open && selectedClassId) {
       const draftKey = `marks-draft-${examId}-${selectedClassId}`;
@@ -111,7 +111,8 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
         }
       }
     }
-  }, [open, selectedClassId, examId, toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- toast is intentionally omitted
+  }, [open, selectedClassId, examId]);
 
   // Auto-save draft to localStorage
   useEffect(() => {
@@ -127,14 +128,16 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
     setLoadStudents(false);
   }, [selectedClassId]);
 
-  // Handle loaded students data and merge with existing marks
+  // Handle loaded students data and merge with existing marks.
+  // Depend only on primitive values (lengths) to avoid infinite loop from Convex returning new array references each render.
+  const studentsDataLen = studentsData?.length ?? -1;
+  const existingMarksLen = existingMarks?.length ?? -1;
   useEffect(() => {
     if (studentsData && studentsData.length > 0) {
       const initialMarks: StudentMark[] = studentsData.map((s) => {
         const subjectsMap: Record<string, { classScore: number; examScore: number }> = {};
         
         subjects.forEach((subject) => {
-          // Check if existing marks exist for this student and subject
           const existingMark = existingMarks?.find(
             (m) => m.studentId === s.studentId && m.subjectName === subject.name
           );
@@ -154,7 +157,6 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
       setStudents(initialMarks);
       setLoadStudents(false);
       
-      // Show toast if existing marks were loaded
       if (existingMarks && existingMarks.length > 0) {
         toast({
           title: 'Existing Marks Loaded',
@@ -170,8 +172,8 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
       setStudents([]);
       setLoadStudents(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [studentsData, existingMarks]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- primitive deps only to avoid Convex ref churn
+  }, [studentsDataLen, existingMarksLen]);
 
   const handleLoadStudents = (): void => {
     if (!selectedClassId) {
