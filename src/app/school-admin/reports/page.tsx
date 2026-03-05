@@ -1567,7 +1567,10 @@ export default function ReportsPage(): React.JSX.Element {
       {selectedReport && (
         <ReportCardSheet
           open={showView}
-          onOpenChange={setShowView}
+          onOpenChange={(open) => {
+            setShowView(open);
+            if (!open) setSelectedReport(null);
+          }}
           reportCardId={selectedReport._id}
         />
       )}

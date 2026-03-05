@@ -341,13 +341,16 @@ export const generateReportCards = mutation({
       academicYearName = academicYear?.yearName;
     }
 
-    // Fetch term details
+    // Fetch term details (exam.termId is the term's Convex _id from the frontend)
     let termName: string | undefined;
     if (exam.termId) {
-      const term = await ctx.db
-        .query("terms")
-        .filter((q) => q.eq(q.field("termCode"), exam.termId))
-        .first();
+      let term = await ctx.db.get(exam.termId as Id<"terms">);
+      if (!term) {
+        term = await ctx.db
+          .query("terms")
+          .filter((q) => q.eq(q.field("termCode"), exam.termId))
+          .first();
+      }
       termName = term?.termName;
     }
 

@@ -132,11 +132,11 @@ export default function ExamsPage() {
     useState<boolean>(false);
   const [selectedReportCardId, setSelectedReportCardId] =
     useState<Id<"reportCards"> | null>(null);
-  const [reviewFilterClass, setReviewFilterClass] = useState<string>("");
-  const [reviewFilterTerm, setReviewFilterTerm] = useState<string>("");
-  const [reportFilterClass, setReportFilterClass] = useState<string>("");
+  const [reviewFilterClass, setReviewFilterClass] = useState<string>("all");
+  const [reviewFilterTerm, setReviewFilterTerm] = useState<string>("all");
+  const [reportFilterClass, setReportFilterClass] = useState<string>("all");
   const [reportFilterDepartment, setReportFilterDepartment] =
-    useState<string>("");
+    useState<string>("all");
   const [selectedReportCards, setSelectedReportCards] = useState<
     Id<"reportCards">[]
   >([]);
