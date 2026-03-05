@@ -22,8 +22,17 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
 import type { Id } from '../../../convex/_generated/dataModel';
 
 interface EditExamDialogProps {
@@ -57,6 +66,12 @@ export function EditExamDialog({ open, onOpenChange, examId, schoolId, adminId }
   const [weightage, setWeightage] = useState<string>('50');
   const [instructions, setInstructions] = useState<string>('');
   const [subjects, setSubjects] = useState<Subject[]>([{ name: '', maxMarks: 100 }]);
+  const [targetClassIds, setTargetClassIds] = useState<string[]>([]);
+
+  const allClasses = useQuery(
+    api.classes.getClassesBySchool,
+    schoolId ? { schoolId } : 'skip'
+  );
 
   const departments = useQuery(
     api.departments.getDepartmentsBySchool,
@@ -72,6 +87,11 @@ export function EditExamDialog({ open, onOpenChange, examId, schoolId, adminId }
     departmentSubjectsArgs
   );
 
+  // Classes in exam's department (for target classes)
+  const departmentClasses = (allClasses?.filter(
+    (c) => c.departmentId === departmentId
+  ) ?? []);
+
   // Initialize form with exam data
   useEffect(() => {
     if (exam && open) {
@@ -84,6 +104,7 @@ export function EditExamDialog({ open, onOpenChange, examId, schoolId, adminId }
       setDepartmentId(exam.departmentId ?? '');
       setWeightage(String(exam.weightage));
       setInstructions(exam.instructions || '');
+      setTargetClassIds(exam.targetClasses ?? []);
     }
   }, [exam, open]);
 
@@ -127,6 +148,15 @@ export function EditExamDialog({ open, onOpenChange, examId, schoolId, adminId }
         setIsSubmitting(false);
         return;
       }
+      if (targetClassIds.length === 0) {
+        toast({
+          title: 'Validation Error',
+          description: 'Please select at least one target class',
+          variant: 'destructive',
+        });
+        setIsSubmitting(false);
+        return;
+      }
 
       // Calculate total marks
       const totalMarks: number = validSubjects.reduce((sum, s) => sum + s.maxMarks, 0);
@@ -142,6 +172,7 @@ export function EditExamDialog({ open, onOpenChange, examId, schoolId, adminId }
         totalMarks,
         weightage: Number(weightage),
         instructions: instructions || undefined,
+        targetClasses: targetClassIds,
       });
 
       toast({
@@ -240,25 +271,61 @@ export function EditExamDialog({ open, onOpenChange, examId, schoolId, adminId }
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="startDate">Start Date *</Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                required
-              />
+              <Label>Start Date *</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {startDate
+                      ? format(new Date(startDate + 'T12:00:00'), 'PPP')
+                      : 'Pick start date'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={startDate ? new Date(startDate + 'T12:00:00') : undefined}
+                    onSelect={(date) => date && setStartDate(format(date, 'yyyy-MM-dd'))}
+                    initialFocus
+                    captionLayout="dropdown"
+                    startMonth={new Date(new Date().getFullYear() - 1, 0, 1)}
+                    endMonth={new Date(new Date().getFullYear() + 2, 11, 31)}
+                    defaultMonth={startDate ? new Date(startDate + 'T12:00:00') : new Date()}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="endDate">End Date *</Label>
-              <Input
-                id="endDate"
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                required
-              />
+              <Label>End Date *</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {endDate
+                      ? format(new Date(endDate + 'T12:00:00'), 'PPP')
+                      : 'Pick end date'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={endDate ? new Date(endDate + 'T12:00:00') : undefined}
+                    onSelect={(date) => date && setEndDate(format(date, 'yyyy-MM-dd'))}
+                    initialFocus
+                    captionLayout="dropdown"
+                    startMonth={new Date(new Date().getFullYear() - 1, 0, 1)}
+                    endMonth={new Date(new Date().getFullYear() + 2, 11, 31)}
+                    defaultMonth={endDate ? new Date(endDate + 'T12:00:00') : new Date()}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 
@@ -292,6 +359,40 @@ export function EditExamDialog({ open, onOpenChange, examId, schoolId, adminId }
                 required
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Target Classes *</Label>
+            <p className="text-sm text-muted-foreground">Select which classes this exam applies to</p>
+            {departmentClasses.length > 0 ? (
+              <ScrollArea className="h-[120px] border rounded-md p-3">
+                <div className="space-y-2">
+                  {departmentClasses.map((cls) => (
+                    <div key={cls._id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`edit-target-${cls._id}`}
+                        checked={targetClassIds.includes(cls._id)}
+                        onCheckedChange={(checked) => {
+                          setTargetClassIds((prev) =>
+                            checked
+                              ? [...prev, cls._id]
+                              : prev.filter((id) => id !== cls._id)
+                          );
+                        }}
+                      />
+                      <label
+                        htmlFor={`edit-target-${cls._id}`}
+                        className="text-sm font-medium leading-none cursor-pointer"
+                      >
+                        {cls.className}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            ) : (
+              <p className="text-sm text-muted-foreground py-2">No classes in this department.</p>
+            )}
           </div>
 
           <div className="space-y-2">

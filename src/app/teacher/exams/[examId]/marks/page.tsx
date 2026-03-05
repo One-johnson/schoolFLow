@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useState, useEffect, useMemo } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../../../../convex/_generated/api';
 import { useTeacherAuth } from '@/hooks/useTeacherAuth';
@@ -55,7 +55,19 @@ export default function TeacherMarksEntryPage() {
   const [marks, setMarks] = useState<Map<string, StudentMark>>(new Map());
   const [isSaving, setIsSaving] = useState(false);
 
-  const classId = teacher?.classIds?.[0];
+  const searchParams = useSearchParams();
+  const classIdFromUrl = searchParams.get('classId');
+  const classId = useMemo(() => {
+    if (!teacher?.classIds?.length) return undefined;
+    if (classIdFromUrl && teacher.classIds.includes(classIdFromUrl))
+      return classIdFromUrl;
+    return teacher.classIds[0];
+  }, [teacher?.classIds, classIdFromUrl]); // Class document _id (for getStudentsByClassId / getClassById)
+  const currentClass = useQuery(
+    api.classes.getClassById,
+    classId ? { classId: classId as Id<'classes'> } : 'skip'
+  );
+  const classCode = currentClass?.classCode; // Use classCode for marks (report cards expect it)
 
   const exam = useQuery(api.exams.getExamById, { examId });
 
@@ -66,12 +78,7 @@ export default function TeacherMarksEntryPage() {
 
   const existingMarks = useQuery(
     api.marks.getMarksByClassAndExam,
-    classId ? { examId, classId } : 'skip'
-  );
-
-  const currentClass = useQuery(
-    api.classes.getClassById,
-    classId ? { classId: classId as Id<'classes'> } : 'skip'
+    examId && classCode ? { examId, classId: classCode } : 'skip'
   );
 
   const enterMarks = useMutation(api.marks.enterMarks);
@@ -153,7 +160,7 @@ export default function TeacherMarksEntryPage() {
   };
 
   const handleSave = async () => {
-    if (!teacher || !exam || !selectedSubject || !classId || !currentClass) {
+    if (!teacher || !exam || !selectedSubject || !currentClass?.classCode) {
       toast.error('Missing required data');
       return;
     }
@@ -176,7 +183,7 @@ export default function TeacherMarksEntryPage() {
           examName: exam.examName,
           studentId: studentId,
           studentName: mark.studentName,
-          classId: classId,
+          classId: currentClass.classCode,
           className: currentClass.className,
           subjectId: selectedSubject.id,
           subjectName: selectedSubject.name,
@@ -225,6 +232,18 @@ export default function TeacherMarksEntryPage() {
         <p className="text-muted-foreground">Exam not found</p>
         <Button variant="link" onClick={() => router.back()}>
           Go back
+        </Button>
+      </div>
+    );
+  }
+
+  if (teacher && !classId) {
+    return (
+      <div className="py-8 text-center">
+        <User className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+        <p className="text-muted-foreground">No class selected</p>
+        <Button variant="link" onClick={() => router.push('/teacher/exams')}>
+          Back to exams
         </Button>
       </div>
     );

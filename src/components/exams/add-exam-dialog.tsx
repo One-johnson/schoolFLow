@@ -23,13 +23,23 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
 
 interface AddExamDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   schoolId: string;
+  adminId: string;
 }
 
 interface Subject {
@@ -38,7 +48,7 @@ interface Subject {
   id?: string;
 }
 
-export function AddExamDialog({ open, onOpenChange, schoolId }: AddExamDialogProps) {
+export function AddExamDialog({ open, onOpenChange, schoolId, adminId }: AddExamDialogProps) {
   const { toast } = useToast();
   const createExam = useMutation(api.exams.createExam);
   const academicYears = useQuery(api.academicYears.getActiveAcademicYears, { schoolId });
@@ -54,6 +64,12 @@ export function AddExamDialog({ open, onOpenChange, schoolId }: AddExamDialogPro
   const [weightage, setWeightage] = useState<string>('50');
   const [instructions, setInstructions] = useState<string>('');
   const [subjects, setSubjects] = useState<Subject[]>([{ name: '', maxMarks: 100 }]);
+  const [targetClassIds, setTargetClassIds] = useState<string[]>([]);
+
+  const allClasses = useQuery(
+    api.classes.getClassesBySchool,
+    schoolId ? { schoolId } : 'skip'
+  );
 
   const departments = useQuery(
     api.departments.getDepartmentsBySchool,
@@ -66,12 +82,28 @@ export function AddExamDialog({ open, onOpenChange, schoolId }: AddExamDialogPro
     departmentId ? { schoolId, departmentId: departmentId as Id<'departments'> } : 'skip'
   );
 
+  // Classes in selected department (for target classes)
+  const departmentClasses = allClasses?.filter(
+    (c) => c.departmentId === departmentId
+  ) ?? [];
+
   // Set default department when departments load
   useEffect(() => {
     if (departments?.length && !departmentId) {
       setDepartmentId(departments[0]._id);
     }
   }, [departments, departmentId]);
+
+  // Clear target classes when department changes (optional: keep if still valid)
+  useEffect(() => {
+    if (departmentId && departmentClasses.length > 0) {
+      setTargetClassIds((prev) =>
+        prev.filter((id) => departmentClasses.some((c) => c._id === id))
+      );
+    } else {
+      setTargetClassIds([]);
+    }
+  }, [departmentId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-populate subjects when department changes
   useEffect(() => {
@@ -123,6 +155,16 @@ export function AddExamDialog({ open, onOpenChange, schoolId }: AddExamDialogPro
         return;
       }
 
+      if (targetClassIds.length === 0) {
+        toast({
+          title: 'Validation Error',
+          description: 'Please select at least one target class',
+          variant: 'destructive',
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
       // Calculate total marks
       const totalMarks: number = validSubjects.reduce((sum, s) => sum + s.maxMarks, 0);
 
@@ -135,11 +177,12 @@ export function AddExamDialog({ open, onOpenChange, schoolId }: AddExamDialogPro
         startDate,
         endDate,
         departmentId: departmentId ? (departmentId as Id<'departments'>) : undefined,
+        targetClasses: targetClassIds,
         weightage: Number(weightage),
         instructions: instructions || undefined,
         subjects: JSON.stringify(validSubjects),
         totalMarks,
-        createdBy: schoolId,
+        createdBy: adminId,
       });
 
       toast({
@@ -157,6 +200,7 @@ export function AddExamDialog({ open, onOpenChange, schoolId }: AddExamDialogPro
       setWeightage('50');
       setInstructions('');
       setSubjects([{ name: '', maxMarks: 100 }]);
+      setTargetClassIds([]);
       onOpenChange(false);
     } catch (error) {
       toast({
@@ -248,25 +292,61 @@ export function AddExamDialog({ open, onOpenChange, schoolId }: AddExamDialogPro
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="startDate">Start Date *</Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                required
-              />
+              <Label>Start Date *</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {startDate
+                      ? format(new Date(startDate + 'T12:00:00'), 'PPP')
+                      : 'Pick start date'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={startDate ? new Date(startDate + 'T12:00:00') : undefined}
+                    onSelect={(date) => date && setStartDate(format(date, 'yyyy-MM-dd'))}
+                    initialFocus
+                    captionLayout="dropdown"
+                    startMonth={new Date(new Date().getFullYear() - 1, 0, 1)}
+                    endMonth={new Date(new Date().getFullYear() + 2, 11, 31)}
+                    defaultMonth={startDate ? new Date(startDate + 'T12:00:00') : new Date()}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="endDate">End Date *</Label>
-              <Input
-                id="endDate"
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                required
-              />
+              <Label>End Date *</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {endDate
+                      ? format(new Date(endDate + 'T12:00:00'), 'PPP')
+                      : 'Pick end date'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={endDate ? new Date(endDate + 'T12:00:00') : undefined}
+                    onSelect={(date) => date && setEndDate(format(date, 'yyyy-MM-dd'))}
+                    initialFocus
+                    captionLayout="dropdown"
+                    startMonth={new Date(new Date().getFullYear() - 1, 0, 1)}
+                    endMonth={new Date(new Date().getFullYear() + 2, 11, 31)}
+                    defaultMonth={endDate ? new Date(endDate + 'T12:00:00') : new Date()}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 
@@ -299,6 +379,40 @@ export function AddExamDialog({ open, onOpenChange, schoolId }: AddExamDialogPro
                 required
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Target Classes *</Label>
+            <p className="text-sm text-muted-foreground">Select which classes this exam applies to (teachers for these classes will see the exam)</p>
+            {departmentClasses.length > 0 ? (
+              <ScrollArea className="h-[120px] border rounded-md p-3">
+                <div className="space-y-2">
+                  {departmentClasses.map((cls) => (
+                    <div key={cls._id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`target-${cls._id}`}
+                        checked={targetClassIds.includes(cls._id)}
+                        onCheckedChange={(checked) => {
+                          setTargetClassIds((prev) =>
+                            checked
+                              ? [...prev, cls._id]
+                              : prev.filter((id) => id !== cls._id)
+                          );
+                        }}
+                      />
+                      <label
+                        htmlFor={`target-${cls._id}`}
+                        className="text-sm font-medium leading-none cursor-pointer"
+                      >
+                        {cls.className}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            ) : (
+              <p className="text-sm text-muted-foreground py-2">No classes in this department. Select a department first.</p>
+            )}
           </div>
 
           <div className="space-y-2">

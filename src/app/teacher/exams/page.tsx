@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { useTeacherAuth } from '@/hooks/useTeacherAuth';
@@ -33,7 +33,20 @@ export default function TeacherExamsPage() {
   const { teacher } = useTeacherAuth();
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  const classId = teacher?.classIds?.[0];
+  const allClasses = useQuery(
+    api.classes.getClassesBySchool,
+    teacher?.schoolId ? { schoolId: teacher.schoolId } : 'skip',
+  );
+  const teacherClasses = useMemo(
+    () =>
+      allClasses?.filter((c) => teacher?.classIds?.includes(c._id)) ?? [],
+    [allClasses, teacher?.classIds],
+  );
+  const defaultClassId = teacher?.classIds?.[0];
+  const [selectedClassId, setSelectedClassId] = useState<string>(
+    defaultClassId ?? '',
+  );
+  const classId = selectedClassId || defaultClassId;
 
   const exams = useQuery(
     api.exams.getExamsByClass,
@@ -71,7 +84,7 @@ export default function TeacherExamsPage() {
     );
   }
 
-  if (!classId) {
+  if (!teacher?.classIds?.length) {
     return (
       <div className="py-8 text-center">
         <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
@@ -85,9 +98,27 @@ export default function TeacherExamsPage() {
 
   return (
     <div className="space-y-4 py-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-bold">Exams</h1>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <div className="flex items-center gap-2">
+          {teacherClasses.length > 1 && (
+            <Select
+              value={classId}
+              onValueChange={(v) => setSelectedClassId(v)}
+            >
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Select class" />
+              </SelectTrigger>
+              <SelectContent>
+                {teacherClasses.map((c) => (
+                  <SelectItem key={c._id} value={c._id}>
+                    {c.className}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-[130px]">
             <SelectValue placeholder="Filter" />
           </SelectTrigger>
@@ -99,6 +130,7 @@ export default function TeacherExamsPage() {
             <SelectItem value="published">Published</SelectItem>
           </SelectContent>
         </Select>
+        </div>
       </div>
 
       {/* Exam Count */}
@@ -165,14 +197,14 @@ export default function TeacherExamsPage() {
                     </div>
                   </div>
                   {canEnterMarks(exam.status as ExamStatus) ? (
-                    <Link href={`/teacher/exams/${exam._id}/marks`}>
+                    <Link href={`/teacher/exams/${exam._id}/marks?classId=${classId}`}>
                       <Button size="sm" className="gap-1">
                         Enter Marks
                         <ChevronRight className="h-4 w-4" />
                       </Button>
                     </Link>
                   ) : (
-                    <Link href={`/teacher/exams/${exam._id}/view`}>
+                    <Link href={`/teacher/exams/${exam._id}/view?classId=${classId}`}>
                       <Button size="sm" variant="outline" className="gap-1">
                         View
                         <ChevronRight className="h-4 w-4" />

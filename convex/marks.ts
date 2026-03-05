@@ -1,8 +1,10 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import type { MutationCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
+import { calculateGradeFromScale } from "./gradeCalculator";
 
-// Helper function to calculate grade
+// Fallback when no grading scale: calculate grade (1-9)
 function calculateGrade(percentage: number): {
   grade: string;
   gradeNumber: number;
@@ -22,6 +24,51 @@ function calculateGrade(percentage: number): {
   if (percentage >= 45) return { grade: "7", gradeNumber: 7, remarks: "Pass" };
   if (percentage >= 40) return { grade: "8", gradeNumber: 8, remarks: "Pass" };
   return { grade: "9", gradeNumber: 9, remarks: "Fail" };
+}
+
+// Get grading scale for school (department-specific or default)
+async function getGradingScaleForMarks(
+  ctx: MutationCtx,
+  schoolId: string,
+  departmentId: Id<"departments"> | undefined,
+): Promise<{ grades: string } | null> {
+  if (departmentId) {
+    const departmentScale = await ctx.db
+      .query("gradingScales")
+      .withIndex("by_school", (q) => q.eq("schoolId", schoolId))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("departmentId"), departmentId),
+          q.eq(q.field("status"), "active"),
+        ),
+      )
+      .first();
+    if (departmentScale) return departmentScale;
+  }
+  const defaultScale = await ctx.db
+    .query("gradingScales")
+    .withIndex("by_default", (q) =>
+      q.eq("schoolId", schoolId).eq("isDefault", true),
+    )
+    .filter((q) => q.eq(q.field("status"), "active"))
+    .first();
+  return defaultScale;
+}
+
+function toGradeInfo(
+  percentage: number,
+  scale: { grades: string } | null,
+): { grade: string; gradeNumber: number; remarks: string } {
+  if (scale) {
+    const result = calculateGradeFromScale(percentage, scale);
+    const gradeNumber = Number(result.grade);
+    return {
+      grade: result.grade,
+      gradeNumber: Number.isFinite(gradeNumber) ? gradeNumber : 9,
+      remarks: result.remark,
+    };
+  }
+  return calculateGrade(percentage);
 }
 
 // Enter marks for a student
@@ -113,8 +160,12 @@ export const enterMarks = mutation({
     const totalScore: number = args.classScore + args.examScore;
     const percentage: number = (totalScore / args.maxMarks) * 100;
 
-    // Calculate grade
-    const gradeInfo = calculateGrade(percentage);
+    const gradingScale = await getGradingScaleForMarks(
+      ctx,
+      args.schoolId,
+      exam.departmentId,
+    );
+    const gradeInfo = toGradeInfo(percentage, gradingScale);
 
     // Check if mark already exists
     const existing = await ctx.db
@@ -739,12 +790,16 @@ export const quickEnterMarks = mutation({
     const now = new Date().toISOString();
     const results: { studentId: string; success: boolean; error?: string }[] =
       [];
+    const exam = await ctx.db.get(args.examId);
+    const gradingScale = exam
+      ? await getGradingScaleForMarks(ctx, args.schoolId, exam.departmentId)
+      : null;
 
     for (const markData of args.marks) {
       try {
         const totalScore = markData.classScore + markData.examScore;
         const percentage = (totalScore / args.maxMarks) * 100;
-        const gradeInfo = calculateGrade(percentage);
+        const gradeInfo = toGradeInfo(percentage, gradingScale);
 
         // Check if mark already exists
         const existing = await ctx.db

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/../convex/_generated/api';
 import type { Id } from '@/../convex/_generated/dataModel';
@@ -44,18 +44,12 @@ export function GradingScaleDialog({ open, onOpenChange, schoolId }: GradingScal
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [scaleName, setScaleName] = useState<string>('');
-  const [departmentId, setDepartmentId] = useState<string>('');
+  const [departmentId, setDepartmentId] = useState<string>('all');
 
   const departments = useQuery(
     api.departments.getDepartmentsBySchool,
     schoolId ? { schoolId } : 'skip'
   );
-
-  useEffect(() => {
-    if (departments?.length && !departmentId) {
-      setDepartmentId(departments[0]._id);
-    }
-  }, [departments, departmentId]);
   const [grades, setGrades] = useState<Grade[]>([
     { grade: '1', minPercent: 80, maxPercent: 100, remark: 'Excellent' },
     { grade: '2', minPercent: 70, maxPercent: 79, remark: 'Very Good' },
@@ -94,7 +88,7 @@ export function GradingScaleDialog({ open, onOpenChange, schoolId }: GradingScal
       await createGradingScale({
         schoolId,
         scaleName,
-        departmentId: departmentId ? (departmentId as Id<'departments'>) : undefined,
+        departmentId: departmentId && departmentId !== 'all' ? (departmentId as Id<'departments'>) : undefined,
         grades: JSON.stringify(grades),
         createdBy: '',
         isDefault: false
@@ -149,7 +143,7 @@ export function GradingScaleDialog({ open, onOpenChange, schoolId }: GradingScal
                   <SelectValue placeholder="Select department (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All departments</SelectItem>
+                  <SelectItem value="all">All departments</SelectItem>
                   {departments?.map((dept) => (
                     <SelectItem key={dept._id} value={dept._id}>
                       {dept.name} ({dept.code})

@@ -120,6 +120,7 @@ export const updateExam = mutation({
     totalMarks: v.optional(v.number()),
     weightage: v.optional(v.number()),
     instructions: v.optional(v.string()),
+    targetClasses: v.optional(v.array(v.string())),
     status: v.optional(
       v.union(
         v.literal('draft'),
