@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useRef } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -106,6 +107,36 @@ export function ReportCardSheet({
     reportId: reportCardId,
   });
 
+  const [showNotFound, setShowNotFound] = useState(false);
+  const notFoundTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!open || !reportCardId) {
+      setShowNotFound(false);
+      if (notFoundTimeoutRef.current) {
+        clearTimeout(notFoundTimeoutRef.current);
+        notFoundTimeoutRef.current = null;
+      }
+      return;
+    }
+    if (reportCard !== undefined) {
+      setShowNotFound(false);
+      if (notFoundTimeoutRef.current) {
+        clearTimeout(notFoundTimeoutRef.current);
+        notFoundTimeoutRef.current = null;
+      }
+      return;
+    }
+    setShowNotFound(false);
+    notFoundTimeoutRef.current = setTimeout(() => setShowNotFound(true), 1500);
+    return () => {
+      if (notFoundTimeoutRef.current) {
+        clearTimeout(notFoundTimeoutRef.current);
+        notFoundTimeoutRef.current = null;
+      }
+    };
+  }, [open, reportCardId, reportCard]);
+
   // Fetch academic year details
   const academicYear = useQuery(
     api.academicYears.getYearById,
@@ -140,13 +171,28 @@ export function ReportCardSheet({
           className="w-full sm:max-w-4xl overflow-y-auto"
         >
           <SheetHeader>
-            <SheetTitle>Loading Report Card</SheetTitle>
+            <SheetTitle>
+              {showNotFound ? "Report Card Not Found" : "Loading Report Card"}
+            </SheetTitle>
           </SheetHeader>
           <div className="flex flex-col items-center justify-center p-12 space-y-4">
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">
-              Loading report card...
-            </p>
+            {showNotFound ? (
+              <>
+                <p className="text-sm text-muted-foreground text-center">
+                  Report card not found or no longer available.
+                </p>
+                <Button variant="outline" onClick={() => onOpenChange(false)}>
+                  Close
+                </Button>
+              </>
+            ) : (
+              <>
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">
+                  Loading report card...
+                </p>
+              </>
+            )}
           </div>
         </SheetContent>
       </Sheet>
@@ -228,17 +274,15 @@ export function ReportCardSheet({
                 <h2 className="text-xl font-bold mt-4">PUPILS TERMLY REPORT</h2>
               </div>
               <div className="flex-1 flex justify-end">
-                {photoUrl && (
-                  <Avatar className="h-24 w-24 border-2 border-black">
-                    <AvatarImage src={photoUrl} alt={reportCard.studentName} />
-                    <AvatarFallback className="text-2xl">
-                      {reportCard.studentName
-                        .split(" ")
-                        .map((n: string) => n[0])
-                        .join("")}
-                    </AvatarFallback>
-                  </Avatar>
-                )}
+                <Avatar className="h-24 w-24 border-2 border-black">
+                  <AvatarImage src={photoUrl ?? undefined} alt={reportCard.studentName} />
+                  <AvatarFallback className="text-2xl">
+                    {reportCard.studentName
+                      .split(" ")
+                      .map((n: string) => n[0])
+                      .join("")}
+                  </AvatarFallback>
+                </Avatar>
               </div>
             </div>
           </div>
