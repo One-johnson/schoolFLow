@@ -56,9 +56,17 @@ export function ViewPaymentDialog({
 }: ViewPaymentDialogProps): React.JSX.Element {
   if (!payment) return <></>;
 
-  // Check if this is a v2 payment (multi-category)
+  // Check if this is a v2 payment (multi-category); parse items safely
   const isV2 = payment.version === 2 && payment.items;
-  const items: FeePaymentItem[] = isV2 ? JSON.parse(payment.items as string) : [];
+  let items: FeePaymentItem[] = [];
+  if (isV2 && payment.items) {
+    try {
+      items = JSON.parse(payment.items as string) as FeePaymentItem[];
+      if (!Array.isArray(items)) items = [];
+    } catch {
+      items = [];
+    }
+  }
 
   const getStatusBadge = (status: string) => {
     if (status === 'paid') {

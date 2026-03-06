@@ -34,7 +34,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const body = await request.json();
-    const { name, email, schoolId, tempPassword } = body;
+    const { name, email, schoolId, tempPassword, phone } = body;
 
     if (!name || !email || !schoolId || !tempPassword) {
       return NextResponse.json(
@@ -51,6 +51,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       name,
       email,
       schoolId,
+      phone: typeof phone === 'string' && phone.trim() ? phone.trim() : undefined,
       status: 'pending',
       invitedBy: 'super_admin',
       tempPassword: hashedPassword,

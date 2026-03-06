@@ -17,6 +17,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { DatePicker } from '@/components/ui/date-picker';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { Plus, Trash2, DollarSign } from 'lucide-react';
 
@@ -40,15 +42,21 @@ export function CreateFeeStructureDialog({
   createdBy,
 }: CreateFeeStructureDialogProps): React.JSX.Element {
   const [structureName, setStructureName] = useState<string>('');
-  const [selectedClass, setSelectedClass] = useState<string>('');
-  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('');
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('none');
   const [dueDate, setDueDate] = useState<string>('');
+  const [applyToAllClasses, setApplyToAllClasses] = useState<boolean>(false);
+  const [selectedClassCodes, setSelectedClassCodes] = useState<Set<string>>(new Set());
   const [feeItems, setFeeItems] = useState<FeeItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
 
   const categories = useQuery(api.feeCategories.getCategoriesBySchool, { schoolId });
-  const classes = useQuery(api.classes.getClassesBySchool, { schoolId });
   const departments = useQuery(api.departments.getDepartmentsBySchool, schoolId ? { schoolId } : 'skip');
+  const departmentClasses = useQuery(
+    api.classes.getClassesByDepartment,
+    selectedDepartmentId && selectedDepartmentId !== 'none'
+      ? { departmentId: selectedDepartmentId as Id<'departments'> }
+      : 'skip'
+  );
   const createStructure = useMutation(api.feeStructures.createFeeStructure);
 
   const availableCategories = useMemo(() => {
@@ -60,6 +68,35 @@ export function CreateFeeStructureDialog({
   const totalAmount = useMemo(() => {
     return feeItems.reduce((sum, item) => sum + item.amount, 0);
   }, [feeItems]);
+
+  // When department changes, clear class selection
+  const handleDepartmentChange = useCallback((value: string) => {
+    setSelectedDepartmentId(value);
+    setApplyToAllClasses(false);
+    setSelectedClassCodes(new Set());
+  }, []);
+
+  const handleApplyToAllChange = useCallback(
+    (checked: boolean) => {
+      setApplyToAllClasses(checked);
+      if (checked && departmentClasses) {
+        setSelectedClassCodes(new Set(departmentClasses.map(c => c.classCode)));
+      } else {
+        setSelectedClassCodes(new Set());
+      }
+    },
+    [departmentClasses]
+  );
+
+  const handleClassToggle = useCallback((classCode: string, checked: boolean) => {
+    setSelectedClassCodes(prev => {
+      const next = new Set(prev);
+      if (checked) next.add(classCode);
+      else next.delete(classCode);
+      return next;
+    });
+    setApplyToAllClasses(false);
+  }, []);
 
   const handleAddFeeItem = useCallback(() => {
     if (availableCategories.length === 0) {
@@ -85,8 +122,8 @@ export function CreateFeeStructureDialog({
     const category = categories?.find(cat => cat._id === categoryId);
     if (!category) return;
 
-    setFeeItems(prev => prev.map((item, i) => 
-      i === index 
+    setFeeItems(prev => prev.map((item, i) =>
+      i === index
         ? { ...item, categoryId: category._id, categoryName: category.categoryName }
         : item
     ));
@@ -94,10 +131,20 @@ export function CreateFeeStructureDialog({
 
   const handleAmountChange = useCallback((index: number, amount: string) => {
     const numAmount = parseFloat(amount) || 0;
-    setFeeItems(prev => prev.map((item, i) => 
+    setFeeItems(prev => prev.map((item, i) =>
       i === index ? { ...item, amount: numAmount } : item
     ));
   }, []);
+
+  const getClassesToCreate = useCallback((): Array<{ classCode: string }> => {
+    if (!selectedDepartmentId || selectedDepartmentId === 'none' || !departmentClasses?.length) {
+      return [];
+    }
+    if (applyToAllClasses) {
+      return departmentClasses.map(c => ({ classCode: c.classCode }));
+    }
+    return Array.from(selectedClassCodes).map(classCode => ({ classCode }));
+  }, [selectedDepartmentId, departmentClasses, applyToAllClasses, selectedClassCodes]);
 
   const handleSubmit = useCallback(async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
@@ -117,21 +164,42 @@ export function CreateFeeStructureDialog({
       return;
     }
 
+    const departmentIdResolved =
+      selectedDepartmentId && selectedDepartmentId !== 'none'
+        ? (selectedDepartmentId as Id<'departments'>)
+        : undefined;
+    const classesToCreate = getClassesToCreate();
+
+    if (departmentIdResolved && classesToCreate.length === 0) {
+      toast.error('Select at least one class or "Apply to all classes"');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      await createStructure({
+      const payload = {
         schoolId,
         structureName: structureName.trim(),
-        classId: selectedClass || undefined,
-        departmentId: selectedDepartmentId ? (selectedDepartmentId as Id<'departments'>) : undefined,
+        departmentId: departmentIdResolved,
         fees: JSON.stringify(feeItems),
         totalAmount,
         dueDate: dueDate || undefined,
         createdBy,
-      });
+      };
 
-      toast.success('Fee structure created successfully');
+      if (classesToCreate.length === 0) {
+        await createStructure({ ...payload });
+        toast.success('Fee structure created successfully');
+      } else {
+        let created = 0;
+        for (const { classCode } of classesToCreate) {
+          await createStructure({ ...payload, classId: classCode });
+          created++;
+        }
+        toast.success(`Fee structure created for ${created} class${created !== 1 ? 'es' : ''}`);
+      }
+
       resetForm();
       onOpenChange(false);
     } catch (error) {
@@ -145,21 +213,24 @@ export function CreateFeeStructureDialog({
     feeItems,
     totalAmount,
     schoolId,
-    selectedClass,
     selectedDepartmentId,
     dueDate,
     createdBy,
+    getClassesToCreate,
     createStructure,
     onOpenChange,
   ]);
 
   const resetForm = (): void => {
     setStructureName('');
-    setSelectedClass('');
-    setSelectedDepartmentId('');
+    setSelectedDepartmentId('none');
     setDueDate('');
+    setApplyToAllClasses(false);
+    setSelectedClassCodes(new Set());
     setFeeItems([]);
   };
+
+  const hasDepartmentSelected = selectedDepartmentId && selectedDepartmentId !== 'none';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -172,65 +243,108 @@ export function CreateFeeStructureDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Structure Name */}
-          <div className="space-y-2">
-            <Label htmlFor="structureName">Structure Name *</Label>
-            <Input
-              id="structureName"
-              placeholder="e.g., Grade 1 Term 1 Fees"
-              value={structureName}
-              onChange={(e) => setStructureName(e.target.value)}
-            />
+          {/* Two-column grid: (Structure name + Due date) | (Department + Classes) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Column 1: Structure name and Due date */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="structureName">Structure Name *</Label>
+                <Input
+                  id="structureName"
+                  placeholder="e.g., Grade 1 Term 1 Fees"
+                  value={structureName}
+                  onChange={(e) => setStructureName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="dueDate">Due Date (Optional)</Label>
+                <DatePicker
+                  id="dueDate"
+                  value={dueDate}
+                  onChange={setDueDate}
+                  placeholder="Pick due date"
+                  disableFuture={false}
+                  className="w-full"
+                />
+              </div>
+            </div>
+
+            {/* Column 2: Department and Classes */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="department">Department</Label>
+                <Select value={selectedDepartmentId} onValueChange={handleDepartmentChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {departments?.map((dept) => (
+                      <SelectItem key={dept._id} value={dept._id}>
+                        {dept.name} ({dept.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {hasDepartmentSelected && (
+                <div className="space-y-2">
+                  <Label>Apply to classes</Label>
+                  <div className="border rounded-lg p-3 space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="applyToAll"
+                        checked={
+                          applyToAllClasses ||
+                          (departmentClasses &&
+                            departmentClasses.length > 0 &&
+                            selectedClassCodes.size === departmentClasses.length)
+                        }
+                        onCheckedChange={(c) => handleApplyToAllChange(c === true)}
+                      />
+                      <label
+                        htmlFor="applyToAll"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        Apply to all classes in department
+                      </label>
+                    </div>
+                    {departmentClasses && departmentClasses.length > 0 && (
+                      <ScrollArea className="h-[120px] rounded border p-2">
+                        <div className="space-y-2">
+                          {departmentClasses.map((cls) => (
+                            <div key={cls._id} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`class-${cls.classCode}`}
+                                checked={selectedClassCodes.has(cls.classCode)}
+                                onCheckedChange={(c) =>
+                                  handleClassToggle(cls.classCode, c === true)
+                                }
+                              />
+                              <label
+                                htmlFor={`class-${cls.classCode}`}
+                                className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                              >
+                                {cls.className}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    )}
+                    {departmentClasses?.length === 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        No active classes in this department.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Class Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="class">Class (Optional)</Label>
-            <Select value={selectedClass} onValueChange={setSelectedClass}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select class" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                {classes?.map((cls) => (
-                  <SelectItem key={cls._id} value={cls.classCode}>
-                    {cls.className}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Department Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="department">Department (Optional)</Label>
-            <Select value={selectedDepartmentId} onValueChange={setSelectedDepartmentId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select department" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">None</SelectItem>
-                {departments?.map((dept) => (
-                  <SelectItem key={dept._id} value={dept._id}>
-                    {dept.name} ({dept.code})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Due Date */}
-          <div className="space-y-2">
-            <Label htmlFor="dueDate">Due Date (Optional)</Label>
-            <Input
-              id="dueDate"
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-            />
-          </div>
-
-          {/* Fee Items */}
+          {/* Fee Categories - unchanged layout */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>Fee Categories *</Label>

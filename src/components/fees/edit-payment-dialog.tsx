@@ -57,7 +57,13 @@ export function EditPaymentDialog({
   useEffect(() => {
     if (payment && open) {
       if (payment.items) {
-        setItems(JSON.parse(payment.items));
+        try {
+          const parsed = JSON.parse(payment.items) as FeePaymentItem[];
+          setItems(Array.isArray(parsed) ? parsed : []);
+        } catch {
+          toast.error('Invalid payment data');
+          setItems([]);
+        }
       }
       setPaymentMethod(payment.paymentMethod);
       setTransactionRef(payment.transactionReference || '');
@@ -100,7 +106,7 @@ export function EditPaymentDialog({
   if (!payment) return <></>;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-150 max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Payment</DialogTitle>
           <DialogDescription>
