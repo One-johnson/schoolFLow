@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, JSX } from 'react';
+import { useState } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,7 +31,7 @@ export function DeleteFeeStructureDialog({
   open,
   onOpenChange,
   structure,
-}: DeleteFeeStructureDialogProps): React.JSX.Element {
+}: DeleteFeeStructureDialogProps): React.JSX.Element | null {
   const [loading, setLoading] = useState<boolean>(false);
   const deleteStructure = useMutation(api.feeStructures.deleteFeeStructure);
 

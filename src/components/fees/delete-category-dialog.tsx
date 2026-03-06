@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, JSX } from 'react';
+import { useState } from 'react';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import type { Id } from '../../../convex/_generated/dataModel';
@@ -29,7 +29,7 @@ export function DeleteCategoryDialog({
   open,
   onOpenChange,
   category,
-}: DeleteCategoryDialogProps): React.JSX.Element {
+}: DeleteCategoryDialogProps): React.JSX.Element | null {
   const [loading, setLoading] = useState<boolean>(false);
   const deleteCategory = useMutation(api.feeCategories.deleteFeeCategory);
 

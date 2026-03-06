@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useEffect, JSX } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import type { Id } from '@/../convex/_generated/dataModel';
 import { api } from '../../../convex/_generated/api';
@@ -50,7 +50,7 @@ export function EditFeeStructureDialog({
   onOpenChange,
   schoolId,
   structure,
-}: EditFeeStructureDialogProps): React.JSX.Element {
+}: EditFeeStructureDialogProps): React.JSX.Element | null {
   const [structureName, setStructureName] = useState<string>('');
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('none');
   const [selectedClassCode, setSelectedClassCode] = useState<string>('none');
