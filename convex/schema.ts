@@ -40,6 +40,7 @@ export default defineSchema({
     name: v.string(),
     email: v.string(),
     schoolId: v.string(),
+    phone: v.optional(v.string()),
     password: v.optional(v.string()),
     tempPassword: v.optional(v.string()),
     status: v.union(v.literal('active'), v.literal('inactive'), v.literal('pending'), v.literal('suspended')),

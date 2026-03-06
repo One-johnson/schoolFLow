@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Copy, CheckCircle2, Key, AlertCircle, Mail } from 'lucide-react';
+import { Copy, CheckCircle2, Key, AlertCircle, Mail, MessageCircle } from 'lucide-react';
 import type { Id } from '../../convex/_generated/dataModel';
 
 interface AdminPasswordResetDialogProps {
@@ -20,7 +20,13 @@ interface AdminPasswordResetDialogProps {
   adminId: Id<'schoolAdmins'> | null;
   adminName: string;
   adminEmail: string;
+  adminPhone?: string;
   onSuccess?: () => void;
+}
+
+/** Normalize phone to digits only for wa.me (e.g. 233241234567) */
+function phoneToWhatsAppDigits(phone: string): string {
+  return phone.replace(/\D/g, '');
 }
 
 export function AdminPasswordResetDialog({
@@ -29,6 +35,7 @@ export function AdminPasswordResetDialog({
   adminId,
   adminName,
   adminEmail,
+  adminPhone,
   onSuccess,
 }: AdminPasswordResetDialogProps): React.JSX.Element {
   const [loading, setLoading] = useState(false);
@@ -92,6 +99,20 @@ export function AdminPasswordResetDialog({
     } catch (error) {
       toast.error('Failed to open email');
     }
+  };
+
+  const handleShareViaWhatsApp = (): void => {
+    if (!tempPassword || !adminPhone) return;
+    const digits = phoneToWhatsAppDigits(adminPhone);
+    if (!digits) {
+      toast.error('Invalid phone number');
+      return;
+    }
+    const loginUrl = typeof window !== 'undefined' ? `${window.location.origin}/login` : '/login';
+    const message = `Hi ${adminName},\n\nYour SchoolFlow password has been reset.\n\nTemporary password: ${tempPassword}\n\nLog in at: ${loginUrl}\nUse your School ID or email as username. Change your password after signing in.`;
+    const url = `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+    toast.success('WhatsApp opened to share password');
   };
 
   const handleClose = (): void => {
@@ -161,7 +182,7 @@ export function AdminPasswordResetDialog({
                     <div className="flex-1 p-3 bg-white dark:bg-gray-900 border border-green-300 dark:border-green-700 rounded font-mono text-lg font-bold text-green-900 dark:text-green-100 break-all">
                       {tempPassword}
                     </div>
-                    <div className="flex gap-1 shrink-0">
+                    <div className="flex flex-wrap gap-1 shrink-0">
                       <Button
                         variant="outline"
                         size="sm"
@@ -182,6 +203,16 @@ export function AdminPasswordResetDialog({
                       >
                         <Mail className="h-4 w-4" />
                       </Button>
+                      {adminPhone && phoneToWhatsAppDigits(adminPhone) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleShareViaWhatsApp}
+                          title="Share via WhatsApp"
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -192,6 +223,11 @@ export function AdminPasswordResetDialog({
                   </p>
                   <ol className="list-decimal list-inside text-xs text-blue-800 dark:text-blue-200 space-y-1">
                     <li>Share this password securely with {adminName}</li>
+                    {adminPhone && phoneToWhatsAppDigits(adminPhone) ? (
+                      <li>Use &quot;Share via WhatsApp&quot; above to send the password to their contact number</li>
+                    ) : (
+                      <li>Add their contact number in Edit School Admin to share via WhatsApp next time</li>
+                    )}
                     <li>They can log in using their School ID or email</li>
                     <li>They will be required to change this password immediately</li>
                   </ol>

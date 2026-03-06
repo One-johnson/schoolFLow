@@ -51,6 +51,19 @@ export const getClassesByIds = query({
   },
 });
 
+// Query: Get classes by department
+export const getClassesByDepartment = query({
+  args: { departmentId: v.id('departments') },
+  handler: async (ctx, args) => {
+    const classes = await ctx.db
+      .query('classes')
+      .withIndex('by_department', (q) => q.eq('departmentId', args.departmentId))
+      .filter((q) => q.eq(q.field('status'), 'active'))
+      .collect();
+    return classes;
+  },
+});
+
 // Query: Get class statistics for a school
 export const getClassStats = query({
   args: { schoolId: v.string() },

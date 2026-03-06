@@ -41,6 +41,8 @@ import { CreatePaymentPlanDialog } from '@/components/fees/create-payment-plan-d
 import { ApplyFeeStructureDialog } from '@/components/fees/apply-fee-structure-dialog';
 import { SendRemindersDialog } from '@/components/fees/send-reminders-dialog';
 import { CreateFeeStructureDialog } from '@/components/fees/create-fee-structure-dialog';
+import { EditFeeStructureDialog, type FeeStructureForEdit } from '@/components/fees/edit-fee-structure-dialog';
+import { DeleteFeeStructureDialog } from '@/components/fees/delete-fee-structure-dialog';
 import { EditCategoryDialog } from '@/components/fees/edit-category-dialog';
 import { DeleteCategoryDialog } from '@/components/fees/delete-category-dialog';
 import { ViewCategoryDialog } from '@/components/fees/view-category-dialog';
@@ -87,6 +89,18 @@ interface FeePayment {
   createdAt: string;
 }
 
+interface FeeStructureRow {
+  _id: Id<'feeStructures'>;
+  structureCode: string;
+  structureName: string;
+  classId?: string;
+  departmentId?: Id<'departments'>;
+  fees: string;
+  totalAmount: number;
+  dueDate?: string;
+  status: 'active' | 'inactive';
+}
+
 // Safe JSON parse helper
 function safeParseItems(items: string | undefined): Array<{ categoryName: string; amountDue: number; amountPaid: number; balance: number }> {
   if (!items) return [];
@@ -115,6 +129,9 @@ export default function FeesPage(): React.JSX.Element {
   const [deletePaymentOpen, setDeletePaymentOpen] = useState<boolean>(false);
   const [selectedCategory, setSelectedCategory] = useState<FeeCategory | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<FeePayment | null>(null);
+  const [selectedStructure, setSelectedStructure] = useState<FeeStructureForEdit | null>(null);
+  const [editStructureOpen, setEditStructureOpen] = useState<boolean>(false);
+  const [deleteStructureOpen, setDeleteStructureOpen] = useState<boolean>(false);
   const [classFilter, setClassFilter] = useState<string>('all');
 
   // Fetch school data
@@ -157,6 +174,16 @@ export default function FeesPage(): React.JSX.Element {
   // Fetch classes for filter
   const classes = useQuery(
     api.classes.getClassesBySchool,
+    schoolAdmin?.schoolId ? { schoolId: schoolAdmin.schoolId } : 'skip'
+  );
+
+  // Fetch fee structures and departments (for structures tab)
+  const structures = useQuery(
+    api.feeStructures.getStructuresBySchool,
+    schoolAdmin?.schoolId ? { schoolId: schoolAdmin.schoolId } : 'skip'
+  );
+  const departments = useQuery(
+    api.departments.getDepartmentsBySchool,
     schoolAdmin?.schoolId ? { schoolId: schoolAdmin.schoolId } : 'skip'
   );
 
@@ -581,6 +608,103 @@ export default function FeesPage(): React.JSX.Element {
     },
   ], [handleGenerateReceipt]);
 
+  // Fee structure columns (for structures tab)
+  const structureColumns: ColumnDef<FeeStructureRow>[] = useMemo(() => [
+    {
+      accessorKey: 'structureName',
+      header: createSortableHeader('Structure Name'),
+      cell: ({ row }) => (
+        <span className="font-medium">{row.getValue('structureName')}</span>
+      ),
+    },
+    {
+      accessorKey: 'classId',
+      header: 'Class',
+      cell: ({ row }) => {
+        const classId = row.original.classId;
+        if (!classId) return <span className="text-muted-foreground">—</span>;
+        const cls = classes?.find(c => c.classCode === classId);
+        return cls ? cls.className : classId;
+      },
+    },
+    {
+      accessorKey: 'departmentId',
+      header: 'Department',
+      cell: ({ row }) => {
+        const deptId = row.original.departmentId;
+        if (!deptId) return <span className="text-muted-foreground">—</span>;
+        const dept = departments?.find(d => d._id === deptId);
+        return dept ? `${dept.name} (${dept.code})` : '—';
+      },
+    },
+    {
+      accessorKey: 'totalAmount',
+      header: createSortableHeader('Total'),
+      cell: ({ row }) => (
+        <span className="font-medium">
+          GHS {(row.getValue('totalAmount') as number).toFixed(2)}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'dueDate',
+      header: createSortableHeader('Due Date'),
+      cell: ({ row }) => {
+        const d = row.getValue('dueDate') as string | undefined;
+        return d ? new Date(d).toLocaleDateString() : <span className="text-muted-foreground">—</span>;
+      },
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      cell: ({ row }) => {
+        const status = row.getValue('status') as string;
+        return status === 'active' ? (
+          <Badge className="bg-green-500">Active</Badge>
+        ) : (
+          <Badge variant="outline">Inactive</Badge>
+        );
+      },
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => {
+        const structure = row.original;
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => {
+                  setSelectedStructure(structure as FeeStructureForEdit);
+                  setEditStructureOpen(true);
+                }}
+              >
+                <Edit className="mr-2 h-4 w-4" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  setSelectedStructure(structure as FeeStructureForEdit);
+                  setDeleteStructureOpen(true);
+                }}
+                className="text-red-600"
+              >
+                <Trash className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
+    },
+  ], [classes, departments]);
+
   // Show loading
   if (!user || !schoolAdmin || !school) {
     return (
@@ -708,6 +832,7 @@ export default function FeesPage(): React.JSX.Element {
         <TabsList>
           <TabsTrigger value="payments">All Payments</TabsTrigger>
           <TabsTrigger value="outstanding">Outstanding Fees</TabsTrigger>
+          <TabsTrigger value="structures">Fee Structures</TabsTrigger>
           <TabsTrigger value="categories">Fee Categories</TabsTrigger>
         </TabsList>
 
@@ -823,6 +948,49 @@ export default function FeesPage(): React.JSX.Element {
           </Card>
         </TabsContent>
 
+        <TabsContent value="structures" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Fee Structures</CardTitle>
+                  <CardDescription>
+                    Templates that define fee categories and amounts; apply them to students via Apply Fees
+                  </CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => setCreateStructureOpen(true)}>
+                  <FolderPlus className="mr-2 h-4 w-4" />
+                  Create Structure
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {!structures || structures.length === 0 ? (
+                <div className="text-center py-12">
+                  <FolderPlus className="mx-auto h-12 w-12 text-muted-foreground" />
+                  <h3 className="mt-4 text-lg font-semibold">No fee structures</h3>
+                  <p className="text-muted-foreground">
+                    Create a fee structure to define fees for classes, then apply it to students
+                  </p>
+                  <Button onClick={() => setCreateStructureOpen(true)} className="mt-4">
+                    <FolderPlus className="mr-2 h-4 w-4" />
+                    Create Structure
+                  </Button>
+                </div>
+              ) : (
+                <DataTable
+                  storageKey="fees-structures"
+                  columns={structureColumns}
+                  data={structures as FeeStructureRow[]}
+                  searchKey="structureName"
+                  searchPlaceholder="Search structures..."
+                  additionalSearchKeys={['structureCode']}
+                />
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="categories" className="space-y-4">
           <Card>
             <CardHeader>
@@ -916,6 +1084,19 @@ export default function FeesPage(): React.JSX.Element {
             onOpenChange={setCreateStructureOpen}
             schoolId={schoolAdmin.schoolId}
             createdBy={schoolAdmin._id}
+          />
+
+          <EditFeeStructureDialog
+            open={editStructureOpen}
+            onOpenChange={setEditStructureOpen}
+            schoolId={schoolAdmin.schoolId}
+            structure={selectedStructure}
+          />
+
+          <DeleteFeeStructureDialog
+            open={deleteStructureOpen}
+            onOpenChange={setDeleteStructureOpen}
+            structure={selectedStructure}
           />
 
           <EditCategoryDialog

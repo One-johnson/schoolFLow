@@ -1,5 +1,6 @@
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
+import type { Id } from './_generated/dataModel';
 
 export const create = mutation({
   args: {
@@ -96,12 +97,14 @@ export const approve = mutation({
       .filter((q) => q.eq(q.field('status'), 'approved'))
       .first();
 
-    // Generate custom school ID
-    const customSchoolId = 'SCH' + Math.random().toString(36).substring(2, 11).toUpperCase();
+    // Use the school admin's existing school ID (set when super admin created them) — do not change it
+    const admin = await ctx.db.get(request.schoolAdminId as Id<'schoolAdmins'>);
+    if (!admin) throw new Error('School admin not found');
+    if (!admin.schoolId) throw new Error('School admin has no school ID');
 
-    // Create the school
+    // Create the school with the admin's existing school ID
     const schoolId = await ctx.db.insert('schools', {
-      schoolId: customSchoolId,
+      schoolId: admin.schoolId,
       name: request.schoolName,
       email: request.email,
       phone: request.phone,
@@ -118,18 +121,10 @@ export const approve = mutation({
       paymentDate: new Date().toISOString(),
     });
 
-    // Update school admin with custom school ID
-    const admin = await ctx.db
-      .query('schoolAdmins')
-      .filter((q) => q.eq(q.field('email'), request.schoolAdminEmail))
-      .first();
-
-    if (admin) {
-      await ctx.db.patch(admin._id, {
-        hasCreatedSchool: true,
-        schoolId: customSchoolId,
-      });
-    }
+    // Mark that the admin has created their school (do not overwrite their schoolId)
+    await ctx.db.patch(admin._id, {
+      hasCreatedSchool: true,
+    });
 
     // Create notification for school admin
     await ctx.db.insert('notifications', {

@@ -67,6 +67,7 @@ interface SchoolAdmin {
   name: string;
   email: string;
   schoolId: string;
+  phone?: string;
   status: 'active' | 'inactive' | 'pending' | 'suspended';
   invitedBy: string;
   createdAt: string;
@@ -104,10 +105,10 @@ export default function SchoolAdminsPage(): React.JSX.Element {
   const [selectedAdmin, setSelectedAdmin] = useState<SchoolAdmin | null>(null);
   const [selectedAdmins, setSelectedAdmins] = useState<SchoolAdmin[]>([]);
 
-  const [createForm, setCreateForm] = useState({ name: '', email: '' });
+  const [createForm, setCreateForm] = useState({ name: '', email: '', phone: '' });
   const [bulkCreateText, setBulkCreateText] = useState('');
   const [bulkUpdateStatus, setBulkUpdateStatus] = useState<'active' | 'inactive' | 'pending' | 'suspended'>('active');
-  const [editForm, setEditForm] = useState({ name: '', email: '', status: 'active' as 'active' | 'inactive' | 'pending' | 'suspended' });
+  const [editForm, setEditForm] = useState({ name: '', email: '', phone: '', status: 'active' as 'active' | 'inactive' | 'pending' | 'suspended' });
   
   const [generatedCredentials, setGeneratedCredentials] = useState<{
     schoolId: string;
@@ -157,6 +158,7 @@ export default function SchoolAdminsPage(): React.JSX.Element {
           email: createForm.email,
           schoolId,
           tempPassword: password,
+          phone: createForm.phone.trim() || undefined,
         }),
       });
 
@@ -179,7 +181,7 @@ export default function SchoolAdminsPage(): React.JSX.Element {
 
       setGeneratedCredentials({ schoolId, password });
       toast.success('School Admin created successfully!');
-      setCreateForm({ name: '', email: '' });
+      setCreateForm({ name: '', email: '', phone: '' });
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error('Failed to create school admin');
@@ -396,6 +398,7 @@ export default function SchoolAdminsPage(): React.JSX.Element {
         id: selectedAdmin._id,
         name: editForm.name,
         email: editForm.email,
+        phone: editForm.phone.trim() || undefined,
         status: editForm.status,
       });
 
@@ -485,6 +488,11 @@ export default function SchoolAdminsPage(): React.JSX.Element {
         header: createSortableHeader('School ID'),
       },
       {
+        accessorKey: 'phone',
+        header: createSortableHeader('Contact'),
+        cell: ({ row }) => row.original.phone ?? '—',
+      },
+      {
         accessorKey: 'status',
         header: createSortableHeader('Status'),
         cell: ({ row }) => {
@@ -529,6 +537,7 @@ export default function SchoolAdminsPage(): React.JSX.Element {
                   setEditForm({
                     name: row.original.name,
                     email: row.original.email,
+                    phone: row.original.phone ?? '',
                     status: row.original.status,
                   });
                   setIsEditOpen(true);
@@ -756,6 +765,18 @@ export default function SchoolAdminsPage(): React.JSX.Element {
                       required
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Contact / WhatsApp number (optional)</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="e.g. 233241234567"
+                      value={createForm.phone}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        setCreateForm({ ...createForm, phone: e.target.value })
+                      }
+                    />
+                  </div>
                   <Button type="submit" className="w-full">
                     Create Admin
                   </Button>
@@ -934,6 +955,10 @@ export default function SchoolAdminsPage(): React.JSX.Element {
                 <p className="font-mono font-medium">{selectedAdmin.schoolId}</p>
               </div>
               <div>
+                <Label className="text-xs text-muted-foreground">Contact</Label>
+                <p className="font-medium">{selectedAdmin.phone ?? '—'}</p>
+              </div>
+              <div>
                 <Label className="text-xs text-muted-foreground">Status</Label>
                 <div className="mt-1">
                   <Badge
@@ -989,6 +1014,18 @@ export default function SchoolAdminsPage(): React.JSX.Element {
                 value={editForm.email}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   setEditForm({ ...editForm, email: e.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-phone">Contact / WhatsApp number (optional)</Label>
+              <Input
+                id="edit-phone"
+                type="tel"
+                placeholder="e.g. 233241234567"
+                value={editForm.phone}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setEditForm({ ...editForm, phone: e.target.value })
                 }
               />
             </div>
@@ -1102,6 +1139,7 @@ export default function SchoolAdminsPage(): React.JSX.Element {
         adminId={selectedAdmin?._id || null}
         adminName={selectedAdmin?.name || ''}
         adminEmail={selectedAdmin?.email || ''}
+        adminPhone={selectedAdmin?.phone ?? undefined}
         onSuccess={() => {
           // Refresh data or show success message
         }}

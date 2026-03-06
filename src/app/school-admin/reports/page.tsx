@@ -327,12 +327,16 @@ export default function ReportsPage(): React.JSX.Element {
 
   const filteredAttendance = useMemo(() => {
     if (!attendance) return [];
+    const selectedClassId =
+      attFilterClass !== "all"
+        ? classes?.find((c) => c.classCode === attFilterClass)?._id
+        : null;
     return (attendance as AttendanceRecord[]).filter((a) => {
-      if (attFilterClass !== "all" && a.classId !== attFilterClass)
+      if (selectedClassId != null && a.classId !== selectedClassId)
         return false;
       return true;
     });
-  }, [attendance, attFilterClass]);
+  }, [attendance, attFilterClass, classes]);
 
   const filteredFees = useMemo(() => {
     if (!feePayments) return [];
@@ -1056,7 +1060,7 @@ export default function ReportsPage(): React.JSX.Element {
       <SelectContent>
         <SelectItem value="all">All Classes</SelectItem>
         {classes?.map((cls) => (
-          <SelectItem key={cls._id} value={cls._id}>
+          <SelectItem key={cls._id} value={cls.classCode}>
             {cls.className}
           </SelectItem>
         ))}
