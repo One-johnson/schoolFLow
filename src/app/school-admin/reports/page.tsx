@@ -79,7 +79,7 @@ interface AttendanceRecord {
 }
 
 interface FeePayment {
-  _id: Id<"feePayments">;
+  _id: Id<"feePaymentTransactions">;
   studentName: string;
   classId: string;
   className: string;

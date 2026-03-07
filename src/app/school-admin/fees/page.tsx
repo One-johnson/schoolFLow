@@ -89,6 +89,18 @@ interface FeePayment {
   createdAt: string;
 }
 
+/** Aggregated outstanding per student (one row per student, deduped by obligation) */
+interface OutstandingByStudent {
+  studentId: string;
+  studentName: string;
+  classId: string;
+  className: string;
+  totalOutstanding: number;
+  totalAmountDue: number;
+  totalAmountPaid: number;
+  paymentStatus: 'partial' | 'pending';
+}
+
 interface FeeStructureRow {
   _id: Id<'feeStructures'>;
   structureCode: string;
@@ -156,10 +168,10 @@ export default function FeesPage(): React.JSX.Element {
     schoolAdmin?.schoolId ? { schoolId: schoolAdmin.schoolId } : 'skip'
   ) as FeePayment[] | undefined;
 
-  const outstandingPayments = useQuery(
-    api.feePayments.getOutstandingPayments,
+  const outstandingByStudent = useQuery(
+    api.feePayments.getOutstandingByStudent,
     schoolAdmin?.schoolId ? { schoolId: schoolAdmin.schoolId } : 'skip'
-  ) as FeePayment[] | undefined;
+  ) as OutstandingByStudent[] | undefined;
 
   const paymentStats = useQuery(
     api.feePayments.getPaymentStats,
@@ -194,11 +206,11 @@ export default function FeesPage(): React.JSX.Element {
     return payments.filter(p => p.classId === classFilter);
   }, [payments, classFilter]);
 
-  const filteredOutstandingPayments = useMemo(() => {
-    if (!outstandingPayments) return [];
-    if (!classFilter || classFilter === 'all') return outstandingPayments;
-    return outstandingPayments.filter(p => p.classId === classFilter);
-  }, [outstandingPayments, classFilter]);
+  const filteredOutstandingByStudent = useMemo(() => {
+    if (!outstandingByStudent) return [];
+    if (!classFilter || classFilter === 'all') return outstandingByStudent;
+    return outstandingByStudent.filter((s) => s.classId === classFilter);
+  }, [outstandingByStudent, classFilter]);
 
   // Generate receipt handler (V2 only)
   const handleGenerateReceipt = useCallback((payment: FeePayment): void => {
@@ -230,9 +242,9 @@ export default function FeesPage(): React.JSX.Element {
     toast.success('Receipt downloaded successfully');
   }, [school]);
 
-  // Export outstanding fees
+  // Export outstanding fees (aggregated by student)
   const handleExportOutstanding = useCallback((): void => {
-    if (!filteredOutstandingPayments || filteredOutstandingPayments.length === 0) {
+    if (!filteredOutstandingByStudent || filteredOutstandingByStudent.length === 0) {
       toast.error('No outstanding fees to export');
       return;
     }
@@ -243,25 +255,21 @@ export default function FeesPage(): React.JSX.Element {
     }
 
     exportOutstandingFeesPDF(
-      filteredOutstandingPayments.map(p => {
-        const items = safeParseItems(p.items);
-        const categoryName = items.length > 1 ? 'Multiple Categories' : items[0].categoryName;
-        return {
-          studentName: p.studentName,
-          studentId: p.studentId,
-          className: p.className,
-          categoryName: categoryName,
-          amountDue: p.totalAmountDue,
-          amountPaid: p.totalAmountPaid,
-          remainingBalance: p.totalBalance,
-          paymentDate: p.paymentDate,
-        };
-      }),
+      filteredOutstandingByStudent.map((s) => ({
+        studentName: s.studentName,
+        studentId: s.studentId,
+        className: s.className,
+        categoryName: 'Outstanding',
+        amountDue: s.totalAmountDue,
+        amountPaid: s.totalAmountPaid,
+        remainingBalance: s.totalOutstanding,
+        paymentDate: new Date().toISOString().split('T')[0],
+      })),
       school.name
     );
 
     toast.success('Outstanding fees report downloaded');
-  }, [filteredOutstandingPayments, school]);
+  }, [filteredOutstandingByStudent, school]);
 
   // Category columns
   const categoryColumns: ColumnDef<FeeCategory>[] = useMemo(() => [
@@ -486,8 +494,8 @@ export default function FeesPage(): React.JSX.Element {
     },
   ], [handleGenerateReceipt]);
 
-  // Outstanding payment columns
-  const outstandingColumns: ColumnDef<FeePayment>[] = useMemo(() => [
+  // Outstanding by student columns (one row per student, no actions on aggregated row)
+  const outstandingColumns: ColumnDef<OutstandingByStudent>[] = useMemo(() => [
     {
       accessorKey: 'studentName',
       header: createSortableHeader('Student'),
@@ -499,18 +507,6 @@ export default function FeesPage(): React.JSX.Element {
           </div>
         </div>
       ),
-    },
-    {
-      accessorKey: 'items',
-      header: 'Fee Category',
-      cell: ({ row }) => {
-        const payment = row.original;
-        const items = safeParseItems(payment.items);
-        if (items.length > 1) {
-          return <Badge variant="outline">{items.length} Categories</Badge>;
-        }
-        return items[0]?.categoryName || 'N/A';
-      },
     },
     {
       accessorKey: 'totalAmountDue',
@@ -533,10 +529,10 @@ export default function FeesPage(): React.JSX.Element {
       },
     },
     {
-      accessorKey: 'totalBalance',
+      accessorKey: 'totalOutstanding',
       header: createSortableHeader('Balance'),
       cell: ({ row }) => {
-        const balance = (row.getValue('totalBalance') as number) || 0;
+        const balance = (row.getValue('totalOutstanding') as number) || 0;
         return (
           <span className="text-red-600 font-bold">
             GHS {balance.toFixed(2)}
@@ -551,62 +547,11 @@ export default function FeesPage(): React.JSX.Element {
         const status = row.getValue('paymentStatus') as string;
         if (status === 'partial') {
           return <Badge className="bg-yellow-500">Partial Payment</Badge>;
-        } else {
-          return <Badge className="bg-red-500">Pending</Badge>;
         }
+        return <Badge className="bg-red-500">Pending</Badge>;
       },
     },
-    {
-      id: 'actions',
-      header: 'Actions',
-      cell: ({ row }) => {
-        const payment = row.original;
-        return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={() => {
-                  setSelectedPayment(payment);
-                  setViewPaymentOpen(true);
-                }}
-              >
-                <Eye className="mr-2 h-4 w-4" />
-                View Details
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  setSelectedPayment(payment);
-                  setEditPaymentOpen(true);
-                }}
-              >
-                <Edit className="mr-2 h-4 w-4" />
-                Edit Payment
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleGenerateReceipt(payment)}>
-                <Receipt className="mr-2 h-4 w-4" />
-                Download Receipt
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  setSelectedPayment(payment);
-                  setDeletePaymentOpen(true);
-                }}
-                className="text-red-600"
-              >
-                <Trash className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        );
-      },
-    },
-  ], [handleGenerateReceipt]);
+  ], []);
 
   // Fee structure columns (for structures tab)
   const structureColumns: ColumnDef<FeeStructureRow>[] = useMemo(() => [
@@ -917,7 +862,7 @@ export default function FeesPage(): React.JSX.Element {
                     </SelectContent>
                   </Select>
                 </div>
-                {filteredOutstandingPayments && filteredOutstandingPayments.length > 0 && (
+                {filteredOutstandingByStudent && filteredOutstandingByStudent.length > 0 && (
                   <Button variant="outline" onClick={handleExportOutstanding}>
                     <FileDown className="mr-2 h-4 w-4" />
                     Export Report
@@ -926,7 +871,7 @@ export default function FeesPage(): React.JSX.Element {
               </div>
             </CardHeader>
             <CardContent>
-              {!outstandingPayments || outstandingPayments.length === 0 ? (
+              {!outstandingByStudent || outstandingByStudent.length === 0 ? (
                 <div className="text-center py-12">
                   <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
                   <h3 className="mt-4 text-lg font-semibold">All fees are paid!</h3>
@@ -938,7 +883,7 @@ export default function FeesPage(): React.JSX.Element {
                 <DataTable
                   storageKey="fees-outstanding"
                   columns={outstandingColumns}
-                  data={filteredOutstandingPayments}
+                  data={filteredOutstandingByStudent}
                   searchKey="studentName"
                   searchPlaceholder="Search by student name..."
                   additionalSearchKeys={['studentId', 'className']}
@@ -1040,6 +985,7 @@ export default function FeesPage(): React.JSX.Element {
             open={recordPaymentOpen}
             onOpenChange={setRecordPaymentOpen}
             schoolId={schoolAdmin.schoolId}
+            collectedBy={schoolAdmin._id}
             schoolAdminName={schoolAdmin.name}
           />
 

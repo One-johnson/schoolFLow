@@ -27,29 +27,19 @@ export const sendBulkReminders = mutation({
           continue;
         }
 
-        // Get outstanding payments for this student
-        const outstandingPayments = await ctx.db
-          .query('feePayments')
+        const obligations = await ctx.db
+          .query('feeObligations')
           .withIndex('by_student', (q) =>
             q.eq('schoolId', args.schoolId).eq('studentId', studentId)
           )
           .filter((q) =>
-            q.or(
-              q.eq(q.field('paymentStatus'), 'pending'),
-              q.eq(q.field('paymentStatus'), 'partial')
-            )
+            q.or(q.eq(q.field('status'), 'pending'), q.eq(q.field('status'), 'partial'))
           )
           .collect();
 
-        if (outstandingPayments.length === 0) {
-          continue; // Skip students with no outstanding fees
-        }
+        if (obligations.length === 0) continue;
 
-        // Calculate total outstanding amount
-        const totalOutstanding = outstandingPayments.reduce(
-          (sum, p) => sum + p.remainingBalance,
-          0
-        );
+        const totalOutstanding = obligations.reduce((sum, o) => sum + o.totalBalance, 0);
 
         // Create notification for school admin
         if (args.method === 'notification') {
@@ -70,7 +60,7 @@ export const sendBulkReminders = mutation({
           studentName: `${student.firstName} ${student.lastName}`,
           parentEmail: student.parentEmail ?? "",
           parentPhone: student.parentPhone ?? "",
-          categoryName: outstandingPayments[0].categoryName ?? "",
+          categoryName: obligations[0].items ? 'Fees' : '',
           amountDue: totalOutstanding,
           reminderType: args.reminderType,
           sentDate: now,
@@ -104,25 +94,24 @@ export const getRemindersBySchool = query({
   },
 });
 
-// Get students with outstanding fees (for reminder targeting)
+// Get students with outstanding fees (from obligations); one row per student
 export const getStudentsWithOutstandingFees = query({
   args: {
     schoolId: v.string(),
     minAmount: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const outstandingPayments = await ctx.db
-      .query('feePayments')
+    const obligations = await ctx.db
+      .query('feeObligations')
       .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))
       .filter((q) =>
         q.or(
-          q.eq(q.field('paymentStatus'), 'pending'),
-          q.eq(q.field('paymentStatus'), 'partial')
+          q.eq(q.field('status'), 'pending'),
+          q.eq(q.field('status'), 'partial')
         )
       )
       .collect();
 
-    // Group by student
     const studentMap = new Map<string, {
       studentId: string;
       studentName: string;
@@ -131,26 +120,24 @@ export const getStudentsWithOutstandingFees = query({
       paymentCount: number;
     }>();
 
-    for (const payment of outstandingPayments) {
-      const existing = studentMap.get(payment.studentId);
-      
+    for (const o of obligations) {
+      if (o.totalBalance <= 0) continue;
+      const existing = studentMap.get(o.studentId);
       if (existing) {
-        existing.totalOutstanding += payment.remainingBalance;
+        existing.totalOutstanding += o.totalBalance;
         existing.paymentCount++;
       } else {
-        studentMap.set(payment.studentId, {
-          studentId: payment.studentId,
-          studentName: payment.studentName,
-          className: payment.className,
-          totalOutstanding: payment.remainingBalance,
+        studentMap.set(o.studentId, {
+          studentId: o.studentId,
+          studentName: o.studentName,
+          className: o.className,
+          totalOutstanding: o.totalBalance,
           paymentCount: 1,
         });
       }
     }
 
-    // Filter by minimum amount if specified
     let students = Array.from(studentMap.values());
-    
     if (args.minAmount) {
       students = students.filter((s) => s.totalOutstanding >= args.minAmount!);
     }
