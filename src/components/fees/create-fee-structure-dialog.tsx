@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { DatePicker } from '@/components/ui/date-picker';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
@@ -44,6 +45,8 @@ export function CreateFeeStructureDialog({
   const [structureName, setStructureName] = useState<string>('');
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('none');
   const [dueDate, setDueDate] = useState<string>('');
+  /** When a department is selected: one structure for whole department vs one per class */
+  const [applyScope, setApplyScope] = useState<'whole_department' | 'specific_classes'>('whole_department');
   const [applyToAllClasses, setApplyToAllClasses] = useState<boolean>(false);
   const [selectedClassCodes, setSelectedClassCodes] = useState<Set<string>>(new Set());
   const [feeItems, setFeeItems] = useState<FeeItem[]>([]);
@@ -69,9 +72,10 @@ export function CreateFeeStructureDialog({
     return feeItems.reduce((sum, item) => sum + item.amount, 0);
   }, [feeItems]);
 
-  // When department changes, clear class selection
+  // When department changes, clear class selection and default to whole department
   const handleDepartmentChange = useCallback((value: string) => {
     setSelectedDepartmentId(value);
+    setApplyScope('whole_department');
     setApplyToAllClasses(false);
     setSelectedClassCodes(new Set());
   }, []);
@@ -140,11 +144,14 @@ export function CreateFeeStructureDialog({
     if (!selectedDepartmentId || selectedDepartmentId === 'none' || !departmentClasses?.length) {
       return [];
     }
+    if (applyScope === 'whole_department') {
+      return []; // One structure for whole department (no classId)
+    }
     if (applyToAllClasses) {
       return departmentClasses.map(c => ({ classCode: c.classCode }));
     }
     return Array.from(selectedClassCodes).map(classCode => ({ classCode }));
-  }, [selectedDepartmentId, departmentClasses, applyToAllClasses, selectedClassCodes]);
+  }, [selectedDepartmentId, departmentClasses, applyScope, applyToAllClasses, selectedClassCodes]);
 
   const handleSubmit = useCallback(async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
@@ -170,8 +177,12 @@ export function CreateFeeStructureDialog({
         : undefined;
     const classesToCreate = getClassesToCreate();
 
-    if (departmentIdResolved && classesToCreate.length === 0) {
-      toast.error('Select at least one class or "Apply to all classes"');
+    if (
+      departmentIdResolved &&
+      applyScope === 'specific_classes' &&
+      classesToCreate.length === 0
+    ) {
+      toast.error('Select at least one class or "Apply to all classes in department"');
       return;
     }
 
@@ -190,7 +201,10 @@ export function CreateFeeStructureDialog({
 
       if (classesToCreate.length === 0) {
         await createStructure({ ...payload });
-        toast.success('Fee structure created successfully');
+        const msg = departmentIdResolved
+          ? 'Fee structure created for whole department (one structure for all classes)'
+          : 'Fee structure created successfully';
+        toast.success(msg);
       } else {
         let created = 0;
         for (const { classCode } of classesToCreate) {
@@ -214,6 +228,7 @@ export function CreateFeeStructureDialog({
     totalAmount,
     schoolId,
     selectedDepartmentId,
+    applyScope,
     dueDate,
     createdBy,
     getClassesToCreate,
@@ -225,6 +240,7 @@ export function CreateFeeStructureDialog({
     setStructureName('');
     setSelectedDepartmentId('none');
     setDueDate('');
+    setApplyScope('whole_department');
     setApplyToAllClasses(false);
     setSelectedClassCodes(new Set());
     setFeeItems([]);
@@ -290,53 +306,87 @@ export function CreateFeeStructureDialog({
 
               {hasDepartmentSelected && (
                 <div className="space-y-2">
-                  <Label>Apply to classes</Label>
-                  <div className="border rounded-lg p-3 space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="applyToAll"
-                        checked={
-                          applyToAllClasses ||
-                          (departmentClasses &&
-                            departmentClasses.length > 0 &&
-                            selectedClassCodes.size === departmentClasses.length)
+                  <Label>Apply to</Label>
+                  <div className="border rounded-lg p-3 space-y-3">
+                    <RadioGroup
+                      value={applyScope}
+                      onValueChange={(v) => {
+                        setApplyScope(v as 'whole_department' | 'specific_classes');
+                        if (v === 'whole_department') {
+                          setApplyToAllClasses(false);
+                          setSelectedClassCodes(new Set());
                         }
-                        onCheckedChange={(c) => handleApplyToAllChange(c === true)}
-                      />
-                      <label
-                        htmlFor="applyToAll"
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        Apply to all classes in department
-                      </label>
-                    </div>
-                    {departmentClasses && departmentClasses.length > 0 && (
-                      <ScrollArea className="h-[120px] rounded border p-2">
-                        <div className="space-y-2">
-                          {departmentClasses.map((cls) => (
-                            <div key={cls._id} className="flex items-center space-x-2">
-                              <Checkbox
-                                id={`class-${cls.classCode}`}
-                                checked={selectedClassCodes.has(cls.classCode)}
-                                onCheckedChange={(c) =>
-                                  handleClassToggle(cls.classCode, c === true)
-                                }
-                              />
-                              <label
-                                htmlFor={`class-${cls.classCode}`}
-                                className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                              >
-                                {cls.className}
-                              </label>
-                            </div>
-                          ))}
+                      }}
+                      className="space-y-2"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="whole_department" id="whole_department" />
+                        <label
+                          htmlFor="whole_department"
+                          className="text-sm font-medium leading-none cursor-pointer"
+                        >
+                          Whole department (one structure for all classes)
+                        </label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="specific_classes" id="specific_classes" />
+                        <label
+                          htmlFor="specific_classes"
+                          className="text-sm font-medium leading-none cursor-pointer"
+                        >
+                          Specific classes (one structure per class)
+                        </label>
+                      </div>
+                    </RadioGroup>
+                    {applyScope === 'specific_classes' && (
+                      <>
+                        <div className="flex items-center space-x-2 pt-1 border-t">
+                          <Checkbox
+                            id="applyToAll"
+                            checked={
+                              applyToAllClasses ||
+                              (departmentClasses &&
+                                departmentClasses.length > 0 &&
+                                selectedClassCodes.size === departmentClasses.length)
+                            }
+                            onCheckedChange={(c) => handleApplyToAllChange(c === true)}
+                          />
+                          <label
+                            htmlFor="applyToAll"
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
+                            Apply to all classes in department
+                          </label>
                         </div>
-                      </ScrollArea>
-                    )}
-                    {departmentClasses?.length === 0 && (
-                      <p className="text-sm text-muted-foreground">
-                        No active classes in this department.
-                      </p>
+                        {departmentClasses && departmentClasses.length > 0 && (
+                          <ScrollArea className="h-[120px] rounded border p-2">
+                            <div className="space-y-2">
+                              {departmentClasses.map((cls) => (
+                                <div key={cls._id} className="flex items-center space-x-2">
+                                  <Checkbox
+                                    id={`class-${cls.classCode}`}
+                                    checked={selectedClassCodes.has(cls.classCode)}
+                                    onCheckedChange={(c) =>
+                                      handleClassToggle(cls.classCode, c === true)
+                                    }
+                                  />
+                                  <label
+                                    htmlFor={`class-${cls.classCode}`}
+                                    className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                  >
+                                    {cls.className}
+                                  </label>
+                                </div>
+                              ))}
+                            </div>
+                          </ScrollArea>
+                        )}
+                        {departmentClasses?.length === 0 && (
+                          <p className="text-sm text-muted-foreground">
+                            No active classes in this department.
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
