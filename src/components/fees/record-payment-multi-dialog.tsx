@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { useAuth } from '@/hooks/useAuth';
 import {
   Dialog,
   DialogContent,
@@ -31,6 +30,8 @@ interface RecordPaymentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   schoolId: string;
+  /** Convex schoolAdmins document Id (preferred) or email for backend verification */
+  collectedBy: string;
   schoolAdminName: string;
 }
 
@@ -53,9 +54,9 @@ export function RecordPaymentMultiDialog({
   open,
   onOpenChange,
   schoolId,
+  collectedBy,
   schoolAdminName,
 }: RecordPaymentDialogProps): React.JSX.Element {
-  const { user } = useAuth();
   const [selectedStructureId, setSelectedStructureId] = useState<string>('');
   const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set());
   const [items, setItems] = useState<PaymentItem[]>([]);
@@ -93,6 +94,30 @@ export function RecordPaymentMultiDialog({
     if (selectedStructure.classId) return studentsByClass;
     return studentsByDepartment;
   }, [selectedStructure, studentsByClass, studentsByDepartment]);
+
+  const singleSelectedStudent = useMemo(() => {
+    if (!students || selectedStudentIds.size !== 1) return null;
+    const id = Array.from(selectedStudentIds)[0];
+    return students.find((s) => s._id === id) ?? null;
+  }, [students, selectedStudentIds]);
+
+  const obligationAndTransactions = useQuery(
+    api.feePayments.getObligationAndTransactionsForStudent,
+    schoolId && singleSelectedStudent && selectedStructure
+      ? {
+          schoolId,
+          studentId: singleSelectedStudent.studentId,
+          feeStructureId: selectedStructure._id,
+        }
+      : 'skip'
+  );
+
+  const creditBalance = useQuery(
+    api.feePayments.getStudentCreditBalance,
+    schoolId && singleSelectedStudent
+      ? { schoolId, studentId: singleSelectedStudent.studentId }
+      : 'skip'
+  );
 
   const recordPayment = useMutation(api.feePayments.recordPayment);
 
@@ -174,7 +199,14 @@ export function RecordPaymentMultiDialog({
   const getTotalPaid = (): number =>
     items.reduce((sum, item) => sum + (parseFloat(item.amountPaid) || 0), 0);
 
-  const getBalance = (): number => getTotalDue() - getTotalPaid();
+  /** Remaining balance before this payment (from obligation when single student, else structure total). */
+  const getRemainingBeforeThisPayment = (): number =>
+    singleSelectedStudent && obligationAndTransactions?.obligation
+      ? obligationAndTransactions.obligation.totalBalance
+      : getTotalDue();
+
+  /** Balance after this payment (remaining before minus amount being entered in form). */
+  const getBalance = (): number => getRemainingBeforeThisPayment() - getTotalPaid();
 
   const handleSubmit = async (): Promise<void> => {
     if (!selectedStructure) {
@@ -192,8 +224,8 @@ export function RecordPaymentMultiDialog({
       toast.error('Please enter amount paid for at least one category');
       return;
     }
-    if (!user?.email) {
-      toast.error('User not authenticated');
+    if (!collectedBy) {
+      toast.error('Collector not set');
       return;
     }
 
@@ -218,9 +250,11 @@ export function RecordPaymentMultiDialog({
       paymentDate,
       notes: notes || undefined,
       paidBy: paidBy || undefined,
-      collectedBy: user.email,
+      collectedBy,
       collectedByName: schoolAdminName,
       feeStructureId: selectedStructure._id,
+      termId: selectedStructure.termId ?? undefined,
+      academicYearId: selectedStructure.academicYearId ?? undefined,
     };
 
     setLoading(true);
@@ -358,6 +392,85 @@ export function RecordPaymentMultiDialog({
                     </ScrollArea>
                   )}
                 </div>
+
+                {singleSelectedStudent && (
+                  <div className="rounded-lg border bg-muted/40 p-4 space-y-3">
+                    <Label className="text-base font-semibold">
+                      Payment summary for {singleSelectedStudent.firstName} {singleSelectedStudent.lastName}
+                    </Label>
+                    {obligationAndTransactions === undefined ? (
+                      <p className="text-sm text-muted-foreground">Loading…</p>
+                    ) : (
+                      <>
+                        {obligationAndTransactions.obligation === null && (
+                          <p className="text-sm text-muted-foreground">
+                            No payments recorded yet. Recording payment will create an obligation.
+                          </p>
+                        )}
+                        <div className="grid grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">Total due</span>
+                            <p className="font-semibold">
+                              GHS {getTotalDue().toFixed(2)}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Total paid</span>
+                            <p className="font-semibold">
+                              GHS {(obligationAndTransactions.obligation?.totalAmountPaid ?? 0).toFixed(2)}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Balance due</span>
+                            <p className="font-semibold text-red-600">
+                              GHS {(obligationAndTransactions.obligation
+                                ? obligationAndTransactions.obligation.totalBalance
+                                : getTotalDue()
+                              ).toFixed(2)}
+                            </p>
+                          </div>
+                        </div>
+                        {typeof creditBalance === 'number' && creditBalance > 0 && (
+                          <p className="text-sm text-muted-foreground">
+                            Credit balance: GHS {creditBalance.toFixed(2)} (will be applied when you record this payment if balance due &gt; 0).
+                          </p>
+                        )}
+                        {obligationAndTransactions.obligation &&
+                          obligationAndTransactions.transactions.length > 0 && (
+                          <div>
+                            <span className="text-sm font-medium text-muted-foreground">Previous payments</span>
+                            <ScrollArea className="h-[100px] rounded border mt-1 p-2">
+                              <div className="space-y-1.5 text-sm">
+                                {obligationAndTransactions.transactions.slice(0, 5).map((tx) => (
+                                  <div
+                                    key={tx._id}
+                                    className="flex justify-between items-center"
+                                  >
+                                    <span>{new Date(tx.paymentDate).toLocaleDateString()}</span>
+                                    <span className="font-mono">GHS {tx.amount.toFixed(2)}</span>
+                                    <span className="text-muted-foreground font-mono text-xs">
+                                      {tx.receiptNumber}
+                                    </span>
+                                  </div>
+                                ))}
+                                {obligationAndTransactions.transactions.length > 5 && (
+                                  <p className="text-xs text-muted-foreground pt-1">
+                                    + {obligationAndTransactions.transactions.length - 5} more
+                                  </p>
+                                )}
+                              </div>
+                            </ScrollArea>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+                {selectedStructure && selectedStudentIds.size > 1 && (
+                  <p className="text-sm text-muted-foreground">
+                    Select one student to see their payment summary.
+                  </p>
+                )}
 
                 <div className="border-t pt-4">
                   <Label className="text-base font-semibold">Fee categories (due from structure)</Label>

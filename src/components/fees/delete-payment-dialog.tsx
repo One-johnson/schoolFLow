@@ -43,7 +43,7 @@ export function DeletePaymentDialog({
 
     try {
       await deletePayment({
-        paymentId: payment._id as Id<'feePayments'>,
+        paymentId: payment._id as Id<'feePaymentTransactions'>,
         deletedBy: adminId,
       });
 
@@ -64,14 +64,16 @@ export function DeletePaymentDialog({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-          <AlertDialogDescription>
-            This will permanently delete the payment record for:
-            <div className="mt-2 p-3 bg-muted rounded-md">
-              <div><strong>Receipt:</strong> {payment.receiptNumber}</div>
-              <div><strong>Student:</strong> {payment.studentName}</div>
-            </div>
-            <div className="mt-2 text-red-600 font-medium">
-              This action cannot be undone.
+          <AlertDialogDescription asChild>
+            <div className="text-muted-foreground text-sm">
+              This will permanently delete the payment record for:
+              <div className="mt-2 p-3 bg-muted rounded-md">
+                <div><strong>Receipt:</strong> {payment.receiptNumber}</div>
+                <div><strong>Student:</strong> {payment.studentName}</div>
+              </div>
+              <div className="mt-2 text-red-600 font-medium">
+                This action cannot be undone.
+              </div>
             </div>
           </AlertDialogDescription>
         </AlertDialogHeader>

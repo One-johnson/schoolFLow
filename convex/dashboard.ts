@@ -7,16 +7,16 @@ export const getDashboardStats = query({
   args: { schoolId: v.string() },
   handler: async (ctx, args) => {
     // Get all relevant data
-    const [teachers, students, classes, events, payments, timetables] = await Promise.all([
+    const [teachers, students, classes, events, transactions, obligations, timetables] = await Promise.all([
       ctx.db.query('teachers').withIndex('by_school', (q) => q.eq('schoolId', args.schoolId)).collect(),
       ctx.db.query('students').withIndex('by_school', (q) => q.eq('schoolId', args.schoolId)).collect(),
       ctx.db.query('classes').withIndex('by_school', (q) => q.eq('schoolId', args.schoolId)).collect(),
       ctx.db.query('events').withIndex('by_school', (q) => q.eq('schoolId', args.schoolId)).collect(),
-      ctx.db.query('feePayments').withIndex('by_school', (q) => q.eq('schoolId', args.schoolId)).collect(),
+      ctx.db.query('feePaymentTransactions').withIndex('by_school', (q) => q.eq('schoolId', args.schoolId)).collect(),
+      ctx.db.query('feeObligations').withIndex('by_school', (q) => q.eq('schoolId', args.schoolId)).collect(),
       ctx.db.query('timetables').withIndex('by_school', (q) => q.eq('schoolId', args.schoolId)).collect(),
     ]);
 
-    // Calculate upcoming events (this week)
     const now = new Date();
     const oneWeekFromNow = new Date();
     oneWeekFromNow.setDate(now.getDate() + 7);
@@ -27,18 +27,13 @@ export const getDashboardStats = query({
       (event) => event.startDate >= nowISO && event.startDate <= oneWeekISO
     ).length;
 
-    // Active timetables
     const activeTimetables = timetables.filter((t) => t.status === 'active').length;
 
-    // Fee collection calculations (using V2 fields)
-    const totalCollected = payments
-      .filter((p) => p.paymentStatus === 'paid')
-      .reduce((sum, p) => sum + (p.totalAmountPaid || 0), 0);
-
-    const totalOutstanding = payments
-      .reduce((sum, p) => sum + ((p.totalAmountDue || 0) - (p.totalAmountPaid || 0)), 0);
-
-    const totalDue = payments.reduce((sum, p) => sum + (p.totalAmountDue || 0), 0);
+    const totalCollected = transactions.reduce((sum, t) => sum + t.amount, 0);
+    const totalOutstanding = obligations
+      .filter((o) => o.status === 'pending' || o.status === 'partial')
+      .reduce((sum, o) => sum + o.totalBalance, 0);
+    const totalDue = obligations.reduce((sum, o) => sum + o.totalAmountDue, 0);
     const collectionRate = totalDue > 0 ? (totalCollected / totalDue) * 100 : 0;
 
     return {
@@ -57,48 +52,32 @@ export const getDashboardStats = query({
 export const getFinancialSummary = query({
   args: { schoolId: v.string() },
   handler: async (ctx, args) => {
-    const payments = await ctx.db
-      .query('feePayments')
-      .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))
-      .collect();
+    const [transactions, obligations] = await Promise.all([
+      ctx.db.query('feePaymentTransactions').withIndex('by_school', (q) => q.eq('schoolId', args.schoolId)).collect(),
+      ctx.db.query('feeObligations').withIndex('by_school', (q) => q.eq('schoolId', args.schoolId)).collect(),
+    ]);
 
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    // This month's payments
-    const thisMonthPayments = payments.filter((p) => {
-      const paymentDate = new Date(p.paymentDate);
-      return (
-        paymentDate.getMonth() === currentMonth &&
-        paymentDate.getFullYear() === currentYear &&
-        p.paymentStatus === 'paid'
-      );
+    const thisMonthPayments = transactions.filter((t) => {
+      const d = new Date(t.paymentDate);
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
     });
-
-    // This year's payments
-    const thisYearPayments = payments.filter((p) => {
-      const paymentDate = new Date(p.paymentDate);
-      return paymentDate.getFullYear() === currentYear && p.paymentStatus === 'paid';
-    });
-
-    // Outstanding payments
-    const outstandingPayments = payments.filter(
-      (p) => p.paymentStatus === 'pending' || p.paymentStatus === 'partial'
+    const thisYearPayments = transactions.filter((t) => new Date(t.paymentDate).getFullYear() === currentYear);
+    const outstandingObligations = obligations.filter(
+      (o) => o.status === 'pending' || o.status === 'partial'
     );
 
-    const thisMonthTotal = thisMonthPayments.reduce((sum, p) => sum + (p.totalAmountPaid || 0), 0);
-    const thisYearTotal = thisYearPayments.reduce((sum, p) => sum + (p.totalAmountPaid || 0), 0);
-    const outstandingTotal = outstandingPayments
-      .reduce((sum, p) => sum + ((p.totalAmountDue || 0) - (p.totalAmountPaid || 0)), 0);
+    const thisMonthTotal = thisMonthPayments.reduce((sum, t) => sum + t.amount, 0);
+    const thisYearTotal = thisYearPayments.reduce((sum, t) => sum + t.amount, 0);
+    const outstandingTotal = outstandingObligations.reduce((sum, o) => sum + o.totalBalance, 0);
 
-    // Top students with outstanding fees
     const studentOutstanding = new Map<string, number>();
-    
-    for (const payment of outstandingPayments) {
-      const outstanding = (payment.totalAmountDue || 0) - (payment.totalAmountPaid || 0);
-      const current = studentOutstanding.get(payment.studentId) || 0;
-      studentOutstanding.set(payment.studentId, current + outstanding);
+    for (const o of outstandingObligations) {
+      const current = studentOutstanding.get(o.studentId) || 0;
+      studentOutstanding.set(o.studentId, current + o.totalBalance);
     }
 
     // Get student details and sort by outstanding amount
@@ -120,8 +99,7 @@ export const getFinancialSummary = query({
         })
     );
 
-    // Calculate collection rate
-    const totalDue = payments.reduce((sum, p) => sum + (p.totalAmountDue || 0), 0);
+    const totalDue = obligations.reduce((sum, o) => sum + o.totalAmountDue, 0);
     const totalCollected = thisMonthTotal + thisYearTotal;
     const collectionRate = totalDue > 0 ? Math.round((totalCollected / totalDue) * 100) : 0;
 
@@ -192,7 +170,7 @@ export const getRecentActivity = query({
         .order('desc')
         .take(5),
       ctx.db
-        .query('feePayments')
+        .query('feePaymentTransactions')
         .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))
         .order('desc')
         .take(5),
@@ -230,14 +208,14 @@ export const getRecentActivity = query({
       });
     });
 
-    // Fee payments
-    payments.forEach((payment) => {
+    // Fee payment transactions
+    payments.forEach((tx) => {
       activities.push({
-        id: `payment-${payment._id}`,
+        id: `payment-${tx._id}`,
         type: 'payment',
         title: 'Fee Payment Recorded',
-        description: `Amount: $${payment.totalAmountPaid} - Status: ${payment.paymentStatus}`,
-        timestamp: payment._creationTime,
+        description: `Amount: $${tx.amount}`,
+        timestamp: tx._creationTime,
       });
     });
 
@@ -409,12 +387,12 @@ export const getAlerts = query({
 export const getPerformanceMetrics = query({
   args: { schoolId: v.string() },
   handler: async (ctx, args) => {
-    const [teachers, classes, students, events, payments] = await Promise.all([
+    const [teachers, classes, students, events, transactions] = await Promise.all([
       ctx.db.query('teachers').withIndex('by_school', (q) => q.eq('schoolId', args.schoolId)).collect(),
       ctx.db.query('classes').withIndex('by_school', (q) => q.eq('schoolId', args.schoolId)).collect(),
       ctx.db.query('students').withIndex('by_school', (q) => q.eq('schoolId', args.schoolId)).collect(),
       ctx.db.query('events').withIndex('by_school', (q) => q.eq('schoolId', args.schoolId)).collect(),
-      ctx.db.query('feePayments').withIndex('by_school', (q) => q.eq('schoolId', args.schoolId)).collect(),
+      ctx.db.query('feePaymentTransactions').withIndex('by_school', (q) => q.eq('schoolId', args.schoolId)).collect(),
     ]);
 
     // Teacher utilization (classes per teacher)
@@ -448,26 +426,15 @@ export const getPerformanceMetrics = query({
       eventEngagement = totalInvited > 0 ? Math.round((totalResponses / totalInvited) * 100) : 0;
     }
 
-    // Fee collection efficiency (average days to payment)
-    const completedPayments = payments.filter((p) => p.paymentStatus === 'paid');
     let collectionEfficiency = 'N/A';
-
-    if (completedPayments.length > 0) {
+    if (transactions.length > 0) {
       let totalDays = 0;
-      let validPayments = 0;
-
-      for (const payment of completedPayments) {
-        // Since we don't have dueDate, we'll use a simple metric based on creation time
-        const createdDate = new Date(payment.createdAt);
-        const paidDate = new Date(payment.paymentDate);
-        const daysDiff = Math.abs(paidDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
-        totalDays += daysDiff;
-        validPayments++;
+      for (const tx of transactions) {
+        const createdDate = new Date(tx.createdAt);
+        const paidDate = new Date(tx.paymentDate);
+        totalDays += Math.abs(paidDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
       }
-
-      if (validPayments > 0) {
-        collectionEfficiency = `${Math.round(totalDays / validPayments)} days`;
-      }
+      collectionEfficiency = `${Math.round(totalDays / transactions.length)} days`;
     }
 
     return {
@@ -483,34 +450,26 @@ export const getPerformanceMetrics = query({
 export const getFeeCollectionTrend = query({
   args: { schoolId: v.string() },
   handler: async (ctx, args) => {
-    const payments = await ctx.db
-      .query('feePayments')
+    const transactions = await ctx.db
+      .query('feePaymentTransactions')
       .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))
-      .filter((q) =>
-        q.eq(q.field('paymentStatus'), 'paid')
-      )
       .collect();
 
-    // Group by month
     const monthlyData: Record<string, number> = {};
     const now = new Date();
-
-    // Initialize last 6 months
     for (let i = 5; i >= 0; i--) {
       const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       monthlyData[monthKey] = 0;
     }
 
-    // Aggregate payments by month
-    payments.forEach((payment) => {
-      const paymentDate = new Date(payment.paymentDate);
-      const monthKey = `${paymentDate.getFullYear()}-${String(paymentDate.getMonth() + 1).padStart(2, '0')}`;
-      
+    for (const tx of transactions) {
+      const d = new Date(tx.paymentDate);
+      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       if (monthKey in monthlyData) {
-        monthlyData[monthKey] += payment.totalAmountPaid || 0;
+        monthlyData[monthKey] += tx.amount;
       }
-    });
+    }
 
     // Convert to array format for charts
     return Object.entries(monthlyData).map(([month, amount]) => ({

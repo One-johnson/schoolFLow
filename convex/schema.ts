@@ -728,6 +728,78 @@ export default defineSchema({
     .index('by_status', ['paymentStatus'])
     .index('by_payment_date', ['paymentDate']),
 
+  // One row per student per fee structure: current balance (updated on each payment)
+  feeObligations: defineTable({
+    schoolId: v.string(),
+    studentId: v.string(),
+    studentName: v.string(),
+    classId: v.string(),
+    className: v.string(),
+    feeStructureId: v.optional(v.string()),
+    academicYearId: v.optional(v.string()),
+    termId: v.optional(v.string()),
+    totalAmountDue: v.number(),
+    totalAmountPaid: v.number(),
+    totalBalance: v.number(),
+    status: v.union(
+      v.literal('paid'),
+      v.literal('partial'),
+      v.literal('pending'),
+      v.literal('rolled_forward')
+    ),
+    rolledForwardToObligationId: v.optional(v.id('feeObligations')),
+    items: v.optional(v.string()), // JSON per-category due/paid/balance
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index('by_school', ['schoolId'])
+    .index('by_student', ['schoolId', 'studentId'])
+    .index('by_status', ['schoolId', 'status']),
+
+  // Credit/advance from overpayments; applied to future obligations
+  feeCreditLedger: defineTable({
+    schoolId: v.string(),
+    studentId: v.string(),
+    amount: v.number(), // positive = credit added (overpayment), negative = credit applied
+    obligationId: v.optional(v.id('feeObligations')),
+    transactionId: v.optional(v.id('feePaymentTransactions')),
+    referenceType: v.union(v.literal('overpayment'), v.literal('application')),
+    createdAt: v.string(),
+  })
+    .index('by_school_student', ['schoolId', 'studentId']),
+
+  // One row per payment event (second payment = new row, obligation is updated)
+  feePaymentTransactions: defineTable({
+    schoolId: v.string(),
+    obligationId: v.id('feeObligations'),
+    studentId: v.string(),
+    studentName: v.string(),
+    classId: v.string(),
+    className: v.string(),
+    receiptNumber: v.string(),
+    amount: v.number(), // This payment amount
+    items: v.string(), // JSON array { categoryId, categoryName, amountDue, amountPaid }
+    paymentMethod: v.union(
+      v.literal('cash'),
+      v.literal('bank_transfer'),
+      v.literal('mobile_money'),
+      v.literal('check'),
+      v.literal('other')
+    ),
+    transactionReference: v.optional(v.string()),
+    paymentDate: v.string(),
+    paidBy: v.optional(v.string()),
+    collectedBy: v.string(),
+    collectedByName: v.string(),
+    notes: v.optional(v.string()),
+    createdAt: v.string(),
+  })
+    .index('by_school', ['schoolId'])
+    .index('by_obligation', ['obligationId'])
+    .index('by_student', ['schoolId', 'studentId'])
+    .index('by_receipt', ['receiptNumber'])
+    .index('by_payment_date', ['paymentDate']),
+
   feeDiscounts: defineTable({
     schoolId: v.string(),
     discountCode: v.string(), // Auto-generated: DISC + 6 random digits

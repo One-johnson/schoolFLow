@@ -1,5 +1,6 @@
 import { v } from 'convex/values';
 import { mutation } from './_generated/server';
+import type { Id } from './_generated/dataModel';
 
 // Generate unique payment ID
 function generatePaymentId(): string {
@@ -83,47 +84,81 @@ export const bulkImportPayments = mutation({
           amountPaid: p.amountPaid,
         }));
 
-        // Calculate totals
         const totalAmountDue = items.reduce((sum, item) => sum + item.amountDue, 0);
-        const totalAmountPaid = items.reduce((sum, item) => sum + item.amountPaid, 0);
-        const totalBalance = totalAmountDue - totalAmountPaid;
-
-        let paymentStatus: 'paid' | 'partial' | 'pending' = 'pending';
-        if (totalAmountPaid >= totalAmountDue) {
-          paymentStatus = 'paid';
-        } else if (totalAmountPaid > 0) {
-          paymentStatus = 'partial';
+        const thisAmount = items.reduce((sum, item) => sum + item.amountPaid, 0);
+        if (thisAmount <= 0) {
+          failCount++;
+          continue;
         }
 
-        // Generate IDs
-        const paymentId = generatePaymentId();
-        const receiptNumber = generateReceiptNumber();
         const now = new Date().toISOString();
+        const receiptNumber = generateReceiptNumber();
 
-        // Insert consolidated V2 payment record
-        await ctx.db.insert('feePayments', {
+        const existing = await ctx.db
+          .query('feeObligations')
+          .withIndex('by_student', (q) =>
+            q.eq('schoolId', args.schoolId).eq('studentId', studentId)
+          )
+          .collect();
+        const feeStructureId = undefined;
+        const match = existing.find((o) => (o.feeStructureId ?? '') === (feeStructureId ?? ''));
+        let obligationId: Id<'feeObligations'>;
+        if (match) {
+          obligationId = match._id;
+        } else {
+          obligationId = await ctx.db.insert('feeObligations', {
+            schoolId: args.schoolId,
+            studentId: firstPayment.studentId,
+            studentName: firstPayment.studentName,
+            classId: firstPayment.classId,
+            className: firstPayment.className,
+            feeStructureId,
+            totalAmountDue,
+            totalAmountPaid: 0,
+            totalBalance: totalAmountDue,
+            status: 'pending',
+            items: JSON.stringify(items),
+            createdAt: now,
+            updatedAt: now,
+          });
+        }
+
+        const obligation = await ctx.db.get(obligationId);
+        if (!obligation) {
+          failCount++;
+          continue;
+        }
+
+        const newTotalPaid = obligation.totalAmountPaid + thisAmount;
+        const newBalance = obligation.totalAmountDue - newTotalPaid;
+        let newStatus: 'paid' | 'partial' | 'pending' = 'pending';
+        if (newTotalPaid >= obligation.totalAmountDue) newStatus = 'paid';
+        else if (newTotalPaid > 0) newStatus = 'partial';
+
+        await ctx.db.insert('feePaymentTransactions', {
           schoolId: args.schoolId,
-          paymentId,
-          receiptNumber,
+          obligationId,
           studentId: firstPayment.studentId,
           studentName: firstPayment.studentName,
           classId: firstPayment.classId,
           className: firstPayment.className,
-          version: 2,
+          receiptNumber,
+          amount: thisAmount,
           items: JSON.stringify(items),
-          totalAmountDue,
-          totalAmountPaid,
-          totalBalance,
           paymentMethod: firstPayment.paymentMethod,
           transactionReference: firstPayment.transactionReference,
           paymentDate: firstPayment.paymentDate,
-          paymentStatus,
-          remainingBalance: totalBalance,
-          notes: firstPayment.notes,
           paidBy: firstPayment.paidBy,
           collectedBy: args.collectedBy,
           collectedByName: args.collectedByName,
+          notes: firstPayment.notes,
           createdAt: now,
+        });
+
+        await ctx.db.patch(obligationId, {
+          totalAmountPaid: newTotalPaid,
+          totalBalance: newBalance,
+          status: newStatus,
           updatedAt: now,
         });
 
@@ -152,17 +187,18 @@ export const applyFeeStructureToStudents = mutation({
     collectedByName: v.string(),
   },
   handler: async (ctx, args) => {
-    // Get fee structure
-    const structure = await ctx.db
+    // Get fee structure (feeStructureId may be structureCode or Convex _id)
+    let structure = await ctx.db
       .query('feeStructures')
       .withIndex('by_structure_code', (q) => q.eq('structureCode', args.feeStructureId))
       .first();
-
+    if (!structure) {
+      structure = await ctx.db.get(args.feeStructureId as Id<'feeStructures'>);
+    }
     if (!structure) {
       throw new Error('Fee structure not found');
     }
 
-    // Parse fees from structure
     const fees = JSON.parse(structure.fees) as Array<{
       categoryId: string;
       categoryName: string;
@@ -172,10 +208,10 @@ export const applyFeeStructureToStudents = mutation({
     let successCount = 0;
     let failCount = 0;
     const now = new Date().toISOString();
+    const structureId = structure._id;
 
     for (const studentId of args.studentIds) {
       try {
-        // Get student details
         const student = await ctx.db
           .query('students')
           .withIndex('by_student_id', (q) => q.eq('studentId', studentId))
@@ -186,45 +222,43 @@ export const applyFeeStructureToStudents = mutation({
           continue;
         }
 
-        // Create items array from fee structure
         const items = fees.map(fee => ({
           categoryId: fee.categoryId,
           categoryName: fee.categoryName,
           amountDue: fee.amount,
           amountPaid: 0,
         }));
-
-        // Calculate totals
         const totalAmountDue = items.reduce((sum, item) => sum + item.amountDue, 0);
-        const totalAmountPaid = 0;
-        const totalBalance = totalAmountDue;
+        const itemsJson = JSON.stringify(items);
 
-        const paymentId = generatePaymentId();
-        const receiptNumber = generateReceiptNumber();
+        const existing = await ctx.db
+          .query('feeObligations')
+          .withIndex('by_student', (q) =>
+            q.eq('schoolId', args.schoolId).eq('studentId', studentId)
+          )
+          .collect();
+        const match = existing.find(
+          (o) => (o.feeStructureId ?? '') === (structureId ?? '')
+        );
+        if (match) {
+          successCount++;
+          continue;
+        }
 
-        // Create ONE consolidated V2 payment per student with all categories
-        await ctx.db.insert('feePayments', {
+        await ctx.db.insert('feeObligations', {
           schoolId: args.schoolId,
-          paymentId,
-          receiptNumber,
           studentId,
           studentName: `${student.firstName} ${student.lastName}`,
           classId: student.classId,
-          className: student.className,
-          feeStructureId: args.feeStructureId,
+          className: student.className ?? '',
+          feeStructureId: structureId,
           academicYearId: args.academicYearId,
           termId: args.termId,
-          version: 2,
-          items: JSON.stringify(items),
           totalAmountDue,
-          totalAmountPaid,
-          totalBalance,
-          paymentMethod: 'cash',
-          paymentDate: now,
-          paymentStatus: 'pending',
-          remainingBalance: totalBalance,
-          collectedBy: args.collectedBy,
-          collectedByName: args.collectedByName,
+          totalAmountPaid: 0,
+          totalBalance: totalAmountDue,
+          status: 'pending',
+          items: itemsJson,
           createdAt: now,
           updatedAt: now,
         });

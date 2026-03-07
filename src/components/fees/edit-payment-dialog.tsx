@@ -85,7 +85,7 @@ export function EditPaymentDialog({
 
     try {
       await updatePayment({
-        paymentId: payment._id as Id<'feePayments'>,
+        paymentId: payment._id as Id<'feePaymentTransactions'>,
         updatedBy: adminId,
         items: items,
         paymentMethod: paymentMethod as 'cash' | 'bank_transfer' | 'mobile_money' | 'check' | 'other',
