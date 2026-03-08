@@ -28,8 +28,8 @@ export default function SubscriptionPage(): React.JSX.Element {
   } | null>(null);
 
   const currentAdmin = useQuery(
-    api.schoolAdmins.getByEmail,
-    user?.email ? { email: user.email } : 'skip'
+    api.schoolAdmins.getById,
+    user?.userId ? { id: user.userId as import('@/../convex/_generated/dataModel').Id<'schoolAdmins'> } : 'skip'
   );
 
   const subscriptionPlans = useQuery(api.subscriptionPlans.list);

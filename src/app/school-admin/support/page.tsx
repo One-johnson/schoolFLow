@@ -23,33 +23,7 @@ import { TicketForm } from '@/components/support/ticket-form';
 import { useAuth } from '@/hooks/useAuth';
 import { formatDistanceToNow } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
-
-interface SupportTicket {
-  _id: Id<'supportTickets'>;
-  _creationTime: number;
-  ticketNumber: string;
-  subject: string;
-  description: string;
-  category: 'payment' | 'technical' | 'account' | 'general';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  status: 'open' | 'in_progress' | 'waiting_customer' | 'resolved' | 'closed';
-  requesterId: string;
-  requesterName: string;
-  requesterEmail: string;
-  schoolId?: string;
-  schoolName?: string;
-  assignedToId?: string;
-  assignedToName?: string;
-  assignedAt?: string;
-  createdAt: string;
-  updatedAt: string;
-  resolvedAt?: string;
-  closedAt?: string;
-  lastResponseBy?: 'admin' | 'customer';
-  lastResponseAt?: string;
-  responseCount: number;
-  attachmentCount: number;
-}
+import type { SupportTicket } from '@/types';
 
 const faqs = [
   {
@@ -93,8 +67,8 @@ export default function SchoolAdminSupportPage(): React.JSX.Element {
 
   // Get school information first
   const schoolAdmin = useQuery(
-    api.schoolAdmins.getByEmail,
-    user?.email ? { email: user.email } : 'skip'
+    api.schoolAdmins.getById,
+    user?.userId ? { id: user.userId as import('@/../convex/_generated/dataModel').Id<'schoolAdmins'> } : 'skip'
   );
 
   const myTickets = useQuery(
@@ -164,7 +138,7 @@ export default function SchoolAdminSupportPage(): React.JSX.Element {
             size="sm"
             variant="outline"
             onClick={() => {
-              setSelectedTicketId(row.original._id);
+              setSelectedTicketId(row.original._id as Id<'supportTickets'>);
               setIsDialogOpen(true);
             }}
           >
@@ -248,7 +222,7 @@ export default function SchoolAdminSupportPage(): React.JSX.Element {
                 <Clock className="h-6 w-6 text-orange-600 dark:text-orange-400" />
               </div>
               <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Pending Response</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Awaiting Your Response</p>
                 <p className="text-2xl font-bold">{waitingResponseTickets}</p>
               </div>
             </div>
@@ -353,31 +327,31 @@ export default function SchoolAdminSupportPage(): React.JSX.Element {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="p-4 border dark:border-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer">
+                <div className="p-4 border dark:border-gray-800 rounded-lg">
                   <h3 className="font-semibold">Getting Started</h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                     Learn how to set up your school and get started with SchoolFlow
                   </p>
                 </div>
-                <div className="p-4 border dark:border-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer">
+                <div className="p-4 border dark:border-gray-800 rounded-lg">
                   <h3 className="font-semibold">Payment Methods & Proof Submission</h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                     How to submit payment proof and what payment methods are accepted
                   </p>
                 </div>
-                <div className="p-4 border dark:border-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer">
+                <div className="p-4 border dark:border-gray-800 rounded-lg">
                   <h3 className="font-semibold">Managing Your School</h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                     Update school information, manage staff, and track students
                   </p>
                 </div>
-                <div className="p-4 border dark:border-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer">
+                <div className="p-4 border dark:border-gray-800 rounded-lg">
                   <h3 className="font-semibold">Understanding Subscription Plans</h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                     Learn about available plans, pricing, and billing cycles
                   </p>
                 </div>
-                <div className="p-4 border dark:border-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer">
+                <div className="p-4 border dark:border-gray-800 rounded-lg">
                   <h3 className="font-semibold">Common Issues & Solutions</h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                     Troubleshooting guide for common problems and their solutions

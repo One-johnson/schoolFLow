@@ -34,13 +34,13 @@ export default function SettingsPage(): React.JSX.Element {
   const [isSavingAccount, setIsSavingAccount] = useState<boolean>(false);
 
   const currentAdmin = useQuery(
-    api.schoolAdmins.getByEmail,
-    user?.email ? { email: user.email } : 'skip'
+    api.schoolAdmins.getById,
+    user?.userId ? { id: user.userId as import('../../../../convex/_generated/dataModel').Id<'schoolAdmins'> } : 'skip'
   );
-  
+
   const userSettingsData = useQuery(
     api.userSettings.get,
-    currentAdmin?._id ? { userId: currentAdmin._id, userRole: 'school_admin' } : 'skip'
+    user?.userId ? { userId: user.userId, userRole: 'school_admin' } : 'skip'
   );
   
   const updateUserSettings = useMutation(api.userSettings.updateSchoolAdmin);
@@ -90,7 +90,9 @@ export default function SettingsPage(): React.JSX.Element {
       toast.success('Notification settings updated successfully');
     } catch (error) {
       toast.error('Failed to update notification settings');
-      console.error(error);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error(error);
+      }
     } finally {
       setIsSavingNotifications(false);
     }
@@ -111,7 +113,9 @@ export default function SettingsPage(): React.JSX.Element {
       router.push('/');
     } catch (error) {
       toast.error('Failed to deactivate account');
-      console.error(error);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error(error);
+      }
     } finally {
       setIsDeactivating(false);
     }
@@ -133,13 +137,15 @@ export default function SettingsPage(): React.JSX.Element {
       toast.success('Account settings updated successfully');
     } catch (error) {
       toast.error('Failed to update account settings');
-      console.error(error);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error(error);
+      }
     } finally {
       setIsSavingAccount(false);
     }
   };
 
-  if (!currentAdmin || !userSettingsData) {
+  if (currentAdmin === undefined || userSettingsData === undefined) {
     return (
       <div className="max-w-3xl mx-auto space-y-6">
         <div>
@@ -148,6 +154,25 @@ export default function SettingsPage(): React.JSX.Element {
         </div>
         <Skeleton className="h-64 w-full" />
         <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  if (currentAdmin === null) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center space-y-4">
+          <h2 className="text-2xl font-bold">Account not found</h2>
+          <p className="text-muted-foreground">
+            Your account could not be found. Please contact support.
+          </p>
+          <Button variant="outline" onClick={() => router.push('/school-admin')}>
+            Return to Dashboard
+          </Button>
+          <Button variant="link" onClick={() => router.push('/school-admin/support')}>
+            Contact support
+          </Button>
+        </div>
       </div>
     );
   }
@@ -233,11 +258,11 @@ export default function SettingsPage(): React.JSX.Element {
             <div className="space-y-0.5">
               <Label>Two-Factor Authentication</Label>
               <p className="text-sm text-muted-foreground">
-                Add an extra layer of security to your account
+                Add an extra layer of security to your account (coming soon)
               </p>
             </div>
-            <Button variant="outline" size="sm">
-              Enable
+            <Button variant="outline" size="sm" disabled title="Coming soon">
+              Coming soon
             </Button>
           </div>
           <div className="flex items-center justify-between">

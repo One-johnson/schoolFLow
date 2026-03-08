@@ -34,8 +34,8 @@ interface Announcement {
 export default function AnnouncementsPage(): React.JSX.Element {
   const { user } = useAuth();
   const schoolAdmin = useQuery(
-    api.schoolAdmins.getByEmail,
-    user?.email ? { email: user.email } : 'skip'
+    api.schoolAdmins.getById,
+    user?.userId ? { id: user.userId as import('@/../convex/_generated/dataModel').Id<'schoolAdmins'> } : 'skip'
   );
   const schoolId = schoolAdmin?.schoolId || '';
 

@@ -110,8 +110,8 @@ export default function AcademicYearsPage(): React.JSX.Element {
   const [viewMode, setViewMode] = useState<'card' | 'table'>('table');
 
   const schoolAdmin = useQuery(
-    api.schoolAdmins.getByEmail,
-    user?.email ? { email: user.email } : 'skip'
+    api.schoolAdmins.getById,
+    user?.userId ? { id: user.userId as import('@/../convex/_generated/dataModel').Id<'schoolAdmins'> } : 'skip'
   );
 
   const school = useQuery(

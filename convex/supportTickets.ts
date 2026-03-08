@@ -1,5 +1,18 @@
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
+import type { Id } from './_generated/dataModel';
+
+// Verify requesterId is a valid school admin (for createTicket, getTicketsByRequester)
+async function verifySchoolAdmin(ctx: { db: { get: (id: Id<'schoolAdmins'>) => Promise<unknown> } }, id: string): Promise<boolean> {
+  const admin = await ctx.db.get(id as Id<'schoolAdmins'>);
+  return !!admin;
+}
+
+// Verify adminId is a valid super admin (for updateTicketStatus, assignTicket, closeTicket, addInternalNote)
+async function verifySuperAdmin(ctx: { db: { get: (id: Id<'superAdmins'>) => Promise<unknown> } }, id: string): Promise<boolean> {
+  const admin = await ctx.db.get(id as Id<'superAdmins'>);
+  return !!admin;
+}
 
 // Get all support tickets (Super Admin)
 export const getAllTickets = query({
@@ -33,12 +46,15 @@ export const getAllTickets = query({
   },
 });
 
-// Get tickets by requester (School Admin)
+// Get tickets by requester (School Admin) - requesterId must be a valid school admin
 export const getTicketsByRequester = query({
   args: {
     requesterId: v.string(),
   },
   handler: async (ctx, args) => {
+    const isAdmin = await verifySchoolAdmin(ctx, args.requesterId);
+    if (!isAdmin) return [];
+    
     const tickets = await ctx.db
       .query('supportTickets')
       .withIndex('by_requester', (q) => q.eq('requesterId', args.requesterId))
@@ -135,9 +151,16 @@ export const createTicket = mutation({
     schoolName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // Get the count of existing tickets to generate ticket number
+    const isAdmin = await verifySchoolAdmin(ctx, args.requesterId);
+    if (!isAdmin) {
+      throw new Error('Unauthorized: Requester must be a valid school admin');
+    }
+    
+    // Generate unique ticket number: TKT-<count>-<shortId> to avoid collisions under concurrent creation
     const existingTickets = await ctx.db.query('supportTickets').collect();
-    const ticketNumber = `TKT-${String(existingTickets.length + 1).padStart(4, '0')}`;
+    const count = existingTickets.length + 1;
+    const shortId = crypto.randomUUID().replace(/-/g, '').slice(0, 6).toUpperCase();
+    const ticketNumber = `TKT-${String(count).padStart(4, '0')}-${shortId}`;
     
     const now = new Date().toISOString();
     
@@ -204,6 +227,11 @@ export const updateTicketStatus = mutation({
     adminId: v.string(),
   },
   handler: async (ctx, args) => {
+    const isSuperAdmin = await verifySuperAdmin(ctx, args.adminId);
+    if (!isSuperAdmin) {
+      throw new Error('Unauthorized: Only super admins can update ticket status');
+    }
+    
     const ticket = await ctx.db.get(args.ticketId);
     if (!ticket) throw new Error('Ticket not found');
     
@@ -248,8 +276,14 @@ export const updateTicketPriority = mutation({
       v.literal('high'),
       v.literal('urgent')
     ),
+    adminId: v.string(),
   },
   handler: async (ctx, args) => {
+    const isSuperAdmin = await verifySuperAdmin(ctx, args.adminId);
+    if (!isSuperAdmin) {
+      throw new Error('Unauthorized: Only super admins can update ticket priority');
+    }
+    
     await ctx.db.patch(args.ticketId, {
       priority: args.priority,
       updatedAt: new Date().toISOString(),
@@ -267,6 +301,11 @@ export const assignTicket = mutation({
     adminName: v.string(),
   },
   handler: async (ctx, args) => {
+    const isSuperAdmin = await verifySuperAdmin(ctx, args.adminId);
+    if (!isSuperAdmin) {
+      throw new Error('Unauthorized: Only super admins can assign tickets');
+    }
+    
     const now = new Date().toISOString();
     
     await ctx.db.patch(args.ticketId, {
@@ -295,6 +334,13 @@ export const addMessage = mutation({
     const ticket = await ctx.db.get(args.ticketId);
     if (!ticket) throw new Error('Ticket not found');
     
+    const isValidSender = args.senderRole === 'school_admin'
+      ? await verifySchoolAdmin(ctx, args.senderId)
+      : await verifySuperAdmin(ctx, args.senderId);
+    if (!isValidSender) {
+      throw new Error('Unauthorized: Sender must be a valid school admin or super admin');
+    }
+    
     const now = new Date().toISOString();
     
     const messageId = await ctx.db.insert('supportTicketMessages', {
@@ -317,20 +363,46 @@ export const addMessage = mutation({
     
     // Send notification to the other party (unless internal note)
     if (!args.isInternal) {
-      const recipientId = args.senderRole === 'super_admin' ? ticket.requesterId : ticket.assignedToId;
-      const recipientRole = args.senderRole === 'super_admin' ? 'school_admin' : 'super_admin';
-      
-      if (recipientId) {
+      if (args.senderRole === 'super_admin') {
+        // Super admin replied: notify the school admin (requester)
         await ctx.db.insert('notifications', {
           title: 'New Ticket Response',
           message: `${args.senderName} replied to ticket ${ticket.ticketNumber}`,
           type: 'info',
           timestamp: now,
           read: false,
-          actionUrl: args.senderRole === 'super_admin' ? '/school-admin/support' : '/super-admin/support',
-          recipientId: recipientId,
-          recipientRole: recipientRole,
+          actionUrl: '/school-admin/support',
+          recipientId: ticket.requesterId,
+          recipientRole: 'school_admin',
         });
+      } else {
+        // School admin replied: notify assigned super admin, or all super admins if unassigned
+        if (ticket.assignedToId) {
+          await ctx.db.insert('notifications', {
+            title: 'New Ticket Response',
+            message: `${args.senderName} replied to ticket ${ticket.ticketNumber}`,
+            type: 'info',
+            timestamp: now,
+            read: false,
+            actionUrl: '/super-admin/support',
+            recipientId: ticket.assignedToId,
+            recipientRole: 'super_admin',
+          });
+        } else {
+          const superAdmins = await ctx.db.query('superAdmins').collect();
+          for (const admin of superAdmins) {
+            await ctx.db.insert('notifications', {
+              title: 'New Ticket Response',
+              message: `${args.senderName} replied to ticket ${ticket.ticketNumber}`,
+              type: 'info',
+              timestamp: now,
+              read: false,
+              actionUrl: '/super-admin/support',
+              recipientId: admin._id,
+              recipientRole: 'super_admin',
+            });
+          }
+        }
       }
     }
     
@@ -347,6 +419,11 @@ export const addInternalNote = mutation({
     note: v.string(),
   },
   handler: async (ctx, args) => {
+    const isSuperAdmin = await verifySuperAdmin(ctx, args.adminId);
+    if (!isSuperAdmin) {
+      throw new Error('Unauthorized: Only super admins can add internal notes');
+    }
+    
     const now = new Date().toISOString();
     
     const messageId = await ctx.db.insert('supportTicketMessages', {
@@ -370,6 +447,11 @@ export const closeTicket = mutation({
     adminId: v.string(),
   },
   handler: async (ctx, args) => {
+    const isSuperAdmin = await verifySuperAdmin(ctx, args.adminId);
+    if (!isSuperAdmin) {
+      throw new Error('Unauthorized: Only super admins can close tickets');
+    }
+    
     const ticket = await ctx.db.get(args.ticketId);
     if (!ticket) throw new Error('Ticket not found');
     
@@ -407,6 +489,13 @@ export const reopenTicket = mutation({
   handler: async (ctx, args) => {
     const ticket = await ctx.db.get(args.ticketId);
     if (!ticket) throw new Error('Ticket not found');
+    
+    const isValidUser = args.userRole === 'school_admin'
+      ? await verifySchoolAdmin(ctx, args.userId)
+      : await verifySuperAdmin(ctx, args.userId);
+    if (!isValidUser) {
+      throw new Error('Unauthorized: User must be a valid school admin or super admin');
+    }
     
     const now = new Date().toISOString();
     
