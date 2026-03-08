@@ -3,13 +3,21 @@ import { mutation, query } from './_generated/server';
 import type { MutationCtx } from './_generated/server';
 import type { Id } from './_generated/dataModel';
 
-// Verify the caller is a school admin and return their schoolId
-async function getVerifiedSchoolId(ctx: MutationCtx, adminId: string): Promise<string> {
-  const admin = await ctx.db.get(adminId as Id<'schoolAdmins'>);
-  if (!admin) {
+// Verify the caller is a school admin and return their schoolId.
+// adminIdOrEmail may be a Convex document Id (from session) or email (from useAuth).
+async function getVerifiedSchoolId(ctx: MutationCtx, adminIdOrEmail: string): Promise<string> {
+  if (adminIdOrEmail.length === 32 && /^[a-zA-Z0-9_-]+$/.test(adminIdOrEmail)) {
+    const adminById = await ctx.db.get(adminIdOrEmail as Id<'schoolAdmins'>);
+    if (adminById) return adminById.schoolId;
+  }
+  const adminByEmail = await ctx.db
+    .query('schoolAdmins')
+    .withIndex('by_email', (q) => q.eq('email', adminIdOrEmail))
+    .first();
+  if (!adminByEmail) {
     throw new Error('Unauthorized: Admin not found');
   }
-  return admin.schoolId;
+  return adminByEmail.schoolId;
 }
 
 // Query: Get announcements by school, optionally filtered by status
@@ -19,16 +27,19 @@ export const getBySchool = query({
     status: v.optional(v.union(v.literal('draft'), v.literal('published'), v.literal('archived'))),
   },
   handler: async (ctx, args) => {
-    const announcements = await ctx.db
-      .query('announcements')
-      .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))
-      .collect();
+    const announcements = args.status
+      ? await ctx.db
+          .query('announcements')
+          .withIndex('by_school_status', (q) =>
+            q.eq('schoolId', args.schoolId).eq('status', args.status!)
+          )
+          .collect()
+      : await ctx.db
+          .query('announcements')
+          .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))
+          .collect();
 
-    const filtered = args.status
-      ? announcements.filter((a) => a.status === args.status)
-      : announcements;
-
-    return filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return announcements.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   },
 });
 
@@ -37,6 +48,30 @@ export const getById = query({
   args: { id: v.id('announcements') },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.id);
+  },
+});
+
+// Query: Get published announcements relevant to a teacher (school-wide, teachers, or their classes)
+export const getPublishedForTeacher = query({
+  args: {
+    schoolId: v.string(),
+    teacherClassIds: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const announcements = await ctx.db
+      .query('announcements')
+      .withIndex('by_school_status', (q) =>
+        q.eq('schoolId', args.schoolId).eq('status', 'published')
+      )
+      .collect();
+    const filtered = announcements.filter((a) => {
+      if (a.targetType === 'school' || a.targetType === 'teachers') return true;
+      if (a.targetType === 'class' && a.targetId && args.teacherClassIds.includes(a.targetId))
+        return true;
+      if (a.targetType === 'department') return true; // show department announcements to all for now
+      return false;
+    });
+    return filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   },
 });
 
@@ -222,6 +257,80 @@ export const archive = mutation({
       ipAddress: '0.0.0.0',
     });
 
+    return { success: true };
+  },
+});
+
+// Mutation: Unarchive an announcement (archived → published)
+export const unarchive = mutation({
+  args: {
+    id: v.id('announcements'),
+    updatedBy: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const announcement = await ctx.db.get(args.id);
+    if (!announcement) {
+      throw new Error('Announcement not found');
+    }
+    if (announcement.status !== 'archived') {
+      throw new Error('Only archived announcements can be restored');
+    }
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.updatedBy);
+    if (announcement.schoolId !== callerSchoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+    const now = new Date().toISOString();
+    await ctx.db.patch(args.id, {
+      status: 'published',
+      updatedAt: now,
+    });
+    await ctx.db.insert('auditLogs', {
+      timestamp: now,
+      userId: args.updatedBy,
+      userName: 'School Admin',
+      action: 'UPDATE',
+      entity: 'Announcement',
+      entityId: args.id,
+      details: `Restored announcement to published: ${announcement.title}`,
+      ipAddress: '0.0.0.0',
+    });
+    return { success: true };
+  },
+});
+
+// Mutation: Unpublish an announcement (published → draft)
+export const unpublish = mutation({
+  args: {
+    id: v.id('announcements'),
+    updatedBy: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const announcement = await ctx.db.get(args.id);
+    if (!announcement) {
+      throw new Error('Announcement not found');
+    }
+    if (announcement.status !== 'published') {
+      throw new Error('Only published announcements can be unpublished');
+    }
+    const callerSchoolId = await getVerifiedSchoolId(ctx, args.updatedBy);
+    if (announcement.schoolId !== callerSchoolId) {
+      throw new Error('Unauthorized: You do not belong to this school');
+    }
+    const now = new Date().toISOString();
+    await ctx.db.patch(args.id, {
+      status: 'draft',
+      updatedAt: now,
+    });
+    await ctx.db.insert('auditLogs', {
+      timestamp: now,
+      userId: args.updatedBy,
+      userName: 'School Admin',
+      action: 'UPDATE',
+      entity: 'Announcement',
+      entityId: args.id,
+      details: `Unpublished announcement to draft: ${announcement.title}`,
+      ipAddress: '0.0.0.0',
+    });
     return { success: true };
   },
 });

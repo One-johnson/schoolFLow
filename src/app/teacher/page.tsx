@@ -62,10 +62,10 @@ export default function TeacherHomePage() {
     teacher ? { schoolId: teacher.schoolId, limit: 5 } : 'skip'
   );
 
-  // Fetch published announcements
+  // Fetch published announcements relevant to this teacher (school, teachers, or their classes)
   const announcements = useQuery(
-    api.announcements.getBySchool,
-    teacher ? { schoolId: teacher.schoolId, status: 'published' } : 'skip'
+    api.announcements.getPublishedForTeacher,
+    teacher ? { schoolId: teacher.schoolId, teacherClassIds: teacher.classIds ?? [] } : 'skip'
   );
 
   const greeting = () => {

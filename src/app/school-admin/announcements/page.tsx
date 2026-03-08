@@ -41,6 +41,8 @@ export default function AnnouncementsPage(): React.JSX.Element {
 
   const publishAnnouncement = useMutation(api.announcements.publish);
   const archiveAnnouncement = useMutation(api.announcements.archive);
+  const unarchiveAnnouncement = useMutation(api.announcements.unarchive);
+  const unpublishAnnouncement = useMutation(api.announcements.unpublish);
 
   const drafts = useQuery(
     api.announcements.getBySchool,
@@ -65,7 +67,7 @@ export default function AnnouncementsPage(): React.JSX.Element {
 
   const handlePublish = async (announcement: Announcement): Promise<void> => {
     try {
-      await publishAnnouncement({ id: announcement._id, updatedBy: user?.userId || '' });
+      await publishAnnouncement({ id: announcement._id, updatedBy: user?.userId ?? user?.email ?? '' });
       toast.success('Announcement published');
     } catch {
       toast.error('Failed to publish announcement');
@@ -74,10 +76,28 @@ export default function AnnouncementsPage(): React.JSX.Element {
 
   const handleArchive = async (announcement: Announcement): Promise<void> => {
     try {
-      await archiveAnnouncement({ id: announcement._id, updatedBy: user?.userId || '' });
+      await archiveAnnouncement({ id: announcement._id, updatedBy: user?.userId ?? user?.email ?? '' });
       toast.success('Announcement archived');
     } catch {
       toast.error('Failed to archive announcement');
+    }
+  };
+
+  const handleUnarchive = async (announcement: Announcement): Promise<void> => {
+    try {
+      await unarchiveAnnouncement({ id: announcement._id, updatedBy: user?.userId ?? user?.email ?? '' });
+      toast.success('Announcement restored to published');
+    } catch {
+      toast.error('Failed to restore announcement');
+    }
+  };
+
+  const handleUnpublish = async (announcement: Announcement): Promise<void> => {
+    try {
+      await unpublishAnnouncement({ id: announcement._id, updatedBy: user?.userId ?? user?.email ?? '' });
+      toast.success('Announcement unpublished to draft');
+    } catch {
+      toast.error('Failed to unpublish announcement');
     }
   };
 
@@ -234,6 +254,13 @@ export default function AnnouncementsPage(): React.JSX.Element {
                 <>
                   <Button
                     variant="ghost" size="sm" className="h-8 px-2"
+                    onClick={() => { setSelectedAnnouncement(announcement as Announcement); setShowView(true); }}
+                    title="View"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost" size="sm" className="h-8 px-2"
                     onClick={() => { setSelectedAnnouncement(announcement as Announcement); setShowEdit(true); }}
                     title="Edit"
                   >
@@ -275,6 +302,13 @@ export default function AnnouncementsPage(): React.JSX.Element {
                     <Eye className="h-4 w-4" />
                   </Button>
                   <Button
+                    variant="ghost" size="sm" className="h-8 px-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                    onClick={() => handleUnpublish(announcement as Announcement)}
+                    title="Unpublish to draft"
+                  >
+                    <FileText className="h-4 w-4" />
+                  </Button>
+                  <Button
                     variant="ghost" size="sm" className="h-8 px-2 text-gray-600 hover:text-gray-700 hover:bg-gray-50"
                     onClick={() => handleArchive(announcement as Announcement)}
                     title="Archive"
@@ -294,13 +328,22 @@ export default function AnnouncementsPage(): React.JSX.Element {
           {archived && archived.length > 0 ? (
             archived.map((announcement) =>
               renderAnnouncementCard(announcement as Announcement, (
-                <Button
-                  variant="ghost" size="sm" className="h-8 px-2"
-                  onClick={() => { setSelectedAnnouncement(announcement as Announcement); setShowView(true); }}
-                  title="View"
-                >
-                  <Eye className="h-4 w-4" />
-                </Button>
+                <>
+                  <Button
+                    variant="ghost" size="sm" className="h-8 px-2"
+                    onClick={() => { setSelectedAnnouncement(announcement as Announcement); setShowView(true); }}
+                    title="View"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost" size="sm" className="h-8 px-2 text-green-600 hover:text-green-700 hover:bg-green-50"
+                    onClick={() => handleUnarchive(announcement as Announcement)}
+                    title="Restore to published"
+                  >
+                    <CheckCircle className="h-4 w-4" />
+                  </Button>
+                </>
               ))
             )
           ) : (
@@ -314,6 +357,8 @@ export default function AnnouncementsPage(): React.JSX.Element {
         open={showCreate}
         onOpenChange={setShowCreate}
         onSuccess={() => {}}
+        schoolId={schoolId}
+        createdBy={user?.userId ?? user?.email ?? ''}
       />
       {selectedAnnouncement && (
         <>

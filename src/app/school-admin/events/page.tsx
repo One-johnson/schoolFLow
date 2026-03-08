@@ -141,18 +141,26 @@ export default function EventsPage(): React.JSX.Element {
     });
   }, [events, searchQuery, typeFilter, statusFilter]);
 
-  // Prepare calendar events
+  // Prepare calendar events (combine date + time for non-all-day events)
   const calendarEvents = useMemo(() => {
     if (!filteredEvents) return [];
 
-    return filteredEvents.map((event: Event) => ({
-      id: event._id,
-      title: event.eventTitle,
-      start: new Date(event.startDate),
-      end: new Date(event.endDate),
-      allDay: event.isAllDay,
-      resource: event,
-    }));
+    return filteredEvents.map((event: Event) => {
+      const startStr = event.isAllDay
+        ? event.startDate
+        : `${event.startDate.split('T')[0]}T${event.startTime ?? '00:00'}`;
+      const endStr = event.isAllDay
+        ? event.endDate
+        : `${event.endDate.split('T')[0]}T${event.endTime ?? '23:59'}`;
+      return {
+        id: event._id,
+        title: event.eventTitle,
+        start: new Date(startStr),
+        end: new Date(endStr),
+        allDay: event.isAllDay,
+        resource: event,
+      };
+    });
   }, [filteredEvents]);
 
   // Table columns
@@ -264,13 +272,15 @@ export default function EventsPage(): React.JSX.Element {
                   <Edit className="mr-2 h-4 w-4" />
                   Edit
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => {
-                  setSelectedEvent(event);
-                  setShowCancelDialog(true);
-                }}>
-                  <XCircle className="mr-2 h-4 w-4" />
-                  Cancel Event
-                </DropdownMenuItem>
+                {event.status !== 'cancelled' && (
+                  <DropdownMenuItem onClick={() => {
+                    setSelectedEvent(event);
+                    setShowCancelDialog(true);
+                  }}>
+                    <XCircle className="mr-2 h-4 w-4" />
+                    Cancel Event
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem
                   onClick={() => {
                     setSelectedEvent(event);
