@@ -34,6 +34,26 @@ function getDefaultColor(eventType: string): string {
   return colors[eventType] || colors.other;
 }
 
+// Derive effective status from dates/times (cancelled is preserved)
+function deriveEventStatus(
+  startDate: string,
+  endDate: string,
+  startTime: string | undefined,
+  endTime: string | undefined,
+  isAllDay: boolean,
+  storedStatus: 'upcoming' | 'ongoing' | 'completed' | 'cancelled'
+): 'upcoming' | 'ongoing' | 'completed' | 'cancelled' {
+  if (storedStatus === 'cancelled') return 'cancelled';
+  const startStr = isAllDay || !startTime ? startDate : `${startDate}T${startTime}`;
+  const endStr = isAllDay || !endTime ? endDate : `${endDate}T${endTime}`;
+  const now = new Date();
+  const start = new Date(startStr);
+  const end = new Date(endStr);
+  if (now < start) return 'upcoming';
+  if (now <= end) return 'ongoing';
+  return 'completed';
+}
+
 // Query: Get all events by school
 export const getEventsBySchool = query({
   args: { schoolId: v.string() },
@@ -78,15 +98,37 @@ export const getEventsBySchool = query({
       .query('events')
       .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))
       .collect();
-    return events;
+    return events.map((e) => ({
+      ...e,
+      status: deriveEventStatus(
+        e.startDate,
+        e.endDate,
+        e.startTime,
+        e.endTime,
+        e.isAllDay,
+        e.status
+      ),
+    }));
   },
 });
 
-// Query: Get event by ID
+// Query: Get event by ID (with derived status)
 export const getEventById = query({
   args: { eventId: v.id('events') },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.eventId);
+    const event = await ctx.db.get(args.eventId);
+    if (!event) return null;
+    return {
+      ...event,
+      status: deriveEventStatus(
+        event.startDate,
+        event.endDate,
+        event.startTime,
+        event.endTime,
+        event.isAllDay,
+        event.status
+      ),
+    };
   },
 });
 
@@ -113,7 +155,7 @@ export const getUpcomingEvents = query({
   },
 });
 
-// Query: Get events by date range
+// Query: Get events by date range (overlap: event overlaps [startDate, endDate])
 export const getEventsByDateRange = query({
   args: {
     schoolId: v.string(),
@@ -126,8 +168,8 @@ export const getEventsByDateRange = query({
       .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))
       .filter((q) =>
         q.and(
-          q.gte(q.field('startDate'), args.startDate),
-          q.lte(q.field('endDate'), args.endDate)
+          q.lte(q.field('startDate'), args.endDate),
+          q.gte(q.field('endDate'), args.startDate)
         )
       )
       .collect();
@@ -178,12 +220,23 @@ export const getEventStats = query({
       .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))
       .collect();
 
+    const withDerivedStatus = events.map((e) => ({
+      ...e,
+      status: deriveEventStatus(
+        e.startDate,
+        e.endDate,
+        e.startTime,
+        e.endTime,
+        e.isAllDay,
+        e.status
+      ),
+    }));
     const stats = {
       totalEvents: events.length,
-      upcomingEvents: events.filter((e) => e.status === 'upcoming').length,
-      ongoingEvents: events.filter((e) => e.status === 'ongoing').length,
-      completedEvents: events.filter((e) => e.status === 'completed').length,
-      cancelledEvents: events.filter((e) => e.status === 'cancelled').length,
+      upcomingEvents: withDerivedStatus.filter((e) => e.status === 'upcoming').length,
+      ongoingEvents: withDerivedStatus.filter((e) => e.status === 'ongoing').length,
+      completedEvents: withDerivedStatus.filter((e) => e.status === 'completed').length,
+      cancelledEvents: withDerivedStatus.filter((e) => e.status === 'cancelled').length,
       eventsByType: events.reduce((acc: Record<string, number>, event) => {
         acc[event.eventType] = (acc[event.eventType] || 0) + 1;
         return acc;
@@ -299,20 +352,12 @@ export const createEvent = mutation({
 
     // Send notifications if requested
     if (args.sendNotification) {
-      console.log('[EVENT CREATE] Sending notifications for event:', eventId);
-      console.log('[EVENT CREATE] School ID:', args.schoolId);
-      
       // First, check all admins for this school (without status filter)
       const allSchoolAdmins = await ctx.db
         .query('schoolAdmins')
         .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))
         .collect();
-      
-      console.log('[EVENT CREATE] Total admins for school:', allSchoolAdmins.length);
-      if (allSchoolAdmins.length > 0) {
-        console.log('[EVENT CREATE] Admin statuses:', allSchoolAdmins.map(a => ({ name: a.name, status: a.status })));
-      }
-      
+
       // Get all school admins with active status
       const schoolAdmins = await ctx.db
         .query('schoolAdmins')
@@ -320,14 +365,10 @@ export const createEvent = mutation({
         .filter((q) => q.eq(q.field('status'), 'active'))
         .collect();
 
-      console.log('[EVENT CREATE] Active admins found:', schoolAdmins.length);
-
       if (schoolAdmins.length === 0) {
-        console.warn('[EVENT CREATE] No active school admins found. Attempting to notify all admins regardless of status.');
         // Fall back to notifying all admins if no active ones found
         for (const admin of allSchoolAdmins) {
           try {
-            console.log('[EVENT CREATE] Creating notification for admin (fallback):', admin.name, admin._id, 'status:', admin.status);
             const notificationId = await ctx.db.insert('eventNotifications', {
               schoolId: args.schoolId,
               eventId: eventId,
@@ -343,16 +384,14 @@ export const createEvent = mutation({
               sentAt: now,
               createdAt: now,
             });
-            console.log('[EVENT CREATE] Notification created (fallback):', notificationId);
           } catch (error) {
-            console.error('[EVENT CREATE] Failed to create notification for admin (fallback):', admin.name, error);
+            // Notification creation failed for this admin; continue with others
           }
         }
       } else {
         // Send notification to each active admin
         for (const admin of schoolAdmins) {
           try {
-            console.log('[EVENT CREATE] Creating notification for active admin:', admin.name, admin._id);
             const notificationId = await ctx.db.insert('eventNotifications', {
               schoolId: args.schoolId,
               eventId: eventId,
@@ -368,14 +407,11 @@ export const createEvent = mutation({
               sentAt: now,
               createdAt: now,
             });
-            console.log('[EVENT CREATE] Notification created:', notificationId);
           } catch (error) {
-            console.error('[EVENT CREATE] Failed to create notification for admin:', admin.name, error);
+            // Notification creation failed for this admin; continue with others
           }
         }
       }
-    } else {
-      console.log('[EVENT CREATE] Notifications disabled for this event');
     }
 
     return eventId;
@@ -466,18 +502,15 @@ export const updateEvent = mutation({
     await ctx.db.patch(args.eventId, updates);
 
     // Send update notifications to school admins
-    console.log('[EVENT UPDATE] Sending update notifications for event:', args.eventId);
     const schoolAdmins = await ctx.db
       .query('schoolAdmins')
       .withIndex('by_school', (q) => q.eq('schoolId', event.schoolId))
       .filter((q) => q.eq(q.field('status'), 'active'))
       .collect();
 
-    console.log('[EVENT UPDATE] Found admins:', schoolAdmins.length);
-
     for (const admin of schoolAdmins) {
       try {
-        const notificationId = await ctx.db.insert('eventNotifications', {
+        await ctx.db.insert('eventNotifications', {
           schoolId: event.schoolId,
           eventId: args.eventId,
           eventCode: event.eventCode,
@@ -492,9 +525,8 @@ export const updateEvent = mutation({
           sentAt: now,
           createdAt: now,
         });
-        console.log('[EVENT UPDATE] Notification created:', notificationId);
       } catch (error) {
-        console.error('[EVENT UPDATE] Failed to create notification:', error);
+        // Notification creation failed; continue with others
       }
     }
   },
@@ -567,18 +599,15 @@ export const cancelEvent = mutation({
     });
 
     // Send cancellation notifications to school admins
-    console.log('[EVENT CANCEL] Sending cancellation notifications for event:', args.eventId);
     const schoolAdmins = await ctx.db
       .query('schoolAdmins')
       .withIndex('by_school', (q) => q.eq('schoolId', event.schoolId))
       .filter((q) => q.eq(q.field('status'), 'active'))
       .collect();
 
-    console.log('[EVENT CANCEL] Found admins:', schoolAdmins.length);
-
     for (const admin of schoolAdmins) {
       try {
-        const notificationId = await ctx.db.insert('eventNotifications', {
+        await ctx.db.insert('eventNotifications', {
           schoolId: event.schoolId,
           eventId: args.eventId,
           eventCode: event.eventCode,
@@ -593,9 +622,8 @@ export const cancelEvent = mutation({
           sentAt: now,
           createdAt: now,
         });
-        console.log('[EVENT CANCEL] Notification created:', notificationId);
       } catch (error) {
-        console.error('[EVENT CANCEL] Failed to create notification:', error);
+        // Notification creation failed; continue with others
       }
     }
   },
@@ -622,9 +650,10 @@ export const duplicateEvent = mutation({
 
     const eventCode = generateEventCode();
     const now = new Date().toISOString();
+    const { _id: _omitId, _creationTime: _omitCreation, ...eventFields } = originalEvent;
 
     const newEventId = await ctx.db.insert('events', {
-      ...originalEvent,
+      ...eventFields,
       eventCode,
       startDate: args.newStartDate,
       endDate: args.newEndDate,

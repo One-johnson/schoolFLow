@@ -106,6 +106,18 @@ export function EditEventDialog({ open, onOpenChange, event, adminId }: EditEven
 
   const onSubmit = async (data: EventFormData): Promise<void> => {
     if (!event || !startDate || !endDate) return;
+    if (endDate < startDate) {
+      toast.error('End date must be on or after start date');
+      return;
+    }
+    if (!isAllDay && startDate.getTime() === endDate.getTime()) {
+      const st = data.startTime ?? '00:00';
+      const et = data.endTime ?? '23:59';
+      if (et <= st) {
+        toast.error('End time must be after start time when on the same day');
+        return;
+      }
+    }
 
     setIsSubmitting(true);
 

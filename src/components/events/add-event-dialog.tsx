@@ -70,11 +70,18 @@ export function AddEventDialog({ open, onOpenChange, schoolId, adminId }: AddEve
   const [venueType, setVenueType] = useState<string>('on_campus');
   const [audienceType, setAudienceType] = useState<string>('all_school');
   const [targetDepartmentIds, setTargetDepartmentIds] = useState<string[]>([]);
+  const [academicYearId, setAcademicYearId] = useState<string>('');
+  const [termId, setTermId] = useState<string>('');
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<EventFormData>();
   const createEvent = useMutation(api.events.createEvent);
   const classes = useQuery(api.classes.getClassesBySchool, { schoolId });
   const departments = useQuery(api.departments.getDepartmentsBySchool, schoolId ? { schoolId } : 'skip');
+  const academicYears = useQuery(api.academicYears.getYearsBySchool, schoolId ? { schoolId } : 'skip');
+  const termsByYear = useQuery(
+    api.terms.getTermsByAcademicYear,
+    academicYearId ? { academicYearId: academicYearId as Id<'academicYears'> } : 'skip'
+  );
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
@@ -82,6 +89,18 @@ export function AddEventDialog({ open, onOpenChange, schoolId, adminId }: AddEve
     if (!startDate || !endDate) {
       toast.error('Please select start and end dates');
       return;
+    }
+    if (endDate < startDate) {
+      toast.error('End date must be on or after start date');
+      return;
+    }
+    if (!isAllDay && endDate.getTime() === startDate.getTime()) {
+      const st = data.startTime ?? '00:00';
+      const et = data.endTime ?? '23:59';
+      if (et <= st) {
+        toast.error('End time must be after start time when on the same day');
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -107,6 +126,8 @@ export function AddEventDialog({ open, onOpenChange, schoolId, adminId }: AddEve
         requiresRSVP,
         rsvpDeadline: requiresRSVP && rsvpDeadline ? rsvpDeadline.toISOString() : undefined,
         maxAttendees: requiresRSVP && data.maxAttendees ? Number(data.maxAttendees) : undefined,
+        academicYearId: academicYearId || undefined,
+        termId: termId || undefined,
         createdBy: adminId,
       });
 
@@ -119,6 +140,8 @@ export function AddEventDialog({ open, onOpenChange, schoolId, adminId }: AddEve
       setRequiresRSVP(false);
       setSendNotification(true);
       setTargetDepartmentIds([]);
+      setAcademicYearId('');
+      setTermId('');
       onOpenChange(false);
     } catch (error) {
       toast.error('Failed to create event');
@@ -182,6 +205,52 @@ export function AddEventDialog({ open, onOpenChange, schoolId, adminId }: AddEve
               placeholder="Enter event description"
               rows={3}
             />
+          </div>
+
+          {/* Academic Year & Term (optional) */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Academic Year (optional)</Label>
+              <Select
+                value={academicYearId || 'none'}
+                onValueChange={(v) => {
+                  setAcademicYearId(v === 'none' ? '' : v);
+                  setTermId('');
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select year" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {academicYears?.map((y) => (
+                    <SelectItem key={y._id} value={y._id}>
+                      {y.yearName ?? y.yearCode}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Term (optional)</Label>
+              <Select
+                value={termId || 'none'}
+                onValueChange={(v) => setTermId(v === 'none' ? '' : v)}
+                disabled={!academicYearId}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select term" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {termsByYear?.map((t) => (
+                    <SelectItem key={t._id} value={t._id}>
+                      {t.termName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Date Range */}

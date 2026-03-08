@@ -29,17 +29,19 @@ interface CreateAnnouncementDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  schoolId?: string;
+  createdBy?: string;
 }
 
-export function CreateAnnouncementDialog({ open, onOpenChange, onSuccess }: CreateAnnouncementDialogProps): React.JSX.Element {
+export function CreateAnnouncementDialog({ open, onOpenChange, onSuccess, schoolId: schoolIdProp, createdBy: createdByProp }: CreateAnnouncementDialogProps): React.JSX.Element {
   const { user } = useAuth();
+  const schoolId = schoolIdProp ?? user?.schoolId ?? '';
+  const createdBy = createdByProp ?? user?.userId ?? user?.email ?? '';
   const createAnnouncement = useMutation(api.announcements.create);
-  const classes = useQuery(api.classes.getClassesBySchool, {
-    schoolId: user?.schoolId || '',
-  });
+  const classes = useQuery(api.classes.getClassesBySchool, schoolId ? { schoolId } : 'skip');
   const departments = useQuery(
     api.departments.getDepartmentsBySchool,
-    user?.schoolId ? { schoolId: user.schoolId } : 'skip'
+    schoolId ? { schoolId } : 'skip'
   );
 
   const [title, setTitle] = useState('');
@@ -74,13 +76,13 @@ export function CreateAnnouncementDialog({ open, onOpenChange, onSuccess }: Crea
     setIsSubmitting(true);
     try {
       await createAnnouncement({
-        schoolId: user?.schoolId || '',
+        schoolId,
         title: title.trim(),
         content: content.trim(),
         targetType,
         targetId: targetType === 'school' || targetType === 'teachers' ? undefined : targetId,
         targetName: getTargetName() || undefined,
-        createdBy: user?.userId || '',
+        createdBy,
       });
       toast.success('Announcement created as draft');
       onSuccess();
