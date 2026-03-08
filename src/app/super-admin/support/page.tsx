@@ -37,33 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-
-interface SupportTicket {
-  _id: Id<'supportTickets'>;
-  _creationTime: number;
-  ticketNumber: string;
-  subject: string;
-  description: string;
-  category: 'payment' | 'technical' | 'account' | 'general';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  status: 'open' | 'in_progress' | 'waiting_customer' | 'resolved' | 'closed';
-  requesterId: string;
-  requesterName: string;
-  requesterEmail: string;
-  schoolId?: string;
-  schoolName?: string;
-  assignedToId?: string;
-  assignedToName?: string;
-  assignedAt?: string;
-  createdAt: string;
-  updatedAt: string;
-  resolvedAt?: string;
-  closedAt?: string;
-  lastResponseBy?: 'admin' | 'customer';
-  lastResponseAt?: string;
-  responseCount: number;
-  attachmentCount: number;
-}
+import type { SupportTicket } from '@/types';
 
 const faqs = [
   {
@@ -97,8 +71,14 @@ export default function SupportPage(): React.JSX.Element {
   const { user } = useAuth();
   const [selectedTicketId, setSelectedTicketId] = useState<Id<'supportTickets'> | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<string>('tickets');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
+
+  const superAdmin = useQuery(
+    api.superAdmins.getById,
+    user?.userId ? { id: user.userId as Id<'superAdmins'> } : 'skip'
+  );
 
   const allTickets = useQuery(api.supportTickets.getAllTickets, {}) || [];
   const ticketStats = useQuery(api.supportTickets.getTicketStats) || {
@@ -189,7 +169,7 @@ export default function SupportPage(): React.JSX.Element {
             size="sm"
             variant="outline"
             onClick={() => {
-              setSelectedTicketId(row.original._id);
+              setSelectedTicketId(row.original._id as Id<'supportTickets'>);
               setIsDialogOpen(true);
             }}
           >
@@ -303,7 +283,7 @@ export default function SupportPage(): React.JSX.Element {
         </Card>
       </div>
 
-      <Tabs defaultValue="tickets" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList>
           <TabsTrigger value="tickets">Support Tickets</TabsTrigger>
           <TabsTrigger value="faq">FAQ</TabsTrigger>
@@ -387,31 +367,31 @@ export default function SupportPage(): React.JSX.Element {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="p-4 border dark:border-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer">
+                <div className="p-4 border dark:border-gray-800 rounded-lg">
                   <h3 className="font-semibold">Getting Started Guide</h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                     Learn the basics of managing your SchoolFlow platform
                   </p>
                 </div>
-                <div className="p-4 border dark:border-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer">
+                <div className="p-4 border dark:border-gray-800 rounded-lg">
                   <h3 className="font-semibold">School Management</h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                     How to approve, manage, and monitor schools
                   </p>
                 </div>
-                <div className="p-4 border dark:border-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer">
+                <div className="p-4 border dark:border-gray-800 rounded-lg">
                   <h3 className="font-semibold">Payment Verification</h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                     Step-by-step guide to verify school payments
                   </p>
                 </div>
-                <div className="p-4 border dark:border-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer">
+                <div className="p-4 border dark:border-gray-800 rounded-lg">
                   <h3 className="font-semibold">Security Best Practices</h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                     Keep your platform secure with these guidelines
                   </p>
                 </div>
-                <div className="p-4 border dark:border-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer">
+                <div className="p-4 border dark:border-gray-800 rounded-lg">
                   <h3 className="font-semibold">API Documentation</h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                     Integration guides and API references
@@ -430,7 +410,7 @@ export default function SupportPage(): React.JSX.Element {
           onOpenChange={setIsDialogOpen}
           userRole="super_admin"
           userId={user.userId}
-          userName={user.role}
+          userName={superAdmin?.name ?? user.email}
         />
       )}
     </div>

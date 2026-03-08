@@ -58,8 +58,8 @@ export default function PaymentPage(): React.JSX.Element {
   const [uploading, setUploading] = useState(false);
 
   const currentAdmin = useQuery(
-    api.schoolAdmins.getByEmail,
-    user?.email ? { email: user.email } : "skip",
+    api.schoolAdmins.getById,
+    user?.userId ? { id: user.userId as import('@/../convex/_generated/dataModel').Id<'schoolAdmins'> } : 'skip',
   );
 
   const subscriptionRequests = useQuery(

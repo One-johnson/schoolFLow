@@ -117,8 +117,8 @@ export default function TimetablePage(): React.JSX.Element {
 
   // Get current admin and use schoolId from admin (more reliable than session)
   const currentAdmin = useQuery(
-    api.schoolAdmins.getByEmail,
-    user?.email ? { email: user.email } : 'skip'
+    api.schoolAdmins.getById,
+    user?.userId ? { id: user.userId as import('@/../convex/_generated/dataModel').Id<'schoolAdmins'> } : 'skip'
   );
   const schoolId = currentAdmin?.schoolId || '';
 

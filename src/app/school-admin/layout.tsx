@@ -31,10 +31,9 @@ export default function SchoolAdminLayout({
     '/school-admin/payment',
   ];
 
-  // Get school admin data using more efficient query
   const schoolAdmin = useQuery(
-    api.schoolAdmins.getByEmail,
-    user?.email ? { email: user.email } : 'skip'
+    api.schoolAdmins.getById,
+    user?.userId ? { id: user.userId as import('@/../convex/_generated/dataModel').Id<'schoolAdmins'> } : 'skip'
   );
 
   // Get school data if admin has created a school

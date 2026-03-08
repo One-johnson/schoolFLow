@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, JSX } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,23 +10,24 @@ import { Label } from '@/components/ui/label';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { toast } from 'sonner';
-import { User, Mail, Building2, Calendar, Shield } from 'lucide-react';
+import { User, Mail, Phone, Building2, Calendar, Shield } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function ProfilePage(): React.JSX.Element {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, checkAuth } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    phone: '',
   });
   const [loading, setLoading] = useState(false);
 
-   const currentAdmin = useQuery(
-    api.schoolAdmins.getByEmail,
-    user?.email ? { email: user.email } : 'skip'
+  const currentAdmin = useQuery(
+    api.schoolAdmins.getById,
+    user?.userId ? { id: user.userId as import('../../../../convex/_generated/dataModel').Id<'schoolAdmins'> } : 'skip'
   );
 
   const updateAdmin = useMutation(api.schoolAdmins.update);
@@ -37,6 +39,7 @@ export default function ProfilePage(): React.JSX.Element {
       setFormData({
         name: currentAdmin.name,
         email: currentAdmin.email,
+        phone: currentAdmin.phone ?? '',
       });
     }
   }, [currentAdmin]);
@@ -67,15 +70,17 @@ export default function ProfilePage(): React.JSX.Element {
         id: currentAdmin._id,
         name: formData.name,
         email: formData.email,
+        phone: formData.phone.trim() || undefined,
       });
 
-      // Update localStorage
       localStorage.setItem('schoolAdminEmail', formData.email);
-
-      toast.success('Profile updated successfully');
+      await checkAuth();
+      toast.success('Profile updated. Session refreshed.');
     } catch (error) {
       toast.error('Failed to update profile');
-      console.error(error);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error(error);
+      }
     } finally {
       setLoading(false);
     }
@@ -114,7 +119,10 @@ export default function ProfilePage(): React.JSX.Element {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Profile</h1>
         <p className="text-muted-foreground">
-          Manage your account information
+          Manage your account information.{' '}
+          <Link href="/school-admin/settings" className="text-primary underline underline-offset-2 hover:no-underline">
+            Notification &amp; security settings
+          </Link>
         </p>
       </div>
 
@@ -199,6 +207,22 @@ export default function ProfilePage(): React.JSX.Element {
                   onChange={handleChange}
                   className="pl-10"
                   required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone (optional)</Label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  className="pl-10"
+                  placeholder="e.g. +233..."
                 />
               </div>
             </div>

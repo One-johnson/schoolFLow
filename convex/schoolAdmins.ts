@@ -33,7 +33,7 @@ export const getByEmail = query({
   handler: async (ctx, args) => {
     const admin = await ctx.db
       .query('schoolAdmins')
-      .filter((q) => q.eq(q.field('email'), args.email))
+      .withIndex('by_email', (q) => q.eq('email', args.email))
       .first();
     return admin;
   },
@@ -47,7 +47,7 @@ export const updatePassword = mutation({
   handler: async (ctx, args) => {
     const admin = await ctx.db
       .query('schoolAdmins')
-      .filter((q) => q.eq(q.field('email'), args.email))
+      .withIndex('by_email', (q) => q.eq('email', args.email))
       .first();
 
     if (!admin) {
@@ -159,8 +159,17 @@ export const update = mutation({
     status: v.optional(v.union(v.literal('active'), v.literal('inactive'), v.literal('pending'), v.literal('suspended'))),
   },
   handler: async (ctx, args) => {
-    const { id, ...updates } = args;
-    await ctx.db.patch(id, updates);
+    const { id, email, ...rest } = args;
+    if (email !== undefined) {
+      const existing = await ctx.db
+        .query('schoolAdmins')
+        .withIndex('by_email', (q) => q.eq('email', email))
+        .first();
+      if (existing && existing._id !== id) {
+        throw new Error('Another admin already uses this email address');
+      }
+    }
+    await ctx.db.patch(id, { ...rest, ...(email !== undefined && { email }) });
     return id;
   },
 });
