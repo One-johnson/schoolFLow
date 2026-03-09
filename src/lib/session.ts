@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 
 const SESSION_COOKIE_NAME = "schoolflow_session";
 const TEACHER_SESSION_COOKIE_NAME = "schoolflow_teacher_session";
+const PARENT_SESSION_COOKIE_NAME = "schoolflow_parent_session";
 const SESSION_MAX_AGE = 7 * 24 * 60 * 60; // 7 days in seconds
 
 export interface SessionData {
@@ -16,6 +17,13 @@ export interface TeacherSessionData {
   userId: string;
   email: string;
   role: "teacher";
+  schoolId: string;
+}
+
+export interface ParentSessionData {
+  userId: string;
+  email: string;
+  role: "parent";
   schoolId: string;
 }
 
@@ -64,5 +72,29 @@ export class TeacherSessionManager {
   static async clearSession(): Promise<void> {
     const cookieStore = await cookies();
     cookieStore.delete(TEACHER_SESSION_COOKIE_NAME);
+  }
+}
+
+/** Parent session cookie (opaque token only). */
+export class ParentSessionManager {
+  static async setSessionCookie(sessionToken: string): Promise<void> {
+    const cookieStore = await cookies();
+    cookieStore.set(PARENT_SESSION_COOKIE_NAME, sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: SESSION_MAX_AGE,
+      path: "/",
+    });
+  }
+
+  static async getSessionToken(): Promise<string | null> {
+    const cookieStore = await cookies();
+    return cookieStore.get(PARENT_SESSION_COOKIE_NAME)?.value ?? null;
+  }
+
+  static async clearSession(): Promise<void> {
+    const cookieStore = await cookies();
+    cookieStore.delete(PARENT_SESSION_COOKIE_NAME);
   }
 }

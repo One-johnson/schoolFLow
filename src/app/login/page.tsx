@@ -169,6 +169,10 @@ export default function LoginPage(): React.JSX.Element {
               <Link href="/teacher/login" className="text-primary hover:underline">
                 Sign in here
               </Link>
+              {' '}• Parent?{' '}
+              <Link href="/parent/login" className="text-emerald-600 hover:underline">
+                Parent portal
+              </Link>
             </p>
           </form>
         </CardContent>

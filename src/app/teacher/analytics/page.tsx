@@ -150,10 +150,10 @@ export default function AnalyticsPage() {
       {/* Exam Filter */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
             <label className="text-sm font-medium">Filter by Exam:</label>
             <Select value={selectedExamId} onValueChange={setSelectedExamId}>
-              <SelectTrigger className="w-62.5">
+              <SelectTrigger className="w-full sm:w-64">
                 <SelectValue placeholder="All exams" />
               </SelectTrigger>
               <SelectContent>
@@ -170,7 +170,7 @@ export default function AnalyticsPage() {
       </Card>
 
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-3 text-xs sm:text-sm">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="subjects">Subjects</TabsTrigger>
           <TabsTrigger value="students">Students</TabsTrigger>

@@ -134,7 +134,7 @@ export default defineSchema({
     read: v.boolean(),
     actionUrl: v.optional(v.string()),
     recipientId: v.optional(v.string()),
-    recipientRole: v.optional(v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher'))),
+    recipientRole: v.optional(v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher'), v.literal('parent'))),
   }).index('by_read', ['read']).index('by_recipient', ['recipientId']),
 
   subscriptionPlans: defineTable({
@@ -185,7 +185,7 @@ export default defineSchema({
 
   loginHistory: defineTable({
     userId: v.string(),
-    userRole: v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher')),
+    userRole: v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher'), v.literal('parent')),
     loginTime: v.string(),
     logoutTime: v.optional(v.string()),
     status: v.union(v.literal('success'), v.literal('failed')),
@@ -200,7 +200,7 @@ export default defineSchema({
 
   sessions: defineTable({
     userId: v.string(),
-    userRole: v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher')),
+    userRole: v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher'), v.literal('parent')),
     sessionToken: v.string(),
     ipAddress: v.string(),
     device: v.string(),
@@ -215,7 +215,7 @@ export default defineSchema({
 
   securityAlerts: defineTable({
     userId: v.string(),
-    userRole: v.union(v.literal('super_admin'), v.literal('school_admin')),
+    userRole: v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher'), v.literal('parent')),
     alertType: v.union(
       v.literal('new_device'),
       v.literal('suspicious_location'),
@@ -337,6 +337,31 @@ export default defineSchema({
     .index('by_teacher_id', ['teacherId'])
     .index('by_status', ['status'])
     .index('by_email', ['email']),
+
+  parents: defineTable({
+    schoolId: v.string(),
+    parentId: v.string(), // Auto-generated: PRT + 6 random digits
+    name: v.string(),
+    email: v.string(),
+    phone: v.optional(v.string()),
+    password: v.string(), // Hashed
+    status: v.union(v.literal('active'), v.literal('inactive')),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index('by_school', ['schoolId'])
+    .index('by_email', ['email'])
+    .index('by_status', ['status'])
+    .index('by_parent_id', ['parentId']),
+
+  parentStudents: defineTable({
+    parentId: v.id('parents'),
+    studentId: v.id('students'),
+    createdAt: v.string(),
+  })
+    .index('by_parent', ['parentId'])
+    .index('by_student', ['studentId'])
+    .index('by_parent_student', ['parentId', 'studentId']),
 
   departments: defineTable({
     schoolId: v.string(),

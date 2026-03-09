@@ -296,7 +296,7 @@ export default function GradeBookPage() {
           {selectedExamId && selectedSubjectId && (
             <Card>
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <CardTitle className="text-base">
                     Enter Grades - {selectedSubject?.subjectName}
                   </CardTitle>
@@ -320,8 +320,8 @@ export default function GradeBookPage() {
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                <ScrollArea className="w-full">
-                  <Table>
+                <ScrollArea className="w-full overflow-x-auto">
+                  <Table className="min-w-[500px]">
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-50">Student</TableHead>
@@ -377,7 +377,7 @@ export default function GradeBookPage() {
                                     )
                                   }
                                   disabled={entry.isAbsent}
-                                  className="w-20 text-center"
+                                  className="w-20 min-w-[44px] text-center"
                                 />
                               </TableCell>
                               <TableCell>
@@ -394,7 +394,7 @@ export default function GradeBookPage() {
                                     )
                                   }
                                   disabled={entry.isAbsent}
-                                  className="w-20 text-center"
+                                  className="w-20 min-w-[44px] text-center"
                                 />
                               </TableCell>
                               <TableCell className="text-center">

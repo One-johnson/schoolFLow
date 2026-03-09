@@ -32,7 +32,7 @@ interface ReceiptData {
   schoolPhone: string;
 }
 
-export function generateFeeReceipt(receipt: ReceiptData): void {
+function buildFeeReceiptDoc(receipt: ReceiptData): jsPDF {
   const doc = new jsPDF();
   
   // School Header
@@ -175,9 +175,18 @@ export function generateFeeReceipt(receipt: ReceiptData): void {
   // Border
   doc.setDrawColor(200, 200, 200);
   doc.rect(10, 10, 190, 277);
-  
-  // Save PDF
+
+  return doc;
+}
+
+export function generateFeeReceipt(receipt: ReceiptData): void {
+  const doc = buildFeeReceiptDoc(receipt);
   doc.save(`receipt_${receipt.receiptNumber}.pdf`);
+}
+
+export function generateFeeReceiptAsBlob(receipt: ReceiptData): Blob {
+  const doc = buildFeeReceiptDoc(receipt);
+  return doc.output('blob');
 }
 
 interface OutstandingFeesData {

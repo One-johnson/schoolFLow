@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useTeacherAuth } from "@/hooks/useTeacherAuth";
@@ -89,6 +90,8 @@ const SortIcon = ({
 export default function TeacherStudentsPage() {
   const { teacher } = useTeacherAuth();
   const router = useRouter();
+  const isMobile = useIsMobile();
+  const hasAppliedMobileCompact = useRef(false);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("card");
@@ -109,6 +112,19 @@ export default function TeacherStudentsPage() {
     parentPhone: true,
     status: true,
   });
+
+  // On mobile, hide non-essential columns by default for compact table view
+  useEffect(() => {
+    if (isMobile && !hasAppliedMobileCompact.current) {
+      setColumnVisibility((prev) => ({
+        ...prev,
+        dateOfBirth: false,
+        parentName: false,
+        parentPhone: false,
+      }));
+      hasAppliedMobileCompact.current = true;
+    }
+  }, [isMobile]);
 
   const classId = teacher?.classIds?.[0];
   const studentsQuery = useQuery(
@@ -318,7 +334,7 @@ export default function TeacherStudentsPage() {
               setCurrentPage(1);
             }}
           >
-            <SelectTrigger className="w-36">
+            <SelectTrigger className="w-36 min-w-[120px]">
               <SlidersHorizontal className="h-4 w-4 mr-2" />
               <SelectValue placeholder="Status" />
             </SelectTrigger>
@@ -338,7 +354,7 @@ export default function TeacherStudentsPage() {
               setCurrentPage(1);
             }}
           >
-            <SelectTrigger className="w-32">
+            <SelectTrigger className="w-32 min-w-[100px]">
               <SelectValue placeholder="Gender" />
             </SelectTrigger>
             <SelectContent>
@@ -511,8 +527,8 @@ export default function TeacherStudentsPage() {
           ))}
         </div>
       ) : (
-        <div className="border rounded-lg overflow-hidden">
-          <Table>
+        <div className="border rounded-lg overflow-x-auto overflow-y-visible">
+          <Table className="min-w-full">
             <TableHeader className="bg-muted/50">
               <TableRow>
                 {columnVisibility.photo && (

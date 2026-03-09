@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Bell, GraduationCap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 import { NotificationsDrawer } from './notifications-drawer';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
@@ -26,6 +27,7 @@ export function TopHeader({ teacherId, schoolName = 'SchoolFlow' }: TopHeaderPro
       <header className="fixed top-0 left-0 right-0 z-50 bg-background border-b">
         <div className="flex items-center justify-between h-14 px-4 max-w-lg mx-auto">
           <div className="flex items-center gap-2">
+            <SidebarTrigger />
             <GraduationCap className="h-6 w-6 text-primary" />
             <span className="font-semibold text-sm truncate max-w-45">
               {schoolName}

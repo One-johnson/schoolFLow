@@ -14,12 +14,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -277,18 +277,18 @@ export default function MessagesPage() {
             )}
           </p>
         </div>
-        <Sheet open={newMessageOpen} onOpenChange={setNewMessageOpen}>
-          <SheetTrigger asChild>
+        <Dialog open={newMessageOpen} onOpenChange={setNewMessageOpen}>
+          <DialogTrigger asChild>
             <Button size="sm" className="gap-2">
               <Plus className="h-4 w-4" />
               New Message
             </Button>
-          </SheetTrigger>
-          <SheetContent className="w-full sm:max-w-lg">
-            <SheetHeader>
-              <SheetTitle>New Message</SheetTitle>
-            </SheetHeader>
-            <div className="space-y-4 pt-4">
+          </DialogTrigger>
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>New Message</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-2">
               <div>
                 <label className="text-sm font-medium">Select Parent</label>
                 <Select onValueChange={handleParentSelect}>
@@ -403,8 +403,8 @@ export default function MessagesPage() {
                 Send Message
               </Button>
             </div>
-          </SheetContent>
-        </Sheet>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Main Content */}

@@ -238,7 +238,7 @@ export default function TeacherNotificationsPage() {
             value={selectedTab}
             onValueChange={(v) => setSelectedTab(v as "all" | "unread")}
           >
-            <TabsList className="grid w-full grid-cols-2 max-w-50">
+            <TabsList className="grid w-full grid-cols-2 max-w-[200px]">
               <TabsTrigger value="all">All</TabsTrigger>
               <TabsTrigger value="unread">
                 Unread

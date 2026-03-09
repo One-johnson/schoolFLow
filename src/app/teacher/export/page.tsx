@@ -1195,7 +1195,7 @@ export default function ExportPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div ref={printRef} className="p-8 min-h-145 bg-white">
+            <div ref={printRef} className="p-8 min-h-145 bg-white overflow-auto max-h-[60vh]">
               {renderReportContent()}
             </div>
           </CardContent>
