@@ -35,6 +35,8 @@ import type * as loginHistory from "../loginHistory.js";
 import type * as marks from "../marks.js";
 import type * as messages from "../messages.js";
 import type * as notifications from "../notifications.js";
+import type * as parentDashboard from "../parentDashboard.js";
+import type * as parents from "../parents.js";
 import type * as paymentPlans from "../paymentPlans.js";
 import type * as paymentProofs from "../paymentProofs.js";
 import type * as photos from "../photos.js";
@@ -98,6 +100,8 @@ declare const fullApi: ApiFromModules<{
   marks: typeof marks;
   messages: typeof messages;
   notifications: typeof notifications;
+  parentDashboard: typeof parentDashboard;
+  parents: typeof parents;
   paymentPlans: typeof paymentPlans;
   paymentProofs: typeof paymentProofs;
   photos: typeof photos;

@@ -7,7 +7,7 @@ import type { Id } from './_generated/dataModel';
 export const create = mutation({
   args: {
     userId: v.string(),
-    userRole: v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher')),
+    userRole: v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher'), v.literal('parent')),
     sessionToken: v.string(),
     ipAddress: v.string(),
     device: v.string(),
@@ -67,6 +67,27 @@ export const revoke = mutation({
   },
 });
 
+// Revoke session by token (used by logout)
+export const revokeByToken = mutation({
+  args: {
+    sessionToken: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const session = await ctx.db
+      .query('sessions')
+      .filter((q) => q.eq(q.field('sessionToken'), args.sessionToken))
+      .first();
+
+    if (session && session.isActive) {
+      await ctx.db.patch(session._id, {
+        isActive: false,
+      });
+      return true;
+    }
+    return false;
+  },
+});
+
 // Revoke all sessions for a user except current
 export const revokeAllExcept = mutation({
   args: {
@@ -99,7 +120,7 @@ export const revokeAllExcept = mutation({
 export const listActive = query({
   args: {
     userId: v.optional(v.string()),
-    userRole: v.optional(v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher'))),
+    userRole: v.optional(v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher'), v.literal('parent'))),
   },
   handler: async (ctx, args) => {
     const query = ctx.db.query('sessions');
@@ -190,6 +211,17 @@ export const getSessionWithUser = query({
           }
         : null;
     }
+    if (session.userRole === 'parent') {
+      const user = await ctx.db.get(session.userId as Id<'parents'>);
+      return user
+        ? {
+            userId: session.userId,
+            email: user.email,
+            role: 'parent' as const,
+            schoolId: user.schoolId,
+          }
+        : null;
+    }
     return null;
   },
 });
@@ -216,7 +248,7 @@ export const cleanupExpired = mutation({
 // Get statistics
 export const getStats = query({
   args: {
-    userRole: v.optional(v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher'))),
+    userRole: v.optional(v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher'), v.literal('parent'))),
   },
   handler: async (ctx, args) => {
     const allSessions = await ctx.db.query('sessions').collect();

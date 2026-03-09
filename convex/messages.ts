@@ -296,6 +296,48 @@ export const markMessagesAsRead = mutation({
   },
 });
 
+// Get all conversations for a parent (supports both real parentId and legacy parent_${studentId})
+export const getParentConversations = query({
+  args: {
+    schoolId: v.string(),
+    parentId: v.string(),
+    studentIds: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const validParentIds = new Set<string>([args.parentId]);
+    for (const sid of args.studentIds) {
+      validParentIds.add(`parent_${sid}`);
+    }
+
+    const allConversations = await ctx.db
+      .query('conversations')
+      .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))
+      .filter((q) => q.eq(q.field('status'), 'active'))
+      .collect();
+
+    const parentConversations = allConversations.filter(
+      (c) =>
+        validParentIds.has(c.participant1Id) || validParentIds.has(c.participant2Id)
+    );
+
+    return parentConversations
+      .map((conv) => {
+        const isParticipant1 = validParentIds.has(conv.participant1Id);
+        const otherParty = isParticipant1
+          ? { id: conv.participant2Id, name: conv.participant2Name, role: conv.participant2Role }
+          : { id: conv.participant1Id, name: conv.participant1Name, role: conv.participant1Role };
+        const unreadCount = isParticipant1 ? conv.unreadCount1 : conv.unreadCount2;
+
+        return {
+          ...conv,
+          otherParty,
+          unreadCount,
+        };
+      })
+      .sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
+  },
+});
+
 // Get parents for a class (for teacher to start conversations)
 export const getParentsForClass = query({
   args: {

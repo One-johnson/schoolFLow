@@ -75,6 +75,30 @@ export const getPublishedForTeacher = query({
   },
 });
 
+// Query: Get published announcements relevant to a parent (school-wide or their children's classes)
+export const getPublishedForParent = query({
+  args: {
+    schoolId: v.string(),
+    studentClassIds: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const announcements = await ctx.db
+      .query('announcements')
+      .withIndex('by_school_status', (q) =>
+        q.eq('schoolId', args.schoolId).eq('status', 'published')
+      )
+      .collect();
+    const filtered = announcements.filter((a) => {
+      if (a.targetType === 'school') return true;
+      if (a.targetType === 'class' && a.targetId && args.studentClassIds.includes(a.targetId))
+        return true;
+      if (a.targetType === 'department') return true;
+      return false;
+    });
+    return filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  },
+});
+
 // Mutation: Create a new announcement (as draft)
 export const create = mutation({
   args: {

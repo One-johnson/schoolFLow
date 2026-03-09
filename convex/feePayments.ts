@@ -443,6 +443,21 @@ export const getStudentCreditBalance = query({
   },
 });
 
+// Get fee obligations for parent's children (read-only, for parent portal)
+export const getFeeObligationsForParent = query({
+  args: {
+    schoolId: v.string(),
+    studentIds: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const obligations = await ctx.db
+      .query('feeObligations')
+      .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))
+      .collect();
+    return obligations.filter((o) => args.studentIds.includes(o.studentId));
+  },
+});
+
 // Get outstanding obligations (pending and partial; exclude rolled_forward) - one row per obligation
 export const getOutstandingPayments = query({
   args: { schoolId: v.string() },

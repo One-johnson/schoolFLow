@@ -5,7 +5,7 @@ import { mutation, query } from './_generated/server';
 export const create = mutation({
   args: {
     userId: v.string(),
-    userRole: v.union(v.literal('super_admin'), v.literal('school_admin')),
+    userRole: v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher'), v.literal('parent')),
     alertType: v.union(
       v.literal('new_device'),
       v.literal('suspicious_location'),
@@ -122,7 +122,7 @@ export const getStats = query({
 export const detectSuspiciousActivity = mutation({
   args: {
     userId: v.string(),
-    userRole: v.union(v.literal('super_admin'), v.literal('school_admin')),
+    userRole: v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher'), v.literal('parent')),
     ipAddress: v.string(),
     device: v.string(),
   },

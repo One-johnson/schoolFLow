@@ -16,7 +16,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Clock, Calendar, BookOpen, Users } from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 type Day = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday';
 const DAYS: Day[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
@@ -30,8 +31,18 @@ const DAY_LABELS: Record<Day, string> = {
 
 export default function TeacherTimetablePage() {
   const { teacher } = useTeacherAuth();
+  const isMobile = useIsMobile();
+  const hasSetMobileDefault = useRef(false);
   const [selectedClass, setSelectedClass] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<string>('grid');
+
+  // Default to List view on mobile for better UX
+  useEffect(() => {
+    if (isMobile && !hasSetMobileDefault.current) {
+      setActiveTab('list');
+      hasSetMobileDefault.current = true;
+    }
+  }, [isMobile]);
 
   // Get teacher's classes
   const classes = useQuery(
@@ -215,7 +226,7 @@ export default function TeacherTimetablePage() {
                   <p>No classes assigned yet</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
                   <table className="w-full min-w-150 border-collapse">
                     <thead>
                       <tr>

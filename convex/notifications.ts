@@ -210,6 +210,21 @@ export const createTeacherNotification = mutation({
   },
 });
 
+// Query: Get notifications for a specific parent
+export const getNotificationsByParent = query({
+  args: { parentId: v.string() },
+  handler: async (ctx, args) => {
+    const notifications = await ctx.db
+      .query('notifications')
+      .order('desc')
+      .collect();
+    return notifications.filter(
+      (n) =>
+        (n.recipientRole === 'parent' && (!n.recipientId || n.recipientId === args.parentId))
+    );
+  },
+});
+
 // Mark all teacher notifications as read
 export const markAllTeacherNotificationsAsRead = mutation({
   args: { teacherId: v.string() },

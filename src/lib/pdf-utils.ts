@@ -72,11 +72,35 @@ export function exportReportCardToPDF(reportCard: ReportCardData, options?: Prin
   };
   
   generateReportCardPage(doc, reportCard, 0, layoutOptions);
-  
+
   // Open PDF in new tab
   const pdfBlob = doc.output('blob');
   const pdfUrl = URL.createObjectURL(pdfBlob);
   window.open(pdfUrl, '_blank');
+}
+
+/**
+ * Generate report card PDF as Blob (for download or share)
+ */
+export function exportReportCardToPDFAsBlob(
+  reportCard: ReportCardData,
+  options?: PrintLayoutOptions
+): Blob {
+  const doc = new jsPDF('p', 'mm', 'a4');
+  const layoutOptions: PrintLayoutOptions = options || {
+    includePhoto: true,
+    includeChart: false,
+    includeGradingScale: true,
+    includeAttendance: true,
+    includePosition: true,
+    includeConduct: true,
+    includeAttitude: true,
+    includeInterest: true,
+    includeComments: true,
+    includeSignatures: true,
+  };
+  generateReportCardPage(doc, reportCard, 0, layoutOptions);
+  return doc.output('blob');
 }
 
 /**

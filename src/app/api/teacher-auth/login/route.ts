@@ -6,6 +6,9 @@ import { TeacherSessionManager } from "@/lib/session";
 import { extractIpAddress } from "@/lib/ip-utils";
 import { parseUserAgent } from "@/lib/device-parser";
 
+const RATE_LIMIT_WINDOW_MINUTES = 15;
+const RATE_LIMIT_MAX_ATTEMPTS = 5;
+
 function getConvexClient(): ConvexHttpClient {
   const url = process.env.NEXT_PUBLIC_CONVEX_URL;
   if (!url) {
@@ -18,7 +21,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const convex = getConvexClient();
   try {
     const body = await request.json();
-    const { email, password } = body;
+    const rawEmail = body.email as string | undefined;
+    const rawPassword = body.password as string | undefined;
+    const email = typeof rawEmail === "string" ? rawEmail.trim() : "";
+    const password = typeof rawPassword === "string" ? rawPassword.trim() : "";
 
     const ipAddress = extractIpAddress(request.headers);
     const userAgent = request.headers.get("user-agent") || "";
@@ -31,11 +37,41 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
+    // Rate limiting: check failed attempts from this IP
+    const failedCount = await convex.query(
+      api.loginHistory.getFailedAttemptsCountByIp,
+      {
+        ipAddress,
+        windowMinutes: RATE_LIMIT_WINDOW_MINUTES,
+      },
+    );
+    if (failedCount >= RATE_LIMIT_MAX_ATTEMPTS) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Too many failed login attempts. Please try again later.",
+        },
+        { status: 429 },
+      );
+    }
+
     const teacher = await convex.query(api.teachers.getTeacherByEmail, {
       email,
     });
 
     if (!teacher) {
+      await convex.mutation(api.loginHistory.create, {
+        userId: "unknown",
+        userRole: "teacher",
+        status: "failed",
+        ipAddress,
+        device: deviceInfo.device,
+        browser: deviceInfo.browser,
+        os: deviceInfo.os,
+        deviceType: deviceInfo.deviceType,
+        failureReason: "Email not found",
+      });
       return NextResponse.json(
         { success: false, message: "Invalid credentials" },
         { status: 401 },
@@ -59,6 +95,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
 
     if (!isValidPassword) {
+      await convex.mutation(api.loginHistory.create, {
+        userId: teacher._id,
+        userRole: "teacher",
+        status: "failed",
+        ipAddress,
+        device: deviceInfo.device,
+        browser: deviceInfo.browser,
+        os: deviceInfo.os,
+        deviceType: deviceInfo.deviceType,
+        failureReason: "Invalid password",
+      });
       return NextResponse.json(
         { success: false, message: "Invalid credentials" },
         { status: 401 },
@@ -96,6 +143,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       os: deviceInfo.os,
       deviceType: deviceInfo.deviceType,
       expiresAt,
+    });
+
+    await convex.mutation(api.securityAlerts.detectSuspiciousActivity, {
+      userId: teacher._id,
+      userRole: "teacher",
+      ipAddress,
+      device: deviceInfo.device,
     });
 
     await TeacherSessionManager.setSessionCookie(sessionToken);

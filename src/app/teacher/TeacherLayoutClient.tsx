@@ -59,9 +59,7 @@ function TeacherLayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider>
-      <div className="hidden md:block">
-        <TeacherAppSidebar />
-      </div>
+      <TeacherAppSidebar />
 
       <SidebarInset className="w-full">
         <TeacherDesktopHeader />

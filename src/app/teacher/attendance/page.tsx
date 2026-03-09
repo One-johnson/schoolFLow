@@ -434,7 +434,7 @@ export default function TeacherAttendancePage() {
               {(!existingAttendance || isEditMode) && (
                 <div>
                   <label className="text-sm text-muted-foreground mb-2 block">Quick Mark All</label>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     {statusButtons.map(({ status, label }) => (
                       <Button
                         key={status}
@@ -452,7 +452,7 @@ export default function TeacherAttendancePage() {
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-4 gap-2 sm:gap-3">
             <div className="p-3 bg-green-50 rounded-lg text-center">
               <p className="text-lg font-bold text-green-700">{summary.present}</p>
               <p className="text-xs text-green-600">Present</p>
@@ -515,7 +515,7 @@ export default function TeacherAttendancePage() {
                               <button
                                 key={status}
                                 onClick={() => handleStatusChange(student._id, status)}
-                                className={`w-8 h-8 rounded-md border text-xs font-bold transition-colors ${
+                                className={`min-w-[44px] min-h-[44px] w-10 h-10 rounded-md border text-xs font-bold transition-colors ${
                                   currentStatus === status
                                     ? color
                                     : 'bg-background hover:bg-muted'
