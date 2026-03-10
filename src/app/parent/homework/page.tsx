@@ -16,7 +16,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { BookOpen, Calendar, Paperclip, Upload, CheckCircle, Search, FileDown } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { BookOpen, Calendar, Paperclip, Upload, CheckCircle, Search, FileDown, MoreVertical } from 'lucide-react';
 import { SubmitHomeworkDialog } from '../../../components/homework/submit-homework-dialog';
 import type { Id } from '../../../../convex/_generated/dataModel';
 
@@ -147,7 +153,7 @@ export default function ParentHomeworkPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {homework.map((hw) => (
             <HomeworkCard
               key={hw._id}
@@ -216,14 +222,14 @@ function HomeworkCard({
   return (
     <Card>
       <CardHeader>
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-          <div>
-            <CardTitle className="text-lg">{homework.title}</CardTitle>
-            <div className="flex flex-wrap gap-3 mt-1 text-sm text-muted-foreground">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <CardTitle className="text-base truncate">{homework.title}</CardTitle>
+            <div className="flex flex-wrap gap-2 mt-1 text-xs text-muted-foreground">
               <span>{homework.className}</span>
               {homework.subjectName && <span>{homework.subjectName}</span>}
               <span className="flex items-center gap-1">
-                <Calendar className="h-3.5 w-3" />
+                <Calendar className="h-3 w-3 shrink-0" />
                 Due {formatDate(homework.dueDate)}
                 {isOverdue(homework.dueDate) && (
                   <Badge variant="destructive" className="ml-1 text-xs">Overdue</Badge>
@@ -231,23 +237,28 @@ function HomeworkCard({
               </span>
               {homework.attachmentStorageIds && homework.attachmentStorageIds.length > 0 && (
                 <span className="flex items-center gap-1">
-                  <Paperclip className="h-3.5 w-3" />
+                  <Paperclip className="h-3 w-3 shrink-0" />
                   {homework.attachmentStorageIds.length} attachment(s)
                 </span>
               )}
             </div>
           </div>
+          {homework.attachmentStorageIds && homework.attachmentStorageIds.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {homework.attachmentStorageIds.map((sid, i) => (
+                  <HomeworkAttachmentDropdownItem key={sid} storageId={sid} label={`Download ${i + 1}`} />
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </CardHeader>
-      {homework.attachmentStorageIds && homework.attachmentStorageIds.length > 0 && (
-        <CardContent className="pt-0 pb-2">
-          <div className="flex flex-wrap gap-2">
-            {homework.attachmentStorageIds.map((sid, i) => (
-              <HomeworkAttachmentLink key={sid} storageId={sid} label={`Download ${i + 1}`} />
-            ))}
-          </div>
-        </CardContent>
-      )}
       {homework.description && (
         <CardContent className="pt-0">
           <p className="text-sm text-muted-foreground whitespace-pre-wrap">
@@ -280,16 +291,16 @@ function HomeworkCard({
   );
 }
 
-function HomeworkAttachmentLink({ storageId, label }: { storageId: string; label: string }) {
+function HomeworkAttachmentDropdownItem({ storageId, label }: { storageId: string; label: string }) {
   const url = useQuery(api.photos.getFileUrl, { storageId });
   if (!url) return null;
   return (
-    <Button size="sm" variant="outline" asChild>
-      <a href={url} target="_blank" rel="noopener noreferrer">
-        <FileDown className="h-4 w-4 mr-1" />
+    <DropdownMenuItem asChild>
+      <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center">
+        <FileDown className="h-4 w-4 mr-2" />
         {label}
       </a>
-    </Button>
+    </DropdownMenuItem>
   );
 }
 

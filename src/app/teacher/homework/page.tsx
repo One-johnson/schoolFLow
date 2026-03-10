@@ -26,6 +26,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import {
   FileText,
@@ -36,6 +42,7 @@ import {
   Paperclip,
   Users,
   Search,
+  MoreVertical,
 } from 'lucide-react';
 import Link from 'next/link';
 import type { Id } from '../../../../convex/_generated/dataModel';
@@ -176,62 +183,62 @@ export default function TeacherHomeworkPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {homework.map((hw) => (
             <Card key={hw._id} className={hw.status === 'archived' ? 'opacity-75' : ''}>
               <CardHeader className="pb-2">
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-                  <div>
-                    <CardTitle className="text-lg flex items-center gap-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <CardTitle className="text-base flex items-center gap-2 truncate">
                       {hw.title}
                       {hw.status === 'archived' && (
-                        <Badge variant="secondary">Archived</Badge>
+                        <Badge variant="secondary" className="shrink-0">Archived</Badge>
                       )}
                     </CardTitle>
-                    <div className="flex flex-wrap gap-3 mt-1 text-sm text-muted-foreground">
+                    <div className="flex flex-wrap gap-2 mt-1 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
-                        <Users className="h-3.5 w-3" />
+                        <Users className="h-3 w-3 shrink-0" />
                         {hw.className}
                       </span>
-                      {hw.subjectName && (
-                        <span>{hw.subjectName}</span>
-                      )}
+                      {hw.subjectName && <span>{hw.subjectName}</span>}
                       <span className="flex items-center gap-1">
-                        <Calendar className="h-3.5 w-3" />
+                        <Calendar className="h-3 w-3 shrink-0" />
                         Due {formatDate(hw.dueDate)}
                       </span>
                       {hw.attachmentStorageIds && hw.attachmentStorageIds.length > 0 && (
                         <span className="flex items-center gap-1">
-                          <Paperclip className="h-3.5 w-3" />
-                          {hw.attachmentStorageIds.length} attachment(s)
+                          <Paperclip className="h-3 w-3 shrink-0" />
+                          {hw.attachmentStorageIds.length}
                         </span>
                       )}
                     </div>
                   </div>
                   {hw.status === 'active' && (
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/teacher/homework/${hw._id}`}>
-                          <Pencil className="h-4 w-4 mr-1" />
-                          View
-                        </Link>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setEditTarget(hw._id)}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setArchiveTarget({ id: hw._id, title: hw.title })}
-                      >
-                        <Archive className="h-4 w-4 mr-1" />
-                        Archive
-                      </Button>
-                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem asChild>
+                          <Link href={`/teacher/homework/${hw._id}`}>
+                            <Pencil className="h-4 w-4 mr-2" />
+                            View
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setEditTarget(hw._id)}>
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setArchiveTarget({ id: hw._id, title: hw.title })}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Archive className="h-4 w-4 mr-2" />
+                          Archive
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   )}
                 </div>
               </CardHeader>
