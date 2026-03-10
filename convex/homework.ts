@@ -1,5 +1,5 @@
 import { v } from 'convex/values';
-import { mutation, query } from './_generated/server';
+import { mutation, query, internalMutation } from './_generated/server';
 import type { MutationCtx } from './_generated/server';
 import type { Id } from './_generated/dataModel';
 
@@ -11,6 +11,8 @@ export const getByTeacher = query({
     teacherClassIds: v.array(v.string()),
     classIdFilter: v.optional(v.string()),
     statusFilter: v.optional(v.union(v.literal('active'), v.literal('archived'))),
+    searchQuery: v.optional(v.string()),
+    sortOrder: v.optional(v.union(v.literal('newest'), v.literal('due_asc'), v.literal('due_desc'))),
   },
   handler: async (ctx, args) => {
     let items = await ctx.db
@@ -30,10 +32,25 @@ export const getByTeacher = query({
     if (args.statusFilter) {
       items = items.filter((h) => h.status === args.statusFilter);
     }
+    if (args.searchQuery) {
+      const q = args.searchQuery.toLowerCase().trim();
+      items = items.filter(
+        (h) =>
+          h.title.toLowerCase().includes(q) ||
+          (h.description?.toLowerCase().includes(q) ?? false) ||
+          (h.subjectName?.toLowerCase().includes(q) ?? false)
+      );
+    }
 
-    return items.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    const order = args.sortOrder ?? 'newest';
+    if (order === 'newest') {
+      items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } else if (order === 'due_asc') {
+      items.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+    } else {
+      items.sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime());
+    }
+    return items;
   },
 });
 
@@ -45,6 +62,10 @@ export const getForParent = query({
     schoolId: v.string(),
     studentClassIds: v.array(v.string()),
     subjectIdFilter: v.optional(v.string()),
+    classIdFilter: v.optional(v.string()), // class document _id or className for filter
+    classNameFilter: v.optional(v.string()), // filter by className (for parent view)
+    searchQuery: v.optional(v.string()),
+    sortOrder: v.optional(v.union(v.literal('due_asc'), v.literal('due_desc'), v.literal('newest'))),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
@@ -57,6 +78,7 @@ export const getForParent = query({
     const filtered: typeof items = [];
     for (const h of items) {
       if (h.status !== 'active') continue;
+      if (args.classIdFilter && h.classId !== args.classIdFilter) continue;
       const classDoc = await ctx.db.get(h.classId as Id<'classes'>);
       if (classDoc && classCodeSet.has(classDoc.classCode)) {
         filtered.push(h);
@@ -67,10 +89,24 @@ export const getForParent = query({
     if (args.subjectIdFilter) {
       items = items.filter((h) => h.subjectId === args.subjectIdFilter);
     }
+    if (args.searchQuery) {
+      const q = args.searchQuery.toLowerCase().trim();
+      items = items.filter(
+        (h) =>
+          h.title.toLowerCase().includes(q) ||
+          (h.description?.toLowerCase().includes(q) ?? false) ||
+          (h.subjectName?.toLowerCase().includes(q) ?? false)
+      );
+    }
 
-    items.sort(
-      (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
-    );
+    const order = args.sortOrder ?? 'due_asc';
+    if (order === 'due_asc') {
+      items.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+    } else if (order === 'due_desc') {
+      items.sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime());
+    } else {
+      items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
 
     if (args.limit) {
       items = items.slice(0, args.limit);
@@ -297,6 +333,41 @@ export const submitHomework = mutation({
   },
 });
 
+// Bulk mark submissions (teacher)
+export const bulkMarkSubmissions = mutation({
+  args: {
+    ids: v.array(v.id('homeworkSubmissions')),
+    teacherId: v.string(),
+    grade: v.optional(v.string()),
+    feedback: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const teacher = await ctx.db.get(args.teacherId as Id<'teachers'>);
+    const teacherName = teacher
+      ? `${teacher.firstName} ${teacher.lastName}`
+      : 'Teacher';
+
+    let count = 0;
+    for (const id of args.ids) {
+      const sub = await ctx.db.get(id);
+      if (!sub) continue;
+      const hw = await ctx.db.get(sub.homeworkId);
+      if (!hw || hw.teacherId !== args.teacherId) continue;
+
+      await ctx.db.patch(id, {
+        status: 'marked',
+        grade: args.grade,
+        feedback: args.feedback,
+        markedBy: args.teacherId,
+        markedByName: teacherName,
+        markedAt: new Date().toISOString(),
+      });
+      count++;
+    }
+    return { count };
+  },
+});
+
 // Mark submission (teacher)
 export const markSubmission = mutation({
   args: {
@@ -370,3 +441,78 @@ async function notifyParentsOfNewHomework(
     });
   }
 }
+
+// Internal: Send due date reminders for homework due in 24-48 hours
+export const sendHomeworkDueReminders = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const dayAfter = new Date(now);
+    dayAfter.setDate(dayAfter.getDate() + 2);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    const dayAfterStr = dayAfter.toISOString().split('T')[0];
+
+    const schools = await ctx.db.query('schools').collect();
+    const allHomework: { _id: Id<'homework'>; schoolId: string; classId: string; title: string; dueDate: string; status: string }[] = [];
+    for (const school of schools) {
+      const hw = await ctx.db
+        .query('homework')
+        .withIndex('by_school', (q) => q.eq('schoolId', school._id))
+        .collect();
+      allHomework.push(...hw);
+    }
+
+    const dueSoon = allHomework.filter(
+      (h) =>
+        h.status === 'active' &&
+        (h.dueDate === tomorrowStr || h.dueDate === dayAfterStr)
+    );
+
+    let sent = 0;
+    for (const hw of dueSoon) {
+      const classDoc = await ctx.db.get(hw.classId as Id<'classes'>);
+      if (!classDoc) continue;
+
+      const students = await ctx.db
+        .query('students')
+        .withIndex('by_class', (q) => q.eq('classId', classDoc.classCode))
+        .collect();
+
+      const parentIds = new Set<string>();
+      for (const s of students) {
+        const links = await ctx.db
+          .query('parentStudents')
+          .withIndex('by_student', (q) => q.eq('studentId', s._id))
+          .collect();
+        for (const l of links) parentIds.add(l.parentId);
+      }
+
+      const actionUrl = `/parent/homework?hw=${hw._id}`;
+      for (const parentId of parentIds) {
+        const existing = await ctx.db
+          .query('notifications')
+          .filter((q) => q.eq(q.field('recipientId'), parentId))
+          .filter((q) => q.eq(q.field('actionUrl'), actionUrl))
+          .filter((q) => q.gte(q.field('timestamp'), today))
+          .first();
+        if (existing) continue;
+
+        await ctx.db.insert('notifications', {
+          title: 'Homework Due Soon',
+          message: `"${hw.title}" is due ${hw.dueDate === tomorrowStr ? 'tomorrow' : 'in 2 days'}. Don't forget to submit!`,
+          type: 'warning',
+          timestamp: now.toISOString(),
+          read: false,
+          recipientId: parentId,
+          recipientRole: 'parent',
+          actionUrl,
+        });
+        sent++;
+      }
+    }
+    return { sent, homeworkCount: dueSoon.length };
+  },
+});

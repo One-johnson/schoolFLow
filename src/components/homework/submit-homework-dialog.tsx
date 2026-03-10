@@ -57,11 +57,23 @@ export function SubmitHomeworkDialog({
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const MAX_FILE_SIZE_MB = 10;
+  const ALLOWED_TYPES = ['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png', '.txt'];
+  const getAllowedExtensions = () => ALLOWED_TYPES.join(', ');
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
-    if (f) {
-      setFile(f);
+    if (!f) return;
+    const ext = '.' + f.name.split('.').pop()?.toLowerCase();
+    if (!ALLOWED_TYPES.includes(ext)) {
+      toast.error(`File type not allowed. Use: ${getAllowedExtensions()}`);
+      return;
     }
+    if (f.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      toast.error(`File too large. Max ${MAX_FILE_SIZE_MB}MB.`);
+      return;
+    }
+    setFile(f);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -122,7 +134,7 @@ export function SubmitHomeworkDialog({
                 ref={fileInputRef}
                 type="file"
                 className="hidden"
-                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                accept={getAllowedExtensions()}
                 onChange={handleFileChange}
               />
               <Button

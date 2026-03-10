@@ -5,6 +5,7 @@ import { api } from '../../../../../convex/_generated/api';
 import { useTeacherAuth } from '@/hooks/useTeacherAuth';
 import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +28,8 @@ import {
   Users,
   FileDown,
   CheckCircle,
+  CheckSquare,
+  Square,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -40,10 +43,14 @@ export default function TeacherHomeworkDetailPage() {
   const homework = useQuery(api.homework.getById, { id });
   const submissions = useQuery(api.homework.getSubmissionsByHomework, { homeworkId: id });
   const markSubmission = useMutation(api.homework.markSubmission);
+  const bulkMarkSubmissions = useMutation(api.homework.bulkMarkSubmissions);
 
   const [markingId, setMarkingId] = useState<Id<'homeworkSubmissions'> | null>(null);
   const [grade, setGrade] = useState('');
   const [feedback, setFeedback] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<Id<'homeworkSubmissions'>>>(new Set());
+  const [bulkGrade, setBulkGrade] = useState('');
+  const [showBulkMark, setShowBulkMark] = useState(false);
 
 
   const handleMark = async () => {
@@ -59,6 +66,40 @@ export default function TeacherHomeworkDetailPage() {
       setMarkingId(null);
       setGrade('');
       setFeedback('');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to mark');
+    }
+  };
+
+  const unmarkedSubmissions = submissions?.filter((s) => s.status === 'submitted') ?? [];
+  const toggleSelect = (subId: Id<'homeworkSubmissions'>) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(subId)) next.delete(subId);
+      else next.add(subId);
+      return next;
+    });
+  };
+  const selectAllUnmarked = () => {
+    if (selectedIds.size === unmarkedSubmissions.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(unmarkedSubmissions.map((s) => s._id)));
+    }
+  };
+  const handleBulkMark = async () => {
+    if (selectedIds.size === 0 || !teacher) return;
+    try {
+      const { count } = await bulkMarkSubmissions({
+        ids: Array.from(selectedIds),
+        teacherId: teacher.id,
+        grade: bulkGrade || undefined,
+        feedback: undefined,
+      });
+      toast.success(`${count} submission(s) marked`);
+      setSelectedIds(new Set());
+      setShowBulkMark(false);
+      setBulkGrade('');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to mark');
     }
@@ -161,7 +202,33 @@ export default function TeacherHomeworkDetailPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Submissions ({submissions?.length ?? 0})</CardTitle>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <CardTitle>Submissions ({submissions?.length ?? 0})</CardTitle>
+            {unmarkedSubmissions.length > 0 && (
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={selectAllUnmarked}
+                >
+                  {selectedIds.size === unmarkedSubmissions.length ? (
+                    <Square className="h-4 w-4 mr-1" />
+                  ) : (
+                    <CheckSquare className="h-4 w-4 mr-1" />
+                  )}
+                  {selectedIds.size === unmarkedSubmissions.length ? 'Deselect all' : 'Select all'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowBulkMark(true)}
+                  disabled={selectedIds.size === 0}
+                >
+                  Mark {selectedIds.size > 0 ? selectedIds.size : ''} selected
+                </Button>
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {submissions === undefined ? (
@@ -175,10 +242,20 @@ export default function TeacherHomeworkDetailPage() {
                   key={sub._id}
                   className="flex items-center justify-between gap-4 p-4 rounded-lg border"
                 >
-                  <div>
-                    <p className="font-medium">{sub.studentName}</p>
+                  <div className="flex items-start gap-3">
+                    {sub.status === 'submitted' && (
+                      <Checkbox
+                        checked={selectedIds.has(sub._id)}
+                        onCheckedChange={() => toggleSelect(sub._id)}
+                      />
+                    )}
+                    <div>
+                      <p className="font-medium">{sub.studentName}</p>
                     <p className="text-sm text-muted-foreground">
                       Submitted by {sub.submittedByName} • {formatDate(sub.createdAt)}
+                      {homework && sub.createdAt.split('T')[0] > homework.dueDate && (
+                        <Badge variant="outline" className="ml-2 text-xs">Late</Badge>
+                      )}
                     </p>
                     {sub.status === 'marked' && sub.grade && (
                       <p className="text-sm mt-1">
@@ -186,6 +263,7 @@ export default function TeacherHomeworkDetailPage() {
                         {sub.feedback && ` • ${sub.feedback}`}
                       </p>
                     )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     {sub.storageId && (
@@ -228,6 +306,31 @@ export default function TeacherHomeworkDetailPage() {
         setFeedback={setFeedback}
         onMark={handleMark}
       />
+
+      <Dialog open={showBulkMark} onOpenChange={setShowBulkMark}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Bulk Mark Submissions</DialogTitle>
+            <DialogDescription>
+              Apply a grade to {selectedIds.size} selected submission(s). Leave blank to mark without grade.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label>Grade (optional)</Label>
+              <Input
+                value={bulkGrade}
+                onChange={(e) => setBulkGrade(e.target.value)}
+                placeholder="e.g. A, Pass"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowBulkMark(false)}>Cancel</Button>
+            <Button onClick={handleBulkMark}>Mark {selectedIds.size} submission(s)</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

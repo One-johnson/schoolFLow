@@ -18,4 +18,11 @@ crons.daily(
   internal.attendance.sendAttendanceReminders
 );
 
+// Send homework due reminders daily at 6:00 PM UTC (parents)
+crons.daily(
+  "homework due reminder",
+  { hourUTC: 18, minuteUTC: 0 },
+  internal.homework.sendHomeworkDueReminders
+);
+
 export default crons;

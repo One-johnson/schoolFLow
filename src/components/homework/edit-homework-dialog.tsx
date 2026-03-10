@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import type { Id } from '../../../convex/_generated/dataModel';
@@ -35,17 +35,19 @@ interface Teacher {
   classNames?: string[];
 }
 
-interface AddHomeworkDialogProps {
+interface EditHomeworkDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  homeworkId: Id<'homework'>;
   teacher: Teacher;
 }
 
-export function AddHomeworkDialog({
+export function EditHomeworkDialog({
   open,
   onOpenChange,
+  homeworkId,
   teacher,
-}: AddHomeworkDialogProps) {
+}: EditHomeworkDialogProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [classId, setClassId] = useState('');
@@ -57,23 +59,25 @@ export function AddHomeworkDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const createHomework = useMutation(api.homework.create);
+  const homework = useQuery(api.homework.getById, open ? { id: homeworkId } : 'skip');
+  const updateHomework = useMutation(api.homework.update);
   const generateUploadUrl = useMutation(api.photos.generateUploadUrl);
   const subjects = useQuery(
     api.subjects.getSubjectsBySchool,
     teacher?.schoolId ? { schoolId: teacher.schoolId } : 'skip'
   );
 
-  const resetForm = () => {
-    setTitle('');
-    setDescription('');
-    setClassId('');
-    setClassName('');
-    setSubjectId('__none__');
-    setSubjectName('');
-    setDueDate('');
-    setAttachmentFiles([]);
-  };
+  useEffect(() => {
+    if (homework) {
+      setTitle(homework.title);
+      setDescription(homework.description ?? '');
+      setClassId(homework.classId);
+      setClassName(homework.className);
+      setSubjectId(homework.subjectId ?? '__none__');
+      setSubjectName(homework.subjectName ?? '');
+      setDueDate(homework.dueDate);
+    }
+  }, [homework]);
 
   const handleClassChange = (cid: string) => {
     setClassId(cid);
@@ -148,15 +152,14 @@ export function AddHomeworkDialog({
     try {
       let attachmentStorageIds: string[] | undefined;
       if (attachmentFiles.length > 0) {
-        attachmentStorageIds = await Promise.all(
-          attachmentFiles.map((f) => uploadFile(f))
-        );
+        const newIds = await Promise.all(attachmentFiles.map((f) => uploadFile(f)));
+        const existing = homework?.attachmentStorageIds ?? [];
+        attachmentStorageIds = [...existing, ...newIds];
       }
 
-      await createHomework({
-        schoolId: teacher.schoolId,
+      await updateHomework({
+        id: homeworkId,
         teacherId: teacher.id,
-        teacherName: `${teacher.firstName} ${teacher.lastName}`,
         classId,
         className,
         subjectId: subjectId && subjectId !== '__none__' ? subjectId : undefined,
@@ -167,23 +170,24 @@ export function AddHomeworkDialog({
         attachmentStorageIds,
       });
 
-      toast.success('Homework created');
-      resetForm();
+      toast.success('Homework updated');
       onOpenChange(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to create homework');
+      toast.error(err instanceof Error ? err.message : 'Failed to update homework');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  if (!homework) return null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add Homework</DialogTitle>
+          <DialogTitle>Edit Homework</DialogTitle>
           <DialogDescription>
-            Create homework for your class. Parents will be notified.
+            Update homework details. Changes will be visible to parents immediately.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -249,7 +253,7 @@ export function AddHomeworkDialog({
             />
           </div>
           <div>
-            <Label>Attachments (optional)</Label>
+            <Label>Add more attachments (optional)</Label>
             <div className="flex gap-2 mt-1">
               <input
                 ref={fileInputRef}
@@ -268,6 +272,11 @@ export function AddHomeworkDialog({
                 Add files
               </Button>
             </div>
+            {homework.attachmentStorageIds && homework.attachmentStorageIds.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {homework.attachmentStorageIds.length} existing attachment(s) will be kept.
+              </p>
+            )}
             {attachmentFiles.length > 0 && (
               <ul className="mt-2 space-y-1 text-sm">
                 {attachmentFiles.map((f, i) => (
@@ -288,15 +297,11 @@ export function AddHomeworkDialog({
             )}
           </div>
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Creating...' : 'Create Homework'}
+              {isSubmitting ? 'Saving...' : 'Save Changes'}
             </Button>
           </DialogFooter>
         </form>

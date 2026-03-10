@@ -5,6 +5,7 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { useTeacherAuth } from '@/hooks/useTeacherAuth';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -31,21 +32,24 @@ import {
   Plus,
   Calendar,
   Archive,
-  Trash2,
   Pencil,
   Paperclip,
   Users,
-  ChevronDown,
+  Search,
 } from 'lucide-react';
 import Link from 'next/link';
 import type { Id } from '../../../../convex/_generated/dataModel';
-import { AddHomeworkDialog } from '@/components/homework/add-homework-dialog';
+import { AddHomeworkDialog } from '../../../components/homework/add-homework-dialog';
+import { EditHomeworkDialog } from '../../../components/homework/edit-homework-dialog';
 
 export default function TeacherHomeworkPage() {
   const { teacher } = useTeacherAuth();
   const [classIdFilter, setClassIdFilter] = useState<string>('__all__');
   const [statusFilter, setStatusFilter] = useState<'active' | 'archived' | undefined>();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortOrder, setSortOrder] = useState<string>('newest');
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [editTarget, setEditTarget] = useState<Id<'homework'> | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<{ id: Id<'homework'>; title: string } | null>(null);
 
   const homework = useQuery(
@@ -57,6 +61,8 @@ export default function TeacherHomeworkPage() {
           teacherClassIds: teacher.classIds ?? [],
           classIdFilter: classIdFilter && classIdFilter !== '__all__' ? classIdFilter : undefined,
           statusFilter,
+          searchQuery: searchQuery.trim() || undefined,
+          sortOrder: sortOrder as 'newest' | 'due_asc' | 'due_desc',
         }
       : 'skip'
   );
@@ -108,7 +114,16 @@ export default function TeacherHomeworkPage() {
         </Button>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search homework..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
         <Select value={classIdFilter} onValueChange={setClassIdFilter}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="All classes" />
@@ -133,6 +148,16 @@ export default function TeacherHomeworkPage() {
             <SelectItem value="all">All</SelectItem>
             <SelectItem value="active">Active</SelectItem>
             <SelectItem value="archived">Archived</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={sortOrder} onValueChange={setSortOrder}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="Sort" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="newest">Newest first</SelectItem>
+            <SelectItem value="due_asc">Due soonest</SelectItem>
+            <SelectItem value="due_desc">Due latest</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -194,6 +219,13 @@ export default function TeacherHomeworkPage() {
                       <Button
                         variant="outline"
                         size="sm"
+                        onClick={() => setEditTarget(hw._id)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => setArchiveTarget({ id: hw._id, title: hw.title })}
                       >
                         <Archive className="h-4 w-4 mr-1" />
@@ -220,6 +252,14 @@ export default function TeacherHomeworkPage() {
         onOpenChange={setShowAddDialog}
         teacher={teacher}
       />
+      {editTarget && (
+        <EditHomeworkDialog
+          open={!!editTarget}
+          onOpenChange={() => setEditTarget(null)}
+          homeworkId={editTarget}
+          teacher={teacher}
+        />
+      )}
 
       <AlertDialog open={!!archiveTarget} onOpenChange={() => setArchiveTarget(null)}>
         <AlertDialogContent>
