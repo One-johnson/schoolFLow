@@ -24,7 +24,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Paperclip, X } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Paperclip, X, CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
 
 interface Teacher {
   id: string;
@@ -54,7 +57,7 @@ export function EditHomeworkDialog({
   const [className, setClassName] = useState('');
   const [subjectId, setSubjectId] = useState<string>('__none__');
   const [subjectName, setSubjectName] = useState('');
-  const [dueDate, setDueDate] = useState('');
+  const [dueDate, setDueDate] = useState<Date | undefined>();
   const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -75,7 +78,7 @@ export function EditHomeworkDialog({
       setClassName(homework.className);
       setSubjectId(homework.subjectId ?? '__none__');
       setSubjectName(homework.subjectName ?? '');
-      setDueDate(homework.dueDate);
+      setDueDate(homework.dueDate ? new Date(homework.dueDate + 'T12:00:00') : undefined);
     }
   }, [homework]);
 
@@ -166,7 +169,7 @@ export function EditHomeworkDialog({
         subjectName: subjectName && subjectId !== '__none__' ? subjectName : undefined,
         title: title.trim(),
         description: description.trim(),
-        dueDate,
+        dueDate: dueDate ? format(dueDate, 'yyyy-MM-dd') : undefined,
         attachmentStorageIds,
       });
 
@@ -243,14 +246,29 @@ export function EditHomeworkDialog({
             </Select>
           </div>
           <div>
-            <Label htmlFor="dueDate">Due Date *</Label>
-            <Input
-              id="dueDate"
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              required
-            />
+            <Label>Due Date *</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-left font-normal"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dueDate ? format(dueDate, 'PPP') : 'Pick a date'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={dueDate}
+                  onSelect={setDueDate}
+                  initialFocus
+                  captionLayout="dropdown"
+                  startMonth={new Date()}
+                  endMonth={new Date(new Date().getFullYear() + 2, 11, 31)}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
           <div>
             <Label>Add more attachments (optional)</Label>
