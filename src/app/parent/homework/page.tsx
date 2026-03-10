@@ -1,13 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useMutation } from 'convex/react';
+import { useQuery } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { useParentAuth } from '@/hooks/useParentAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -15,13 +16,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { BookOpen, Calendar, Paperclip, Upload, CheckCircle } from 'lucide-react';
+import { BookOpen, Calendar, Paperclip, Upload, CheckCircle, Search, FileDown } from 'lucide-react';
 import { SubmitHomeworkDialog } from '../../../components/homework/submit-homework-dialog';
 import type { Id } from '../../../../convex/_generated/dataModel';
 
 export default function ParentHomeworkPage() {
   const { parent } = useParentAuth();
   const [subjectIdFilter, setSubjectIdFilter] = useState<string>('__all__');
+  const [classNameFilter, setClassNameFilter] = useState<string>('__all__');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortOrder, setSortOrder] = useState<string>('due_asc');
   const [submitTarget, setSubmitTarget] = useState<{
     homeworkId: Id<'homework'>;
     homeworkTitle: string;
@@ -39,9 +43,16 @@ export default function ParentHomeworkPage() {
           schoolId: parent.schoolId,
           studentClassIds,
           subjectIdFilter: subjectIdFilter && subjectIdFilter !== '__all__' ? subjectIdFilter : undefined,
+          classNameFilter: classNameFilter && classNameFilter !== '__all__' ? classNameFilter : undefined,
+          searchQuery: searchQuery.trim() || undefined,
+          sortOrder: sortOrder as 'due_asc' | 'due_desc' | 'newest',
         }
       : 'skip'
   );
+
+  const uniqueClassNames = Array.from(
+    new Set(parent?.students?.map((s) => s.className).filter(Boolean) ?? [])
+  ).sort();
 
   const subjects = useQuery(
     api.subjects.getSubjectsBySchool,
@@ -78,10 +89,19 @@ export default function ParentHomeworkPage() {
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search homework..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
         <Select value={subjectIdFilter} onValueChange={setSubjectIdFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="All subjects" />
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Subject" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="__all__">All subjects</SelectItem>
@@ -90,6 +110,29 @@ export default function ParentHomeworkPage() {
                 {s.subjectName}
               </SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+        <Select value={classNameFilter} onValueChange={setClassNameFilter}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Class" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All classes</SelectItem>
+            {uniqueClassNames.map((cn) => (
+              <SelectItem key={cn} value={cn}>
+                {cn}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={sortOrder} onValueChange={setSortOrder}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="Sort" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="due_asc">Due soonest</SelectItem>
+            <SelectItem value="due_desc">Due latest</SelectItem>
+            <SelectItem value="newest">Newest first</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -196,6 +239,15 @@ function HomeworkCard({
           </div>
         </div>
       </CardHeader>
+      {homework.attachmentStorageIds && homework.attachmentStorageIds.length > 0 && (
+        <CardContent className="pt-0 pb-2">
+          <div className="flex flex-wrap gap-2">
+            {homework.attachmentStorageIds.map((sid, i) => (
+              <HomeworkAttachmentLink key={sid} storageId={sid} label={`Download ${i + 1}`} />
+            ))}
+          </div>
+        </CardContent>
+      )}
       {homework.description && (
         <CardContent className="pt-0">
           <p className="text-sm text-muted-foreground whitespace-pre-wrap">
@@ -228,6 +280,19 @@ function HomeworkCard({
   );
 }
 
+function HomeworkAttachmentLink({ storageId, label }: { storageId: string; label: string }) {
+  const url = useQuery(api.photos.getFileUrl, { storageId });
+  if (!url) return null;
+  return (
+    <Button size="sm" variant="outline" asChild>
+      <a href={url} target="_blank" rel="noopener noreferrer">
+        <FileDown className="h-4 w-4 mr-1" />
+        {label}
+      </a>
+    </Button>
+  );
+}
+
 function HomeworkStudentSubmit({
   homeworkId,
   student,
@@ -249,12 +314,29 @@ function HomeworkStudentSubmit({
         {student.firstName} {student.lastName}
       </span>
       {submitted ? (
-        <Badge variant="secondary" className="flex items-center gap-1">
-          <CheckCircle className="h-3 w-3" />
-          {submission?.status === 'marked' && submission.grade
-            ? `Marked: ${submission.grade}`
-            : 'Submitted'}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="flex items-center gap-1">
+            <CheckCircle className="h-3 w-3" />
+            {submission?.status === 'marked' && submission.grade
+              ? `Marked: ${submission.grade}`
+              : 'Submitted'}
+          </Badge>
+          {submission?.status === 'submitted' && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() =>
+                onSubmit(
+                  student.id,
+                  `${student.firstName} ${student.lastName}`,
+                  student.className
+                )
+              }
+            >
+              Resubmit
+            </Button>
+          )}
+        </div>
       ) : (
         <Button
           size="sm"
