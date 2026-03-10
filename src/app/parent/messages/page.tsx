@@ -22,10 +22,24 @@ interface Conversation {
   unreadCount: number;
 }
 
+interface Message {
+  _id: Id<'messages'>;
+  senderId: string;
+  senderName: string;
+  senderRole: 'teacher' | 'parent';
+  content: string;
+  isRead: boolean;
+  createdAt: string;
+  isEdited?: boolean;
+  isDeleted?: boolean;
+}
+
 export default function ParentMessagesPage() {
   const { parent } = useParentAuth();
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messageInput, setMessageInput] = useState('');
+  const [editingMessageId, setEditingMessageId] = useState<Id<'messages'> | null>(null);
+  const [editInput, setEditInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const conversations = useQuery(
@@ -46,6 +60,8 @@ export default function ParentMessagesPage() {
 
   const sendMessage = useMutation(api.messages.sendMessage);
   const markAsRead = useMutation(api.messages.markMessagesAsRead);
+  const editMessage = useMutation(api.messages.editMessage);
+  const deleteMessage = useMutation(api.messages.deleteMessage);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -76,6 +92,51 @@ export default function ParentMessagesPage() {
     } catch (error) {
       console.error('Failed to send message:', error);
       toast.error('Failed to send message. Please try again.');
+    }
+  };
+
+  const handleStartEditing = (message: Message) => {
+    setEditingMessageId(message._id);
+    setEditInput(message.content);
+  };
+
+  const handleCancelEditing = () => {
+    setEditingMessageId(null);
+    setEditInput('');
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingMessageId || !editInput.trim() || !parent) return;
+
+    try {
+      await editMessage({
+        messageId: editingMessageId,
+        senderId: parent.id,
+        content: editInput.trim(),
+      });
+      setEditingMessageId(null);
+      setEditInput('');
+      toast.success('Message updated');
+    } catch (error) {
+      console.error('Failed to edit message:', error);
+      toast.error('Failed to update message. Please try again.');
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: Id<'messages'>) => {
+    if (!parent) return;
+    const confirmDelete = window.confirm('Delete this message for everyone?');
+    if (!confirmDelete) return;
+
+    try {
+      await deleteMessage({
+        messageId,
+        senderId: parent.id,
+      });
+      toast.success('Message deleted');
+    } catch (error) {
+      console.error('Failed to delete message:', error);
+      toast.error('Failed to delete message. Please try again.');
     }
   };
 
@@ -158,26 +219,80 @@ export default function ParentMessagesPage() {
                   {messages === undefined ? (
                     <Skeleton className="h-32 w-full" />
                   ) : (
-                    messages.map((msg) => (
-                      <div
-                        key={msg._id}
-                        className={`flex ${msg.senderRole === 'parent' ? 'justify-end' : 'justify-start'}`}
-                      >
+                    messages.map((msg: Message) => {
+                      const isOwn = msg.senderRole === 'parent' && parent && msg.senderId === parent.id;
+                      return (
                         <div
-                          className={`max-w-[80%] rounded-lg px-3 py-2 ${
-                            msg.senderRole === 'parent'
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-muted'
-                          }`}
+                          key={msg._id}
+                          className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
                         >
-                          <p className="text-sm font-medium">{msg.senderName}</p>
-                          <p className="text-sm mt-1">{msg.content}</p>
-                          <p className="text-xs opacity-80 mt-1">
-                            {new Date(msg.createdAt).toLocaleString()}
-                          </p>
+                          <div
+                            className={`max-w-[80%] rounded-lg px-3 py-2 ${
+                              isOwn ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-sm font-medium">{msg.senderName}</p>
+                              {isOwn && !msg.isDeleted && (
+                                <div className="flex items-center gap-1 text-[10px] opacity-80">
+                                  <button
+                                    type="button"
+                                    className="underline-offset-2 hover:underline"
+                                    onClick={() => handleStartEditing(msg)}
+                                  >
+                                    Edit
+                                  </button>
+                                  <span>·</span>
+                                  <button
+                                    type="button"
+                                    className="underline-offset-2 hover:underline"
+                                    onClick={() => handleDeleteMessage(msg._id)}
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                            {msg.isDeleted ? (
+                              <p className="text-xs italic opacity-80">
+                                This message was deleted
+                              </p>
+                            ) : editingMessageId === msg._id ? (
+                              <div className="space-y-2 mt-1">
+                                <Input
+                                  value={editInput}
+                                  onChange={(e) => setEditInput(e.target.value)}
+                                  autoFocus
+                                />
+                                <div className="flex justify-end gap-2 text-xs">
+                                  <button
+                                    type="button"
+                                    className="underline-offset-2 hover:underline"
+                                    onClick={handleCancelEditing}
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="underline-offset-2 hover:underline font-medium"
+                                    onClick={handleSaveEdit}
+                                    disabled={!editInput.trim()}
+                                  >
+                                    Save
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-sm mt-1">{msg.content}</p>
+                            )}
+                            <p className="text-xs opacity-80 mt-1">
+                              {new Date(msg.createdAt).toLocaleString()}
+                              {msg.isEdited && !msg.isDeleted && ' · edited'}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                   <div ref={messagesEndRef} />
                 </div>

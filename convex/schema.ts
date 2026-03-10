@@ -1490,6 +1490,13 @@ export default defineSchema({
     replyToId: v.optional(v.id('messages')), // For threading
     createdAt: v.string(),
     updatedAt: v.string(),
+    // Editing & deletion metadata
+    isEdited: v.optional(v.boolean()),
+    editedAt: v.optional(v.string()),
+    isDeleted: v.optional(v.boolean()),
+    deletedAt: v.optional(v.string()),
+    deletedById: v.optional(v.string()),
+    deletedByRole: v.optional(v.union(v.literal('teacher'), v.literal('parent'))),
   })
     .index('by_school', ['schoolId'])
     .index('by_message_code', ['messageCode'])

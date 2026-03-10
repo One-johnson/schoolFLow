@@ -1,5 +1,6 @@
 import { v } from 'convex/values';
 import { query, mutation } from './_generated/server';
+import type { Doc, Id } from './_generated/dataModel';
 
 // Generate unique codes
 function generateCode(prefix: string): string {
@@ -296,6 +297,107 @@ export const markMessagesAsRead = mutation({
   },
 });
 
+// Edit a message (only sender can edit)
+export const editMessage = mutation({
+  args: {
+    messageId: v.id('messages'),
+    senderId: v.string(),
+    content: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const message = await ctx.db.get(args.messageId);
+    if (!message) {
+      throw new Error('Message not found');
+    }
+
+    if (message.senderId !== args.senderId) {
+      throw new Error('You can only edit your own messages');
+    }
+
+    if (message.isDeleted) {
+      throw new Error('Cannot edit a deleted message');
+    }
+
+    const now = new Date().toISOString();
+
+    await ctx.db.patch(args.messageId, {
+      content: args.content,
+      isEdited: true,
+      editedAt: now,
+      updatedAt: now,
+    });
+
+    // If this was the last message in the conversation, update the preview
+    const conversationId = message.conversationId as Id<'conversations'>;
+    const lastMessages = await ctx.db
+      .query('messages')
+      .withIndex('by_conversation', (q) => q.eq('conversationId', message.conversationId))
+      .order('desc')
+      .take(1);
+
+    const lastMessage = lastMessages[0];
+    if (lastMessage && lastMessage._id === message._id) {
+      await ctx.db.patch(conversationId, {
+        lastMessagePreview: args.content.slice(0, 100),
+        updatedAt: now,
+      });
+    }
+
+    return { success: true };
+  },
+});
+
+// Delete a message (soft delete, only sender can delete)
+export const deleteMessage = mutation({
+  args: {
+    messageId: v.id('messages'),
+    senderId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const message = await ctx.db.get(args.messageId);
+    if (!message) {
+      throw new Error('Message not found');
+    }
+
+    if (message.senderId !== args.senderId) {
+      throw new Error('You can only delete your own messages');
+    }
+
+    if (message.isDeleted) {
+      return { success: true };
+    }
+
+    const now = new Date().toISOString();
+
+    await ctx.db.patch(args.messageId, {
+      content: 'This message was deleted',
+      isDeleted: true,
+      deletedAt: now,
+      deletedById: args.senderId,
+      deletedByRole: message.senderRole,
+      updatedAt: now,
+    });
+
+    // If this was the last message in the conversation, update the preview
+    const conversationId = message.conversationId as Id<'conversations'>;
+    const lastMessages = await ctx.db
+      .query('messages')
+      .withIndex('by_conversation', (q) => q.eq('conversationId', message.conversationId))
+      .order('desc')
+      .take(1);
+
+    const lastMessage = lastMessages[0];
+    if (lastMessage && lastMessage._id === message._id) {
+      await ctx.db.patch(conversationId, {
+        lastMessagePreview: 'Message deleted',
+        updatedAt: now,
+      });
+    }
+
+    return { success: true };
+  },
+});
+
 // Get all conversations for a parent (supports both real parentId and legacy parent_${studentId})
 export const getParentConversations = query({
   args: {
@@ -345,9 +447,18 @@ export const getParentsForClass = query({
     classId: v.string(),
   },
   handler: async (ctx, args) => {
+    // classId here is the Convex document _id of the class.
+    // Students store classCode in their classId field.
+    const classDoc = (await ctx.db.get(
+      args.classId as Id<'classes'>
+    )) as Doc<'classes'> | null;
+    if (!classDoc) {
+      return [];
+    }
+
     const students = await ctx.db
       .query('students')
-      .withIndex('by_class', (q) => q.eq('classId', args.classId))
+      .withIndex('by_class', (q) => q.eq('classId', classDoc!.classCode))
       .filter((q) =>
         q.or(
           q.eq(q.field('status'), 'active'),
