@@ -161,6 +161,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         parentId: parent.parentId,
         email: parent.email,
         name: parent.name,
+        phone: parent.phone,
         schoolId: parent.schoolId,
         studentIds: students.map((s) => s.id),
         students,

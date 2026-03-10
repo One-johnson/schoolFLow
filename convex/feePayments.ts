@@ -443,7 +443,9 @@ export const getStudentCreditBalance = query({
   },
 });
 
-// Get fee obligations for parent's children (read-only, for parent portal)
+// Get fee obligations for parent's children (read-only, for parent portal).
+// Uses fee structure totalAmount as "Due" when available, not the obligation's stored value
+// (which may have been derived incorrectly from payment items).
 export const getFeeObligationsForParent = query({
   args: {
     schoolId: v.string(),
@@ -454,7 +456,26 @@ export const getFeeObligationsForParent = query({
       .query('feeObligations')
       .withIndex('by_school', (q) => q.eq('schoolId', args.schoolId))
       .collect();
-    return obligations.filter((o) => args.studentIds.includes(o.studentId));
+
+    const filtered = obligations.filter((o) => args.studentIds.includes(o.studentId));
+
+    return Promise.all(
+      filtered.map(async (o) => {
+        let totalAmountDue = o.totalAmountDue;
+        if (o.feeStructureId) {
+          const structure = await ctx.db.get(o.feeStructureId as Id<'feeStructures'>);
+          if (structure?.totalAmount != null) {
+            totalAmountDue = structure.totalAmount;
+          }
+        }
+        const totalBalance = Math.max(0, totalAmountDue - o.totalAmountPaid);
+        return {
+          ...o,
+          totalAmountDue,
+          totalBalance,
+        };
+      })
+    );
   },
 });
 

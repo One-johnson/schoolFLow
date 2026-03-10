@@ -6,6 +6,8 @@ import { useParentAuth } from '@/hooks/useParentAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Wallet, AlertCircle, CheckCircle } from 'lucide-react';
+import { PhotoCell } from '@/components/students/photo-cell';
+import type { Id } from '../../../../convex/_generated/dataModel';
 
 export default function ParentFeesPage() {
   const { parent } = useParentAuth();
@@ -25,7 +27,10 @@ export default function ParentFeesPage() {
     );
   }
 
-  const byStudent = new Map<string, { name: string; obligations: typeof obligations }>();
+  const byStudent = new Map<
+    string,
+    { name: string; student: (typeof parent.students)[0]; obligations: typeof obligations }
+  >();
   if (obligations && parent.students) {
     for (const student of parent.students) {
       const studentObs = obligations.filter(
@@ -34,6 +39,7 @@ export default function ParentFeesPage() {
       if (studentObs.length > 0) {
         byStudent.set(student.id, {
           name: `${student.firstName} ${student.lastName}`,
+          student,
           obligations: studentObs,
         });
       }
@@ -82,9 +88,14 @@ export default function ParentFeesPage() {
             </CardContent>
           </Card>
         ) : (
-          Array.from(byStudent.entries()).map(([studentId, { name, obligations: obs }]) => (
+          Array.from(byStudent.entries()).map(([studentId, { name, student, obligations: obs }]) => (
             <Card key={studentId}>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center gap-3">
+                <PhotoCell
+                  photoStorageId={student.photoStorageId as Id<'_storage'> | undefined}
+                  firstName={student.firstName}
+                  lastName={student.lastName}
+                />
                 <CardTitle>{name}</CardTitle>
               </CardHeader>
               <CardContent>

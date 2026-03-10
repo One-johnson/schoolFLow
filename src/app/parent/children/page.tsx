@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChevronRight, Users } from 'lucide-react';
 import Link from 'next/link';
+import { PhotoCell } from '@/components/students/photo-cell';
+import type { Id } from '../../../../convex/_generated/dataModel';
 
 export default function ParentChildrenPage() {
   const { parent } = useParentAuth();
@@ -35,17 +37,26 @@ export default function ParentChildrenPage() {
           parent.students.map((student) => (
             <Link key={student.id} href={`/parent/children/${student.id}`}>
               <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle className="text-lg">
-                    {student.firstName} {student.lastName}
-                  </CardTitle>
-                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                <CardHeader className="flex flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <PhotoCell
+                      photoStorageId={student.photoStorageId as Id<'_storage'> | undefined}
+                      firstName={student.firstName}
+                      lastName={student.lastName}
+                    />
+                    <div>
+                      <CardTitle className="text-lg">
+                        {student.firstName} {student.lastName}
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        Class: {student.className}
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
                 </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    Class: {student.className}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
+                <CardContent className="pt-0">
+                  <p className="text-xs text-muted-foreground">
                     Student ID: {student.studentId}
                   </p>
                 </CardContent>

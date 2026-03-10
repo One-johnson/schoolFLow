@@ -17,8 +17,12 @@ import {
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ClipboardCheck, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
+import { useQuery } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
+import type { Id } from '../../../convex/_generated/dataModel';
 
 export type AttendanceRecordItem = {
   _id: string;
@@ -34,6 +38,8 @@ interface ParentAttendanceRecordProps {
   records: AttendanceRecordItem[];
   loading?: boolean;
   firstChildId?: string;
+  /** Map of studentId (Convex _id) -> photoStorageId for avatar display */
+  studentPhotos?: Record<string, string | undefined>;
 }
 
 const statusConfig: Record<
@@ -77,10 +83,36 @@ function formatDate(dateStr: string) {
   });
 }
 
+function AttendanceAvatar({
+  photoStorageId,
+  studentName,
+}: {
+  photoStorageId?: string;
+  studentName: string;
+}) {
+  const photoUrl = useQuery(
+    api.photos.getFileUrl,
+    photoStorageId ? { storageId: photoStorageId as Id<'_storage'> } : 'skip'
+  );
+  const initials = studentName
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+  return (
+    <Avatar className="h-8 w-8">
+      <AvatarImage src={photoUrl ?? undefined} alt={studentName} />
+      <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+    </Avatar>
+  );
+}
+
 export function ParentAttendanceRecord({
   records,
   loading = false,
   firstChildId,
+  studentPhotos,
 }: ParentAttendanceRecordProps) {
   if (loading) {
     return (
@@ -138,10 +170,19 @@ export function ParentAttendanceRecord({
               <TableBody>
                 {records.map((r) => {
                   const status = statusConfig[r.status] ?? statusConfig.present;
+                  const photoStorageId = studentPhotos?.[r.studentId];
                   return (
                     <TableRow key={r._id}>
                       <TableCell className="font-medium">{formatDate(r.date)}</TableCell>
-                      <TableCell>{r.studentName}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <AttendanceAvatar
+                            photoStorageId={photoStorageId}
+                            studentName={r.studentName}
+                          />
+                          <span>{r.studentName}</span>
+                        </div>
+                      </TableCell>
                       <TableCell className="text-muted-foreground capitalize">
                         {sessionLabels[r.session] ?? r.session}
                       </TableCell>

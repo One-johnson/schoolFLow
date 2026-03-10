@@ -22,6 +22,8 @@ const ALL_TABLES: TableNames[] = [
   "gradingScales",
   "exams",
   "announcements",
+  "homeworkSubmissions",
+  "homework",
   "eventNotifications",
   "eventRSVPs",
   "events",

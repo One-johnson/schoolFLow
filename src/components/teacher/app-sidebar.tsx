@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import {
   Sidebar,
   SidebarContent,
@@ -11,6 +12,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import {
   Home,
@@ -50,6 +52,7 @@ const mainMenuItems = [
   { title: 'Students', icon: Users, url: '/teacher/students' },
   { title: 'Attendance', icon: ClipboardCheck, url: '/teacher/attendance' },
   { title: 'Grade Book', icon: BookOpen, url: '/teacher/gradebook' },
+  { title: 'Homework', icon: FileText, url: '/teacher/homework' },
   { title: 'Messages', icon: MessageSquare, url: '/teacher/messages' },
 ];
 
@@ -69,7 +72,15 @@ export function TeacherAppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { logout, teacher } = useTeacherAuth();
+  const { setOpenMobile, isMobile } = useSidebar();
   const [showLogoutDialog, setShowLogoutDialog] = useState<boolean>(false);
+
+  // Close mobile sheet when navigating
+  useEffect(() => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  }, [pathname, isMobile, setOpenMobile]);
 
   const handleLogout = async (): Promise<void> => {
     await logout();
@@ -81,7 +92,7 @@ export function TeacherAppSidebar() {
     <>
       <Sidebar>
         <SidebarHeader>
-          <Link href="/teacher" className="flex items-center gap-2 px-4 py-3 hover:opacity-80 transition-opacity">
+          <Link href="/teacher" className="flex items-center gap-2 px-4 py-3 hover:opacity-80 transition-opacity" onClick={() => isMobile && setOpenMobile(false)}>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
               <GraduationCap className="h-5 w-5 text-primary-foreground" />
             </div>
@@ -102,7 +113,7 @@ export function TeacherAppSidebar() {
                       asChild
                       isActive={pathname === item.url || (item.url !== '/teacher' && pathname.startsWith(item.url))}
                     >
-                      <Link href={item.url}>
+                      <Link href={item.url} onClick={() => isMobile && setOpenMobile(false)}>
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
                       </Link>
@@ -123,7 +134,7 @@ export function TeacherAppSidebar() {
                       asChild
                       isActive={pathname === item.url || pathname.startsWith(item.url)}
                     >
-                      <Link href={item.url}>
+                      <Link href={item.url} onClick={() => isMobile && setOpenMobile(false)}>
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
                       </Link>
@@ -144,7 +155,7 @@ export function TeacherAppSidebar() {
                       asChild
                       isActive={pathname === item.url || pathname.startsWith(item.url)}
                     >
-                      <Link href={item.url}>
+                      <Link href={item.url} onClick={() => isMobile && setOpenMobile(false)}>
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
                       </Link>

@@ -9,11 +9,37 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ClipboardCheck, BookOpen, FileText, Wallet, Download, Share2 } from 'lucide-react';
 import Link from 'next/link';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { exportReportCardToPDF, exportReportCardToPDFAsBlob } from '@/lib/pdf-utils';
 import { generateFeeReceipt, generateFeeReceiptAsBlob } from '@/lib/fee-exports';
 import { shareOrDownloadFile } from '@/lib/share-utils';
 import { exportToPDF } from '@/lib/exports';
 import { toast } from 'sonner';
+import type { Id } from '../../../../../convex/_generated/dataModel';
+
+function ParentStudentAvatar({
+  photoStorageId,
+  firstName,
+  lastName,
+}: {
+  photoStorageId?: string;
+  firstName: string;
+  lastName: string;
+}) {
+  const photoUrl = useQuery(
+    api.photos.getFileUrl,
+    photoStorageId ? { storageId: photoStorageId as Id<'_storage'> } : 'skip'
+  );
+  return (
+    <Avatar className="h-16 w-16">
+      <AvatarImage src={photoUrl ?? undefined} alt={`${firstName} ${lastName}`} />
+      <AvatarFallback className="text-lg bg-primary/10 text-primary">
+        {firstName[0]}
+        {lastName[0]}
+      </AvatarFallback>
+    </Avatar>
+  );
+}
 
 export default function ParentChildDetailPage() {
   const params = useParams();
@@ -206,11 +232,18 @@ export default function ParentChildDetailPage() {
         </Link>
       </div>
 
-      <div>
-        <h1 className="text-2xl font-bold">
-          {student.firstName} {student.lastName}
-        </h1>
-        <p className="text-muted-foreground">{student.className} • {student.studentId}</p>
+      <div className="flex items-center gap-4">
+        <ParentStudentAvatar
+          photoStorageId={student.photoStorageId}
+          firstName={student.firstName}
+          lastName={student.lastName}
+        />
+        <div>
+          <h1 className="text-2xl font-bold">
+            {student.firstName} {student.lastName}
+          </h1>
+          <p className="text-muted-foreground">{student.className} • {student.studentId}</p>
+        </div>
       </div>
 
       {/* Attendance */}
