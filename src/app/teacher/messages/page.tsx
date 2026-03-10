@@ -73,12 +73,17 @@ interface Message {
   priority: Priority;
   isRead: boolean;
   createdAt: string;
+  isEdited?: boolean;
+  editedAt?: string;
+  isDeleted?: boolean;
 }
 
 export default function MessagesPage() {
   const { teacher } = useTeacherAuth();
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messageInput, setMessageInput] = useState('');
+  const [editingMessageId, setEditingMessageId] = useState<Id<'messages'> | null>(null);
+  const [editInput, setEditInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [newMessageOpen, setNewMessageOpen] = useState(false);
   const [newMessageData, setNewMessageData] = useState({
@@ -120,6 +125,8 @@ export default function MessagesPage() {
   const startConversation = useMutation(api.messages.startConversation);
   const sendMessage = useMutation(api.messages.sendMessage);
   const markAsRead = useMutation(api.messages.markMessagesAsRead);
+  const editMessage = useMutation(api.messages.editMessage);
+  const deleteMessage = useMutation(api.messages.deleteMessage);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -150,6 +157,47 @@ export default function MessagesPage() {
       setMessageInput('');
     } catch (error) {
       console.error('Failed to send message:', error);
+    }
+  };
+
+  const handleStartEditing = (message: Message) => {
+    setEditingMessageId(message._id);
+    setEditInput(message.content);
+  };
+
+  const handleCancelEditing = () => {
+    setEditingMessageId(null);
+    setEditInput('');
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingMessageId || !editInput.trim() || !teacher) return;
+
+    try {
+      await editMessage({
+        messageId: editingMessageId,
+        senderId: teacher.id,
+        content: editInput.trim(),
+      });
+      setEditingMessageId(null);
+      setEditInput('');
+    } catch (error) {
+      console.error('Failed to edit message:', error);
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: Id<'messages'>) => {
+    if (!teacher) return;
+    const confirmDelete = window.confirm('Delete this message for everyone?');
+    if (!confirmDelete) return;
+
+    try {
+      await deleteMessage({
+        messageId,
+        senderId: teacher.id,
+      });
+    } catch (error) {
+      console.error('Failed to delete message:', error);
     }
   };
 
@@ -557,16 +605,69 @@ export default function MessagesPage() {
                                   : 'bg-muted'
                               }`}
                             >
-                              <div className="flex items-center gap-2 mb-1">
-                                <TypeIcon className="h-3 w-3" />
-                                <span className="text-xs font-medium">
-                                  {message.senderName}
-                                </span>
+                              <div className="flex items-center justify-between gap-2 mb-1">
+                                <div className="flex items-center gap-2">
+                                  <TypeIcon className="h-3 w-3" />
+                                  <span className="text-xs font-medium">
+                                    {message.senderName}
+                                  </span>
+                                </div>
+                                {isOwn && !message.isDeleted && (
+                                  <div className="flex items-center gap-1 text-[10px] opacity-80">
+                                    <button
+                                      type="button"
+                                      className="underline-offset-2 hover:underline"
+                                      onClick={() => handleStartEditing(message)}
+                                    >
+                                      Edit
+                                    </button>
+                                    <span>·</span>
+                                    <button
+                                      type="button"
+                                      className="underline-offset-2 hover:underline"
+                                      onClick={() => handleDeleteMessage(message._id)}
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
+                                )}
                               </div>
-                              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                              <div className="flex items-center justify-end gap-1 mt-2">
-                                <span className="text-xs opacity-70">
+                              {message.isDeleted ? (
+                                <p className="text-xs italic opacity-80">
+                                  This message was deleted
+                                </p>
+                              ) : editingMessageId === message._id ? (
+                                <div className="space-y-2">
+                                  <Input
+                                    value={editInput}
+                                    onChange={(e) => setEditInput(e.target.value)}
+                                    autoFocus
+                                  />
+                                  <div className="flex justify-end gap-2 text-xs">
+                                    <button
+                                      type="button"
+                                      className="underline-offset-2 hover:underline"
+                                      onClick={handleCancelEditing}
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="underline-offset-2 hover:underline font-medium"
+                                      onClick={handleSaveEdit}
+                                      disabled={!editInput.trim()}
+                                    >
+                                      Save
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                              )}
+                              <div className="flex items-center justify-end gap-1 mt-2 text-[10px] opacity-80">
+                                <span>
                                   {formatTime(message.createdAt)}
+                                  {message.isEdited && !message.isDeleted && ' · edited'}
                                 </span>
                                 {isOwn && (
                                   <CheckCheck
