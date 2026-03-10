@@ -15,12 +15,15 @@ import {
   AlertCircle,
   FileText,
   ClipboardCheck,
+  BookOpen,
 } from 'lucide-react';
 import Link from 'next/link';
 import { StatsCard } from '@/components/school-admin/stats-card';
 import { ParentQuickActions } from '@/components/parent/parent-quick-actions';
 import { ParentDashboardCharts } from '@/components/parent/parent-dashboard-charts';
 import { ParentAttendanceRecord } from '@/components/parent/parent-attendance-record';
+import { PhotoCell } from '@/components/students/photo-cell';
+import type { Id } from '../../../convex/_generated/dataModel';
 
 export default function ParentHomePage() {
   const { parent } = useParentAuth();
@@ -76,6 +79,17 @@ export default function ParentHomePage() {
   const events = useQuery(
     api.events.getUpcomingEvents,
     parent ? { schoolId: parent.schoolId, limit: 5 } : 'skip'
+  );
+
+  const upcomingHomework = useQuery(
+    api.homework.getUpcomingForParent,
+    parent && (parent.students?.length ?? 0) > 0
+      ? {
+          schoolId: parent.schoolId,
+          studentClassIds: parent.students?.map((s) => s.classId) ?? [],
+          limit: 5,
+        }
+      : 'skip'
   );
 
   const greeting = () => {
@@ -251,6 +265,9 @@ export default function ParentHomePage() {
           records={recentAttendance ?? []}
           loading={recentAttendance === undefined}
           firstChildId={parent.students?.[0]?.id}
+          studentPhotos={Object.fromEntries(
+            parent.students.map((s) => [s.id, s.photoStorageId])
+          )}
         />
       )}
 
@@ -280,17 +297,23 @@ export default function ParentHomePage() {
                     <Link
                       key={student.id}
                       href={`/parent/children/${student.id}`}
-                      className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors"
+                      className="flex items-center justify-between gap-4 p-4 rounded-lg border hover:bg-muted/50 transition-colors"
                     >
-                      <div>
-                        <p className="font-medium">
-                          {student.firstName} {student.lastName}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {student.className}
-                        </p>
-                        {summary && (
-                          <div className="flex flex-wrap gap-3 mt-2 text-xs">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <PhotoCell
+                          photoStorageId={student.photoStorageId as Id<'_storage'> | undefined}
+                          firstName={student.firstName}
+                          lastName={student.lastName}
+                        />
+                        <div className="min-w-0">
+                          <p className="font-medium">
+                            {student.firstName} {student.lastName}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {student.className}
+                          </p>
+                          {summary && (
+                            <div className="flex flex-wrap gap-3 mt-2 text-xs">
                             {summary.attendanceRate !== null && (
                               <span className="flex items-center gap-1 text-muted-foreground">
                                 <ClipboardCheck className="h-3 w-3" />
@@ -312,8 +335,9 @@ export default function ParentHomePage() {
                             >
                               {summary.feeStatus}
                             </span>
-                          </div>
-                        )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                     </Link>
@@ -331,8 +355,8 @@ export default function ParentHomePage() {
         <ParentQuickActions firstChildId={parent.students?.[0]?.id} />
       </div>
 
-      {/* Announcements + Events */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      {/* Announcements + Events + Homework */}
+      <div className="grid gap-6 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">
@@ -372,6 +396,49 @@ export default function ParentHomePage() {
         </Card>
 
         <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5" />
+              Homework
+            </CardTitle>
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/parent/homework">
+                View all <ChevronRight className="h-4 w-4 ml-1" />
+              </Link>
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {upcomingHomework === undefined ? (
+              <Skeleton className="h-24 w-full" />
+            ) : upcomingHomework.length === 0 ? (
+              <p className="text-muted-foreground text-sm">
+                No upcoming homework.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {upcomingHomework.map((hw) => (
+                  <Link
+                    key={hw._id}
+                    href="/parent/homework"
+                    className="block p-4 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors"
+                  >
+                    <p className="font-medium text-sm">{hw.title}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {hw.className}
+                      {hw.subjectName && ` • ${hw.subjectName}`} • Due{' '}
+                      {new Date(hw.dueDate).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-1">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />

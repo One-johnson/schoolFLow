@@ -2,14 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Users, MessageSquare, Megaphone, User } from 'lucide-react';
+import { Home, Users, MessageSquare, Wallet, User, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/parent', icon: Home, label: 'Home' },
   { href: '/parent/children', icon: Users, label: 'Children' },
-  { href: '/parent/messages', icon: MessageSquare, label: 'Messages' },
-  { href: '/parent/announcements', icon: Megaphone, label: 'News' },
+  { href: '/parent/homework', icon: BookOpen, label: 'Homework' },
+  { href: '/parent/fees', icon: Wallet, label: 'Fees' },
   { href: '/parent/profile', icon: User, label: 'Profile' },
 ];
 

@@ -30,7 +30,7 @@ export const getParentDashboardSummary = query({
     const studentIds = args.children.flatMap((c) => [c.id, c.studentId]);
     const uniqueStudentIds = [...new Set(studentIds)];
 
-    // Fee obligations
+    // Fee obligations - use fee structure totalAmount as Due when available
     const obligations = await ctx.db
       .query("feeObligations")
       .withIndex("by_school", (q) => q.eq("schoolId", args.schoolId))
@@ -39,8 +39,23 @@ export const getParentDashboardSummary = query({
     const relevantObligations = obligations.filter((o) =>
       uniqueStudentIds.includes(o.studentId)
     );
-    const totalOutstandingFees =
-      relevantObligations.reduce((sum, o) => sum + (o.totalBalance ?? 0), 0) ?? 0;
+
+    const obligationBalances = new Map<string, number>();
+    for (const o of relevantObligations) {
+      let totalAmountDue = o.totalAmountDue;
+      if (o.feeStructureId) {
+        const structure = await ctx.db.get(o.feeStructureId as import("./_generated/dataModel").Id<"feeStructures">);
+        if (structure?.totalAmount != null) {
+          totalAmountDue = structure.totalAmount;
+        }
+      }
+      const balance = Math.max(0, totalAmountDue - o.totalAmountPaid);
+      obligationBalances.set(o._id, balance);
+    }
+    const totalOutstandingFees = Array.from(obligationBalances.values()).reduce(
+      (sum, b) => sum + b,
+      0
+    );
 
     // Report cards (published)
     const reportCards = await ctx.db
@@ -111,12 +126,12 @@ export const getParentDashboardSummary = query({
 
         const latestGrade = latestMark?.grade ?? null;
 
-        // Fee status for this child
+        // Fee status for this child (use enriched balance from fee structure)
         const childObligations = relevantObligations.filter(
           (o) => o.studentId === child.id || o.studentId === child.studentId
         );
         const childBalance = childObligations.reduce(
-          (sum, o) => sum + (o.totalBalance ?? 0),
+          (sum, o) => sum + (obligationBalances.get(o._id) ?? o.totalBalance ?? 0),
           0
         );
         const feeStatus =

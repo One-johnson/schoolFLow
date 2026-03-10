@@ -7,10 +7,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { User, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { User, Mail, Lock, Eye, EyeOff, Phone, Pencil } from 'lucide-react';
 
 export default function ParentProfilePage() {
-  const { parent, changePassword } = useParentAuth();
+  const { parent, changePassword, updateProfile } = useParentAuth();
+  const [showProfileForm, setShowProfileForm] = useState(false);
+  const [profileData, setProfileData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+  });
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
@@ -23,6 +29,37 @@ export default function ParentProfilePage() {
     confirm: false,
   });
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profileData.name.trim()) {
+      toast.error('Name is required');
+      return;
+    }
+    if (!profileData.email.trim()) {
+      toast.error('Email is required');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profileData.email)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+    setIsUpdatingProfile(true);
+    const result = await updateProfile({
+      name: profileData.name.trim(),
+      email: profileData.email.trim(),
+      phone: profileData.phone.trim() || undefined,
+    });
+    if (result.success) {
+      toast.success('Profile updated successfully');
+      setShowProfileForm(false);
+    } else {
+      toast.error(result.error ?? 'Failed to update profile');
+    }
+    setIsUpdatingProfile(false);
+  };
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,29 +106,109 @@ export default function ParentProfilePage() {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Account Information</CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setShowProfileForm(!showProfileForm);
+              if (!showProfileForm) {
+                setProfileData({
+                  name: parent.name,
+                  email: parent.email,
+                  phone: parent.phone ?? '',
+                });
+              }
+            }}
+          >
+            <Pencil className="h-4 w-4 mr-2" />
+            {showProfileForm ? 'Cancel' : 'Edit'}
+          </Button>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-              <User className="h-6 w-6 text-emerald-600" />
-            </div>
-            <div>
-              <p className="font-semibold">{parent.name}</p>
-              <p className="text-sm text-muted-foreground">{parent.email}</p>
-            </div>
-          </div>
-          <div className="grid gap-2">
-            <div className="flex items-center gap-2">
-              <Mail className="h-4 w-4 text-muted-foreground" />
-              <span>{parent.email}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4 text-muted-foreground" />
-              <span>{parent.students?.length ?? 0} child{parent.students?.length !== 1 ? 'ren' : ''} linked</span>
-            </div>
-          </div>
+          {showProfileForm ? (
+            <form onSubmit={handleUpdateProfile} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Full Name</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="name"
+                    value={profileData.name}
+                    onChange={(e) =>
+                      setProfileData({ ...profileData, name: e.target.value })
+                    }
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="email"
+                    type="email"
+                    value={profileData.email}
+                    onChange={(e) =>
+                      setProfileData({ ...profileData, email: e.target.value })
+                    }
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone (optional)</Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="+233 XX XXX XXXX"
+                    value={profileData.phone}
+                    onChange={(e) =>
+                      setProfileData({ ...profileData, phone: e.target.value })
+                    }
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              <Button type="submit" disabled={isUpdatingProfile}>
+                {isUpdatingProfile ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </form>
+          ) : (
+            <>
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                  <User className="h-6 w-6 text-emerald-600" />
+                </div>
+                <div>
+                  <p className="font-semibold">{parent.name}</p>
+                  <p className="text-sm text-muted-foreground">{parent.email}</p>
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-muted-foreground" />
+                  <span>{parent.email}</span>
+                </div>
+                {parent.phone && (
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <span>{parent.phone}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <span>{parent.students?.length ?? 0} child{parent.students?.length !== 1 ? 'ren' : ''} linked</span>
+                </div>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 

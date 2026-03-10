@@ -145,6 +145,11 @@ export default function ParentLoginPage(): React.JSX.Element {
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? 'Signing in...' : 'Sign In'}
               </Button>
+              <p className="text-center text-sm">
+                <Link href="/forgot-password" className="text-emerald-600 hover:underline">
+                  Forgot password?
+                </Link>
+              </p>
               <p className="text-center text-sm text-muted-foreground">
                 Don&apos;t have an account?{' '}
                 <Link href="/parent/register" className="text-emerald-600 hover:underline">

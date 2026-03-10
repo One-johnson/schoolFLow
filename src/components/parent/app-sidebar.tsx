@@ -26,6 +26,7 @@ import {
   Megaphone,
   Calendar,
   Wallet,
+  BookOpen,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -46,6 +47,7 @@ import { toast } from 'sonner';
 const mainMenuItems = [
   { title: 'Dashboard', icon: Home, url: '/parent' },
   { title: 'My Children', icon: Users, url: '/parent/children' },
+  { title: 'Homework', icon: BookOpen, url: '/parent/homework' },
   { title: 'Messages', icon: MessageSquare, url: '/parent/messages' },
   { title: 'Announcements', icon: Megaphone, url: '/parent/announcements' },
   { title: 'Events', icon: Calendar, url: '/parent/events' },

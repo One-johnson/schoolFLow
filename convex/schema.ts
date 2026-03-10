@@ -1069,6 +1069,52 @@ export default defineSchema({
     .index('by_school', ['schoolId'])
     .index('by_school_status', ['schoolId', 'status']),
 
+  homework: defineTable({
+    schoolId: v.string(),
+    teacherId: v.string(),
+    teacherName: v.string(),
+    classId: v.string(),
+    className: v.string(),
+    subjectId: v.optional(v.string()),
+    subjectName: v.optional(v.string()),
+    title: v.string(),
+    description: v.string(),
+    dueDate: v.string(),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+    status: v.union(v.literal('active'), v.literal('archived')),
+    attachmentStorageIds: v.optional(v.array(v.string())),
+  })
+    .index('by_school', ['schoolId'])
+    .index('by_class', ['schoolId', 'classId'])
+    .index('by_teacher', ['schoolId', 'teacherId'])
+    .index('by_due_date', ['schoolId', 'dueDate'])
+    .index('by_status', ['schoolId', 'status']),
+
+  homeworkSubmissions: defineTable({
+    schoolId: v.string(),
+    homeworkId: v.id('homework'),
+    studentId: v.string(),
+    studentName: v.string(),
+    submittedBy: v.string(), // parentId or teacherId
+    submittedByName: v.string(),
+    submittedByRole: v.union(v.literal('parent'), v.literal('teacher')),
+    storageId: v.string(),
+    fileName: v.string(),
+    remarks: v.optional(v.string()),
+    status: v.union(v.literal('submitted'), v.literal('marked')),
+    grade: v.optional(v.string()),
+    feedback: v.optional(v.string()),
+    markedBy: v.optional(v.string()),
+    markedByName: v.optional(v.string()),
+    markedAt: v.optional(v.string()),
+    createdAt: v.string(),
+  })
+    .index('by_school', ['schoolId'])
+    .index('by_homework', ['homeworkId'])
+    .index('by_student', ['schoolId', 'studentId'])
+    .index('by_homework_student', ['homeworkId', 'studentId']),
+
  exams: defineTable({
     schoolId: v.string(),
     examCode: v.string(), // Auto-generated: EXM + 8 digits

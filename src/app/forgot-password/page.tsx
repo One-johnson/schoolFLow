@@ -30,6 +30,7 @@ const ROLES = [
   { value: "super-admin", label: "Super Admin" },
   { value: "school-admin", label: "School Admin" },
   { value: "teacher", label: "Teacher" },
+  { value: "parent", label: "Parent" },
 ] as const;
 
 export default function ForgotPasswordPage(): React.JSX.Element {
@@ -224,13 +225,21 @@ export default function ForgotPasswordPage(): React.JSX.Element {
                         </>
                       )}
                     </Button>
-                    <Link
-                      href="/login"
-                      className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <ArrowLeft className="w-4 h-4" />
-                      Back to login
-                    </Link>
+                    <div className="flex flex-col gap-2">
+                      <Link
+                        href="/login"
+                        className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <ArrowLeft className="w-4 h-4" />
+                        Back to main login
+                      </Link>
+                      <Link
+                        href="/parent/login"
+                        className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        Back to parent login
+                      </Link>
+                    </div>
                   </div>
                 </form>
               </CardContent>

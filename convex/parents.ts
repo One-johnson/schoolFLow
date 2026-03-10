@@ -51,6 +51,7 @@ export const getParentWithStudents = query({
               lastName: student.lastName,
               className: student.className,
               classId: student.classId,
+              photoStorageId: student.photoStorageId,
             }
           : null;
       })
@@ -72,6 +73,57 @@ export const getParentStudentIds = query({
       .withIndex('by_parent', (q) => q.eq('parentId', args.parentId))
       .collect();
     return links.map((l) => l.studentId);
+  },
+});
+
+// Mutation: Update parent profile (name, email, phone)
+export const updateParentProfile = mutation({
+  args: {
+    parentId: v.id('parents'),
+    name: v.optional(v.string()),
+    email: v.optional(v.string()),
+    phone: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const parent = await ctx.db.get(args.parentId);
+    if (!parent) {
+      throw new Error('Parent not found');
+    }
+
+    const updates: Record<string, unknown> = {};
+    const now = new Date().toISOString();
+
+    if (args.name !== undefined && args.name.trim()) {
+      updates.name = args.name.trim();
+    }
+    if (args.phone !== undefined) {
+      updates.phone = (typeof args.phone === "string" && args.phone.trim())
+        ? args.phone.trim()
+        : undefined;
+    }
+    if (args.email !== undefined) {
+      const emailLower = args.email.trim().toLowerCase();
+      if (!emailLower) {
+        throw new Error('Email cannot be empty');
+      }
+      // Check if email is taken by another parent (excluding self)
+      const existing = await ctx.db
+        .query('parents')
+        .withIndex('by_email', (q) => q.eq('email', emailLower))
+        .first();
+      if (existing && existing._id !== args.parentId) {
+        throw new Error('This email is already in use by another account');
+      }
+      updates.email = emailLower;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return { success: true };
+    }
+
+    updates.updatedAt = now;
+    await ctx.db.patch(args.parentId, updates);
+    return { success: true };
   },
 });
 

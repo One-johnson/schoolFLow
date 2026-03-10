@@ -11,6 +11,7 @@ export interface ParentStudent {
   lastName: string;
   className: string;
   classId: string;
+  photoStorageId?: string;
 }
 
 export interface Parent {
@@ -19,6 +20,7 @@ export interface Parent {
   email: string;
   schoolId: string;
   name: string;
+  phone?: string;
   studentIds: string[];
   students: ParentStudent[];
   photoUrl?: string;
@@ -39,6 +41,12 @@ interface LoginResult {
 }
 
 interface ChangePasswordResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+}
+
+interface UpdateProfileResult {
   success: boolean;
   message?: string;
   error?: string;
@@ -147,6 +155,32 @@ export function useParentAuth() {
     }
   };
 
+  const updateProfile = async (
+    updates: { name?: string; email?: string; phone?: string }
+  ): Promise<UpdateProfileResult> => {
+    try {
+      const { data, status } = await axios.post<{
+        success?: boolean;
+        message?: string;
+        error?: string;
+      }>("/api/parent-auth/update-profile", updates, axiosDefaults);
+
+      if (status >= 200 && status < 300 && data.success) {
+        await checkAuth();
+        return { success: true, message: data.message };
+      }
+      return { success: false, error: data.error };
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.data?.error) {
+        return { success: false, error: String(error.response.data.error) };
+      }
+      return {
+        success: false,
+        error: "Failed to update profile. Please try again.",
+      };
+    }
+  };
+
   const changePassword = async (
     currentPassword: string,
     newPassword: string,
@@ -178,6 +212,7 @@ export function useParentAuth() {
     login,
     logout,
     changePassword,
+    updateProfile,
     checkAuth,
   };
 }
