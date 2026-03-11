@@ -157,6 +157,39 @@ export const deleteSchool = mutation({
   },
 });
 
+export const updateSchoolInfo = mutation({
+  args: {
+    id: v.id('schools'),
+    name: v.optional(v.string()),
+    email: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    address: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const updates: Record<string, string> = {};
+
+    if (args.name !== undefined) {
+      updates.name = args.name;
+    }
+    if (args.email !== undefined) {
+      updates.email = args.email;
+    }
+    if (args.phone !== undefined) {
+      updates.phone = args.phone;
+    }
+    if (args.address !== undefined) {
+      updates.address = args.address;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return args.id;
+    }
+
+    await ctx.db.patch(args.id, updates);
+    return args.id;
+  },
+});
+
 export const bulkSuspend = mutation({
   args: {
     ids: v.array(v.id('schools')),

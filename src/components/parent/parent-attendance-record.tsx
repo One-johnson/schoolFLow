@@ -157,48 +157,85 @@ export function ParentAttendanceRecord({
             </p>
           </div>
         ) : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Session</TableHead>
-                  <TableHead className="text-right">Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {records.map((r) => {
-                  const status = statusConfig[r.status] ?? statusConfig.present;
-                  const photoStorageId = studentPhotos?.[r.studentId];
-                  return (
-                    <TableRow key={r._id}>
-                      <TableCell className="font-medium">{formatDate(r.date)}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <AttendanceAvatar
-                            photoStorageId={photoStorageId}
-                            studentName={r.studentName}
-                          />
-                          <span>{r.studentName}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground capitalize">
-                        {sessionLabels[r.session] ?? r.session}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <span
-                          className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${status.className}`}
-                        >
-                          {status.label}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
+          <>
+            {/* Mobile: clickable list cards */}
+            <div className="space-y-3 md:hidden">
+              {records.map((r) => {
+                const status = statusConfig[r.status] ?? statusConfig.present;
+                const photoStorageId = studentPhotos?.[r.studentId];
+                return (
+                  <div
+                    key={r._id}
+                    className="flex items-center justify-between gap-3 rounded-lg border p-3 bg-muted/40"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <AttendanceAvatar
+                        photoStorageId={photoStorageId}
+                        studentName={r.studentName}
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{r.studentName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatDate(r.date)} • {sessionLabels[r.session] ?? r.session}
+                        </p>
+                      </div>
+                    </div>
+                    <span
+                      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${status.className}`}
+                    >
+                      {status.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop: table view */}
+            <div className="hidden md:block rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Student</TableHead>
+                    <TableHead>Session</TableHead>
+                    <TableHead className="text-right">Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {records.map((r) => {
+                    const status = statusConfig[r.status] ?? statusConfig.present;
+                    const photoStorageId = studentPhotos?.[r.studentId];
+                    return (
+                      <TableRow key={r._id}>
+                        <TableCell className="font-medium">
+                          {formatDate(r.date)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <AttendanceAvatar
+                              photoStorageId={photoStorageId}
+                              studentName={r.studentName}
+                            />
+                            <span>{r.studentName}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground capitalize">
+                          {sessionLabels[r.session] ?? r.session}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <span
+                            className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${status.className}`}
+                          >
+                            {status.label}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
       </CardContent>
     </Card>
