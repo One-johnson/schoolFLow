@@ -2,6 +2,8 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery } from 'convex/react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { api } from '../../../../../convex/_generated/api';
 import { useTeacherAuth } from '@/hooks/useTeacherAuth';
 import { Button } from '@/components/ui/button';
@@ -45,7 +47,19 @@ export default function StudentDetailPage() {
 
   const feePayments = useQuery(
     api.feePayments.getFeePaymentsByStudentId,
-    studentId ? { studentId } : 'skip'
+    student && student.studentId ? { studentId: student.studentId } : 'skip'
+  );
+
+  const feeObligations = useQuery(
+    api.feePayments.getFeeObligationsForParent,
+    teacher && student
+      ? { schoolId: teacher.schoolId, studentIds: [student._id, student.studentId] }
+      : 'skip'
+  );
+
+  const school = useQuery(
+    api.schools.getBySchoolId,
+    teacher ? { schoolId: teacher.schoolId } : 'skip'
   );
 
   const formatDate = (dateString: string) => {
@@ -57,10 +71,7 @@ export default function StudentDetailPage() {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-GH', {
-      style: 'currency',
-      currency: 'GHS',
-    }).format(amount);
+    return `GHS ${amount.toFixed(2)}`;
   };
 
   const getStatusColor = (status: string) => {
@@ -76,8 +87,340 @@ export default function StudentDetailPage() {
     }
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handleExportPDF = () => {
+    if (!student) return;
+
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 15;
+    const contentWidth = pageWidth - margin * 2;
+    let yPos = margin;
+
+    // School header - name
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text(school?.name || 'SCHOOL NAME', pageWidth / 2, yPos, {
+      align: 'center',
+    });
+
+    yPos += 8;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+
+    // School address (wrapped)
+    if (school?.address) {
+      const addressLines = doc.splitTextToSize(String(school.address), contentWidth);
+      doc.text(addressLines, pageWidth / 2, yPos, {
+        align: 'center',
+      });
+      yPos += addressLines.length * 5;
+    }
+
+    // School phone
+    if (school?.phone) {
+      doc.text(`Tel: ${school.phone}`, pageWidth / 2, yPos, {
+        align: 'center',
+      });
+      yPos += 6;
+    } else {
+      yPos += 4;
+    }
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('STUDENT PROFILE', pageWidth / 2, yPos, { align: 'center' });
+
+    // Reserve a fixed header block for photo + summary so nothing overlaps it
+    const headerBlockTop = yPos;
+    const headerBlockHeight = 40;
+    const leftX = margin;
+
+    yPos += 8;
+
+    // Optional student photo (top-right inside header block)
+    const photoSize = 30;
+    const photoX = pageWidth - margin - photoSize;
+    const photoY = headerBlockTop + 6;
+
+    if (student.photoUrl) {
+      try {
+        doc.addImage(student.photoUrl, 'JPEG', photoX, photoY, photoSize, photoSize);
+      } catch {
+        // Ignore photo errors
+      }
+    }
+
+    // Student basic info in the header block
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    let infoY = headerBlockTop + 12;
+    doc.text('Name:', leftX, infoY);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${student.firstName} ${student.lastName}`, leftX + 22, infoY);
+
+    infoY += 6;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Student ID:', leftX, infoY);
+    doc.setFont('helvetica', 'normal');
+    doc.text(student.studentId, leftX + 22, infoY);
+
+    infoY += 6;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Class:', leftX, infoY);
+    doc.setFont('helvetica', 'normal');
+    doc.text(student.className || '', leftX + 22, infoY);
+
+    infoY += 6;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Status:', leftX, infoY);
+    doc.setFont('helvetica', 'normal');
+    doc.text(student.status, leftX + 22, infoY);
+
+    // Move below header block so following sections never overlap photo/summary
+    yPos = headerBlockTop + headerBlockHeight + 4;
+
+    // Personal information (table)
+    const personalRows: string[][] = [
+      ['Gender', student.gender ?? ''],
+      ['Date of Birth', formatDate(student.dateOfBirth)],
+      ['Class', student.className || ''],
+      ['Roll Number', student.rollNumber ? String(student.rollNumber) : ''],
+      [
+        'Admission No.',
+        student.admissionNumber ? String(student.admissionNumber) : '',
+      ],
+      [
+        'Admission Date',
+        student.admissionDate ? formatDate(student.admissionDate) : '',
+      ],
+    ].filter(([, value]) => value);
+
+    if (personalRows.length) {
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Personal Information', leftX, yPos);
+      yPos += 4;
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Field', 'Value']],
+        body: personalRows,
+        theme: 'grid',
+        styles: { fontSize: 9, cellPadding: 2 },
+        headStyles: {
+          fillColor: [240, 240, 240],
+          textColor: [0, 0, 0],
+          fontStyle: 'bold',
+        },
+        margin: { left: margin, right: margin },
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      yPos = (doc as any).lastAutoTable.finalY + 6;
+    }
+
+    // Contact information (table)
+    const contactRows: string[][] = [];
+    if (student.email) contactRows.push(['Email', student.email]);
+    if (student.phone) contactRows.push(['Phone', student.phone]);
+    if (student.address) contactRows.push(['Address', student.address]);
+
+    if (contactRows.length) {
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Contact Information', leftX, yPos);
+      yPos += 4;
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Field', 'Value']],
+        body: contactRows,
+        theme: 'grid',
+        styles: { fontSize: 9, cellPadding: 2 },
+        headStyles: {
+          fillColor: [240, 240, 240],
+          textColor: [0, 0, 0],
+          fontStyle: 'bold',
+        },
+        margin: { left: margin, right: margin },
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      yPos = (doc as any).lastAutoTable.finalY + 6;
+    }
+
+    // Parent/Guardian (table)
+    const parentRows: string[][] = [
+      ['Name', student.parentName],
+      ['Relationship', student.relationship],
+      ['Phone', student.parentPhone],
+    ];
+    if (student.parentEmail) {
+      parentRows.push(['Email', student.parentEmail]);
+    }
+    if (student.parentOccupation) {
+      parentRows.push(['Occupation', student.parentOccupation]);
+    }
+
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Parent / Guardian', leftX, yPos);
+    yPos += 4;
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Field', 'Value']],
+      body: parentRows,
+      theme: 'grid',
+      styles: { fontSize: 9, cellPadding: 2 },
+      headStyles: {
+        fillColor: [240, 240, 240],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+      },
+      margin: { left: margin, right: margin },
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    yPos = (doc as any).lastAutoTable.finalY + 6;
+
+    // Emergency contact (table)
+    if (student.emergencyContactName) {
+      const emergencyRows: string[][] = [['Name', student.emergencyContactName]];
+      if (student.emergencyContactPhone) {
+        emergencyRows.push(['Phone', student.emergencyContactPhone]);
+      }
+      if (student.emergencyContactRelationship) {
+        emergencyRows.push([
+          'Relationship',
+          student.emergencyContactRelationship,
+        ]);
+      }
+
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Emergency Contact', leftX, yPos);
+      yPos += 4;
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Field', 'Value']],
+        body: emergencyRows,
+        theme: 'grid',
+        styles: { fontSize: 9, cellPadding: 2 },
+        headStyles: {
+          fillColor: [240, 240, 240],
+          textColor: [0, 0, 0],
+          fontStyle: 'bold',
+        },
+        margin: { left: margin, right: margin },
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      yPos = (doc as any).lastAutoTable.finalY + 6;
+    }
+
+    // Medical information (table)
+    if (student.allergies || student.medicalConditions) {
+      const medicalRows: string[][] = [];
+      if (student.allergies) {
+        const value: string = Array.isArray(student.allergies)
+          ? student.allergies.join(', ')
+          : String(student.allergies);
+        medicalRows.push(['Allergies', value]);
+      }
+      if (student.medicalConditions) {
+        const value: string = Array.isArray(student.medicalConditions)
+          ? student.medicalConditions.join(', ')
+          : String(student.medicalConditions);
+        medicalRows.push(['Medical Conditions', value]);
+      }
+
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Medical Information', leftX, yPos);
+      yPos += 4;
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Field', 'Details']],
+        body: medicalRows,
+        theme: 'grid',
+        styles: { fontSize: 9, cellPadding: 2 },
+        headStyles: {
+          fillColor: [240, 240, 240],
+          textColor: [0, 0, 0],
+          fontStyle: 'bold',
+        },
+        margin: { left: margin, right: margin },
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      yPos = (doc as any).lastAutoTable.finalY + 6;
+    }
+
+    // Fee summary (table) - use obligations as source of truth
+    if (feeObligations && feeObligations.length > 0) {
+      let totalDue = 0;
+      let totalPaid = 0;
+      let totalBalance = 0;
+
+      for (const o of feeObligations) {
+        const due = o.totalAmountDue ?? 0;
+        const paid = o.totalAmountPaid ?? 0;
+        const balance = o.totalBalance ?? Math.max(due - paid, 0);
+        totalDue += due;
+        totalPaid += paid;
+        totalBalance += balance;
+      }
+
+      let lastPaymentDate = 'No payments yet';
+      let statusLabel = totalBalance <= 0 ? 'Paid' : 'Pending';
+
+      if (feePayments && feePayments.length > 0) {
+        const sortedPayments = [...feePayments].sort(
+          (a, b) =>
+            new Date(a.paymentDate).getTime() -
+            new Date(b.paymentDate).getTime()
+        );
+        const latest = sortedPayments[sortedPayments.length - 1];
+        lastPaymentDate = formatDate(latest.paymentDate);
+        statusLabel = latest.paymentStatus
+          ? latest.paymentStatus.charAt(0).toUpperCase() +
+            latest.paymentStatus.slice(1)
+          : totalBalance <= 0
+            ? 'Paid'
+            : 'Partial';
+      }
+
+      const feeRows: string[][] = [
+        ['Total Fees (Current)', formatCurrency(totalDue)],
+        ['Total Paid', formatCurrency(totalPaid)],
+        ['Outstanding Balance', formatCurrency(totalBalance)],
+        ['Last Payment Date', lastPaymentDate],
+        ['Last Payment Status', statusLabel],
+      ];
+
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Fee Summary', leftX, yPos);
+      yPos += 4;
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Field', 'Value']],
+        body: feeRows,
+        theme: 'grid',
+        styles: { fontSize: 9, cellPadding: 2 },
+        headStyles: {
+          fillColor: [240, 240, 240],
+          textColor: [0, 0, 0],
+          fontStyle: 'bold',
+        },
+        margin: { left: margin, right: margin },
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      yPos = (doc as any).lastAutoTable.finalY + 6;
+    }
+
+    const pdfBlob = doc.output('blob');
+    const pdfUrl = URL.createObjectURL(pdfBlob);
+    window.open(pdfUrl, '_blank');
   };
 
   const handleExportCSV = () => {
@@ -168,11 +511,11 @@ export default function StudentDetailPage() {
             <Download className="h-4 w-4 mr-2" />
             CSV
           </Button>
-          <Button variant="outline" size="sm" onClick={handlePrint}>
+          <Button variant="outline" size="sm" onClick={handleExportPDF}>
             <FileText className="h-4 w-4 mr-2" />
             PDF
           </Button>
-          <Button variant="outline" size="sm" onClick={handlePrint}>
+          <Button variant="outline" size="sm" onClick={handleExportPDF}>
             <Printer className="h-4 w-4 mr-2" />
             Print
           </Button>
@@ -432,63 +775,122 @@ export default function StudentDetailPage() {
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
             </div>
-          ) : feePayments.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6 bg-muted/50 rounded-lg">
-              No payment records found
-            </p>
           ) : (
-            <Accordion type="single" collapsible className="w-full">
-              {feePayments.map((payment, index) => (
-                <AccordionItem key={payment._id} value={payment._id}>
-                  <AccordionTrigger className="hover:no-underline py-3">
-                    <div className="flex items-center justify-between w-full pr-4">
-                      <div className="text-left">
-                        <p className="font-medium text-sm">
-                          {payment.receiptNumber || `Payment #${index + 1}`}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDate(payment.paymentDate)}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-sm">
-                          {formatCurrency(payment.totalAmountDue || 0)}
-                        </p>
-                        <span
-                          className={`text-xs px-2 py-0.5 rounded ${
-                            payment.paymentStatus === 'paid'
-                              ? 'bg-green-100 text-green-700'
-                              : payment.paymentStatus === 'partial'
-                              ? 'bg-yellow-100 text-yellow-700'
-                              : 'bg-red-100 text-red-700'
-                          }`}
-                        >
-                          {payment.paymentStatus}
-                        </span>
-                      </div>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-2 pt-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Method</span>
-                        <span className="capitalize">{payment.paymentMethod?.replace('_', ' ')}</span>
-                      </div>
-                      {payment.transactionReference && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Reference</span>
-                          <span>{payment.transactionReference}</span>
+            <>
+              {/* Fee summary from fee obligations / fee structure */}
+              {feeObligations && feeObligations.length > 0 && (
+                <div className="mb-4 grid gap-2 sm:grid-cols-3 text-sm">
+                  {(() => {
+                    let totalDue = 0;
+                    let totalPaid = 0;
+                    let totalBalance = 0;
+
+                    for (const o of feeObligations) {
+                      const due = o.totalAmountDue ?? 0;
+                      const paid = o.totalAmountPaid ?? 0;
+                      const balance = o.totalBalance ?? Math.max(due - paid, 0);
+                      totalDue += due;
+                      totalPaid += paid;
+                      totalBalance += balance;
+                    }
+
+                    return (
+                      <>
+                        <div className="flex flex-col rounded border bg-muted/40 px-3 py-2">
+                          <span className="text-xs text-muted-foreground">
+                            Total Fees (Current)
+                          </span>
+                          <span className="font-semibold">
+                            {formatCurrency(totalDue)}
+                          </span>
                         </div>
-                      )}
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Balance</span>
-                        <span>{formatCurrency(payment.remainingBalance || 0)}</span>
-                      </div>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
+                        <div className="flex flex-col rounded border bg-muted/40 px-3 py-2">
+                          <span className="text-xs text-muted-foreground">
+                            Total Paid
+                          </span>
+                          <span className="font-semibold">
+                            {formatCurrency(totalPaid)}
+                          </span>
+                        </div>
+                        <div className="flex flex-col rounded border bg-muted/40 px-3 py-2">
+                          <span className="text-xs text-muted-foreground">
+                            Outstanding Balance
+                          </span>
+                          <span className="font-semibold">
+                            {formatCurrency(totalBalance)}
+                          </span>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {feePayments.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6 bg-muted/50 rounded-lg">
+                  No payment records found
+                </p>
+              ) : (
+                <Accordion type="single" collapsible className="w-full">
+                  {feePayments.map((payment, index) => (
+                    <AccordionItem key={payment._id} value={payment._id}>
+                      <AccordionTrigger className="hover:no-underline py-3">
+                        <div className="flex items-center justify-between w-full pr-4">
+                          <div className="text-left">
+                            <p className="font-medium text-sm">
+                              {payment.receiptNumber || `Payment #${index + 1}`}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatDate(payment.paymentDate)}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold text-sm">
+                              {formatCurrency(payment.amount || 0)}
+                            </p>
+                            <span
+                              className={`text-xs px-2 py-0.5 rounded ${
+                                payment.paymentStatus === 'paid'
+                                  ? 'bg-green-100 text-green-700'
+                                  : payment.paymentStatus === 'partial'
+                                  ? 'bg-yellow-100 text-yellow-700'
+                                  : 'bg-red-100 text-red-700'
+                              }`}
+                            >
+                              {payment.paymentStatus}
+                            </span>
+                          </div>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="space-y-2 pt-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Method</span>
+                            <span className="capitalize">
+                              {payment.paymentMethod?.replace('_', ' ')}
+                            </span>
+                          </div>
+                          {payment.transactionReference && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">
+                                Reference
+                              </span>
+                              <span>{payment.transactionReference}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Balance</span>
+                            <span>
+                              {formatCurrency(payment.remainingBalance || 0)}
+                            </span>
+                          </div>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

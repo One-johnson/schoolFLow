@@ -320,7 +320,115 @@ export default function GradeBookPage() {
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                <ScrollArea className="w-full overflow-x-auto">
+                {/* Mobile: stacked editable cards */}
+                <div className="space-y-3 p-3 md:hidden">
+                  {!students ? (
+                    <Skeleton className="h-8 w-full" />
+                  ) : filteredEntries.length === 0 ? (
+                    <p className="text-center py-4 text-sm text-muted-foreground">
+                      No students found
+                    </p>
+                  ) : (
+                    filteredEntries.map((entry) => {
+                      const subjectInfo = examSubjects.find(
+                        (s: { subjectId: string }) => s.subjectId === selectedSubjectId
+                      );
+                      const maxMarks = subjectInfo?.maxMarks ?? 100;
+                      const total = entry.classScore + entry.examScore;
+                      const percentage = (total / maxMarks) * 100;
+                      const gradeInfo = getGradeBadge(percentage);
+
+                      return (
+                        <div
+                          key={entry.studentId}
+                          className={`rounded-lg border p-3 bg-muted/40 space-y-2 ${
+                            entry.isAbsent ? 'opacity-60' : ''
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="font-medium text-sm">{entry.studentName}</p>
+                            {!entry.isAbsent && (
+                              <span
+                                className={`text-xs font-semibold ${getGradeColor(
+                                  percentage
+                                )}`}
+                              >
+                                {Math.round(percentage)}%
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex-1">
+                              <p className="text-xs text-muted-foreground mb-1">
+                                Class Score
+                              </p>
+                              <Input
+                                type="number"
+                                min={0}
+                                max={40}
+                                value={entry.classScore}
+                                onChange={(e) =>
+                                  handleMarkChange(
+                                    entry.studentId,
+                                    'classScore',
+                                    Number(e.target.value)
+                                  )
+                                }
+                                disabled={entry.isAbsent}
+                                className="h-8 text-xs"
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-xs text-muted-foreground mb-1">
+                                Exam Score
+                              </p>
+                              <Input
+                                type="number"
+                                min={0}
+                                max={60}
+                                value={entry.examScore}
+                                onChange={(e) =>
+                                  handleMarkChange(
+                                    entry.studentId,
+                                    'examScore',
+                                    Number(e.target.value)
+                                  )
+                                }
+                                disabled={entry.isAbsent}
+                                className="h-8 text-xs"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between gap-2 text-xs mt-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-muted-foreground">
+                                Total:{' '}
+                                <span className={`font-semibold ${getGradeColor(percentage)}`}>
+                                  {entry.isAbsent ? '-' : total}
+                                </span>
+                              </span>
+                              {!entry.isAbsent && (
+                                <Badge className={gradeInfo.color}>{gradeInfo.grade}</Badge>
+                              )}
+                            </div>
+                            <label className="flex items-center gap-1">
+                              <input
+                                type="checkbox"
+                                checked={entry.isAbsent}
+                                onChange={() => handleAbsentToggle(entry.studentId)}
+                                className="h-4 w-4"
+                              />
+                              <span>Absent</span>
+                            </label>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Desktop: table view */}
+                <ScrollArea className="w-full overflow-x-auto hidden md:block">
                   <Table className="min-w-[500px]">
                     <TableHeader>
                       <TableRow>
@@ -341,7 +449,10 @@ export default function GradeBookPage() {
                         </TableRow>
                       ) : filteredEntries.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                          <TableCell
+                            colSpan={6}
+                            className="text-center py-8 text-muted-foreground"
+                          >
                             No students found
                           </TableCell>
                         </TableRow>
