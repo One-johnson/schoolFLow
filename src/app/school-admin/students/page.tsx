@@ -655,55 +655,24 @@ export default function StudentsPage(): React.JSX.Element {
         </Card>
       </div>
 
-      {/* Department Stats with Hover Effects */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card className="transition-all duration-200 hover:shadow-lg hover:scale-105 cursor-pointer">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Creche</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats?.byDepartment?.creche || 0}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="transition-all duration-200 hover:shadow-lg hover:scale-105 cursor-pointer">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Kindergarten</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats?.byDepartment?.kindergarten || 0}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="transition-all duration-200 hover:shadow-lg hover:scale-105 cursor-pointer">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Primary</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats?.byDepartment?.primary || 0}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="transition-all duration-200 hover:shadow-lg hover:scale-105 cursor-pointer">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Junior High</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats?.byDepartment?.juniorHigh || 0}
-            </div>
-          </CardContent>
-        </Card>
+      {/* Department Stats with Hover Effects - keyed by department ID from getStudentStats */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {departments?.map((dept) => (
+          <Card
+            key={dept._id}
+            className="transition-all duration-200 hover:shadow-lg hover:scale-105 cursor-pointer"
+          >
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">{dept.name}</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {stats?.byDepartment?.[dept._id] ?? 0}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* Students Table with Filters */}
