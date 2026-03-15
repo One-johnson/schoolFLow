@@ -43,14 +43,23 @@ export default defineSchema({
     phone: v.optional(v.string()),
     password: v.optional(v.string()),
     tempPassword: v.optional(v.string()),
-    status: v.union(v.literal('active'), v.literal('inactive'), v.literal('pending'), v.literal('suspended')),
+    status: v.union(
+      v.literal('active'),
+      v.literal('inactive'),
+      v.literal('pending'),
+      v.literal('suspended')
+    ),
     createdAt: v.string(),
     invitedBy: v.string(),
     hasActiveSubscription: v.optional(v.boolean()),
     trialStartDate: v.optional(v.string()),
     trialEndDate: v.optional(v.string()),
     hasCreatedSchool: v.optional(v.boolean()),
-  }).index('by_email', ['email']).index('by_school', ['schoolId']),
+    // Onboarding
+    hasSeenOnboarding: v.optional(v.boolean()),
+  })
+    .index('by_email', ['email'])
+    .index('by_school', ['schoolId']),
 
   subscriptions: defineTable({
     schoolId: v.string(),
@@ -332,11 +341,14 @@ export default defineSchema({
     updatedAt: v.string(),
     createdBy: v.string(), // School Admin ID
     password: v.string(), // Hashed; initial value = hash of teacherId
+    hasSeenOnboarding: v.optional(v.boolean()),
+    houseId: v.optional(v.id('houses')),
   })
     .index('by_school', ['schoolId'])
     .index('by_teacher_id', ['teacherId'])
     .index('by_status', ['status'])
-    .index('by_email', ['email']),
+    .index('by_email', ['email'])
+    .index('by_house', ['houseId']),
 
   parents: defineTable({
     schoolId: v.string(),
@@ -348,6 +360,7 @@ export default defineSchema({
     status: v.union(v.literal('active'), v.literal('inactive')),
     createdAt: v.string(),
     updatedAt: v.string(),
+    hasSeenOnboarding: v.optional(v.boolean()),
   })
     .index('by_school', ['schoolId'])
     .index('by_email', ['email'])
@@ -367,6 +380,17 @@ export default defineSchema({
     schoolId: v.string(),
     name: v.string(),
     code: v.string(), // 2-3 chars for subject codes, e.g., "PR", "SH"
+    sortOrder: v.optional(v.number()),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+    createdBy: v.string(),
+  })
+    .index('by_school', ['schoolId']),
+
+  houses: defineTable({
+    schoolId: v.string(),
+    name: v.string(),
+    code: v.string(), // e.g., "JUB", "AMB"
     sortOrder: v.optional(v.number()),
     createdAt: v.string(),
     updatedAt: v.string(),
@@ -440,13 +464,14 @@ export default defineSchema({
     phone: v.optional(v.string()),
     address: v.string(),
     
-    // Academic Information
+// Academic Information
     classId: v.string(), // References classes table
     className: v.string(), // Denormalized for easy access
     departmentId: v.id('departments'),
     rollNumber: v.optional(v.string()),
     admissionDate: v.string(),
-    
+    houseId: v.optional(v.id('houses')),
+
     // Parent/Guardian Information
     parentName: v.string(),
     parentEmail: v.string(),
@@ -493,6 +518,7 @@ export default defineSchema({
     .index('by_class', ['classId'])
     .index('by_status', ['status'])
     .index('by_department', ['departmentId'])
+    .index('by_house', ['houseId'])
     .index('by_email', ['email']),
 
   photos: defineTable({

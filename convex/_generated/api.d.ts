@@ -32,6 +32,7 @@ import type * as feeStructures from "../feeStructures.js";
 import type * as gradeCalculator from "../gradeCalculator.js";
 import type * as grading from "../grading.js";
 import type * as homework from "../homework.js";
+import type * as houses from "../houses.js";
 import type * as loginHistory from "../loginHistory.js";
 import type * as marks from "../marks.js";
 import type * as messages from "../messages.js";
@@ -98,6 +99,7 @@ declare const fullApi: ApiFromModules<{
   gradeCalculator: typeof gradeCalculator;
   grading: typeof grading;
   homework: typeof homework;
+  houses: typeof houses;
   loginHistory: typeof loginHistory;
   marks: typeof marks;
   messages: typeof messages;

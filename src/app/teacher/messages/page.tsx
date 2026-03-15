@@ -21,6 +21,16 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -85,6 +95,8 @@ export default function MessagesPage() {
   const [editingMessageId, setEditingMessageId] = useState<Id<'messages'> | null>(null);
   const [editInput, setEditInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [messageToDelete, setMessageToDelete] = useState<Id<'messages'> | null>(null);
+  const [isDeletingMessage, setIsDeletingMessage] = useState(false);
   const [newMessageOpen, setNewMessageOpen] = useState(false);
   const [newMessageData, setNewMessageData] = useState({
     parentId: '',
@@ -186,18 +198,19 @@ export default function MessagesPage() {
     }
   };
 
-  const handleDeleteMessage = async (messageId: Id<'messages'>) => {
-    if (!teacher) return;
-    const confirmDelete = window.confirm('Delete this message for everyone?');
-    if (!confirmDelete) return;
-
+  const handleConfirmDeleteMessage = async () => {
+    if (!teacher || !messageToDelete) return;
+    setIsDeletingMessage(true);
     try {
       await deleteMessage({
-        messageId,
+        messageId: messageToDelete,
         senderId: teacher.id,
       });
+      setMessageToDelete(null);
     } catch (error) {
       console.error('Failed to delete message:', error);
+    } finally {
+      setIsDeletingMessage(false);
     }
   };
 
@@ -625,7 +638,7 @@ export default function MessagesPage() {
                                     <button
                                       type="button"
                                       className="underline-offset-2 hover:underline"
-                                      onClick={() => handleDeleteMessage(message._id)}
+                                      onClick={() => setMessageToDelete(message._id)}
                                     >
                                       Delete
                                     </button>
@@ -710,6 +723,23 @@ export default function MessagesPage() {
           )}
         </Card>
       </div>
+
+      <AlertDialog open={messageToDelete !== null} onOpenChange={(open) => !open && setMessageToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete message?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete this message for everyone? This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingMessage}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDeleteMessage} disabled={isDeletingMessage} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

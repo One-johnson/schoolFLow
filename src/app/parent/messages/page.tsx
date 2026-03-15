@@ -9,6 +9,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { MessageSquare, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Id } from '../../../../convex/_generated/dataModel';
@@ -40,6 +50,8 @@ export default function ParentMessagesPage() {
   const [messageInput, setMessageInput] = useState('');
   const [editingMessageId, setEditingMessageId] = useState<Id<'messages'> | null>(null);
   const [editInput, setEditInput] = useState('');
+  const [messageToDelete, setMessageToDelete] = useState<Id<'messages'> | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const conversations = useQuery(
@@ -123,20 +135,21 @@ export default function ParentMessagesPage() {
     }
   };
 
-  const handleDeleteMessage = async (messageId: Id<'messages'>) => {
-    if (!parent) return;
-    const confirmDelete = window.confirm('Delete this message for everyone?');
-    if (!confirmDelete) return;
-
+  const handleConfirmDeleteMessage = async () => {
+    if (!parent || !messageToDelete) return;
+    setIsDeleting(true);
     try {
       await deleteMessage({
-        messageId,
+        messageId: messageToDelete,
         senderId: parent.id,
       });
+      setMessageToDelete(null);
       toast.success('Message deleted');
     } catch (error) {
       console.error('Failed to delete message:', error);
       toast.error('Failed to delete message. Please try again.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -246,7 +259,7 @@ export default function ParentMessagesPage() {
                                   <button
                                     type="button"
                                     className="underline-offset-2 hover:underline"
-                                    onClick={() => handleDeleteMessage(msg._id)}
+                                    onClick={() => setMessageToDelete(msg._id)}
                                   >
                                     Delete
                                   </button>
@@ -319,6 +332,23 @@ export default function ParentMessagesPage() {
           )}
         </Card>
       </div>
+
+      <AlertDialog open={messageToDelete !== null} onOpenChange={(open) => !open && setMessageToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete message?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete this message for everyone? This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDeleteMessage} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

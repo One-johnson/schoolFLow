@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTeacherAuth } from '@/hooks/useTeacherAuth';
 import { TopHeader } from '@/components/teacher/top-header';
@@ -11,6 +11,9 @@ import { OfflineBanner } from '@/components/teacher/offline-banner';
 import { SwRegister } from '@/components/teacher/sw-register';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { ConvexProvider, ConvexReactClient } from 'convex/react';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '@/../convex/_generated/api';
+import { TeacherOnboardingSheet } from '@/components/teacher/teacher-onboarding-sheet';
 
 const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
@@ -18,6 +21,13 @@ function TeacherLayoutContent({ children }: { children: React.ReactNode }) {
   const { teacher, loading, authenticated, checkAuth } = useTeacherAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  const teacherRecord = useQuery(
+    api.teachers.getTeacherById,
+    teacher?.id ? { teacherId: teacher.id as import('@/../convex/_generated/dataModel').Id<'teachers'> } : 'skip',
+  );
+  const markOnboardingSeen = useMutation(api.teachers.markOnboardingSeen);
 
   useEffect(() => {
     checkAuth();
@@ -38,6 +48,13 @@ function TeacherLayoutContent({ children }: { children: React.ReactNode }) {
     }
   }, [loading, authenticated, pathname, router]);
 
+  useEffect(() => {
+    if (!teacherRecord) return;
+    if (teacherRecord.hasSeenOnboarding !== true) {
+      setShowOnboarding(true);
+    }
+  }, [teacherRecord]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -56,6 +73,22 @@ function TeacherLayoutContent({ children }: { children: React.ReactNode }) {
   if (!authenticated || !teacher) {
     return null;
   }
+
+  const handleCompleteOnboarding = async () => {
+    if (!teacher?.id) {
+      setShowOnboarding(false);
+      return;
+    }
+    try {
+      await markOnboardingSeen({
+        teacherId: teacher.id as import('@/../convex/_generated/dataModel').Id<'teachers'>,
+      });
+    } catch (error) {
+      console.error('Failed to mark teacher onboarding as seen:', error);
+    } finally {
+      setShowOnboarding(false);
+    }
+  };
 
   return (
     <SidebarProvider>
@@ -77,6 +110,11 @@ function TeacherLayoutContent({ children }: { children: React.ReactNode }) {
         <div className="md:hidden">
           <BottomNav />
         </div>
+        <TeacherOnboardingSheet
+          open={showOnboarding}
+          onOpenChange={setShowOnboarding}
+          onComplete={handleCompleteOnboarding}
+        />
       </SidebarInset>
 
       <SwRegister />

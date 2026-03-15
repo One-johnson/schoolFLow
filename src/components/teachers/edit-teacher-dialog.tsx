@@ -70,6 +70,7 @@ export function EditTeacherDialog({
   const [subjects, setSubjects] = useState<string[]>(teacher.subjects);
   const [subjectInput, setSubjectInput] = useState<string>('');
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('');
+  const [selectedHouseId, setSelectedHouseId] = useState<string>(teacher.houseId || '');
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const [touchedFields, setTouchedFields] = useState<Set<string>>(new Set());
 
@@ -82,6 +83,10 @@ export function EditTeacherDialog({
   const updateTeacher = useMutation(api.teachers.updateTeacher);
   const departments = useQuery(
     api.departments.getDepartmentsBySchool,
+    teacher.schoolId ? { schoolId: teacher.schoolId } : 'skip'
+  );
+  const houses = useQuery(
+    api.houses.getHousesBySchool,
     teacher.schoolId ? { schoolId: teacher.schoolId } : 'skip'
   );
   const departmentSubjects = useQuery(
@@ -182,6 +187,7 @@ export function EditTeacherDialog({
     setQualifications(teacher.qualifications);
     setSubjects(teacher.subjects);
     setSelectedDepartmentId('');
+    setSelectedHouseId(teacher.houseId || '');
     setPhotoUrl(teacher.photoUrl || '');
     setPhotoPreview(teacher.photoUrl || '');
     setErrors({});
@@ -272,6 +278,7 @@ export function EditTeacherDialog({
         emergencyContact: formData.emergencyContact || undefined,
         emergencyContactName: formData.emergencyContactName || undefined,
         emergencyContactRelationship: formData.emergencyContactRelationship || undefined,
+        houseId: selectedHouseId ? (selectedHouseId as Id<'houses'>) : undefined,
         updatedBy,
       });
 
@@ -459,6 +466,25 @@ export function EditTeacherDialog({
                     <AlertCircle className="h-3 w-3" /> {errors.address}
                   </p>
                 )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="houseId">House (optional)</Label>
+                <Select
+                  value={selectedHouseId || 'none'}
+                  onValueChange={(value) => setSelectedHouseId(value === 'none' ? '' : value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select house" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {houses?.map((house) => (
+                      <SelectItem key={house._id} value={house._id}>
+                        {house.name} ({house.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </CollapsibleContent>
           </Collapsible>

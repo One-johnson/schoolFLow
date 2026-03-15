@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useParentAuth } from '@/hooks/useParentAuth';
 import { ParentTopHeader } from '@/components/parent/top-header';
@@ -10,7 +10,9 @@ import { ParentDesktopHeader } from '@/components/parent/desktop-header';
 import { OfflineBanner } from '@/components/teacher/offline-banner';
 import { SwRegister } from '@/components/teacher/sw-register';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
-import { ConvexProvider, ConvexReactClient } from 'convex/react';
+import { ConvexProvider, ConvexReactClient, useMutation, useQuery } from 'convex/react';
+import { api } from '@/../convex/_generated/api';
+import { ParentOnboardingSheet } from '@/components/parent/parent-onboarding-sheet';
 
 const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
@@ -18,6 +20,15 @@ function ParentLayoutContent({ children }: { children: React.ReactNode }) {
   const { parent, loading, authenticated, checkAuth } = useParentAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  const parentRecord = useQuery(
+    api.parents.getParentById,
+    parent?.id
+      ? { parentId: parent.id as import('@/../convex/_generated/dataModel').Id<'parents'> }
+      : 'skip',
+  );
+  const markOnboardingSeen = useMutation(api.parents.markOnboardingSeen);
 
   useEffect(() => {
     checkAuth();
@@ -38,6 +49,13 @@ function ParentLayoutContent({ children }: { children: React.ReactNode }) {
     }
   }, [loading, authenticated, pathname, router]);
 
+  useEffect(() => {
+    if (!parentRecord) return;
+    if (parentRecord.hasSeenOnboarding !== true) {
+      setShowOnboarding(true);
+    }
+  }, [parentRecord]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -56,6 +74,22 @@ function ParentLayoutContent({ children }: { children: React.ReactNode }) {
   if (!authenticated || !parent) {
     return null;
   }
+
+  const handleCompleteOnboarding = async () => {
+    if (!parent?.id) {
+      setShowOnboarding(false);
+      return;
+    }
+    try {
+      await markOnboardingSeen({
+        parentId: parent.id as import('@/../convex/_generated/dataModel').Id<'parents'>,
+      });
+    } catch (error) {
+      console.error('Failed to mark parent onboarding as seen:', error);
+    } finally {
+      setShowOnboarding(false);
+    }
+  };
 
   return (
     <SidebarProvider>
@@ -77,6 +111,12 @@ function ParentLayoutContent({ children }: { children: React.ReactNode }) {
         <div className="md:hidden">
           <ParentBottomNav />
         </div>
+
+        <ParentOnboardingSheet
+          open={showOnboarding}
+          onOpenChange={setShowOnboarding}
+          onComplete={handleCompleteOnboarding}
+        />
       </SidebarInset>
 
       <SwRegister />
@@ -91,3 +131,4 @@ export function ParentLayoutClient({ children }: { children: React.ReactNode }) 
     </ConvexProvider>
   );
 }
+

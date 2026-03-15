@@ -43,6 +43,16 @@ export const getTeacherById = query({
   },
 });
 
+export const markOnboardingSeen = mutation({
+  args: { teacherId: v.id('teachers') },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.teacherId, {
+      hasSeenOnboarding: true,
+    });
+    return args.teacherId;
+  },
+});
+
 // Query: Get teacher statistics for a school
 export const getTeacherStats = query({
   args: { schoolId: v.string() },
@@ -114,6 +124,7 @@ export const addTeacher = mutation({
     emergencyContact: v.optional(v.string()),
     emergencyContactName: v.optional(v.string()),
     emergencyContactRelationship: v.optional(v.string()),
+    houseId: v.optional(v.id('houses')),
     createdBy: v.string(),
   },
   handler: async (ctx, args) => {
@@ -172,6 +183,7 @@ export const addTeacher = mutation({
       emergencyContact: args.emergencyContact,
       emergencyContactName: args.emergencyContactName,
       emergencyContactRelationship: args.emergencyContactRelationship,
+      houseId: args.houseId,
       createdAt: now,
       updatedAt: now,
       createdBy: args.createdBy,
@@ -357,6 +369,7 @@ export const updateTeacher = mutation({
     emergencyContact: v.optional(v.string()),
     emergencyContactName: v.optional(v.string()),
     emergencyContactRelationship: v.optional(v.string()),
+    houseId: v.optional(v.id('houses')),
     updatedBy: v.string(),
   },
   handler: async (ctx, args) => {
@@ -407,6 +420,7 @@ export const updateTeacher = mutation({
     if (args.emergencyContact !== undefined) updateData.emergencyContact = args.emergencyContact;
     if (args.emergencyContactName !== undefined) updateData.emergencyContactName = args.emergencyContactName;
     if (args.emergencyContactRelationship !== undefined) updateData.emergencyContactRelationship = args.emergencyContactRelationship;
+    if (args.houseId !== undefined) updateData.houseId = args.houseId;
 
     await ctx.db.patch(args.teacherId, updateData);
 

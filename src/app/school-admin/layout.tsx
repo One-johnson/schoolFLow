@@ -3,7 +3,7 @@
 import { JSX, useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { useQuery } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/../convex/_generated/api';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/school-admin/app-sidebar';
 import { DesktopHeader } from '@/components/school-admin/desktop-header';
 import { MobileHeader } from '@/components/school-admin/mobile-header';
+import { SchoolAdminOnboardingSheet } from '@/components/school-admin/onboarding-sheet';
 
 export default function SchoolAdminLayout({
   children,
@@ -21,6 +22,7 @@ export default function SchoolAdminLayout({
   const pathname = usePathname();
   const { authenticated, loading, user } = useAuth();
   const [checkingStatus, setCheckingStatus] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   // Pages a suspended/inactive admin is still allowed to visit
   const ALLOWED_WHEN_SUSPENDED = [
@@ -40,10 +42,15 @@ export default function SchoolAdminLayout({
   const schools = useQuery(api.schools.list);
   const school = schools?.find((s) => s.adminId === schoolAdmin?._id);
 
+  const markOnboardingSeen = useMutation(api.schoolAdmins.markOnboardingSeen);
+
   useEffect(() => {
     if (!loading && schoolAdmin !== undefined) {
-       
       setCheckingStatus(false);
+
+      if (schoolAdmin && schoolAdmin.hasSeenOnboarding !== true) {
+        setShowOnboarding(true);
+      }
     }
   }, [loading, schoolAdmin]);
 
@@ -125,6 +132,20 @@ export default function SchoolAdminLayout({
   ].some((p) => pathname.startsWith(p));
   const showBackButton = !isDashboard && !hideBackButton;
 
+  const handleCompleteOnboarding = async () => {
+    if (!schoolAdmin?._id) {
+      setShowOnboarding(false);
+      return;
+    }
+    try {
+      await markOnboardingSeen({ id: schoolAdmin._id });
+    } catch (error) {
+      console.error('Failed to mark onboarding as seen:', error);
+    } finally {
+      setShowOnboarding(false);
+    }
+  };
+
   return (
     <SidebarProvider>
       <div className="hidden md:block">
@@ -147,6 +168,11 @@ export default function SchoolAdminLayout({
           )}
           {children}
         </main>
+        <SchoolAdminOnboardingSheet
+          open={showOnboarding}
+          onOpenChange={setShowOnboarding}
+          onComplete={handleCompleteOnboarding}
+        />
       </SidebarInset>
     </SidebarProvider>
   );

@@ -64,6 +64,16 @@ export const getParentWithStudents = query({
   },
 });
 
+export const markOnboardingSeen = mutation({
+  args: { parentId: v.id('parents') },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.parentId, {
+      hasSeenOnboarding: true,
+    });
+    return args.parentId;
+  },
+});
+
 // Query: Get parent's student IDs only
 export const getParentStudentIds = query({
   args: { parentId: v.id('parents') },
