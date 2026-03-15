@@ -182,6 +182,7 @@ export interface Teacher {
   emergencyContact?: string;
   emergencyContactName?: string;
   emergencyContactRelationship?: string;
+  houseId?: string;
   createdAt: string;
   updatedAt: string;
   createdBy: string;

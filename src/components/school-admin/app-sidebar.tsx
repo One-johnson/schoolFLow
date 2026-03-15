@@ -24,6 +24,7 @@ import {
   Megaphone,
   BarChart3,
   ChevronDown,
+  Home,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -75,6 +76,7 @@ const navGroups: Array<{
     items: [
       { title: 'My School', icon: School, url: '/school-admin/school' },
       { title: 'Departments', icon: Layers, url: '/school-admin/departments' },
+      { title: 'Houses', icon: Home, url: '/school-admin/houses' },
       { title: 'Academic Years', icon: Calendar, url: '/school-admin/academic-years' },
     ],
   },

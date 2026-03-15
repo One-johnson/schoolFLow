@@ -262,6 +262,16 @@ export const updateStatus = mutation({
   },
 });
 
+export const markOnboardingSeen = mutation({
+  args: { id: v.id('schoolAdmins') },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.id, {
+      hasSeenOnboarding: true,
+    });
+    return args.id;
+  },
+});
+
 export const remove = mutation({
   args: { 
     id: v.id('schoolAdmins'),

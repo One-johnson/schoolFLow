@@ -48,6 +48,7 @@ interface Student {
   className: string;
   departmentId: string;
   rollNumber?: string;
+  houseId?: string;
   admissionDate: string;
   parentName: string;
   parentEmail: string;
@@ -82,6 +83,10 @@ export function EditStudentDialog({ student, open, onOpenChange }: EditStudentDi
   const classes = useQuery(api.classes.getClassesBySchool, {
     schoolId: user?.schoolId || '',
   });
+  const houses = useQuery(
+    api.houses.getHousesBySchool,
+    user?.schoolId ? { schoolId: user.schoolId } : 'skip'
+  );
 
   // Fetch photo URL if storage ID exists
   const photoUrl = useQuery(
@@ -406,6 +411,7 @@ export function EditStudentDialog({ student, open, onOpenChange }: EditStudentDi
         className: selectedClass?.className || formData.className,
         departmentId: (selectedClass?.departmentId || formData.departmentId) as Id<'departments'>,
         rollNumber: formData.rollNumber || undefined,
+        houseId: formData.houseId ? (formData.houseId as Id<'houses'>) : undefined,
         admissionDate: formData.admissionDate,
         parentName: formData.parentName,
         parentEmail: formData.parentEmail,
@@ -646,6 +652,25 @@ export function EditStudentDialog({ student, open, onOpenChange }: EditStudentDi
                       {classes?.map((cls) => (
                         <SelectItem key={cls._id} value={cls.classCode}>
                           {cls.className}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="houseId">House (optional)</Label>
+                  <Select
+                    value={formData.houseId || 'none'}
+                    onValueChange={(value) => setFormData({ ...formData, houseId: value === 'none' ? undefined : value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select house" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      {houses?.map((h) => (
+                        <SelectItem key={h._id} value={h._id}>
+                          {h.name} ({h.code})
                         </SelectItem>
                       ))}
                     </SelectContent>

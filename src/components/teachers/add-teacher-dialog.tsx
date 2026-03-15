@@ -145,11 +145,16 @@ export function AddTeacherDialog({
   const [subjects, setSubjects] = useState<string[]>([]);
   const [subjectInput, setSubjectInput] = useState<string>('');
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('');
+  const [selectedHouseId, setSelectedHouseId] = useState<string>('');
 
   const addTeacher = useMutation(api.teachers.addTeacher);
 
   const departments = useQuery(
     api.departments.getDepartmentsBySchool,
+    schoolId ? { schoolId } : 'skip'
+  );
+  const houses = useQuery(
+    api.houses.getHousesBySchool,
     schoolId ? { schoolId } : 'skip'
   );
   const schoolSubjects = useQuery(
@@ -389,6 +394,7 @@ export function AddTeacherDialog({
     setQualifications([]);
     setSubjects([]);
     setSelectedDepartmentId('');
+    setSelectedHouseId('');
     setPhotoUrl('');
     setPhotoPreview('');
     setErrors({});
@@ -456,6 +462,7 @@ export function AddTeacherDialog({
         emergencyContact: formData.emergencyContact || undefined,
         emergencyContactName: formData.emergencyContactName || undefined,
         emergencyContactRelationship: formData.emergencyContactRelationship || undefined,
+        houseId: selectedHouseId ? (selectedHouseId as Id<'houses'>) : undefined,
         createdBy,
       });
 
@@ -769,6 +776,27 @@ export function AddTeacherDialog({
                         {errors.address}
                       </p>
                     )}
+                  </div>
+
+                  {/* House (optional) */}
+                  <div className="space-y-2">
+                    <Label htmlFor="houseId">House (optional)</Label>
+                    <Select
+                      value={selectedHouseId || 'none'}
+                      onValueChange={(value) => setSelectedHouseId(value === 'none' ? '' : value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select house" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        {houses?.map((house) => (
+                          <SelectItem key={house._id} value={house._id}>
+                            {house.name} ({house.code})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </CollapsibleContent>

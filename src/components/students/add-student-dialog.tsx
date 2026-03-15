@@ -70,6 +70,7 @@ interface FormData {
   address: string;
   classId: string;
   rollNumber: string;
+  houseId: string;
   admissionDate: string;
   parentName: string;
   parentEmail: string;
@@ -95,6 +96,10 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps):
   const classes = useQuery(api.classes.getClassesBySchool, {
     schoolId: user?.schoolId || '',
   });
+  const houses = useQuery(
+    api.houses.getHousesBySchool,
+    user?.schoolId ? { schoolId: user.schoolId } : 'skip'
+  );
 
   const [formData, setFormData] = useState<FormData>({
     firstName: '',
@@ -109,6 +114,7 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps):
     address: '',
     classId: '',
     rollNumber: '',
+    houseId: '',
     admissionDate: new Date().toISOString().split('T')[0],
     parentName: '',
     parentEmail: '',
@@ -178,6 +184,7 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps):
                 address: String(fd.address ?? ''),
                 classId: String(fd.classId ?? ''),
                 rollNumber: String(fd.rollNumber ?? ''),
+                houseId: String(fd.houseId ?? ''),
                 admissionDate: String(fd.admissionDate ?? new Date().toISOString().split('T')[0]),
                 parentName: String(fd.parentName ?? ''),
                 parentEmail: String(fd.parentEmail ?? ''),
@@ -372,6 +379,7 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps):
       address: '',
       classId: '',
       rollNumber: '',
+      houseId: '',
       admissionDate: new Date().toISOString().split('T')[0],
       parentName: '',
       parentEmail: '',
@@ -570,6 +578,7 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps):
         className: selectedClass?.className || '',
         departmentId: selectedClass.departmentId as Id<'departments'>,
         rollNumber: formData.rollNumber || undefined,
+        houseId: formData.houseId ? (formData.houseId as Id<'houses'>) : undefined,
         admissionDate: formData.admissionDate,
         parentName: formData.parentName,
         parentEmail: formData.parentEmail,
@@ -821,6 +830,25 @@ export function AddStudentDialog({ open, onOpenChange }: AddStudentDialogProps):
                       {classes?.map((cls) => (
                         <SelectItem key={cls._id} value={cls.classCode}>
                           {cls.className}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="houseId">House (optional)</Label>
+                  <Select
+                    value={formData.houseId || 'none'}
+                    onValueChange={(value) => setFormData({ ...formData, houseId: value === 'none' ? '' : value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select house" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      {houses?.map((house) => (
+                        <SelectItem key={house._id} value={house._id}>
+                          {house.name} ({house.code})
                         </SelectItem>
                       ))}
                     </SelectContent>

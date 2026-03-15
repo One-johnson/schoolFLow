@@ -244,6 +244,7 @@ export const addStudent = mutation({
         v.literal("graduated"),
       ),
     ),
+    houseId: v.optional(v.id("houses")),
     createdBy: v.string(),
   },
   handler: async (ctx, args) => {
@@ -323,6 +324,7 @@ export const addStudent = mutation({
       photoStorageId: args.photoStorageId,
       birthCertificateStorageId: args.birthCertificateStorageId,
       status: args.status || "fresher",
+      houseId: args.houseId,
       createdAt: now,
       updatedAt: now,
       createdBy: args.createdBy,
@@ -409,6 +411,7 @@ export const updateStudent = mutation({
         v.literal("graduated"),
       ),
     ),
+    houseId: v.optional(v.id("houses")),
     updatedBy: v.string(),
   },
   handler: async (ctx, args) => {
@@ -493,6 +496,7 @@ export const updateStudent = mutation({
     if (args.birthCertificateStorageId !== undefined)
       updateData.birthCertificateStorageId = args.birthCertificateStorageId;
     if (args.status !== undefined) updateData.status = args.status;
+    if (args.houseId !== undefined) updateData.houseId = args.houseId;
 
     await ctx.db.patch(args.studentId, updateData);
 
