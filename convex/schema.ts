@@ -391,6 +391,7 @@ export default defineSchema({
     schoolId: v.string(),
     name: v.string(),
     code: v.string(), // e.g., "JUB", "AMB"
+    color: v.optional(v.string()), // hex e.g. "#3b82f6"
     sortOrder: v.optional(v.number()),
     createdAt: v.string(),
     updatedAt: v.string(),

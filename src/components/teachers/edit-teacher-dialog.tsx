@@ -480,7 +480,15 @@ export function EditTeacherDialog({
                     <SelectItem value="none">None</SelectItem>
                     {houses?.map((house) => (
                       <SelectItem key={house._id} value={house._id}>
-                        {house.name} ({house.code})
+                        <span className="flex items-center gap-2">
+                          {house.color && (
+                            <span
+                              className="h-3 w-3 shrink-0 rounded-full border border-border"
+                              style={{ backgroundColor: house.color }}
+                            />
+                          )}
+                          {house.name} ({house.code})
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>

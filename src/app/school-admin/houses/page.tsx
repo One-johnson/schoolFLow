@@ -23,6 +23,7 @@ interface House {
   schoolId: string;
   name: string;
   code: string;
+  color?: string;
   sortOrder?: number;
 }
 
@@ -112,9 +113,18 @@ export default function HousesPage(): React.JSX.Element {
                   key={house._id}
                   className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50"
                 >
-                  <div>
-                    <p className="font-medium">{house.name}</p>
-                    <p className="text-sm text-muted-foreground">Code: {house.code}</p>
+                  <div className="flex items-center gap-3">
+                    {house.color && (
+                      <span
+                        className="h-6 w-6 shrink-0 rounded-full border border-border"
+                        style={{ backgroundColor: house.color }}
+                        aria-hidden
+                      />
+                    )}
+                    <div>
+                      <p className="font-medium">{house.name}</p>
+                      <p className="text-sm text-muted-foreground">Code: {house.code}</p>
+                    </div>
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

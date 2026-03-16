@@ -18,11 +18,18 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 
+const PRESET_COLORS = [
+  '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6',
+  '#3b82f6', '#8b5cf6', '#ec4899', '#6366f1', '#0ea5e9',
+  '#84cc16', '#f43f5e', '#78716c',
+];
+
 interface House {
   _id: Id<'houses'>;
   schoolId: string;
   name: string;
   code: string;
+  color?: string;
   sortOrder?: number;
 }
 
@@ -41,6 +48,7 @@ export function EditHouseDialog({
 }: EditHouseDialogProps): React.JSX.Element {
   const [name, setName] = useState<string>('');
   const [code, setCode] = useState<string>('');
+  const [color, setColor] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const updateHouse = useMutation(api.houses.updateHouse);
@@ -49,6 +57,7 @@ export function EditHouseDialog({
     if (house) {
       setName(house.name);
       setCode(house.code);
+      setColor(house.color || '');
     }
   }, [house]);
 
@@ -74,6 +83,7 @@ export function EditHouseDialog({
         houseId: house._id,
         name: name.trim(),
         code: code.trim(),
+        color: color && /^#[0-9A-Fa-f]{6}$/.test(color) ? color : undefined,
         updatedBy,
       });
 
@@ -117,6 +127,37 @@ export function EditHouseDialog({
               maxLength={6}
               required
             />
+          </div>
+          <div className="space-y-2">
+            <Label>Color (optional)</Label>
+            <div className="flex flex-wrap gap-2">
+              {PRESET_COLORS.map((hex) => (
+                <button
+                  key={hex}
+                  type="button"
+                  aria-label={`Color ${hex}`}
+                  className={`h-8 w-8 rounded-full border-2 transition-transform hover:scale-110 ${color === hex ? 'border-foreground ring-2 ring-offset-2 ring-offset-background' : 'border-transparent'}`}
+                  style={{ backgroundColor: hex }}
+                  onClick={() => setColor(hex)}
+                />
+              ))}
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <input
+                type="color"
+                id="house-color-custom-edit"
+                value={color && /^#[0-9A-Fa-f]{6}$/.test(color) ? color : '#3b82f6'}
+                onChange={(e) => setColor(e.target.value)}
+                className="h-9 w-9 cursor-pointer rounded border border-input bg-transparent p-0"
+              />
+              <Input
+                placeholder="#3b82f6"
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                className="w-24 font-mono text-sm"
+                maxLength={7}
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button
