@@ -36,7 +36,10 @@ export function DatePicker({
   disableFuture = true,
 }: DatePickerProps): React.JSX.Element {
   const [open, setOpen] = React.useState(false);
-  const date = value ? new Date(value + 'T12:00:00') : undefined;
+  const rawDate = value ? new Date(value + 'T12:00:00') : undefined;
+  const isValidDate =
+    rawDate instanceof Date && !Number.isNaN(rawDate.getTime());
+  const date = isValidDate ? rawDate : undefined;
   const today = new Date();
   const startMonth = new Date(today.getFullYear() - 100, 0, 1);
   const endMonth = disableFuture ? today : new Date(today.getFullYear() + 10, 11, 31);
