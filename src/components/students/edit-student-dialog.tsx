@@ -670,7 +670,15 @@ export function EditStudentDialog({ student, open, onOpenChange }: EditStudentDi
                       <SelectItem value="none">None</SelectItem>
                       {houses?.map((h) => (
                         <SelectItem key={h._id} value={h._id}>
-                          {h.name} ({h.code})
+                          <span className="flex items-center gap-2">
+                            {h.color && (
+                              <span
+                                className="h-3 w-3 shrink-0 rounded-full border border-border"
+                                style={{ backgroundColor: h.color }}
+                              />
+                            )}
+                            {h.name} ({h.code})
+                          </span>
                         </SelectItem>
                       ))}
                     </SelectContent>

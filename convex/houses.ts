@@ -28,6 +28,7 @@ export const addHouse = mutation({
     schoolId: v.string(),
     name: v.string(),
     code: v.string(),
+    color: v.optional(v.string()),
     sortOrder: v.optional(v.number()),
     createdBy: v.string(),
   },
@@ -56,6 +57,7 @@ export const addHouse = mutation({
       schoolId: args.schoolId,
       name: args.name.trim(),
       code,
+      color: args.color && /^#[0-9A-Fa-f]{6}$/.test(args.color) ? args.color : undefined,
       sortOrder: args.sortOrder ?? existing.length,
       createdAt: now,
       updatedAt: now,
@@ -70,6 +72,7 @@ export const updateHouse = mutation({
     houseId: v.id('houses'),
     name: v.optional(v.string()),
     code: v.optional(v.string()),
+    color: v.optional(v.string()),
     sortOrder: v.optional(v.number()),
     updatedBy: v.string(),
   },
@@ -81,6 +84,9 @@ export const updateHouse = mutation({
     const updates: Record<string, unknown> = { updatedAt: now };
 
     if (args.name !== undefined) updates.name = args.name.trim();
+    if (args.color !== undefined) {
+      updates.color = args.color && /^#[0-9A-Fa-f]{6}$/.test(args.color) ? args.color : undefined;
+    }
     if (args.code !== undefined) {
       const code = args.code.trim().toUpperCase().slice(0, 6);
       if (code.length < 1) throw new Error('House code must be at least 1 character');
