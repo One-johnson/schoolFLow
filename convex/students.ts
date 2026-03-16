@@ -3,10 +3,76 @@ import { mutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 
-// Generate student ID: initials + 6 random digits
-function generateStudentId(firstName: string, lastName: string): string {
+// GES (Ghana Education Service): 13 classes from Nursery 1 to Basic 9 / JHS 3
+// Preschool 2y, Kindergarten 2y, Primary 6y, Junior 3y (Basic 7–9 or JHS 1–3)
+// Schools may use "Basic 1–9" or "Primary 1–6" then "JHS 1–3"
+const GES_YEARS_REMAINING: Record<string, number> = {
+  "Nursery 1": 13,
+  "Nursery 2": 12,
+  "KG 1": 11,
+  "Kindergarten 1": 11,
+  "KG 2": 10,
+  "Kindergarten 2": 10,
+  "Basic 1": 8,
+  "Basic 2": 7,
+  "Basic 3": 6,
+  "Basic 4": 5,
+  "Basic 5": 4,
+  "Basic 6": 3,
+  "Basic 7": 2,
+  "Basic 8": 1,
+  "Basic 9": 0,
+  "Primary 1": 8,
+  "Primary 2": 7,
+  "Primary 3": 6,
+  "Primary 4": 5,
+  "Primary 5": 4,
+  "Primary 6": 3,
+  "JHS 1": 2,
+  "JHS 2": 1,
+  "JHS 3": 0,
+};
+
+function getYearsRemaining(className: string): number | null {
+  const key = className.trim();
+  if (key in GES_YEARS_REMAINING) return GES_YEARS_REMAINING[key];
+  return null;
+}
+
+function getAdmissionYear(admissionDate: string): number {
+  const d = new Date(admissionDate);
+  if (!isNaN(d.getTime())) return d.getFullYear();
+  return new Date().getFullYear();
+}
+
+/** Last two digits of expected completion year (when student finishes Basic 9). */
+function getCompletionYearSuffix(
+  className: string,
+  admissionDate: string,
+): number | null {
+  const years = getYearsRemaining(className);
+  if (years === null) return null;
+  const admissionYear = getAdmissionYear(admissionDate);
+  const completionYear = admissionYear + years;
+  return completionYear % 100;
+}
+
+/** Generate student ID. With GES class + admissionDate, last two digits = completion year. */
+function generateStudentId(
+  firstName: string,
+  lastName: string,
+  className?: string,
+  admissionDate?: string,
+): string {
   const firstInitial = firstName.charAt(0).toUpperCase();
   const lastInitial = lastName.charAt(0).toUpperCase();
+  const suffix = className && admissionDate
+    ? getCompletionYearSuffix(className, admissionDate)
+    : null;
+  if (suffix !== null) {
+    const middle = Math.floor(1000 + Math.random() * 9000);
+    return `${firstInitial}${lastInitial}${middle}${suffix.toString().padStart(2, "0")}`;
+  }
   const randomDigits = Math.floor(100000 + Math.random() * 900000);
   return `${firstInitial}${lastInitial}${randomDigits}`;
 }
@@ -45,6 +111,20 @@ export const getStudentsBySchool = query({
     const students = await ctx.db
       .query("students")
       .withIndex("by_school", (q) => q.eq("schoolId", args.schoolId))
+      .collect();
+
+    return students;
+  },
+});
+
+// Query: Get graduated students (alumni) for a school
+export const getGraduatesBySchool = query({
+  args: { schoolId: v.string() },
+  handler: async (ctx, args) => {
+    const students = await ctx.db
+      .query("students")
+      .withIndex("by_school", (q) => q.eq("schoolId", args.schoolId))
+      .filter((q) => q.eq(q.field("status"), "graduated"))
       .collect();
 
     return students;
@@ -140,14 +220,17 @@ export const getStudentStats = query({
       (s) => s.status === "graduated",
     ).length;
 
+    // Current students only (exclude graduated) for total and breakdowns
+    const currentStudents = students.filter((s) => s.status !== "graduated");
+
     const byDepartment: Record<string, number> = {};
-    for (const s of students) {
+    for (const s of currentStudents) {
       const id = s.departmentId;
       byDepartment[id] = (byDepartment[id] ?? 0) + 1;
     }
 
-    // Count by class
-    const classCounts = students.reduce(
+    // Count by class (current students only)
+    const classCounts = currentStudents.reduce(
       (acc: Record<string, number>, student) => {
         acc[student.className] = (acc[student.className] || 0) + 1;
         return acc;
@@ -156,7 +239,7 @@ export const getStudentStats = query({
     );
 
     return {
-      total: students.length,
+      total: currentStudents.length,
       active: activeStudents,
       inactive: inactiveStudents,
       fresher: fresherStudents,
@@ -268,15 +351,25 @@ export const addStudent = mutation({
       }
     }
 
-    // Generate unique student ID
-    let studentId = generateStudentId(args.firstName, args.lastName);
+    // Generate unique student ID (GES: last two digits = completion year when class is known)
+    let studentId = generateStudentId(
+      args.firstName,
+      args.lastName,
+      args.className,
+      args.admissionDate,
+    );
     let existingId = await ctx.db
       .query("students")
       .withIndex("by_student_id", (q) => q.eq("studentId", studentId))
       .first();
 
     while (existingId) {
-      studentId = generateStudentId(args.firstName, args.lastName);
+      studentId = generateStudentId(
+        args.firstName,
+        args.lastName,
+        args.className,
+        args.admissionDate,
+      );
       existingId = await ctx.db
         .query("students")
         .withIndex("by_student_id", (q) => q.eq("studentId", studentId))

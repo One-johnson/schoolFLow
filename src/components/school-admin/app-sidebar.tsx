@@ -25,6 +25,7 @@ import {
   BarChart3,
   ChevronDown,
   Home,
+  Award,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -87,6 +88,7 @@ const navGroups: Array<{
       { title: 'Teachers', icon: Users, url: '/school-admin/teachers' },
       { title: 'Classes', icon: BookOpen, url: '/school-admin/classes' },
       { title: 'Students', icon: GraduationCap, url: '/school-admin/students' },
+      { title: 'Alumni', icon: Award, url: '/school-admin/alumni' },
       { title: 'Subjects', icon: BookOpen, url: '/school-admin/subjects' },
     ],
   },

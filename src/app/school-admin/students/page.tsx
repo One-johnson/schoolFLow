@@ -804,6 +804,7 @@ export default function StudentsPage(): React.JSX.Element {
                 searchPlaceholder="Search by name or class..."
                 additionalSearchKeys={["lastName", "className"]}
                 exportFormats={["csv", "pdf"]}
+                initialPageSize={25}
                 onExport={(rows, format) =>
                   handleExportBulk(rows, format as "csv" | "pdf")
                 }

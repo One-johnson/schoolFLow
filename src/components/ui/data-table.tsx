@@ -37,6 +37,9 @@ import { JSX } from 'react';
 
 const COLUMN_VISIBILITY_STORAGE_PREFIX = 'datatable-column-visibility-';
 
+const DEFAULT_PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
@@ -50,6 +53,8 @@ interface DataTableProps<TData, TValue> {
   onSelectionChange?: (rows: TData[]) => void;
   /** When provided, column visibility is persisted to localStorage under this key */
   storageKey?: string;
+  /** Initial rows per page (default 10). Use 25 or 50 for larger lists. */
+  initialPageSize?: number;
 }
 
 function loadColumnVisibility(storageKey: string): VisibilityState {
@@ -78,6 +83,7 @@ export function DataTable<TData, TValue>({
   onExport,
   onSelectionChange,
   storageKey,
+  initialPageSize = DEFAULT_PAGE_SIZE,
 }: DataTableProps<TData, TValue>): React.JSX.Element {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
@@ -87,10 +93,21 @@ export function DataTable<TData, TValue>({
   const [rowSelection, setRowSelection] = React.useState({});
   const [globalFilter, setGlobalFilter] = React.useState<string>('');
 
+  const pageSize = Math.min(
+    Math.max(initialPageSize, PAGE_SIZE_OPTIONS[0] ?? 10),
+    PAGE_SIZE_OPTIONS[PAGE_SIZE_OPTIONS.length - 1] ?? 100
+  );
+
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
     columns,
+    initialState: {
+      pagination: {
+        pageSize,
+        pageIndex: 0,
+      },
+    },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
@@ -289,9 +306,31 @@ export function DataTable<TData, TValue>({
           </TableBody>
         </Table>
       </div>
-      <div className="flex items-center justify-between space-x-2 py-4">
-        <div className="flex-1 text-sm text-muted-foreground">
-          {selectedCount} of {table.getFilteredRowModel().rows.length} row(s) selected.
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between py-4">
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-muted-foreground">
+            {selectedCount} of {table.getFilteredRowModel().rows.length} row(s) selected.
+          </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8">
+                {table.getState().pagination.pageSize} per page <ChevronDown className="ml-1 h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <DropdownMenuItem
+                  key={size}
+                  onClick={() => {
+                    table.setPageSize(size);
+                    table.setPageIndex(0);
+                  }}
+                >
+                  {size} per page
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         <div className="flex items-center space-x-2">
           <Button
@@ -302,9 +341,9 @@ export function DataTable<TData, TValue>({
           >
             Previous
           </Button>
-          <div className="text-sm">
-            Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
-          </div>
+          <span className="text-sm whitespace-nowrap">
+            Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount() || 1}
+          </span>
           <Button
             variant="outline"
             size="sm"
