@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
+import bcrypt from "bcryptjs";
 
 // GES (Ghana Education Service): 13 classes from Nursery 1 to Basic 9 / JHS 3
 // Preschool 2y, Kindergarten 2y, Primary 6y, Junior 3y (Basic 7–9 or JHS 1–3)
@@ -161,6 +162,28 @@ export const getStudentByStudentId = query({
       .withIndex("by_student_id", (q) => q.eq("studentId", args.studentId))
       .first();
     return student;
+  },
+});
+
+/** Single student by email for portal login; rejects ambiguous duplicates. Tries exact trim then lowercase. */
+export const getStudentByEmailForLogin = query({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    const trimmed = args.email.trim();
+    if (!trimmed) return null;
+    const lower = trimmed.toLowerCase();
+    let matches = await ctx.db
+      .query("students")
+      .withIndex("by_email", (q) => q.eq("email", trimmed))
+      .collect();
+    if (matches.length === 0 && lower !== trimmed) {
+      matches = await ctx.db
+        .query("students")
+        .withIndex("by_email", (q) => q.eq("email", lower))
+        .collect();
+    }
+    if (matches.length !== 1) return null;
+    return matches[0];
   },
 });
 
@@ -380,12 +403,13 @@ export const addStudent = mutation({
     const admissionNumber = await generateAdmissionNumber(ctx, args.schoolId);
 
     const now = new Date().toISOString();
+    const hashedPassword = await bcrypt.hash(studentId, 12);
 
     const studentDbId = await ctx.db.insert("students", {
       schoolId: args.schoolId,
       studentId,
       admissionNumber,
-      password: studentId, // Default password is the studentId
+      password: hashedPassword, // Default login: studentId, stored like teachers (bcrypt)
       firstName: args.firstName,
       lastName: args.lastName,
       middleName: args.middleName,
@@ -605,6 +629,25 @@ export const updateStudent = mutation({
       ipAddress: "0.0.0.0",
     });
 
+    return { success: true };
+  },
+});
+
+// Mutation: Update student password (portal self-service; hashed server-side via API)
+export const updateStudentPassword = mutation({
+  args: {
+    studentId: v.id("students"),
+    hashedPassword: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const student = await ctx.db.get(args.studentId);
+    if (!student) {
+      throw new Error("Student not found");
+    }
+    await ctx.db.patch(args.studentId, {
+      password: args.hashedPassword,
+      updatedAt: new Date().toISOString(),
+    });
     return { success: true };
   },
 });
@@ -1044,5 +1087,261 @@ export const getStudentsByClassId = query({
     );
 
     return studentsWithPhotos;
+  },
+});
+
+// --- Student portal (no password in responses) ---
+
+export const getStudentPortalProfile = query({
+  args: { studentId: v.id("students") },
+  handler: async (ctx, args) => {
+    const student = await ctx.db.get(args.studentId);
+    if (!student) return null;
+
+    let photoUrl: string | null = null;
+    if (student.photoStorageId) {
+      photoUrl = await ctx.storage.getUrl(
+        student.photoStorageId as Id<"_storage">,
+      );
+    }
+
+    const { password: _pw, ...rest } = student;
+    void _pw;
+    return { ...rest, photoUrl };
+  },
+});
+
+export const getHomeworkForStudentPortal = query({
+  args: { studentId: v.id("students"), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const student = await ctx.db.get(args.studentId);
+    if (!student) return [];
+
+    const classDoc = await ctx.db
+      .query("classes")
+      .withIndex("by_class_code", (q) => q.eq("classCode", student.classId))
+      .first();
+
+    if (!classDoc || classDoc.schoolId !== student.schoolId) return [];
+
+    const limit = args.limit ?? 50;
+    const rows = await ctx.db
+      .query("homework")
+      .withIndex("by_class", (q) =>
+        q.eq("schoolId", student.schoolId).eq("classId", classDoc._id),
+      )
+      .collect();
+
+    const active = rows.filter((h) => h.status === "active");
+    active.sort(
+      (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime(),
+    );
+    return active.slice(0, limit);
+  },
+});
+
+export const getTimetableForStudentPortal = query({
+  args: { studentId: v.id("students") },
+  handler: async (ctx, args) => {
+    const student = await ctx.db.get(args.studentId);
+    if (!student) return null;
+
+    const classDoc = await ctx.db
+      .query("classes")
+      .withIndex("by_class_code", (q) => q.eq("classCode", student.classId))
+      .first();
+
+    if (!classDoc || classDoc.schoolId !== student.schoolId) {
+      return null;
+    }
+
+    const timetable = await ctx.db
+      .query("timetables")
+      .withIndex("by_class", (q) =>
+        q.eq("schoolId", student.schoolId).eq("classId", classDoc._id),
+      )
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .first();
+
+    if (!timetable) {
+      return { timetable: null, periods: [], assignments: [] };
+    }
+
+    const periods = await ctx.db
+      .query("periods")
+      .withIndex("by_timetable", (q) => q.eq("timetableId", timetable._id))
+      .collect();
+
+    const assignments = await ctx.db
+      .query("timetableAssignments")
+      .withIndex("by_timetable", (q) => q.eq("timetableId", timetable._id))
+      .collect();
+
+    return { timetable, periods, assignments };
+  },
+});
+
+function deriveStudentPortalEventStatus(
+  startDate: string,
+  endDate: string,
+  startTime: string | undefined,
+  endTime: string | undefined,
+  isAllDay: boolean,
+  storedStatus: "upcoming" | "ongoing" | "completed" | "cancelled",
+): "upcoming" | "ongoing" | "completed" | "cancelled" {
+  if (storedStatus === "cancelled") return "cancelled";
+  const startStr =
+    isAllDay || !startTime ? startDate : `${startDate}T${startTime}`;
+  const endStr = isAllDay || !endTime ? endDate : `${endDate}T${endTime}`;
+  const now = new Date();
+  const start = new Date(startStr);
+  const end = new Date(endStr);
+  if (now < start) return "upcoming";
+  if (now <= end) return "ongoing";
+  return "completed";
+}
+
+/** Published announcements visible to this student (school-wide, their class, or their department). */
+export const getAnnouncementsForStudentPortal = query({
+  args: { studentId: v.id("students"), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const student = await ctx.db.get(args.studentId);
+    if (!student) return [];
+
+    const classDoc = await ctx.db
+      .query("classes")
+      .withIndex("by_class_code", (q) => q.eq("classCode", student.classId))
+      .first();
+    if (!classDoc || classDoc.schoolId !== student.schoolId) return [];
+
+    const cap = args.limit ?? 15;
+    const rows = await ctx.db
+      .query("announcements")
+      .withIndex("by_school_status", (q) =>
+        q.eq("schoolId", student.schoolId).eq("status", "published"),
+      )
+      .order("desc")
+      .take(100);
+
+    const visible = rows.filter((a) => {
+      if (a.targetType === "school") return true;
+      if (a.targetType === "class") return a.targetId === classDoc._id;
+      if (a.targetType === "department")
+        return a.targetId === student.departmentId;
+      return false;
+    });
+    return visible.slice(0, cap);
+  },
+});
+
+/** School events this student may see (audience rules), with derived upcoming/ongoing status. */
+export const getEventsForStudentPortal = query({
+  args: { studentId: v.id("students"), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const student = await ctx.db.get(args.studentId);
+    if (!student) return [];
+
+    const classDoc = await ctx.db
+      .query("classes")
+      .withIndex("by_class_code", (q) => q.eq("classCode", student.classId))
+      .first();
+    if (!classDoc || classDoc.schoolId !== student.schoolId) return [];
+
+    const classConvexId = classDoc._id;
+    const limit = args.limit ?? 40;
+
+    const all = await ctx.db
+      .query("events")
+      .withIndex("by_school", (q) => q.eq("schoolId", student.schoolId))
+      .collect();
+
+    const visible = all.filter((e) => {
+      if (e.audienceType === "staff_only") return false;
+      if (e.audienceType === "all_school") return true;
+      if (e.audienceType === "specific_classes") {
+        const targets = e.targetClasses ?? [];
+        return (
+          targets.includes(classConvexId) ||
+          targets.includes(student.classId)
+        );
+      }
+      if (e.audienceType === "specific_departments") {
+        const deptIds = (e.targetDepartmentIds ?? []).map((id) => String(id));
+        return deptIds.includes(String(student.departmentId));
+      }
+      return false;
+    });
+
+    const enriched = visible.map((e) => ({
+      _id: e._id,
+      eventTitle: e.eventTitle,
+      eventType: e.eventType,
+      startDate: e.startDate,
+      endDate: e.endDate,
+      startTime: e.startTime,
+      endTime: e.endTime,
+      isAllDay: e.isAllDay,
+      location: e.location,
+      color: e.color,
+      derivedStatus: deriveStudentPortalEventStatus(
+        e.startDate,
+        e.endDate,
+        e.startTime,
+        e.endTime,
+        e.isAllDay,
+        e.status,
+      ),
+    }));
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const active = enriched.filter((e) => {
+      if (e.derivedStatus === "cancelled") return false;
+      const end = new Date(
+        e.isAllDay || !e.endTime ? e.endDate : `${e.endDate}T${e.endTime}`,
+      );
+      return end.getTime() >= todayStart.getTime();
+    });
+
+    active.sort(
+      (a, b) =>
+        new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
+    );
+    return active.slice(0, limit);
+  },
+});
+
+/** Published exam marks for the student portal (studentId matches teacher marks entry: Convex `students` document id). */
+export const getPublishedMarksForStudentPortal = query({
+  args: { studentId: v.id("students"), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const student = await ctx.db.get(args.studentId);
+    if (!student) return [];
+
+    const cap = args.limit ?? 40;
+    const byDocId = await ctx.db
+      .query("studentMarks")
+      .withIndex("by_student", (q) =>
+        q.eq("schoolId", student.schoolId).eq("studentId", student._id),
+      )
+      .collect();
+    const byHumanId = await ctx.db
+      .query("studentMarks")
+      .withIndex("by_student", (q) =>
+        q.eq("schoolId", student.schoolId).eq("studentId", student.studentId),
+      )
+      .collect();
+    const merged = new Map<string, (typeof byDocId)[0]>();
+    for (const m of [...byDocId, ...byHumanId]) {
+      merged.set(m._id, m);
+    }
+    const marks = Array.from(merged.values());
+
+    const published = marks.filter((m) => m.submissionStatus === "published");
+    published.sort(
+      (a, b) =>
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    );
+    return published.slice(0, cap);
   },
 });

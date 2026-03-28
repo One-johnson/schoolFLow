@@ -24,7 +24,12 @@ export async function GET(): Promise<NextResponse> {
       sessionToken: token,
     });
 
-    if (!data || data.role === 'teacher') {
+    if (
+      !data ||
+      data.role === 'teacher' ||
+      data.role === 'parent' ||
+      data.role === 'student'
+    ) {
       return NextResponse.json(
         { authenticated: false, session: null },
         { status: 401 },

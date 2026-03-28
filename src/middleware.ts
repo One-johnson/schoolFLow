@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 const TEACHER_SESSION_COOKIE_NAME = "schoolflow_teacher_session";
 const PARENT_SESSION_COOKIE_NAME = "schoolflow_parent_session";
+const STUDENT_SESSION_COOKIE_NAME = "schoolflow_student_session";
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -37,9 +38,22 @@ export function middleware(request: NextRequest) {
     }
   }
 
+  if (pathname.startsWith("/student")) {
+    const hasStudentSession = request.cookies.has(STUDENT_SESSION_COOKIE_NAME);
+    const isPublicRoute = pathname === "/student/login";
+
+    if (!isPublicRoute && !hasStudentSession) {
+      return NextResponse.redirect(new URL("/student/login", request.url));
+    }
+
+    if (isPublicRoute && hasStudentSession) {
+      return NextResponse.redirect(new URL("/student", request.url));
+    }
+  }
+
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/teacher/:path*", "/parent/:path*"],
+  matcher: ["/teacher/:path*", "/parent/:path*", "/student/:path*"],
 };
