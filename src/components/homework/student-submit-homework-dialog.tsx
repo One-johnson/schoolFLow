@@ -18,20 +18,18 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Paperclip, X } from 'lucide-react';
 
-interface SubmitHomeworkDialogProps {
+export interface StudentSubmitHomeworkDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   homeworkId: Id<'homework'>;
   homeworkTitle: string;
-  studentId: string;
+  studentId: Id<'students'>;
   studentName: string;
   schoolId: string;
-  parentId: string;
-  parentName: string;
   onSuccess?: () => void;
 }
 
-export function SubmitHomeworkDialog({
+export function StudentSubmitHomeworkDialog({
   open,
   onOpenChange,
   homeworkId,
@@ -39,16 +37,14 @@ export function SubmitHomeworkDialog({
   studentId,
   studentName,
   schoolId,
-  parentId,
-  parentName,
   onSuccess,
-}: SubmitHomeworkDialogProps) {
+}: StudentSubmitHomeworkDialogProps) {
   const [file, setFile] = useState<File | null>(null);
   const [remarks, setRemarks] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const submitHomework = useMutation(api.homework.submitHomework);
+  const submitHomeworkAsStudent = useMutation(api.homework.submitHomeworkAsStudent);
   const generateUploadUrl = useMutation(api.photos.generateUploadUrl);
 
   const resetForm = () => {
@@ -94,13 +90,10 @@ export function SubmitHomeworkDialog({
       if (!result.ok) throw new Error('Upload failed');
       const { storageId } = await result.json();
 
-      await submitHomework({
+      await submitHomeworkAsStudent({
         schoolId,
         homeworkId,
         studentId,
-        studentName,
-        submittedBy: parentId,
-        submittedByName: parentName,
         storageId,
         fileName: file.name,
         remarks: remarks.trim() || undefined,
@@ -121,9 +114,9 @@ export function SubmitHomeworkDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Submit Homework</DialogTitle>
+          <DialogTitle>Submit a file</DialogTitle>
           <DialogDescription>
-            Upload homework for {studentName} — &quot;{homeworkTitle}&quot;
+            Upload work you did offline for &quot;{homeworkTitle}&quot; — {studentName}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -166,7 +159,7 @@ export function SubmitHomeworkDialog({
             <Textarea
               value={remarks}
               onChange={(e) => setRemarks(e.target.value)}
-              placeholder="Any notes for the teacher..."
+              placeholder="Any notes for your teacher..."
               rows={2}
             />
           </div>

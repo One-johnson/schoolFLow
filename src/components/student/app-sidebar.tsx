@@ -22,6 +22,8 @@ import {
   Clock,
   BookOpen,
   BarChart3,
+  Bell,
+  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -42,6 +44,8 @@ const mainMenuItems = [
   { title: "Dashboard", icon: Home, url: "/student" },
   { title: "Timetable", icon: Clock, url: "/student/timetable" },
   { title: "Homework", icon: BookOpen, url: "/student/homework" },
+  { title: "Study help", icon: Sparkles, url: "/student/study-help" },
+  { title: "Updates", icon: Bell, url: "/student/notifications" },
   { title: "Results", icon: BarChart3, url: "/student/results" },
 ];
 

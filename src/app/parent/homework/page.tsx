@@ -22,8 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { BookOpen, Calendar, Paperclip, Upload, CheckCircle, Search, FileDown, MoreVertical } from 'lucide-react';
-import { SubmitHomeworkDialog } from '../../../components/homework/submit-homework-dialog';
+import { BookOpen, Calendar, Paperclip, CheckCircle, Search, FileDown, MoreVertical } from 'lucide-react';
 import type { Id } from '../../../../convex/_generated/dataModel';
 
 export default function ParentHomeworkPage() {
@@ -32,13 +31,6 @@ export default function ParentHomeworkPage() {
   const [classNameFilter, setClassNameFilter] = useState<string>('__all__');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<string>('due_asc');
-  const [submitTarget, setSubmitTarget] = useState<{
-    homeworkId: Id<'homework'>;
-    homeworkTitle: string;
-    studentId: string;
-    studentName: string;
-    className: string;
-  } | null>(null);
 
   const studentClassIds = parent?.students?.map((s) => s.classId) ?? [];
 
@@ -91,7 +83,7 @@ export default function ParentHomeworkPage() {
           Homework
         </h1>
         <p className="text-muted-foreground mt-1">
-          View and submit homework for your children
+          View assignments for your children. Students submit work from their student portal.
         </p>
       </div>
 
@@ -161,33 +153,9 @@ export default function ParentHomeworkPage() {
               parent={parent}
               formatDate={formatDate}
               isOverdue={isOverdue}
-              onSubmit={(studentId, studentName, className) =>
-                setSubmitTarget({
-                  homeworkId: hw._id,
-                  homeworkTitle: hw.title,
-                  studentId,
-                  studentName,
-                  className,
-                })
-              }
             />
           ))}
         </div>
-      )}
-
-      {submitTarget && (
-        <SubmitHomeworkDialog
-          open={!!submitTarget}
-          onOpenChange={() => setSubmitTarget(null)}
-          homeworkId={submitTarget.homeworkId}
-          homeworkTitle={submitTarget.homeworkTitle}
-          studentId={submitTarget.studentId}
-          studentName={submitTarget.studentName}
-          schoolId={parent.schoolId}
-          parentId={parent.id}
-          parentName={parent.name ?? 'Parent'}
-          onSuccess={() => setSubmitTarget(null)}
-        />
       )}
     </div>
   );
@@ -198,7 +166,6 @@ function HomeworkCard({
   parent,
   formatDate,
   isOverdue,
-  onSubmit,
 }: {
   homework: {
     _id: Id<'homework'>;
@@ -213,7 +180,6 @@ function HomeworkCard({
   parent: { students?: { id: string; firstName: string; lastName: string; classId: string; className: string }[] };
   formatDate: (d: string) => string;
   isOverdue: (d: string) => boolean;
-  onSubmit: (studentId: string, studentName: string, className: string) => void;
 }) {
   const studentsInClass = homework.className
     ? parent.students?.filter((s) => s.className === homework.className) ?? []
@@ -268,19 +234,18 @@ function HomeworkCard({
       )}
       <CardContent className="pt-0">
         <div className="space-y-2">
-          <p className="text-sm font-medium">Submit for your child:</p>
+          <p className="text-sm font-medium">Submission status</p>
           {studentsInClass.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               None of your children are in this class.
             </p>
           ) : (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col gap-2">
               {studentsInClass.map((student) => (
-                <HomeworkStudentSubmit
+                <HomeworkStudentStatus
                   key={student.id}
                   homeworkId={homework._id}
                   student={student}
-                  onSubmit={onSubmit}
                 />
               ))}
             </div>
@@ -304,14 +269,12 @@ function HomeworkAttachmentDropdownItem({ storageId, label }: { storageId: strin
   );
 }
 
-function HomeworkStudentSubmit({
+function HomeworkStudentStatus({
   homeworkId,
   student,
-  onSubmit,
 }: {
   homeworkId: Id<'homework'>;
   student: { id: string; firstName: string; lastName: string; className: string };
-  onSubmit: (studentId: string, studentName: string, className: string) => void;
 }) {
   const submission = useQuery(api.homework.getSubmissionByHomeworkAndStudent, {
     homeworkId,
@@ -320,49 +283,19 @@ function HomeworkStudentSubmit({
   const submitted = submission?.status === 'submitted' || submission?.status === 'marked';
 
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-sm">
+    <div className="flex flex-wrap items-center gap-2 text-sm">
+      <span>
         {student.firstName} {student.lastName}
       </span>
       {submitted ? (
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="flex items-center gap-1">
-            <CheckCircle className="h-3 w-3" />
-            {submission?.status === 'marked' && submission.grade
-              ? `Marked: ${submission.grade}`
-              : 'Submitted'}
-          </Badge>
-          {submission?.status === 'submitted' && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() =>
-                onSubmit(
-                  student.id,
-                  `${student.firstName} ${student.lastName}`,
-                  student.className
-                )
-              }
-            >
-              Resubmit
-            </Button>
-          )}
-        </div>
+        <Badge variant="secondary" className="flex items-center gap-1 w-fit">
+          <CheckCircle className="h-3 w-3" />
+          {submission?.status === 'marked' && submission.grade
+            ? `Marked: ${submission.grade}`
+            : 'Submitted'}
+        </Badge>
       ) : (
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() =>
-            onSubmit(
-              student.id,
-              `${student.firstName} ${student.lastName}`,
-              student.className
-            )
-          }
-        >
-          <Upload className="h-4 w-4 mr-1" />
-          Submit
-        </Button>
+        <span className="text-muted-foreground">Not submitted yet</span>
       )}
     </div>
   );

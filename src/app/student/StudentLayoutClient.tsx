@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useStudentAuth } from "@/hooks/useStudentAuth";
 import { StudentTopHeader } from "@/components/student/top-header";
 import { StudentBottomNav } from "@/components/student/bottom-nav";
+import { StudentMobileChromeProvider } from "@/components/student/student-mobile-chrome-context";
 import { StudentAppSidebar } from "@/components/student/app-sidebar";
 import { StudentDesktopHeader } from "@/components/student/desktop-header";
 import { OfflineBanner } from "@/components/teacher/offline-banner";
@@ -88,21 +89,23 @@ function StudentLayoutContent({ children }: { children: React.ReactNode }) {
       <StudentAppSidebar />
 
       <SidebarInset className="min-h-svh w-full bg-blue-50/40 dark:bg-blue-950/15">
-        <StudentDesktopHeader />
+        <StudentMobileChromeProvider>
+          <StudentDesktopHeader />
 
-        <div className="md:hidden">
-          <StudentTopHeader subtitle={student.className} />
-        </div>
+          <div className="md:hidden">
+            <StudentTopHeader subtitle={student.className} />
+          </div>
 
-        <OfflineBanner />
+          <OfflineBanner />
 
-        <main className="px-4 pb-24 pt-14 md:px-8 md:py-10">
-          {children}
-        </main>
+          <main className="px-4 pb-24 pt-14 md:px-8 md:py-10">
+            {children}
+          </main>
 
-        <div className="md:hidden">
-          <StudentBottomNav />
-        </div>
+          <div className="md:hidden">
+            <StudentBottomNav />
+          </div>
+        </StudentMobileChromeProvider>
       </SidebarInset>
 
       <SwRegister />
