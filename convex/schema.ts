@@ -143,7 +143,15 @@ export default defineSchema({
     read: v.boolean(),
     actionUrl: v.optional(v.string()),
     recipientId: v.optional(v.string()),
-    recipientRole: v.optional(v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher'), v.literal('parent'))),
+    recipientRole: v.optional(
+      v.union(
+        v.literal('super_admin'),
+        v.literal('school_admin'),
+        v.literal('teacher'),
+        v.literal('parent'),
+        v.literal('student'),
+      ),
+    ),
   }).index('by_read', ['read']).index('by_recipient', ['recipientId']),
 
   subscriptionPlans: defineTable({
@@ -1123,11 +1131,16 @@ export default defineSchema({
     homeworkId: v.id('homework'),
     studentId: v.string(),
     studentName: v.string(),
-    submittedBy: v.string(), // parentId or teacherId
+    submittedBy: v.string(), // student _id, parent id, or teacher id
     submittedByName: v.string(),
-    submittedByRole: v.union(v.literal('parent'), v.literal('teacher')),
-    storageId: v.string(),
-    fileName: v.string(),
+    submittedByRole: v.union(
+      v.literal('student'),
+      v.literal('parent'),
+      v.literal('teacher'),
+    ),
+    storageId: v.optional(v.string()),
+    fileName: v.optional(v.string()),
+    portalAnswer: v.optional(v.string()),
     remarks: v.optional(v.string()),
     status: v.union(v.literal('submitted'), v.literal('marked')),
     grade: v.optional(v.string()),

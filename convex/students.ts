@@ -1140,6 +1140,105 @@ export const getHomeworkForStudentPortal = query({
   },
 });
 
+/** Active class homework with submission status — for student list & detail sidebar. */
+export const getHomeworkSummariesForStudentPortal = query({
+  args: { studentId: v.id("students"), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const student = await ctx.db.get(args.studentId);
+    if (!student) return [];
+
+    const classDoc = await ctx.db
+      .query("classes")
+      .withIndex("by_class_code", (q) => q.eq("classCode", student.classId))
+      .first();
+
+    if (!classDoc || classDoc.schoolId !== student.schoolId) return [];
+
+    const limit = args.limit ?? 100;
+    const rows = await ctx.db
+      .query("homework")
+      .withIndex("by_class", (q) =>
+        q.eq("schoolId", student.schoolId).eq("classId", classDoc._id),
+      )
+      .collect();
+
+    const active = rows.filter((h) => h.status === "active");
+    active.sort(
+      (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime(),
+    );
+    const slice = active.slice(0, limit);
+    const studentIdStr = args.studentId as string;
+    const now = new Date();
+
+    const out: {
+      _id: Id<"homework">;
+      title: string;
+      dueDate: string;
+      createdAt: string;
+      subjectName?: string;
+      teacherName?: string;
+      attachmentCount: number;
+      submissionStatus: "none" | "submitted" | "marked";
+      grade?: string;
+      isOverdue: boolean;
+    }[] = [];
+
+    for (const h of slice) {
+      const sub = await ctx.db
+        .query("homeworkSubmissions")
+        .withIndex("by_homework_student", (q) =>
+          q.eq("homeworkId", h._id).eq("studentId", studentIdStr),
+        )
+        .first();
+      const submissionStatus =
+        sub?.status === "marked"
+          ? "marked"
+          : sub?.status === "submitted"
+            ? "submitted"
+            : "none";
+      const done =
+        submissionStatus === "submitted" || submissionStatus === "marked";
+      const due = new Date(h.dueDate);
+      out.push({
+        _id: h._id,
+        title: h.title,
+        dueDate: h.dueDate,
+        createdAt: h.createdAt,
+        subjectName: h.subjectName,
+        teacherName: h.teacherName,
+        attachmentCount: h.attachmentStorageIds?.length ?? 0,
+        submissionStatus,
+        grade: sub?.grade,
+        isOverdue: due < now && !done,
+      });
+    }
+    return out;
+  },
+});
+
+export const getHomeworkForStudentDetail = query({
+  args: { studentId: v.id("students"), homeworkId: v.id("homework") },
+  handler: async (ctx, args) => {
+    const student = await ctx.db.get(args.studentId);
+    if (!student) return null;
+
+    const hw = await ctx.db.get(args.homeworkId);
+    if (!hw || hw.schoolId !== student.schoolId || hw.status !== "active") {
+      return null;
+    }
+
+    const classDoc = await ctx.db
+      .query("classes")
+      .withIndex("by_class_code", (q) => q.eq("classCode", student.classId))
+      .first();
+    if (!classDoc || classDoc._id !== hw.classId) {
+      return null;
+    }
+
+    return hw;
+  },
+});
+
 export const getTimetableForStudentPortal = query({
   args: { studentId: v.id("students") },
   handler: async (ctx, args) => {
@@ -1177,7 +1276,18 @@ export const getTimetableForStudentPortal = query({
       .withIndex("by_timetable", (q) => q.eq("timetableId", timetable._id))
       .collect();
 
-    return { timetable, periods, assignments };
+    const assignmentsWithSubjectMeta = await Promise.all(
+      assignments.map(async (a) => {
+        const subj = await ctx.db.get(a.subjectId as Id<"subjects">);
+        return {
+          ...a,
+          subjectCategory: subj?.category,
+          subjectColor: subj?.color,
+        };
+      }),
+    );
+
+    return { timetable, periods, assignments: assignmentsWithSubjectMeta };
   },
 });
 

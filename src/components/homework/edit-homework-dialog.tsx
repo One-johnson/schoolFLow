@@ -190,7 +190,7 @@ export function EditHomeworkDialog({
         <DialogHeader>
           <DialogTitle>Edit Homework</DialogTitle>
           <DialogDescription>
-            Update homework details. Changes will be visible to parents immediately.
+            Update homework details. Changes are visible to parents and students immediately.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">

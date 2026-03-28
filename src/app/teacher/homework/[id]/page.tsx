@@ -263,12 +263,18 @@ export default function TeacherHomeworkDetailPage() {
                         {sub.feedback && ` • ${sub.feedback}`}
                       </p>
                     )}
+                    {sub.portalAnswer ? (
+                      <div className="mt-3 rounded-md border bg-muted/30 px-3 py-2 max-w-xl">
+                        <p className="text-xs font-medium text-muted-foreground mb-1">Written answer (portal)</p>
+                        <p className="text-sm whitespace-pre-wrap">{sub.portalAnswer}</p>
+                      </div>
+                    ) : null}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {sub.storageId && (
+                  <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
+                    {sub.storageId && sub.fileName ? (
                       <HomeworkFileLink storageId={sub.storageId} fileName={sub.fileName} />
-                    )}
+                    ) : null}
                     {sub.status === 'submitted' && (
                       <Button
                         size="sm"

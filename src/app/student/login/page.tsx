@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { StudentIllustration } from "@/components/student/student-illustration";
 
 export default function StudentLoginPage(): React.JSX.Element {
+  const reduceMotion = useReducedMotion();
   const { login } = useStudentAuth();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
@@ -117,9 +118,12 @@ export default function StudentLoginPage(): React.JSX.Element {
       <div className="relative z-10 flex-1 flex flex-col lg:flex-row">
         <div className="hidden lg:flex lg:w-[46%] xl:w-[42%] flex-col justify-center px-10 xl:px-16 py-12 border-r border-white/5">
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
+            initial={reduceMotion ? false : { opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            transition={{
+              duration: reduceMotion ? 0 : 0.5,
+              ease: [0.22, 1, 0.36, 1],
+            }}
             className="max-w-md space-y-6"
           >
             <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/30 bg-violet-500/10 px-3 py-1 text-xs font-medium text-violet-200">
@@ -159,9 +163,13 @@ export default function StudentLoginPage(): React.JSX.Element {
 
         <div className="flex-1 flex items-center justify-center px-4 py-10 sm:py-14 lg:py-12">
           <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.98 }}
+            initial={reduceMotion ? false : { opacity: 0, y: 20, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: 0.45, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+            transition={{
+              duration: reduceMotion ? 0 : 0.45,
+              delay: reduceMotion ? 0 : 0.08,
+              ease: [0.22, 1, 0.36, 1],
+            }}
             className="w-full max-w-md"
           >
             <div

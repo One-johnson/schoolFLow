@@ -187,7 +187,7 @@ export function AddHomeworkDialog({
         <DialogHeader>
           <DialogTitle>Add Homework</DialogTitle>
           <DialogDescription>
-            Create homework for your class. Parents will be notified.
+            Create homework for your class. Parents are notified; students submit from their portal.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">

@@ -225,6 +225,72 @@ export const getNotificationsByParent = query({
   },
 });
 
+// Query: In-app notifications for a student (homework, etc.)
+export const getNotificationsByStudent = query({
+  args: { studentId: v.id('students'), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const sid = args.studentId as string;
+    const limit = args.limit ?? 80;
+    const notifications = await ctx.db
+      .query('notifications')
+      .order('desc')
+      .collect();
+    return notifications
+      .filter((n) => n.recipientRole === 'student' && n.recipientId === sid)
+      .slice(0, limit);
+  },
+});
+
+export const getStudentUnreadNotificationCount = query({
+  args: { studentId: v.id('students') },
+  handler: async (ctx, args) => {
+    const sid = args.studentId as string;
+    const notifications = await ctx.db
+      .query('notifications')
+      .filter((q) => q.eq(q.field('read'), false))
+      .collect();
+    return notifications.filter(
+      (n) => n.recipientRole === 'student' && n.recipientId === sid
+    ).length;
+  },
+});
+
+export const markStudentNotificationAsRead = mutation({
+  args: { id: v.id('notifications'), studentId: v.id('students') },
+  handler: async (ctx, args) => {
+    const n = await ctx.db.get(args.id);
+    const sid = args.studentId as string;
+    if (
+      !n ||
+      n.recipientRole !== 'student' ||
+      n.recipientId !== sid
+    ) {
+      throw new Error('Unauthorized');
+    }
+    await ctx.db.patch(args.id, { read: true });
+    return args.id;
+  },
+});
+
+export const markAllStudentNotificationsAsRead = mutation({
+  args: { studentId: v.id('students') },
+  handler: async (ctx, args) => {
+    const sid = args.studentId as string;
+    const notifications = await ctx.db
+      .query('notifications')
+      .filter((q) => q.eq(q.field('read'), false))
+      .collect();
+    let n = 0;
+    for (const row of notifications) {
+      if (row.recipientRole === 'student' && row.recipientId === sid) {
+        await ctx.db.patch(row._id, { read: true });
+        n++;
+      }
+    }
+    return n;
+  },
+});
+
 // Mark all teacher notifications as read
 export const markAllTeacherNotificationsAsRead = mutation({
   args: { teacherId: v.string() },

@@ -219,8 +219,7 @@ export const create = mutation({
       attachmentStorageIds: args.attachmentStorageIds,
     });
 
-    // Notify parents of students in this class
-    await notifyParentsOfNewHomework(ctx, args.schoolId, args.classId, args.title);
+    await notifyClassAboutNewHomework(ctx, args.classId, args.title, id);
 
     return id;
   },
@@ -282,54 +281,152 @@ export const archive = mutation({
   },
 });
 
-// Submit homework (parent uploads on behalf of student)
-export const submitHomework = mutation({
+async function notifyParentsOfHomeworkSubmission(
+  ctx: MutationCtx,
+  studentId: Id<'students'>,
+  homeworkTitle: string
+) {
+  const links = await ctx.db
+    .query('parentStudents')
+    .withIndex('by_student', (q) => q.eq('studentId', studentId))
+    .collect();
+
+  const now = new Date().toISOString();
+  const actionUrl = '/parent/homework';
+  for (const link of links) {
+    await ctx.db.insert('notifications', {
+      title: 'Homework submitted',
+      message: `"${homeworkTitle}" was submitted by your child.`,
+      type: 'info',
+      timestamp: now,
+      read: false,
+      recipientId: link.parentId as string,
+      recipientRole: 'parent',
+      actionUrl,
+    });
+  }
+}
+
+// Submit homework: upload a file and/or written answer in the student portal.
+// Pass storageId+fileName for a file update; pass portalAnswer to set/clear written work (empty string clears).
+export const submitHomeworkAsStudent = mutation({
   args: {
     schoolId: v.string(),
     homeworkId: v.id('homework'),
-    studentId: v.string(),
-    studentName: v.string(),
-    submittedBy: v.string(),
-    submittedByName: v.string(),
-    storageId: v.string(),
-    fileName: v.string(),
+    studentId: v.id('students'),
+    storageId: v.optional(v.string()),
+    fileName: v.optional(v.string()),
+    portalAnswer: v.optional(v.string()),
     remarks: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const student = await ctx.db.get(args.studentId);
+    if (!student) throw new Error('Student not found');
+    if (student.schoolId !== args.schoolId) throw new Error('Unauthorized');
+
+    const hw = await ctx.db.get(args.homeworkId);
+    if (!hw || hw.schoolId !== args.schoolId) throw new Error('Homework not found');
+    if (hw.status !== 'active') throw new Error('This homework is no longer active');
+
+    const classDoc = await ctx.db
+      .query('classes')
+      .withIndex('by_class_code', (q) => q.eq('classCode', student.classId))
+      .first();
+    if (!classDoc || classDoc._id !== hw.classId) {
+      throw new Error('This assignment is not for your class');
+    }
+
+    const hasFile = Boolean(args.storageId && args.fileName);
+    if (args.storageId && !args.fileName) throw new Error('File name is required with upload');
+    if (!args.storageId && args.fileName) throw new Error('Upload is incomplete');
+
+    const wantsPortalUpdate = args.portalAnswer !== undefined;
+    const portalValue = wantsPortalUpdate ? args.portalAnswer!.trim() || undefined : undefined;
+
+    const studentIdStr = args.studentId as string;
+    const studentName = `${student.firstName} ${student.lastName}`;
+
     const existing = await ctx.db
       .query('homeworkSubmissions')
       .withIndex('by_homework_student', (q) =>
-        q.eq('homeworkId', args.homeworkId).eq('studentId', args.studentId)
+        q.eq('homeworkId', args.homeworkId).eq('studentId', studentIdStr)
       )
       .first();
 
     const now = new Date().toISOString();
 
+    const ensureHasContent = (
+      nextStorageId: string | undefined,
+      nextFileName: string | undefined,
+      nextPortal: string | undefined
+    ) => {
+      const hasStoredFile = Boolean(nextStorageId && nextFileName);
+      const hasStoredText = Boolean(nextPortal && nextPortal.length > 0);
+      if (!hasStoredFile && !hasStoredText) {
+        throw new Error('Add a file or write your answer in the portal before submitting');
+      }
+    };
+
     if (existing) {
-      await ctx.db.patch(existing._id, {
-        submittedBy: args.submittedBy,
-        submittedByName: args.submittedByName,
-        storageId: args.storageId,
-        fileName: args.fileName,
-        remarks: args.remarks,
-      });
+      if (existing.status === 'marked') {
+        throw new Error('This homework has already been marked and cannot be changed');
+      }
+      if (!hasFile && !wantsPortalUpdate && args.remarks === undefined) {
+        throw new Error('Nothing to update');
+      }
+
+      const nextStorageId = hasFile ? args.storageId : existing.storageId;
+      const nextFileName = hasFile ? args.fileName : existing.fileName;
+      const nextPortal = wantsPortalUpdate ? portalValue : existing.portalAnswer;
+
+      if (hasFile || wantsPortalUpdate) {
+        ensureHasContent(nextStorageId, nextFileName, nextPortal);
+      }
+
+      const patch: Record<string, unknown> = {
+        submittedBy: studentIdStr,
+        submittedByName: studentName,
+        submittedByRole: 'student',
+      };
+      if (hasFile) {
+        patch.storageId = args.storageId;
+        patch.fileName = args.fileName;
+      }
+      if (wantsPortalUpdate) {
+        patch.portalAnswer = portalValue;
+      }
+      if (args.remarks !== undefined) {
+        patch.remarks = args.remarks;
+      }
+
+      await ctx.db.patch(existing._id, patch);
+      await notifyParentsOfHomeworkSubmission(ctx, args.studentId, hw.title);
       return existing._id;
     }
 
-    return await ctx.db.insert('homeworkSubmissions', {
+    ensureHasContent(
+      hasFile ? args.storageId : undefined,
+      hasFile ? args.fileName : undefined,
+      portalValue
+    );
+
+    const id = await ctx.db.insert('homeworkSubmissions', {
       schoolId: args.schoolId,
       homeworkId: args.homeworkId,
-      studentId: args.studentId,
-      studentName: args.studentName,
-      submittedBy: args.submittedBy,
-      submittedByName: args.submittedByName,
-      submittedByRole: 'parent',
-      storageId: args.storageId,
-      fileName: args.fileName,
+      studentId: studentIdStr,
+      studentName,
+      submittedBy: studentIdStr,
+      submittedByName: studentName,
+      submittedByRole: 'student',
+      storageId: hasFile ? args.storageId : undefined,
+      fileName: hasFile ? args.fileName : undefined,
+      portalAnswer: portalValue,
       remarks: args.remarks,
       status: 'submitted',
       createdAt: now,
     });
+    await notifyParentsOfHomeworkSubmission(ctx, args.studentId, hw.title);
+    return id;
   },
 });
 
@@ -362,6 +459,13 @@ export const bulkMarkSubmissions = mutation({
         markedByName: teacherName,
         markedAt: new Date().toISOString(),
       });
+      await notifyStudentHomeworkMarked(
+        ctx,
+        sub.studentId,
+        sub.homeworkId,
+        hw.title,
+        args.grade
+      );
       count++;
     }
     return { count };
@@ -396,16 +500,45 @@ export const markSubmission = mutation({
       markedByName: teacherName,
       markedAt: new Date().toISOString(),
     });
+    await notifyStudentHomeworkMarked(
+      ctx,
+      sub.studentId,
+      sub.homeworkId,
+      hw.title,
+      args.grade
+    );
     return args.id;
   },
 });
 
-// Helper: Notify parents when new homework is assigned
-async function notifyParentsOfNewHomework(
+async function notifyStudentHomeworkMarked(
   ctx: MutationCtx,
-  schoolId: string,
+  studentId: string,
+  homeworkId: Id<'homework'>,
+  homeworkTitle: string,
+  grade?: string
+) {
+  const message = grade
+    ? `"${homeworkTitle}" has been marked. Grade: ${grade}. Open it to see your teacher's feedback.`
+    : `"${homeworkTitle}" has been marked. Open it to see your teacher's feedback.`;
+  await ctx.db.insert('notifications', {
+    title: 'Homework marked',
+    message,
+    type: 'success',
+    timestamp: new Date().toISOString(),
+    read: false,
+    recipientId: studentId,
+    recipientRole: 'student',
+    actionUrl: `/student/homework/${homeworkId}`,
+  });
+}
+
+// Helper: Notify parents and students when new homework is assigned
+async function notifyClassAboutNewHomework(
+  ctx: MutationCtx,
   classId: string,
-  title: string
+  title: string,
+  homeworkId: Id<'homework'>
 ) {
   const classDoc = await ctx.db.get(classId as Id<'classes'>);
   if (!classDoc) return;
@@ -414,6 +547,22 @@ async function notifyParentsOfNewHomework(
     .query('students')
     .withIndex('by_class', (q) => q.eq('classId', classDoc.classCode))
     .collect();
+
+  const now = new Date().toISOString();
+  const studentActionUrl = `/student/homework/${homeworkId}`;
+
+  for (const student of students) {
+    await ctx.db.insert('notifications', {
+      title: 'New homework',
+      message: `"${title}" was assigned. Open it to read instructions and submit when you're ready.`,
+      type: 'info',
+      timestamp: now,
+      read: false,
+      recipientId: student._id as string,
+      recipientRole: 'student',
+      actionUrl: studentActionUrl,
+    });
+  }
 
   const parentIds = new Set<string>();
   for (const student of students) {
@@ -426,12 +575,11 @@ async function notifyParentsOfNewHomework(
     }
   }
 
-  const now = new Date().toISOString();
   const actionUrl = '/parent/homework';
   for (const parentId of parentIds) {
     await ctx.db.insert('notifications', {
       title: 'New Homework Assigned',
-      message: `"${title}" has been assigned. Due date is coming up.`,
+      message: `"${title}" has been assigned. Your child can view and submit it from their student portal.`,
       type: 'info',
       timestamp: now,
       read: false,
@@ -490,25 +638,56 @@ export const sendHomeworkDueReminders = internalMutation({
         for (const l of links) parentIds.add(l.parentId);
       }
 
-      const actionUrl = `/parent/homework?hw=${hw._id}`;
+      const parentActionUrl = `/parent/homework?hw=${hw._id}`;
       for (const parentId of parentIds) {
         const existing = await ctx.db
           .query('notifications')
           .filter((q) => q.eq(q.field('recipientId'), parentId))
-          .filter((q) => q.eq(q.field('actionUrl'), actionUrl))
+          .filter((q) => q.eq(q.field('actionUrl'), parentActionUrl))
           .filter((q) => q.gte(q.field('timestamp'), today))
           .first();
         if (existing) continue;
 
         await ctx.db.insert('notifications', {
           title: 'Homework Due Soon',
-          message: `"${hw.title}" is due ${hw.dueDate === tomorrowStr ? 'tomorrow' : 'in 2 days'}. Don't forget to submit!`,
+          message: `"${hw.title}" is due ${hw.dueDate === tomorrowStr ? 'tomorrow' : 'in 2 days'}. Your child can submit it from their student portal.`,
           type: 'warning',
           timestamp: now.toISOString(),
           read: false,
           recipientId: parentId,
           recipientRole: 'parent',
-          actionUrl,
+          actionUrl: parentActionUrl,
+        });
+        sent++;
+      }
+
+      const studentActionUrl = `/student/homework/${hw._id}`;
+      for (const s of students) {
+        const sub = await ctx.db
+          .query('homeworkSubmissions')
+          .withIndex('by_homework_student', (q) =>
+            q.eq('homeworkId', hw._id).eq('studentId', s._id as string)
+          )
+          .first();
+        if (sub && (sub.status === 'submitted' || sub.status === 'marked')) continue;
+
+        const existingStu = await ctx.db
+          .query('notifications')
+          .filter((q) => q.eq(q.field('recipientId'), s._id as string))
+          .filter((q) => q.eq(q.field('actionUrl'), studentActionUrl))
+          .filter((q) => q.gte(q.field('timestamp'), today))
+          .first();
+        if (existingStu) continue;
+
+        await ctx.db.insert('notifications', {
+          title: 'Homework due soon',
+          message: `"${hw.title}" is due ${hw.dueDate === tomorrowStr ? 'tomorrow' : 'in 2 days'}. Submit from your homework page when you're ready.`,
+          type: 'warning',
+          timestamp: now.toISOString(),
+          read: false,
+          recipientId: s._id as string,
+          recipientRole: 'student',
+          actionUrl: studentActionUrl,
         });
         sent++;
       }
