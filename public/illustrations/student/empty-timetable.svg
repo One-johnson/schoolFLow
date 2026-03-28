@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 160" fill="none" aria-hidden="true">
+  <rect width="200" height="160" rx="12" fill="#F8FAFC"/>
+  <circle cx="100" cy="88" r="54" fill="#EFF6FF" stroke="#BFDBFE" stroke-width="2"/>
+  <!-- clock -->
+  <circle cx="100" cy="88" r="38" fill="#FFFFFF" stroke="#2563EB" stroke-width="2.5"/>
+  <line x1="100" y1="88" x2="100" y2="64" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="100" y1="88" x2="118" y2="98" stroke="#60A5FA" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="100" cy="88" r="3" fill="#2563EB"/>
+  <!-- schedule ticks -->
+  <rect x="48" y="42" width="8" height="3" rx="1" fill="#93C5FD"/>
+  <rect x="144" y="42" width="8" height="3" rx="1" fill="#93C5FD"/>
+  <rect x="48" y="128" width="8" height="3" rx="1" fill="#93C5FD"/>
+</svg>

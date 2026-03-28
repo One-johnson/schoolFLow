@@ -194,7 +194,7 @@ export default defineSchema({
 
   loginHistory: defineTable({
     userId: v.string(),
-    userRole: v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher'), v.literal('parent')),
+    userRole: v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher'), v.literal('parent'), v.literal('student')),
     loginTime: v.string(),
     logoutTime: v.optional(v.string()),
     status: v.union(v.literal('success'), v.literal('failed')),
@@ -209,7 +209,7 @@ export default defineSchema({
 
   sessions: defineTable({
     userId: v.string(),
-    userRole: v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher'), v.literal('parent')),
+    userRole: v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher'), v.literal('parent'), v.literal('student')),
     sessionToken: v.string(),
     ipAddress: v.string(),
     device: v.string(),
@@ -224,7 +224,7 @@ export default defineSchema({
 
   securityAlerts: defineTable({
     userId: v.string(),
-    userRole: v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher'), v.literal('parent')),
+    userRole: v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher'), v.literal('parent'), v.literal('student')),
     alertType: v.union(
       v.literal('new_device'),
       v.literal('suspicious_location'),
@@ -449,7 +449,7 @@ export default defineSchema({
     admissionNumber: v.string(), // e.g., "ADM2024001"
     
     // Authentication
-    password: v.string(), // Default: studentId (can be changed later)
+    password: v.string(), // bcrypt hash; default plaintext password is studentId (can be changed later)
     
     // Personal Information
     firstName: v.string(),

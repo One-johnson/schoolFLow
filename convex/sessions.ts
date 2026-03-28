@@ -7,7 +7,7 @@ import type { Id } from './_generated/dataModel';
 export const create = mutation({
   args: {
     userId: v.string(),
-    userRole: v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher'), v.literal('parent')),
+    userRole: v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher'), v.literal('parent'), v.literal('student')),
     sessionToken: v.string(),
     ipAddress: v.string(),
     device: v.string(),
@@ -120,7 +120,7 @@ export const revokeAllExcept = mutation({
 export const listActive = query({
   args: {
     userId: v.optional(v.string()),
-    userRole: v.optional(v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher'), v.literal('parent'))),
+    userRole: v.optional(v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher'), v.literal('parent'), v.literal('student'))),
   },
   handler: async (ctx, args) => {
     const query = ctx.db.query('sessions');
@@ -222,6 +222,18 @@ export const getSessionWithUser = query({
           }
         : null;
     }
+    if (session.userRole === 'student') {
+      const user = await ctx.db.get(session.userId as Id<'students'>);
+      return user
+        ? {
+            userId: session.userId,
+            email: user.email ?? '',
+            role: 'student' as const,
+            schoolId: user.schoolId,
+            studentId: user.studentId,
+          }
+        : null;
+    }
     return null;
   },
 });
@@ -248,7 +260,7 @@ export const cleanupExpired = mutation({
 // Get statistics
 export const getStats = query({
   args: {
-    userRole: v.optional(v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher'), v.literal('parent'))),
+    userRole: v.optional(v.union(v.literal('super_admin'), v.literal('school_admin'), v.literal('teacher'), v.literal('parent'), v.literal('student'))),
   },
   handler: async (ctx, args) => {
     const allSessions = await ctx.db.query('sessions').collect();
