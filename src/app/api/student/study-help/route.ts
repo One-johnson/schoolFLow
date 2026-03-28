@@ -1,11 +1,34 @@
 import { NextResponse } from "next/server";
 import { getStudentFromSessionCookie } from "@/lib/student-session-server";
 import { STUDY_HELP_SYSTEM_PROMPT } from "@/lib/study-help-prompt";
+import { STUDY_HELP_QUIZ_SYSTEM_PROMPT } from "@/lib/study-help-quiz-prompt";
 import {
   STUDY_HELP_MAX_MESSAGES,
   STUDY_HELP_MAX_MESSAGE_CHARS,
-  STUDY_HELP_MAX_OUTPUT_TOKENS,
+  STUDY_HELP_QUIZ_MAX_TOPIC_CHARS,
+  STUDY_HELP_QUIZ_MIN_COUNT,
+  STUDY_HELP_QUIZ_MAX_COUNT,
 } from "@/lib/study-help-limits";
+import {
+  getStudyHelpProvider,
+  isStudyHelpAiConfigured,
+} from "@/lib/study-help-ai-config";
+import {
+  runStudyHelpChat,
+  runStudyHelpQuizJson,
+  StudyHelpUpstreamError,
+} from "@/lib/study-help-ai";
+import { parseQuizJson } from "@/lib/study-help-quiz-parse";
+
+function jsonUpstreamError(e: unknown): NextResponse {
+  if (e instanceof StudyHelpUpstreamError) {
+    return NextResponse.json({ error: e.message }, { status: e.httpStatus });
+  }
+  return NextResponse.json(
+    { error: "Could not reach the assistant. Try again later." },
+    { status: 502 },
+  );
+}
 
 type ChatRole = "user" | "assistant";
 
@@ -36,14 +59,45 @@ function parseMessages(body: unknown): IncomingMessage[] | null {
   return out;
 }
 
+function parseQuizGenerateBody(body: unknown): {
+  topic: string;
+  difficulty: "easy" | "medium" | "hard";
+  count: number;
+} | null {
+  if (!body || typeof body !== "object") return null;
+  const mode = (body as { mode?: unknown }).mode;
+  if (mode !== "quiz_generate") return null;
+  const topicRaw = (body as { topic?: unknown }).topic;
+  if (typeof topicRaw !== "string") return null;
+  const topic = topicRaw.trim();
+  if (!topic.length || topic.length > STUDY_HELP_QUIZ_MAX_TOPIC_CHARS) return null;
+
+  let difficulty: "easy" | "medium" | "hard" = "medium";
+  const d = (body as { difficulty?: unknown }).difficulty;
+  if (d === "easy" || d === "medium" || d === "hard") difficulty = d;
+
+  let count = 5;
+  const c = (body as { count?: unknown }).count;
+  if (typeof c === "number" && Number.isFinite(c)) {
+    count = Math.round(c);
+  }
+  if (count < STUDY_HELP_QUIZ_MIN_COUNT || count > STUDY_HELP_QUIZ_MAX_COUNT) {
+    return null;
+  }
+
+  return { topic, difficulty, count };
+}
+
 export async function GET(): Promise<NextResponse> {
   const student = await getStudentFromSessionCookie();
   if (!student) {
     return NextResponse.json({ available: false }, { status: 401 });
   }
-  const hasKey = Boolean(process.env.OPENAI_API_KEY?.trim());
-  const available = !studyHelpDisabled() && hasKey;
-  return NextResponse.json({ available });
+  const available = !studyHelpDisabled() && isStudyHelpAiConfigured();
+  return NextResponse.json({
+    available,
+    provider: getStudyHelpProvider(),
+  });
 }
 
 export async function POST(req: Request): Promise<NextResponse> {
@@ -59,8 +113,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     );
   }
 
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  if (!apiKey) {
+  if (!isStudyHelpAiConfigured()) {
     return NextResponse.json(
       { error: "Study help is not configured yet. Ask your teacher or school admin." },
       { status: 503 },
@@ -74,6 +127,52 @@ export async function POST(req: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
+  const quizArgs = parseQuizGenerateBody(body);
+  if (quizArgs) {
+    const logEnabled = process.env.STUDY_HELP_LOG?.trim().toLowerCase() === "true";
+    if (logEnabled) {
+      console.info("[study-help quiz]", {
+        schoolId: student.schoolId,
+        studentId: student.convexStudentId,
+        topicChars: quizArgs.topic.length,
+        difficulty: quizArgs.difficulty,
+        count: quizArgs.count,
+      });
+    }
+
+    const userPrompt = `Generate exactly ${quizArgs.count} multiple-choice practice questions.
+Difficulty: ${quizArgs.difficulty}.
+Topic / focus (from the student): ${quizArgs.topic}
+
+Return only the JSON object with key "questions" as specified.`;
+
+    let rawJson: string;
+    try {
+      rawJson = await runStudyHelpQuizJson(STUDY_HELP_QUIZ_SYSTEM_PROMPT, userPrompt);
+    } catch (e) {
+      console.error("Study help quiz upstream error:", e);
+      return jsonUpstreamError(e);
+    }
+
+    const questions = parseQuizJson(rawJson);
+    if (
+      !questions?.length ||
+      questions.length < STUDY_HELP_QUIZ_MIN_COUNT ||
+      questions.length > STUDY_HELP_QUIZ_MAX_COUNT
+    ) {
+      console.error("Study help quiz parse failed; raw length", rawJson.length);
+      return NextResponse.json(
+        {
+          error:
+            "The quiz did not come back in the right format. Try a shorter topic or different wording.",
+        },
+        { status: 502 },
+      );
+    }
+
+    return NextResponse.json({ questions });
+  }
+
   const messages = parseMessages(body);
   if (!messages) {
     return NextResponse.json(
@@ -82,15 +181,6 @@ export async function POST(req: Request): Promise<NextResponse> {
     );
   }
 
-  const model = process.env.STUDY_HELP_MODEL?.trim() || "gpt-4o-mini";
-  const base =
-    process.env.OPENAI_BASE_URL?.trim().replace(/\/$/, "") || "https://api.openai.com/v1";
-
-  const openaiMessages = [
-    { role: "system" as const, content: STUDY_HELP_SYSTEM_PROMPT },
-    ...messages.map((m) => ({ role: m.role, content: m.content })),
-  ];
-
   const logEnabled = process.env.STUDY_HELP_LOG?.trim().toLowerCase() === "true";
   const lastUser = [...messages].reverse().find((m) => m.role === "user");
   if (logEnabled) {
@@ -98,56 +188,21 @@ export async function POST(req: Request): Promise<NextResponse> {
     console.info("[study-help]", {
       schoolId: student.schoolId,
       studentId: student.convexStudentId,
+      provider: getStudyHelpProvider(),
       turns: messages.length,
       lastUserChars: lastUser?.content.length ?? 0,
       preview,
     });
   }
 
-  let res: Response;
+  let text: string;
   try {
-    res = await fetch(`${base}/chat/completions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        messages: openaiMessages,
-        max_tokens: STUDY_HELP_MAX_OUTPUT_TOKENS,
-        temperature: 0.6,
-      }),
-    });
+    text = await runStudyHelpChat(STUDY_HELP_SYSTEM_PROMPT, messages);
   } catch (e) {
-    console.error("Study help upstream error:", e);
-    return NextResponse.json(
-      { error: "Could not reach the assistant. Try again later." },
-      { status: 502 },
-    );
+    console.error("Study help chat upstream error:", e);
+    return jsonUpstreamError(e);
   }
 
-  if (!res.ok) {
-    const errText = await res.text().catch(() => "");
-    console.error("Study help OpenAI error:", res.status, errText.slice(0, 500));
-    return NextResponse.json(
-      { error: "The assistant had a problem. Try a shorter question." },
-      { status: 502 },
-    );
-  }
-
-  type OpenAIChat = {
-    choices?: Array<{ message?: { content?: string } }>;
-  };
-
-  let data: OpenAIChat;
-  try {
-    data = (await res.json()) as OpenAIChat;
-  } catch {
-    return NextResponse.json({ error: "Bad response from assistant." }, { status: 502 });
-  }
-
-  const text = data.choices?.[0]?.message?.content?.trim();
   if (!text) {
     return NextResponse.json({ error: "Empty reply. Try rephrasing." }, { status: 502 });
   }

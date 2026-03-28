@@ -1155,6 +1155,62 @@ export default defineSchema({
     .index('by_student', ['schoolId', 'studentId'])
     .index('by_homework_student', ['homeworkId', 'studentId']),
 
+  /** Teacher-authored MCQ quizzes with open/close window and optional per-attempt time limit. */
+  classQuizzes: defineTable({
+    schoolId: v.string(),
+    teacherId: v.string(),
+    teacherName: v.string(),
+    classId: v.string(),
+    className: v.string(),
+    subjectId: v.optional(v.string()),
+    subjectName: v.optional(v.string()),
+    title: v.string(),
+    description: v.optional(v.string()),
+    opensAt: v.string(),
+    closesAt: v.string(),
+    /** Max seconds from Start until submit; omit for no limit (only window applies). */
+    timeLimitSeconds: v.optional(v.number()),
+    status: v.union(
+      v.literal('draft'),
+      v.literal('published'),
+      v.literal('archived'),
+    ),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+    publishedAt: v.optional(v.string()),
+  })
+    .index('by_school', ['schoolId'])
+    .index('by_class', ['schoolId', 'classId'])
+    .index('by_teacher', ['schoolId', 'teacherId'])
+    .index('by_status', ['schoolId', 'status']),
+
+  classQuizQuestions: defineTable({
+    quizId: v.id('classQuizzes'),
+    schoolId: v.string(),
+    order: v.number(),
+    question: v.string(),
+    options: v.array(v.string()),
+    correctIndex: v.number(),
+    points: v.number(),
+  }).index('by_quiz', ['quizId']),
+
+  classQuizAttempts: defineTable({
+    quizId: v.id('classQuizzes'),
+    schoolId: v.string(),
+    studentId: v.string(),
+    studentName: v.string(),
+    status: v.union(v.literal('in_progress'), v.literal('submitted')),
+    startedAt: v.string(),
+    submittedAt: v.optional(v.string()),
+    /** Selected option index per question order; length matches question count at submit time. */
+    answers: v.optional(v.array(v.number())),
+    score: v.optional(v.number()),
+    maxScore: v.optional(v.number()),
+    percent: v.optional(v.number()),
+  })
+    .index('by_quiz', ['quizId'])
+    .index('by_quiz_student', ['quizId', 'studentId']),
+
  exams: defineTable({
     schoolId: v.string(),
     examCode: v.string(), // Auto-generated: EXM + 8 digits
