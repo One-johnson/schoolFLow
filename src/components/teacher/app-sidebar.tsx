@@ -29,6 +29,7 @@ import {
   Calendar,
   Download,
   Clock,
+  ListChecks,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -53,6 +54,7 @@ const mainMenuItems = [
   { title: 'Attendance', icon: ClipboardCheck, url: '/teacher/attendance' },
   { title: 'Grade Book', icon: BookOpen, url: '/teacher/gradebook' },
   { title: 'Homework', icon: FileText, url: '/teacher/homework' },
+  { title: 'Class quizzes', icon: ListChecks, url: '/teacher/quizzes' },
   { title: 'Messages', icon: MessageSquare, url: '/teacher/messages' },
 ];
 

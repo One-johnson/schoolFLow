@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import bcrypt from "bcryptjs";
 
 // GES (Ghana Education Service): 13 classes from Nursery 1 to Basic 9 / JHS 3
@@ -1105,9 +1105,76 @@ export const getStudentPortalProfile = query({
       );
     }
 
+    const department = await ctx.db.get(student.departmentId);
+    const departmentName = department?.name ?? null;
+
+    let houseName: string | null = null;
+    if (student.houseId) {
+      const house = await ctx.db.get(student.houseId);
+      houseName = house?.name ?? null;
+    }
+
     const { password: _pw, ...rest } = student;
     void _pw;
-    return { ...rest, photoUrl };
+    return { ...rest, photoUrl, departmentName, houseName };
+  },
+});
+
+/** Student self-service: email, phone, and address only. Same school/student check as other portal mutations. */
+export const updateStudentPortalContact = mutation({
+  args: {
+    schoolId: v.string(),
+    studentId: v.id("students"),
+    email: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    address: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const student = await ctx.db.get(args.studentId);
+    if (!student) {
+      throw new Error("Student not found");
+    }
+    if (student.schoolId !== args.schoolId) {
+      throw new Error("Unauthorized");
+    }
+
+    const now = new Date().toISOString();
+    const patch: Record<string, unknown> = { updatedAt: now };
+
+    if (args.email !== undefined) {
+      const trimmed = args.email.trim();
+      const nextEmail = trimmed === "" ? undefined : trimmed;
+      if (nextEmail && nextEmail !== student.email) {
+        const existingStudent = await ctx.db
+          .query("students")
+          .withIndex("by_email", (q) => q.eq("email", nextEmail))
+          .filter((q) => q.eq(q.field("schoolId"), student.schoolId))
+          .first();
+
+        if (existingStudent && existingStudent._id !== args.studentId) {
+          throw new Error(
+            "A student with this email already exists in your school",
+          );
+        }
+      }
+      patch.email = nextEmail;
+    }
+
+    if (args.phone !== undefined) {
+      const t = args.phone.trim();
+      patch.phone = t === "" ? undefined : t;
+    }
+
+    if (args.address !== undefined) {
+      const t = args.address.trim();
+      if (t === "") {
+        throw new Error("Address cannot be empty");
+      }
+      patch.address = t;
+    }
+
+    await ctx.db.patch(args.studentId, patch);
+    return { success: true as const };
   },
 });
 
@@ -1453,5 +1520,103 @@ export const getPublishedMarksForStudentPortal = query({
         new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
     );
     return published.slice(0, cap);
+  },
+});
+
+/** Published marks plus academic year / term from linked exam (for student filtering & PDF). */
+export const getPublishedMarksWithTermsForStudentPortal = query({
+  args: { studentId: v.id("students"), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const student = await ctx.db.get(args.studentId);
+    if (!student) return [];
+
+    const cap = args.limit ?? 200;
+    const byDocId = await ctx.db
+      .query("studentMarks")
+      .withIndex("by_student", (q) =>
+        q.eq("schoolId", student.schoolId).eq("studentId", student._id),
+      )
+      .collect();
+    const byHumanId = await ctx.db
+      .query("studentMarks")
+      .withIndex("by_student", (q) =>
+        q.eq("schoolId", student.schoolId).eq("studentId", student.studentId),
+      )
+      .collect();
+    const merged = new Map<string, (typeof byDocId)[0]>();
+    for (const m of [...byDocId, ...byHumanId]) {
+      merged.set(m._id, m);
+    }
+    const marks = Array.from(merged.values());
+    const published = marks.filter((m) => m.submissionStatus === "published");
+    published.sort(
+      (a, b) =>
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    );
+    const slice = published.slice(0, cap);
+
+    const examCache = new Map<string, Doc<"exams"> | null>();
+    const yearCache = new Map<string, Doc<"academicYears"> | null>();
+    const termCache = new Map<string, Doc<"terms"> | null>();
+
+    const getExam = async (examId: Id<"exams">) => {
+      const key = examId as string;
+      if (!examCache.has(key)) {
+        examCache.set(key, await ctx.db.get(examId));
+      }
+      return examCache.get(key) ?? null;
+    };
+
+    const getYear = async (id: string) => {
+      if (!yearCache.has(id)) {
+        yearCache.set(id, await ctx.db.get(id as Id<"academicYears">));
+      }
+      return yearCache.get(id) ?? null;
+    };
+
+    const getTerm = async (id: string) => {
+      if (!termCache.has(id)) {
+        termCache.set(id, await ctx.db.get(id as Id<"terms">));
+      }
+      return termCache.get(id) ?? null;
+    };
+
+    const out: Array<
+      (typeof slice)[0] & {
+        academicYearId: string | null;
+        academicYearName: string | null;
+        termId: string | null;
+        termName: string | null;
+      }
+    > = [];
+
+    for (const m of slice) {
+      let academicYearId: string | null = null;
+      let academicYearName: string | null = null;
+      let termId: string | null = null;
+      let termName: string | null = null;
+
+      const exam = await getExam(m.examId);
+      if (exam?.academicYearId) {
+        academicYearId = exam.academicYearId;
+        const ay = await getYear(exam.academicYearId);
+        academicYearName = ay?.yearName ?? null;
+      }
+      if (exam?.termId) {
+        termId = exam.termId;
+        const t = await getTerm(exam.termId);
+        termName = t?.termName ?? null;
+      }
+
+      out.push({
+        ...m,
+        academicYearId,
+        academicYearName,
+        termId,
+        termName,
+      });
+    }
+
+    return out;
   },
 });

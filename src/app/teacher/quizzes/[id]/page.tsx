@@ -1,0 +1,462 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../../../../convex/_generated/api";
+import { useTeacherAuth } from "@/hooks/useTeacherAuth";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import type { Id } from "../../../../../convex/_generated/dataModel";
+
+type QForm = {
+  question: string;
+  options: [string, string, string, string];
+  correctIndex: number;
+  points: number;
+};
+
+const emptyQ = (): QForm => ({
+  question: "",
+  options: ["", "", "", ""],
+  correctIndex: 0,
+  points: 1,
+});
+
+function toLocalValue(iso: string): string {
+  const d = new Date(iso);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+export default function TeacherQuizEditorPage() {
+  const params = useParams();
+  const quizId = params.id as Id<"classQuizzes">;
+  const { teacher } = useTeacherAuth();
+
+  const data = useQuery(
+    api.classQuizzes.getForTeacher,
+    teacher ? { quizId, teacherId: teacher.id } : "skip",
+  );
+
+  const updateDraft = useMutation(api.classQuizzes.updateDraft);
+  const replaceQuestions = useMutation(api.classQuizzes.replaceQuestions);
+  const publishQuiz = useMutation(api.classQuizzes.publishQuiz);
+  const archiveQuiz = useMutation(api.classQuizzes.archiveQuiz);
+
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [subjectName, setSubjectName] = useState("");
+  const [opensLocal, setOpensLocal] = useState("");
+  const [closesLocal, setClosesLocal] = useState("");
+  const [useTimeLimit, setUseTimeLimit] = useState(false);
+  const [timeLimitMinutes, setTimeLimitMinutes] = useState(30);
+  const [questions, setQuestions] = useState<QForm[]>([emptyQ()]);
+  const [showPublish, setShowPublish] = useState(false);
+  const [savingMeta, setSavingMeta] = useState(false);
+  const [savingQs, setSavingQs] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+
+  useEffect(() => {
+    if (!data?.quiz) return;
+    const { quiz, questions: qs } = data;
+    setTitle(quiz.title);
+    setDescription(quiz.description ?? "");
+    setSubjectName(quiz.subjectName ?? "");
+    setOpensLocal(toLocalValue(quiz.opensAt));
+    setClosesLocal(toLocalValue(quiz.closesAt));
+    const tl = quiz.timeLimitSeconds;
+    setUseTimeLimit(!!tl);
+    setTimeLimitMinutes(tl ? Math.round(tl / 60) : 30);
+    if (qs.length > 0) {
+      setQuestions(
+        qs.map((q) => ({
+          question: q.question,
+          options: [q.options[0], q.options[1], q.options[2], q.options[3]] as [
+            string,
+            string,
+            string,
+            string,
+          ],
+          correctIndex: q.correctIndex,
+          points: q.points,
+        })),
+      );
+    } else {
+      setQuestions([emptyQ()]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- resync when server quiz changes
+  }, [data?.quiz?._id, data?.quiz?.updatedAt]);
+
+  const saveMeta = async () => {
+    if (!teacher || !data?.quiz || data.quiz.status !== "draft") return;
+    setSavingMeta(true);
+    try {
+      await updateDraft({
+        quizId,
+        teacherId: teacher.id,
+        title: title.trim(),
+        description: description.trim(),
+        subjectName: subjectName.trim(),
+        opensAt: new Date(opensLocal).toISOString(),
+        closesAt: new Date(closesLocal).toISOString(),
+        timeLimitSeconds: useTimeLimit
+          ? Math.min(14400, Math.max(60, Math.round(timeLimitMinutes * 60)))
+          : null,
+      });
+      toast.success("Details saved");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      setSavingMeta(false);
+    }
+  };
+
+  const saveQuestions = async () => {
+    if (!teacher || !data?.quiz || data.quiz.status !== "draft") return;
+    setSavingQs(true);
+    try {
+      await replaceQuestions({
+        quizId,
+        teacherId: teacher.id,
+        questions: questions.map((q) => ({
+          question: q.question.trim(),
+          options: [...q.options],
+          correctIndex: q.correctIndex,
+          points: q.points,
+        })),
+      });
+      toast.success("Questions saved");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      setSavingQs(false);
+    }
+  };
+
+  const doPublish = async () => {
+    if (!teacher) return;
+    setPublishing(true);
+    try {
+      await publishQuiz({ quizId, teacherId: teacher.id });
+      toast.success("Published — students were notified");
+      setShowPublish(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Publish failed");
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const doArchive = async () => {
+    if (!teacher) return;
+    try {
+      await archiveQuiz({ quizId, teacherId: teacher.id });
+      toast.success("Quiz archived");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Archive failed");
+    }
+  };
+
+  if (!teacher) {
+    return (
+      <div className="py-4 space-y-4">
+        <Skeleton className="h-10 w-48" />
+        <Skeleton className="h-96 w-full" />
+      </div>
+    );
+  }
+
+  if (data === undefined) {
+    return (
+      <div className="py-4">
+        <Skeleton className="h-96 w-full" />
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="py-4">
+        <p className="text-muted-foreground">Quiz not found.</p>
+        <Button asChild variant="link" className="px-0">
+          <Link href="/teacher/quizzes">Back to list</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  const { quiz } = data;
+  const isDraft = quiz.status === "draft";
+
+  return (
+    <div className="space-y-6 py-4 max-w-3xl">
+      <Button variant="ghost" size="sm" asChild className="w-fit -ml-2">
+        <Link href="/teacher/quizzes">
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          All quizzes
+        </Link>
+      </Button>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <h1 className="text-2xl font-bold flex-1 min-w-0">{quiz.title}</h1>
+        <Badge>{quiz.status}</Badge>
+      </div>
+
+      {!isDraft && (
+        <Card>
+          <CardContent className="pt-6 text-sm text-muted-foreground">
+            This quiz is {quiz.status}. Students open it from{" "}
+            <span className="font-medium text-foreground">Student hub → Class quizzes</span>.
+            {quiz.status === "published" && (
+              <div className="mt-4">
+                <Button variant="outline" onClick={doArchive}>
+                  Archive quiz
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {isDraft && (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle>Schedule & details</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="eq-title">Title</Label>
+                <Input id="eq-title" value={title} onChange={(e) => setTitle(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="eq-sub">Subject (optional)</Label>
+                <Input
+                  id="eq-sub"
+                  value={subjectName}
+                  onChange={(e) => setSubjectName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="eq-desc">Instructions</Label>
+                <Textarea
+                  id="eq-desc"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={3}
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Opens</Label>
+                  <Input
+                    type="datetime-local"
+                    value={opensLocal}
+                    onChange={(e) => setOpensLocal(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Closes</Label>
+                  <Input
+                    type="datetime-local"
+                    value={closesLocal}
+                    onChange={(e) => setClosesLocal(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="eq-tl"
+                  checked={useTimeLimit}
+                  onCheckedChange={(c) => setUseTimeLimit(c === true)}
+                />
+                <Label htmlFor="eq-tl" className="font-normal cursor-pointer">
+                  Per-attempt time limit
+                </Label>
+              </div>
+              {useTimeLimit && (
+                <div className="space-y-2 pl-6">
+                  <Label>Minutes</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={240}
+                    className="w-32"
+                    value={timeLimitMinutes}
+                    onChange={(e) => setTimeLimitMinutes(Number(e.target.value) || 1)}
+                  />
+                </div>
+              )}
+              <Button onClick={saveMeta} disabled={savingMeta}>
+                {savingMeta ? "Saving…" : "Save details"}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-2">
+              <CardTitle>Questions (4 options each)</CardTitle>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setQuestions((q) => [...q, emptyQ()])}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Add
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-8">
+              {questions.map((q, qi) => (
+                <div key={qi} className="border rounded-lg p-4 space-y-3 relative">
+                  <div className="flex justify-between items-start gap-2">
+                    <span className="text-sm font-medium text-muted-foreground">Q{qi + 1}</span>
+                    {questions.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0 h-8 w-8 text-destructive"
+                        onClick={() => setQuestions((prev) => prev.filter((_, i) => i !== qi))}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Question</Label>
+                    <Textarea
+                      value={q.question}
+                      onChange={(e) =>
+                        setQuestions((prev) =>
+                          prev.map((row, i) =>
+                            i === qi ? { ...row, question: e.target.value } : row,
+                          ),
+                        )
+                      }
+                      rows={2}
+                    />
+                  </div>
+                  {(["A", "B", "C", "D"] as const).map((letter, oi) => (
+                    <div key={oi} className="space-y-1">
+                      <Label className="text-xs">Option {letter}</Label>
+                      <Input
+                        value={q.options[oi]}
+                        onChange={(e) =>
+                          setQuestions((prev) =>
+                            prev.map((row, i) => {
+                              if (i !== qi) return row;
+                              const next = [...row.options] as [string, string, string, string];
+                              next[oi] = e.target.value;
+                              return { ...row, options: next };
+                            }),
+                          )
+                        }
+                      />
+                    </div>
+                  ))}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Correct</Label>
+                      <Select
+                        value={String(q.correctIndex)}
+                        onValueChange={(v) =>
+                          setQuestions((prev) =>
+                            prev.map((row, i) =>
+                              i === qi ? { ...row, correctIndex: Number(v) } : row,
+                            ),
+                          )
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">A</SelectItem>
+                          <SelectItem value="1">B</SelectItem>
+                          <SelectItem value="2">C</SelectItem>
+                          <SelectItem value="3">D</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Points</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={q.points}
+                        onChange={(e) =>
+                          setQuestions((prev) =>
+                            prev.map((row, i) =>
+                              i === qi
+                                ? { ...row, points: Math.max(1, Number(e.target.value) || 1) }
+                                : row,
+                            ),
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={saveQuestions} disabled={savingQs}>
+                  {savingQs ? "Saving…" : "Save questions"}
+                </Button>
+                <Button variant="default" onClick={() => setShowPublish(true)}>
+                  Publish quiz
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      <AlertDialog open={showPublish} onOpenChange={setShowPublish}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Publish this quiz?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Students in {quiz.className} will get a notification and can take the quiz during the
+              open window. Make sure questions are saved first.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={doPublish} disabled={publishing}>
+              {publishing ? "Publishing…" : "Publish"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
