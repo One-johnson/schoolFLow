@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
@@ -16,10 +16,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ListChecks, Plus, Calendar, Users } from "lucide-react";
+import { ListChecks, Plus, Calendar, Users, ChevronLeft, ChevronRight } from "lucide-react";
+import { formatClassQuizDateRange } from "@/lib/class-quiz-display";
+
+const PAGE_SIZE = 10;
+
 export default function TeacherQuizzesPage() {
   const { teacher } = useTeacherAuth();
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [page, setPage] = useState(0);
 
   const rows = useQuery(
     api.classQuizzes.listForTeacher,
@@ -35,18 +40,21 @@ export default function TeacherQuizzesPage() {
   const filtered =
     rows?.filter((q) => (statusFilter === "all" ? true : q.status === statusFilter)) ?? [];
 
-  const formatRange = (opens: string, closes: string) => {
-    const o = new Date(opens);
-    const c = new Date(closes);
-    const fmt = (d: Date) =>
-      d.toLocaleString(undefined, {
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      });
-    return `${fmt(o)} – ${fmt(c)}`;
-  };
+  useEffect(() => {
+    setPage(0);
+  }, [statusFilter]);
+
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  useEffect(() => {
+    setPage((p) => Math.min(p, Math.max(0, totalPages - 1)));
+  }, [totalPages]);
+
+  const pageRows = useMemo(() => {
+    const start = page * PAGE_SIZE;
+    return filtered.slice(start, start + PAGE_SIZE);
+  }, [filtered, page]);
 
   if (!teacher) {
     return (
@@ -105,41 +113,77 @@ export default function TeacherQuizzesPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((q) => (
-            <Link key={q._id} href={`/teacher/quizzes/${q._id}`}>
-              <Card className="h-full transition-colors hover:bg-muted/40">
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-base line-clamp-2">{q.title}</CardTitle>
-                    <Badge
-                      variant={
-                        q.status === "published"
-                          ? "default"
-                          : q.status === "draft"
-                            ? "secondary"
-                            : "outline"
-                      }
-                      className="shrink-0"
-                    >
-                      {q.status}
-                    </Badge>
-                  </div>
-                  <div className="flex flex-wrap gap-2 mt-1 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Users className="h-3 w-3 shrink-0" />
-                      {q.className}
-                    </span>
-                    {q.subjectName && <span>{q.subjectName}</span>}
-                    <span className="flex items-center gap-1 w-full">
-                      <Calendar className="h-3 w-3 shrink-0" />
-                      {formatRange(q.opensAt, q.closesAt)}
-                    </span>
-                  </div>
-                </CardHeader>
-              </Card>
-            </Link>
-          ))}
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {pageRows.map((q) => (
+              <Link key={q._id} href={`/teacher/quizzes/${q._id}`}>
+                <Card className="h-full transition-colors hover:bg-muted/40">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <CardTitle className="text-base line-clamp-2">{q.title}</CardTitle>
+                      <Badge
+                        variant={
+                          q.status === "published"
+                            ? "default"
+                            : q.status === "draft"
+                              ? "secondary"
+                              : "outline"
+                        }
+                        className="shrink-0"
+                      >
+                        {q.status}
+                      </Badge>
+                    </div>
+                    <div className="flex flex-wrap gap-2 mt-1 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Users className="h-3 w-3 shrink-0" />
+                        {q.className}
+                      </span>
+                      {q.subjectName && <span>{q.subjectName}</span>}
+                      <span className="flex items-center gap-1 w-full">
+                        <Calendar className="h-3 w-3 shrink-0" />
+                        {formatClassQuizDateRange(q.opensAt, q.closesAt)}
+                      </span>
+                    </div>
+                  </CardHeader>
+                </Card>
+              </Link>
+            ))}
+          </div>
+          {totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t">
+              <p className="text-sm text-muted-foreground order-2 sm:order-1">
+                Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} of {total}
+              </p>
+              <div className="flex items-center gap-2 order-1 sm:order-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 0}
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Previous
+                </Button>
+                <span className="text-sm text-muted-foreground tabular-nums min-w-[5rem] text-center">
+                  Page {page + 1} / {totalPages}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= totalPages - 1}
+                  onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                  aria-label="Next page"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
