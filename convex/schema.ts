@@ -1170,6 +1170,24 @@ export default defineSchema({
     closesAt: v.string(),
     /** Max seconds from Start until submit; omit for no limit (only window applies). */
     timeLimitSeconds: v.optional(v.number()),
+    /**
+     * Extra seconds after closesAt during which an in-progress attempt may still submit
+     * (only if started at or before closesAt).
+     */
+    submitGraceSecondsAfterClose: v.optional(v.number()),
+    /**
+     * When students see per-question results: immediate after submit, after quiz closes,
+     * or only after teacher releases (resultsReleasedAt).
+     */
+    resultsVisibility: v.optional(
+      v.union(
+        v.literal('immediate'),
+        v.literal('after_close'),
+        v.literal('manual'),
+      ),
+    ),
+    /** Set when teacher releases results (manual mode). */
+    resultsReleasedAt: v.optional(v.string()),
     status: v.union(
       v.literal('draft'),
       v.literal('published'),

@@ -15,6 +15,34 @@ function parseIsoMs(iso: string): number {
   return Number.isNaN(t) ? 0 : t;
 }
 
+type QuizScheduleFields = {
+  closesAt: string;
+  submitGraceSecondsAfterClose?: number;
+};
+
+function submitDeadlineMs(quiz: QuizScheduleFields, startedAtMs: number): number {
+  const closeMs = parseIsoMs(quiz.closesAt);
+  const graceMs = (quiz.submitGraceSecondsAfterClose ?? 0) * 1000;
+  if (startedAtMs <= closeMs) {
+    return closeMs + graceMs;
+  }
+  return closeMs;
+}
+
+type QuizResultsFields = {
+  resultsVisibility?: "immediate" | "after_close" | "manual";
+  closesAt: string;
+  resultsReleasedAt?: string;
+};
+
+function canShowDetailedResults(quiz: QuizResultsFields, nowMs: number): boolean {
+  const mode = quiz.resultsVisibility ?? "immediate";
+  if (mode === "immediate") return true;
+  if (mode === "after_close") return nowMs > parseIsoMs(quiz.closesAt);
+  if (mode === "manual") return !!quiz.resultsReleasedAt;
+  return true;
+}
+
 function assertOptions(opts: string[]): void {
   if (opts.length !== 4 || !opts.every((o) => typeof o === "string" && o.trim())) {
     throw new Error("Each question needs exactly 4 non-empty options");
@@ -33,6 +61,55 @@ async function getStudentClassDocId(
     .first();
   if (!classDoc || classDoc.schoolId !== student.schoolId) return null;
   return { classDocId: classDoc._id as string, classCode: student.classId };
+}
+
+async function notifyStudentAndParentsAboutQuizSubmit(
+  ctx: MutationCtx,
+  opts: {
+    studentId: Id<"students">;
+    quizTitle: string;
+    quizId: Id<"classQuizzes">;
+    score: number;
+    maxScore: number;
+    percent: number;
+  },
+) {
+  const student = await ctx.db.get(opts.studentId);
+  if (!student) return;
+  const now = new Date().toISOString();
+  const name = `${student.firstName ?? ""} ${student.lastName ?? ""}`.trim() || "Your child";
+  await ctx.db.insert("notifications", {
+    title: "Quiz submitted",
+    message: `You submitted "${opts.quizTitle}". Score: ${opts.score}/${opts.maxScore} (${opts.percent}%).`,
+    type: "success",
+    timestamp: now,
+    read: false,
+    recipientId: student._id as string,
+    recipientRole: "student",
+    actionUrl: `/student/quizzes/${opts.quizId}`,
+  });
+
+  const parentIds = new Set<string>();
+  const links = await ctx.db
+    .query("parentStudents")
+    .withIndex("by_student", (q) => q.eq("studentId", opts.studentId))
+    .collect();
+  for (const link of links) {
+    parentIds.add(link.parentId);
+  }
+
+  for (const parentId of parentIds) {
+    await ctx.db.insert("notifications", {
+      title: "Quiz completed",
+      message: `${name} submitted "${opts.quizTitle}" (${opts.score}/${opts.maxScore}, ${opts.percent}%).`,
+      type: "info",
+      timestamp: now,
+      read: false,
+      recipientId: parentId,
+      recipientRole: "parent",
+      actionUrl: "/parent",
+    });
+  }
 }
 
 async function notifyClassAboutQuiz(
@@ -115,6 +192,14 @@ export const createDraft = mutation({
     opensAt: v.string(),
     closesAt: v.string(),
     timeLimitSeconds: v.optional(v.number()),
+    submitGraceSecondsAfterClose: v.optional(v.number()),
+    resultsVisibility: v.optional(
+      v.union(
+        v.literal("immediate"),
+        v.literal("after_close"),
+        v.literal("manual"),
+      ),
+    ),
   },
   handler: async (ctx, args) => {
     if (parseIsoMs(args.opensAt) >= parseIsoMs(args.closesAt)) {
@@ -125,6 +210,13 @@ export const createDraft = mutation({
       (args.timeLimitSeconds < 60 || args.timeLimitSeconds > 14400)
     ) {
       throw new Error("Time limit must be between 60 seconds and 4 hours");
+    }
+    if (
+      args.submitGraceSecondsAfterClose !== undefined &&
+      (args.submitGraceSecondsAfterClose < 0 ||
+        args.submitGraceSecondsAfterClose > 7200)
+    ) {
+      throw new Error("Submit grace must be between 0 and 2 hours (in seconds)");
     }
     const now = new Date().toISOString();
     const id = await ctx.db.insert("classQuizzes", {
@@ -139,6 +231,8 @@ export const createDraft = mutation({
       opensAt: args.opensAt,
       closesAt: args.closesAt,
       timeLimitSeconds: args.timeLimitSeconds,
+      submitGraceSecondsAfterClose: args.submitGraceSecondsAfterClose,
+      resultsVisibility: args.resultsVisibility,
       status: "draft",
       createdAt: now,
       updatedAt: now,
@@ -157,6 +251,15 @@ export const updateDraft = mutation({
     closesAt: v.optional(v.string()),
     timeLimitSeconds: v.optional(v.union(v.number(), v.null())),
     subjectName: v.optional(v.string()),
+    submitGraceSecondsAfterClose: v.optional(v.union(v.number(), v.null())),
+    resultsVisibility: v.optional(
+      v.union(
+        v.literal("immediate"),
+        v.literal("after_close"),
+        v.literal("manual"),
+        v.null(),
+      ),
+    ),
   },
   handler: async (ctx, args) => {
     const quiz = await ctx.db.get(args.quizId);
@@ -182,6 +285,21 @@ export const updateDraft = mutation({
     ) {
       throw new Error("Time limit must be between 60 seconds and 4 hours");
     }
+    let grace = quiz.submitGraceSecondsAfterClose;
+    if (args.submitGraceSecondsAfterClose !== undefined) {
+      grace =
+        args.submitGraceSecondsAfterClose === null
+          ? undefined
+          : args.submitGraceSecondsAfterClose;
+    }
+    if (grace !== undefined && (grace < 0 || grace > 7200)) {
+      throw new Error("Submit grace must be between 0 and 2 hours (in seconds)");
+    }
+    let visibility = quiz.resultsVisibility;
+    if (args.resultsVisibility !== undefined) {
+      visibility =
+        args.resultsVisibility === null ? undefined : args.resultsVisibility;
+    }
     const now = new Date().toISOString();
     await ctx.db.patch(args.quizId, {
       title: args.title?.trim() ?? quiz.title,
@@ -196,8 +314,116 @@ export const updateDraft = mutation({
         args.subjectName !== undefined
           ? args.subjectName || undefined
           : quiz.subjectName,
+      submitGraceSecondsAfterClose: grace,
+      resultsVisibility: visibility,
       updatedAt: now,
     });
+  },
+});
+
+export const updatePublishedQuizSettings = mutation({
+  args: {
+    quizId: v.id("classQuizzes"),
+    teacherId: v.string(),
+    submitGraceSecondsAfterClose: v.optional(v.union(v.number(), v.null())),
+    resultsVisibility: v.optional(
+      v.union(
+        v.literal("immediate"),
+        v.literal("after_close"),
+        v.literal("manual"),
+        v.null(),
+      ),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const quiz = await ctx.db.get(args.quizId);
+    if (!quiz || quiz.teacherId !== args.teacherId) {
+      throw new Error("Quiz not found");
+    }
+    if (quiz.status !== "published") {
+      throw new Error("Only published quizzes can use these settings");
+    }
+    const patch: Record<string, unknown> = {
+      updatedAt: new Date().toISOString(),
+    };
+    if (args.submitGraceSecondsAfterClose !== undefined) {
+      const g =
+        args.submitGraceSecondsAfterClose === null
+          ? undefined
+          : args.submitGraceSecondsAfterClose;
+      if (g !== undefined && (g < 0 || g > 7200)) {
+        throw new Error("Submit grace must be between 0 and 2 hours (in seconds)");
+      }
+      patch.submitGraceSecondsAfterClose = g;
+    }
+    if (args.resultsVisibility !== undefined) {
+      const vis =
+        args.resultsVisibility === null ? undefined : args.resultsVisibility;
+      patch.resultsVisibility = vis;
+      if (vis !== "manual") {
+        patch.resultsReleasedAt = undefined;
+      }
+    }
+    await ctx.db.patch(args.quizId, patch);
+  },
+});
+
+export const releaseQuizResults = mutation({
+  args: { quizId: v.id("classQuizzes"), teacherId: v.string() },
+  handler: async (ctx, args) => {
+    const quiz = await ctx.db.get(args.quizId);
+    if (!quiz || quiz.teacherId !== args.teacherId) {
+      throw new Error("Quiz not found");
+    }
+    if (quiz.resultsVisibility !== "manual") {
+      throw new Error("Results are not set to manual release");
+    }
+    await ctx.db.patch(args.quizId, {
+      resultsReleasedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  },
+});
+
+export const listAttemptsForTeacher = query({
+  args: { quizId: v.id("classQuizzes"), teacherId: v.string() },
+  handler: async (ctx, args) => {
+    const quiz = await ctx.db.get(args.quizId);
+    if (!quiz || quiz.teacherId !== args.teacherId) return [];
+    const attempts = await ctx.db
+      .query("classQuizAttempts")
+      .withIndex("by_quiz", (q) => q.eq("quizId", args.quizId))
+      .collect();
+    attempts.sort(
+      (a, b) =>
+        parseIsoMs(b.submittedAt ?? b.startedAt) -
+        parseIsoMs(a.submittedAt ?? a.startedAt),
+    );
+    return attempts;
+  },
+});
+
+export const resetStudentQuizAttempt = mutation({
+  args: {
+    quizId: v.id("classQuizzes"),
+    teacherId: v.string(),
+    studentId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const quiz = await ctx.db.get(args.quizId);
+    if (!quiz || quiz.teacherId !== args.teacherId) {
+      throw new Error("Quiz not found");
+    }
+    const attempt = await ctx.db
+      .query("classQuizAttempts")
+      .withIndex("by_quiz_student", (q) =>
+        q.eq("quizId", args.quizId).eq("studentId", args.studentId),
+      )
+      .first();
+    if (!attempt) {
+      throw new Error("No attempt for this student");
+    }
+    await ctx.db.delete(attempt._id);
   },
 });
 
@@ -373,7 +599,64 @@ export const getTakingSession = query({
     const openStart = parseIsoMs(quiz.opensAt);
     const openEnd = parseIsoMs(quiz.closesAt);
     const inWindow = now >= openStart && now <= openEnd;
-    return { quiz, questions, attempt, inWindow };
+    const startedAtMs = attempt ? parseIsoMs(attempt.startedAt) : 0;
+    const deadlineMs =
+      attempt?.status === "in_progress"
+        ? submitDeadlineMs(quiz, startedAtMs)
+        : null;
+    const blockedPastDeadline =
+      attempt?.status === "in_progress" &&
+      deadlineMs !== null &&
+      now > deadlineMs;
+    return {
+      quiz,
+      questions,
+      attempt,
+      inWindow,
+      submitDeadlineMs: deadlineMs,
+      blockedPastDeadline,
+    };
+  },
+});
+
+export const saveQuizProgress = mutation({
+  args: {
+    schoolId: v.string(),
+    studentId: v.id("students"),
+    quizId: v.id("classQuizzes"),
+    answers: v.array(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const quiz = await ctx.db.get(args.quizId);
+    if (!quiz || quiz.schoolId !== args.schoolId || quiz.status !== "published") {
+      throw new Error("Quiz not available");
+    }
+    const loc = await getStudentClassDocId(ctx, args.studentId);
+    if (!loc || loc.classDocId !== quiz.classId) {
+      throw new Error("Not in this class");
+    }
+    const attempt = await ctx.db
+      .query("classQuizAttempts")
+      .withIndex("by_quiz_student", (q) =>
+        q.eq("quizId", args.quizId).eq("studentId", args.studentId as string),
+      )
+      .first();
+    if (!attempt || attempt.status !== "in_progress") {
+      throw new Error("No active attempt");
+    }
+    const questions = await ctx.db
+      .query("classQuizQuestions")
+      .withIndex("by_quiz", (q) => q.eq("quizId", args.quizId))
+      .collect();
+    if (args.answers.length !== questions.length) {
+      throw new Error("Invalid draft length");
+    }
+    for (const a of args.answers) {
+      if (!Number.isInteger(a) || (a !== -1 && (a < 0 || a > 3))) {
+        throw new Error("Invalid draft answer");
+      }
+    }
+    await ctx.db.patch(attempt._id, { answers: args.answers });
   },
 });
 
@@ -439,6 +722,7 @@ export const submitAttempt = mutation({
     studentId: v.id("students"),
     quizId: v.id("classQuizzes"),
     answers: v.array(v.number()),
+    allowPartial: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const quiz = await ctx.db.get(args.quizId);
@@ -450,9 +734,6 @@ export const submitAttempt = mutation({
       throw new Error("Not in this class");
     }
     const nowMs = Date.now();
-    if (nowMs > parseIsoMs(quiz.closesAt)) {
-      throw new Error("The quiz window has closed");
-    }
     const attempt = await ctx.db
       .query("classQuizAttempts")
       .withIndex("by_quiz_student", (q) =>
@@ -462,8 +743,13 @@ export const submitAttempt = mutation({
     if (!attempt || attempt.status !== "in_progress") {
       throw new Error("No active attempt");
     }
+    const startedAtMs = parseIsoMs(attempt.startedAt);
+    const deadlineMs = submitDeadlineMs(quiz, startedAtMs);
+    if (nowMs > deadlineMs) {
+      throw new Error("The quiz window has closed");
+    }
     if (quiz.timeLimitSeconds) {
-      const elapsed = (nowMs - parseIsoMs(attempt.startedAt)) / 1000;
+      const elapsed = (nowMs - startedAtMs) / 1000;
       if (elapsed > quiz.timeLimitSeconds + GRACE_SEC) {
         throw new Error("Time limit exceeded");
       }
@@ -476,16 +762,29 @@ export const submitAttempt = mutation({
     if (args.answers.length !== questions.length) {
       throw new Error("Answer every question");
     }
-    for (const a of args.answers) {
-      if (!Number.isInteger(a) || a < 0 || a > 3) {
-        throw new Error("Invalid answer selection");
+    const allowPartial = args.allowPartial === true;
+    const normalized: number[] = [];
+    for (let i = 0; i < questions.length; i++) {
+      const a = args.answers[i];
+      if (allowPartial) {
+        if (Number.isInteger(a) && a >= 0 && a <= 3) {
+          normalized.push(a);
+        } else {
+          normalized.push(-1);
+        }
+      } else {
+        if (!Number.isInteger(a) || a < 0 || a > 3) {
+          throw new Error("Invalid answer selection");
+        }
+        normalized.push(a);
       }
     }
     let score = 0;
     let maxScore = 0;
     for (let i = 0; i < questions.length; i++) {
       maxScore += questions[i].points;
-      if (args.answers[i] === questions[i].correctIndex) {
+      const sel = normalized[i];
+      if (sel >= 0 && sel <= 3 && sel === questions[i].correctIndex) {
         score += questions[i].points;
       }
     }
@@ -495,7 +794,15 @@ export const submitAttempt = mutation({
     await ctx.db.patch(attempt._id, {
       status: "submitted",
       submittedAt,
-      answers: args.answers,
+      answers: normalized,
+      score,
+      maxScore,
+      percent,
+    });
+    await notifyStudentAndParentsAboutQuizSubmit(ctx, {
+      studentId: args.studentId,
+      quizTitle: quiz.title,
+      quizId: args.quizId,
       score,
       maxScore,
       percent,
@@ -527,6 +834,27 @@ export const getAttemptResult = query({
       .withIndex("by_quiz", (q) => q.eq("quizId", args.quizId))
       .collect();
     questions.sort((a, b) => a.order - b.order);
-    return { quiz, attempt, questions };
+    const nowMs = Date.now();
+    const showDetail = canShowDetailedResults(quiz, nowMs);
+    if (!showDetail) {
+      const mode = quiz.resultsVisibility ?? "immediate";
+      const reason =
+        mode === "manual"
+          ? "Your teacher will release detailed results soon."
+          : "Detailed results will be available after the quiz closes.";
+      return {
+        quiz,
+        attempt,
+        questions: null,
+        withheld: true as const,
+        withholdReason: reason,
+      };
+    }
+    return {
+      quiz,
+      attempt,
+      questions,
+      withheld: false as const,
+    };
   },
 });

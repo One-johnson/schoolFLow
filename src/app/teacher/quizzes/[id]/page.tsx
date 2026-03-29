@@ -32,7 +32,15 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, RotateCcw } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import type { Id } from "../../../../../convex/_generated/dataModel";
 
 type QForm = {
@@ -65,10 +73,20 @@ export default function TeacherQuizEditorPage() {
     teacher ? { quizId, teacherId: teacher.id } : "skip",
   );
 
+  const attempts = useQuery(
+    api.classQuizzes.listAttemptsForTeacher,
+    teacher && data?.quiz && data.quiz.status === "published"
+      ? { quizId, teacherId: teacher.id }
+      : "skip",
+  );
+
   const updateDraft = useMutation(api.classQuizzes.updateDraft);
   const replaceQuestions = useMutation(api.classQuizzes.replaceQuestions);
   const publishQuiz = useMutation(api.classQuizzes.publishQuiz);
   const archiveQuiz = useMutation(api.classQuizzes.archiveQuiz);
+  const updatePublishedQuizSettings = useMutation(api.classQuizzes.updatePublishedQuizSettings);
+  const releaseQuizResults = useMutation(api.classQuizzes.releaseQuizResults);
+  const resetStudentQuizAttempt = useMutation(api.classQuizzes.resetStudentQuizAttempt);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -82,6 +100,12 @@ export default function TeacherQuizEditorPage() {
   const [savingMeta, setSavingMeta] = useState(false);
   const [savingQs, setSavingQs] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [graceMinutes, setGraceMinutes] = useState(0);
+  const [resultsVis, setResultsVis] = useState<"immediate" | "after_close" | "manual">(
+    "immediate",
+  );
+  const [savingPubSettings, setSavingPubSettings] = useState(false);
+  const [resetStudentId, setResetStudentId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!data?.quiz) return;
@@ -94,6 +118,12 @@ export default function TeacherQuizEditorPage() {
     const tl = quiz.timeLimitSeconds;
     setUseTimeLimit(!!tl);
     setTimeLimitMinutes(tl ? Math.round(tl / 60) : 30);
+    setGraceMinutes(
+      quiz.submitGraceSecondsAfterClose
+        ? Math.round(quiz.submitGraceSecondsAfterClose / 60)
+        : 0,
+    );
+    setResultsVis(quiz.resultsVisibility ?? "immediate");
     if (qs.length > 0) {
       setQuestions(
         qs.map((q) => ({
@@ -129,6 +159,9 @@ export default function TeacherQuizEditorPage() {
         timeLimitSeconds: useTimeLimit
           ? Math.min(14400, Math.max(60, Math.round(timeLimitMinutes * 60)))
           : null,
+        submitGraceSecondsAfterClose:
+          graceMinutes > 0 ? Math.min(7200, Math.max(60, graceMinutes * 60)) : null,
+        resultsVisibility: resultsVis,
       });
       toast.success("Details saved");
     } catch (e) {
@@ -161,9 +194,19 @@ export default function TeacherQuizEditorPage() {
   };
 
   const doPublish = async () => {
-    if (!teacher) return;
+    if (!teacher || !data?.quiz || data.quiz.status !== "draft") return;
     setPublishing(true);
     try {
+      await replaceQuestions({
+        quizId,
+        teacherId: teacher.id,
+        questions: questions.map((q) => ({
+          question: q.question.trim(),
+          options: [...q.options],
+          correctIndex: q.correctIndex,
+          points: q.points,
+        })),
+      });
       await publishQuiz({ quizId, teacherId: teacher.id });
       toast.success("Published — students were notified");
       setShowPublish(false);
@@ -181,6 +224,50 @@ export default function TeacherQuizEditorPage() {
       toast.success("Quiz archived");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Archive failed");
+    }
+  };
+
+  const savePublishedSettings = async () => {
+    if (!teacher || !data?.quiz || data.quiz.status !== "published") return;
+    setSavingPubSettings(true);
+    try {
+      await updatePublishedQuizSettings({
+        quizId,
+        teacherId: teacher.id,
+        submitGraceSecondsAfterClose:
+          graceMinutes > 0 ? Math.min(7200, Math.max(60, graceMinutes * 60)) : null,
+        resultsVisibility: resultsVis,
+      });
+      toast.success("Settings saved");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      setSavingPubSettings(false);
+    }
+  };
+
+  const doReleaseResults = async () => {
+    if (!teacher) return;
+    try {
+      await releaseQuizResults({ quizId, teacherId: teacher.id });
+      toast.success("Detailed results are now visible to students");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Release failed");
+    }
+  };
+
+  const doResetStudent = async () => {
+    if (!teacher || !resetStudentId) return;
+    try {
+      await resetStudentQuizAttempt({
+        quizId,
+        teacherId: teacher.id,
+        studentId: resetStudentId,
+      });
+      toast.success("Attempt cleared — student can start again");
+      setResetStudentId(null);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Reset failed");
     }
   };
 
@@ -230,19 +317,129 @@ export default function TeacherQuizEditorPage() {
       </div>
 
       {!isDraft && (
-        <Card>
-          <CardContent className="pt-6 text-sm text-muted-foreground">
-            This quiz is {quiz.status}. Students open it from{" "}
-            <span className="font-medium text-foreground">Student hub → Class quizzes</span>.
-            {quiz.status === "published" && (
-              <div className="mt-4">
-                <Button variant="outline" onClick={doArchive}>
-                  Archive quiz
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <div className="space-y-6">
+          <Card>
+            <CardContent className="pt-6 text-sm text-muted-foreground">
+              This quiz is {quiz.status}. Students open it from{" "}
+              <span className="font-medium text-foreground">Student hub → Class quizzes</span>.
+              {quiz.status === "published" && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button variant="outline" onClick={doArchive}>
+                    Archive quiz
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {quiz.status === "published" && (
+            <>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Window, grace & results</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Extra submit time after close (minutes)</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={120}
+                      className="w-32"
+                      value={graceMinutes}
+                      onChange={(e) =>
+                        setGraceMinutes(Math.max(0, Number(e.target.value) || 0))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>When students see per-question breakdown</Label>
+                    <Select
+                      value={resultsVis}
+                      onValueChange={(v) =>
+                        setResultsVis(v as "immediate" | "after_close" | "manual")
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="immediate">Right after submit</SelectItem>
+                        <SelectItem value="after_close">After quiz closes</SelectItem>
+                        <SelectItem value="manual">When I release them</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {resultsVis === "manual" && !quiz.resultsReleasedAt && (
+                    <Button type="button" variant="secondary" onClick={doReleaseResults}>
+                      Release detailed results to students
+                    </Button>
+                  )}
+                  {resultsVis === "manual" && quiz.resultsReleasedAt && (
+                    <p className="text-sm text-muted-foreground">
+                      Released at{" "}
+                      {new Date(quiz.resultsReleasedAt).toLocaleString(undefined, {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })}
+                    </p>
+                  )}
+                  <Button onClick={savePublishedSettings} disabled={savingPubSettings}>
+                    {savingPubSettings ? "Saving…" : "Save settings"}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Submissions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {attempts === undefined ? (
+                    <Skeleton className="h-32 w-full" />
+                  ) : attempts.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No attempts yet.</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Student</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Score</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {attempts.map((a) => (
+                          <TableRow key={a._id}>
+                            <TableCell>{a.studentName}</TableCell>
+                            <TableCell>{a.status}</TableCell>
+                            <TableCell>
+                              {a.status === "submitted"
+                                ? `${a.score ?? "—"}/${a.maxScore ?? "—"}`
+                                : "—"}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive"
+                                onClick={() => setResetStudentId(a.studentId)}
+                              >
+                                <RotateCcw className="h-4 w-4 mr-1" />
+                                Reset
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </div>
       )}
 
       {isDraft && (
@@ -314,6 +511,39 @@ export default function TeacherQuizEditorPage() {
                   />
                 </div>
               )}
+              <div className="space-y-2">
+                <Label>Extra submit time after close (minutes)</Label>
+                <p className="text-xs text-muted-foreground">
+                  Students who already started may submit this many minutes after the scheduled close.
+                  Use 0 for no grace.
+                </p>
+                <Input
+                  type="number"
+                  min={0}
+                  max={120}
+                  className="w-32"
+                  value={graceMinutes}
+                  onChange={(e) => setGraceMinutes(Math.max(0, Number(e.target.value) || 0))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>When students see full results</Label>
+                <Select
+                  value={resultsVis}
+                  onValueChange={(v) =>
+                    setResultsVis(v as "immediate" | "after_close" | "manual")
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="immediate">Right after submit</SelectItem>
+                    <SelectItem value="after_close">After quiz closes</SelectItem>
+                    <SelectItem value="manual">When I release them</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <Button onClick={saveMeta} disabled={savingMeta}>
                 {savingMeta ? "Saving…" : "Save details"}
               </Button>
@@ -445,14 +675,31 @@ export default function TeacherQuizEditorPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Publish this quiz?</AlertDialogTitle>
             <AlertDialogDescription>
-              Students in {quiz.className} will get a notification and can take the quiz during the
-              open window. Make sure questions are saved first.
+              Your current questions will be saved, then students in {quiz.className} will be notified.
+              They can take the quiz during the open window.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={doPublish} disabled={publishing}>
               {publishing ? "Publishing…" : "Publish"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!resetStudentId} onOpenChange={() => setResetStudentId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset this student&apos;s attempt?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Their progress and score will be removed. They can start the quiz again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={doResetStudent} className="bg-destructive text-destructive-foreground">
+              Reset
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

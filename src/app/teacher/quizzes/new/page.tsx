@@ -51,6 +51,10 @@ export default function NewClassQuizPage() {
   );
   const [useTimeLimit, setUseTimeLimit] = useState(false);
   const [timeLimitMinutes, setTimeLimitMinutes] = useState(30);
+  const [graceMinutes, setGraceMinutes] = useState(0);
+  const [resultsVis, setResultsVis] = useState<"immediate" | "after_close" | "manual">(
+    "immediate",
+  );
   const [saving, setSaving] = useState(false);
 
   const handleCreate = async () => {
@@ -93,6 +97,9 @@ export default function NewClassQuizPage() {
         opensAt,
         closesAt,
         timeLimitSeconds,
+        submitGraceSecondsAfterClose:
+          graceMinutes > 0 ? Math.min(7200, Math.max(60, graceMinutes * 60)) : undefined,
+        resultsVisibility: resultsVis,
       });
       toast.success("Draft created — add questions next");
       router.push(`/teacher/quizzes/${id}`);
@@ -224,6 +231,38 @@ export default function NewClassQuizPage() {
               />
             </div>
           )}
+
+          <div className="space-y-2">
+            <Label htmlFor="cq-grace">Extra submit time after close (minutes)</Label>
+            <p className="text-xs text-muted-foreground">0 = no grace. In-progress attempts only.</p>
+            <Input
+              id="cq-grace"
+              type="number"
+              min={0}
+              max={120}
+              value={graceMinutes}
+              onChange={(e) => setGraceMinutes(Math.max(0, Number(e.target.value) || 0))}
+              className="w-32"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>When students see full results</Label>
+            <Select
+              value={resultsVis}
+              onValueChange={(v) =>
+                setResultsVis(v as "immediate" | "after_close" | "manual")
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="immediate">Right after submit</SelectItem>
+                <SelectItem value="after_close">After quiz closes</SelectItem>
+                <SelectItem value="manual">When I release them</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
           <Button onClick={handleCreate} disabled={saving}>
             {saving ? "Creating…" : "Create draft"}
