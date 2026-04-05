@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { useStudentAuth } from "@/hooks/useStudentAuth";
+import { StudentPageHeader } from "@/components/student/student-page-header";
 import { StudentSubmitHomeworkDialog } from "@/components/homework/student-submit-homework-dialog";
 import {
   StudentHomeworkDetailSidebar,
@@ -22,7 +23,6 @@ import { toast } from "sonner";
 import {
   ArrowLeft,
   BookOpen,
-  Calendar,
   ChevronLeft,
   ChevronRight,
   FileDown,
@@ -30,7 +30,6 @@ import {
   PencilLine,
   Upload,
   CheckCircle,
-  User,
 } from "lucide-react";
 import type { Id } from "../../../../../convex/_generated/dataModel";
 import { homeworkPortalDraftStorageKey } from "@/lib/homework-portal-draft";
@@ -232,6 +231,15 @@ export default function StudentHomeworkDetailPage(): React.ReactNode {
     dateStyle: "medium",
     timeStyle: "short",
   });
+  const isOverdue = Date.now() > new Date(homework.dueDate).getTime();
+  const headerSubtitle = [
+    homework.subjectName,
+    `Due ${formatDue}`,
+    homework.teacherName ? homework.teacherName : null,
+    isOverdue ? "Past due date" : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   const descLong = (homework.description?.length ?? 0) > LONG_INSTRUCTIONS_THRESHOLD;
 
@@ -245,42 +253,33 @@ export default function StudentHomeworkDetailPage(): React.ReactNode {
               All homework
             </Link>
           </Button>
+          {isOverdue ? (
+            <Badge variant="destructive" className="w-fit shrink-0">
+              Past due date
+            </Badge>
+          ) : null}
         </div>
 
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-violet-600 dark:text-violet-400">
-            <BookOpen className="h-6 w-6" />
-            <span className="text-sm font-medium">Assignment</span>
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight lg:text-3xl">{homework.title}</h1>
-          <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground">
-            {homework.subjectName ? <span>{homework.subjectName}</span> : null}
-            <span className="inline-flex items-center gap-1">
-              <Calendar className="h-3.5 w-3.5" />
-              Due {formatDue}
-            </span>
-            {homework.teacherName ? (
-              <span className="inline-flex items-center gap-1">
-                <User className="h-3.5 w-3.5" />
-                {homework.teacherName}
-              </span>
-            ) : null}
-          </div>
-        </div>
+        <StudentPageHeader
+          variant="playful"
+          icon={BookOpen}
+          title={homework.title}
+          subtitle={headerSubtitle}
+        />
 
         {homework.description ? (
           descLong ? (
             <Collapsible open={instructionsOpen} onOpenChange={setInstructionsOpen}>
-              <Card className="border-violet-200/40 dark:border-violet-900/40 transition-shadow hover:shadow-md">
+              <Card className="border-2 border-violet-300 shadow-sm transition-shadow hover:shadow-md dark:border-violet-800">
                 <CardHeader className="pb-2">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <CardTitle className="text-base">Instructions</CardTitle>
+                    <CardTitle className="text-base text-foreground">Instructions</CardTitle>
                     <CollapsibleTrigger asChild>
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="w-fit shrink-0 border-violet-200/60 text-violet-800 hover:bg-violet-500/10 dark:border-violet-800/50 dark:text-violet-200"
+                        className="w-fit shrink-0 rounded-xl border-violet-300 font-semibold text-violet-900 hover:bg-violet-100 dark:border-violet-700 dark:text-violet-100 dark:hover:bg-violet-950/50"
                       >
                         {instructionsOpen ? "Show less" : "Read full instructions"}
                       </Button>
@@ -291,6 +290,9 @@ export default function StudentHomeworkDetailPage(): React.ReactNode {
                   <CardContent className="pt-0">
                     <p className="text-sm text-muted-foreground line-clamp-4 leading-relaxed">
                       {homework.description}
+                    </p>
+                    <p className="mt-2 text-xs font-medium text-violet-800 dark:text-violet-300">
+                      Tap &quot;Read full instructions&quot; above to see everything.
                     </p>
                   </CardContent>
                 ) : null}
@@ -304,9 +306,9 @@ export default function StudentHomeworkDetailPage(): React.ReactNode {
               </Card>
             </Collapsible>
           ) : (
-            <Card className="border-violet-200/40 dark:border-violet-900/40 transition-shadow hover:shadow-md">
+            <Card className="border-2 border-violet-300 shadow-sm transition-shadow hover:shadow-md dark:border-violet-800">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">Instructions</CardTitle>
+                <CardTitle className="text-base text-foreground">Instructions</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
                 <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
@@ -318,7 +320,7 @@ export default function StudentHomeworkDetailPage(): React.ReactNode {
         ) : null}
 
         {homework.attachmentStorageIds && homework.attachmentStorageIds.length > 0 ? (
-          <Card className="transition-shadow hover:shadow-md">
+          <Card className="border-2 border-violet-300 shadow-sm transition-shadow hover:shadow-md dark:border-violet-800">
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2">
                 <Paperclip className="h-4 w-4" />
@@ -335,9 +337,9 @@ export default function StudentHomeworkDetailPage(): React.ReactNode {
         ) : null}
 
         <div ref={submitSectionRef} id="homework-submit" className="scroll-mt-28">
-          <Card className="border-violet-200/50 dark:border-violet-800/40 ring-offset-background transition-shadow hover:shadow-md hover:ring-1 hover:ring-violet-200/50 dark:hover:ring-violet-800/40">
+          <Card className="border-2 border-violet-300 shadow-sm ring-offset-background transition-shadow hover:shadow-md hover:ring-2 hover:ring-violet-300/60 dark:border-violet-800 dark:hover:ring-violet-700/50">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Your submission</CardTitle>
+              <CardTitle className="text-base text-foreground">Your submission</CardTitle>
               <CardDescription>
                 {isMarked
                   ? "This homework has been marked. You can view your work below but cannot change it."
@@ -345,33 +347,57 @@ export default function StudentHomeworkDetailPage(): React.ReactNode {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {submission?.status === "marked" && submission.grade ? (
-                <Badge variant="secondary" className="text-sm">
-                  Grade: {submission.grade}
-                  {submission.feedback ? ` — ${submission.feedback}` : ""}
-                </Badge>
+              {submission?.status === "marked" ? (
+                <div className="rounded-xl border-2 border-violet-300 bg-violet-50/95 p-4 dark:border-violet-700 dark:bg-violet-950/45">
+                  <p className="text-xs font-bold uppercase tracking-wide text-violet-900 dark:text-violet-200">
+                    Your grade
+                  </p>
+                  {submission.grade ? (
+                    <p className="mt-1 text-3xl font-black tabular-nums text-violet-950 dark:text-violet-50">
+                      {submission.grade}
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-sm font-medium text-muted-foreground">Marked — no grade shown</p>
+                  )}
+                  {submission.feedback ? (
+                    <div className="mt-4 border-t border-violet-200 pt-3 dark:border-violet-800">
+                      <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                        Teacher feedback
+                      </p>
+                      <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                        {submission.feedback}
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
               ) : null}
               {submission && (submission.status === "submitted" || submission.status === "marked") ? (
                 <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
                   {submission.storageId && submission.fileName ? (
-                    <span className="inline-flex items-center gap-1 rounded-md border px-2 py-1">
+                    <span className="inline-flex items-center gap-1 rounded-lg border border-violet-200 bg-background px-2 py-1.5 dark:border-violet-800">
                       <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
                       File: {submission.fileName}
                     </span>
                   ) : null}
                   {submission.portalAnswer ? (
-                    <span className="inline-flex items-center gap-1 rounded-md border px-2 py-1">
+                    <span className="inline-flex items-center gap-1 rounded-lg border border-violet-200 bg-background px-2 py-1.5 dark:border-violet-800">
                       <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
-                      Written answer on file
+                      Written answer in portal
                     </span>
                   ) : null}
                 </div>
               ) : null}
 
+              {!isMarked ? (
+                <p className="text-sm text-muted-foreground">
+                  Use one option below, or both if your teacher asked for a file and written work.
+                </p>
+              ) : null}
+
               <Separator />
 
               <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm font-medium">
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                   <Upload className="h-4 w-4" />
                   Option 1 — Submit a file
                 </div>
@@ -393,7 +419,7 @@ export default function StudentHomeworkDetailPage(): React.ReactNode {
               <Separator />
 
               <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm font-medium">
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                   <PencilLine className="h-4 w-4" />
                   Option 2 — Do it in the portal
                 </div>
@@ -427,7 +453,7 @@ export default function StudentHomeworkDetailPage(): React.ReactNode {
                   type="button"
                   disabled={!canEdit || portalSubmitting || !portalDraft.trim()}
                   onClick={handleSubmitPortalAnswer}
-                  className="transition-transform active:scale-[0.98]"
+                  className="rounded-xl bg-gradient-to-r from-violet-600 to-amber-600 font-semibold text-white shadow-sm transition-transform hover:from-violet-500 hover:to-amber-500 active:scale-[0.98] disabled:opacity-50"
                 >
                   {portalSubmitting ? "Submitting…" : "Submit written work"}
                 </Button>
@@ -438,7 +464,7 @@ export default function StudentHomeworkDetailPage(): React.ReactNode {
 
         {(prevNext.prev || prevNext.next) && (
           <nav
-            className="flex flex-col gap-3 border-t border-violet-200/40 pt-6 dark:border-violet-900/40 sm:flex-row sm:justify-between"
+            className="flex flex-col gap-3 border-t-2 border-violet-200 pt-6 dark:border-violet-800 sm:flex-row sm:justify-between"
             aria-label="Previous and next assignment"
           >
             {prevNext.prev ? (

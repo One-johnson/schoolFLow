@@ -84,9 +84,12 @@ export const enterMarks = mutation({
     className: v.string(),
     subjectId: v.string(),
     subjectName: v.string(),
-    classScore: v.number(),
-    examScore: v.number(),
-    maxMarks: v.number(),
+    emt1: v.number(), // /10
+    emt2: v.number(), // /10
+    emt3: v.number(), // /10
+    sba: v.number(), // /10
+    project: v.number(), // /20
+    examRaw: v.number(), // /100
     isAbsent: v.boolean(),
     enteredBy: v.string(),
     enteredByRole: v.union(
@@ -156,9 +159,29 @@ export const enterMarks = mutation({
       });
     }
 
-    // Calculate total score and percentage
-    const totalScore: number = args.classScore + args.examScore;
-    const percentage: number = (totalScore / args.maxMarks) * 100;
+    const clamp = (value: number, min: number, max: number): number =>
+      Math.min(Math.max(value, min), max);
+
+    const emt1 = clamp(args.emt1, 0, 10);
+    const emt2 = clamp(args.emt2, 0, 10);
+    const emt3 = clamp(args.emt3, 0, 10);
+    const sba = clamp(args.sba, 0, 10);
+    const project = clamp(args.project, 0, 20);
+    const examRaw = clamp(args.examRaw, 0, 100);
+
+    const classTotalRaw = emt1 + emt2 + emt3 + sba + project; // /60
+    const class50Raw = (classTotalRaw / 60) * 50; // /50
+    const exam50Raw = (examRaw / 100) * 50; // /50
+
+    const classTotal = args.isAbsent ? 0 : classTotalRaw;
+    const class50 = args.isAbsent ? 0 : class50Raw;
+    const exam50 = args.isAbsent ? 0 : exam50Raw;
+
+    const classScore = class50;
+    const examScore = exam50;
+    const totalScore: number = classScore + examScore; // /100
+    const maxMarks = 100;
+    const percentage: number = (totalScore / maxMarks) * 100;
 
     const gradingScale = await getGradingScaleForMarks(
       ctx,
@@ -182,9 +205,19 @@ export const enterMarks = mutation({
     if (existing) {
       // Update existing
       await ctx.db.patch(existing._id, {
-        classScore: args.classScore,
-        examScore: args.examScore,
+        emt1,
+        emt2,
+        emt3,
+        sba,
+        project,
+        examRaw,
+        classTotal,
+        class50,
+        exam50,
+        classScore,
+        examScore,
         totalScore,
+        maxMarks,
         percentage,
         grade: gradeInfo.grade,
         gradeNumber: gradeInfo.gradeNumber,
@@ -211,10 +244,19 @@ export const enterMarks = mutation({
         className: args.className,
         subjectId: args.subjectId,
         subjectName: args.subjectName,
-        classScore: args.classScore,
-        examScore: args.examScore,
+        emt1,
+        emt2,
+        emt3,
+        sba,
+        project,
+        examRaw,
+        classTotal,
+        class50,
+        exam50,
+        classScore,
+        examScore,
         totalScore,
-        maxMarks: args.maxMarks,
+        maxMarks,
         percentage,
         grade: gradeInfo.grade,
         gradeNumber: gradeInfo.gradeNumber,

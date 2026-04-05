@@ -185,7 +185,7 @@ export default function StudentDashboardPage(): React.ReactNode {
         items.push({
           at: a.publishedAt ?? a.createdAt,
           label: `Announcement: ${a.title}`,
-          href: "#",
+          href: `/student#student-announcement-${a._id}`,
         });
       }
     }
@@ -220,6 +220,12 @@ export default function StudentDashboardPage(): React.ReactNode {
       href: "/student/homework",
       icon: BookOpen,
       largeValue: true,
+      cardClass:
+        "border-violet-600 bg-violet-600 text-white hover:border-violet-500 hover:bg-violet-600 dark:border-violet-700 dark:bg-violet-950/75 dark:text-white dark:hover:border-violet-500",
+      labelClass: "text-white dark:text-white",
+      chevronClass:
+        "text-white group-hover:text-white dark:text-white dark:group-hover:text-white",
+      valueLargeClass: "text-white dark:text-white",
     },
     {
       title: "Timetable",
@@ -228,6 +234,12 @@ export default function StudentDashboardPage(): React.ReactNode {
       href: "/student/timetable",
       icon: Clock,
       largeValue: false,
+      cardClass:
+        "border-sky-600 bg-sky-600 text-white hover:border-sky-500 hover:bg-sky-600 dark:border-sky-700 dark:bg-sky-950/72 dark:text-white dark:hover:border-sky-500",
+      labelClass: "text-white dark:text-white",
+      chevronClass:
+        "text-white group-hover:text-white dark:text-white dark:group-hover:text-white",
+      valueLargeClass: "",
     },
     {
       title: "Results",
@@ -240,14 +252,26 @@ export default function StudentDashboardPage(): React.ReactNode {
       href: "/student/results",
       icon: BarChart3,
       largeValue: false,
+      cardClass:
+        "border-amber-600 bg-amber-600 text-white hover:border-amber-500 hover:bg-amber-600 dark:border-amber-800 dark:bg-amber-950/72 dark:text-white dark:hover:border-amber-600",
+      labelClass: "text-white dark:text-white",
+      chevronClass:
+        "text-white group-hover:text-white dark:text-white dark:group-hover:text-white",
+      valueLargeClass: "",
     },
     {
-      title: "Profile",
-      value: "You",
+      title: "My account",
+      value: "Open",
       sub: "Password & details",
       href: "/student/profile",
       icon: User,
       largeValue: false,
+      cardClass:
+        "border-emerald-600 bg-emerald-600 text-white hover:border-emerald-500 hover:bg-emerald-600 dark:border-emerald-800 dark:bg-emerald-950/70 dark:text-white dark:hover:border-emerald-600",
+      labelClass: "text-white dark:text-white",
+      chevronClass:
+        "text-white group-hover:text-white dark:text-white dark:group-hover:text-white",
+      valueLargeClass: "",
     },
   ] as const;
 
@@ -283,18 +307,18 @@ export default function StudentDashboardPage(): React.ReactNode {
         }}
       >
         <Link href="/student/study-help" className="group block">
-          <Card className="border-violet-200/90 bg-gradient-to-r from-violet-50/90 to-blue-50/80 shadow-sm transition-all hover:border-violet-300/80 hover:shadow-md dark:border-violet-900/40 dark:from-violet-950/50 dark:to-blue-950/40 dark:hover:border-violet-700/50">
+          <Card className="border-violet-600 bg-violet-600 text-white shadow-sm transition-all hover:border-violet-500 hover:shadow-md dark:border-violet-800 dark:bg-violet-950/50 dark:text-white dark:hover:border-violet-600">
             <CardHeader className="flex flex-row items-center gap-4 pb-2 sm:pb-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm dark:bg-violet-500">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/20 text-white shadow-sm dark:bg-violet-600">
                 <Sparkles className="h-6 w-6" />
               </div>
               <div className="min-w-0 flex-1">
-                <CardTitle className="text-base sm:text-lg">Study help</CardTitle>
-                <CardDescription className="mt-0.5">
+                <CardTitle className="text-base text-white sm:text-lg dark:text-white">Study help</CardTitle>
+                <CardDescription className="mt-0.5 text-white dark:text-white">
                   Get explanations and study tips—without answers for your graded homework.
                 </CardDescription>
               </div>
-              <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground/50 transition group-hover:translate-x-0.5 group-hover:text-violet-600 dark:group-hover:text-violet-400" />
+              <ChevronRight className="h-5 w-5 shrink-0 text-white transition group-hover:translate-x-0.5 dark:text-white dark:group-hover:text-white" />
             </CardHeader>
           </Card>
         </Link>
@@ -316,36 +340,40 @@ export default function StudentDashboardPage(): React.ReactNode {
                 }}
               >
                 <Link href={item.href} className="group block h-full">
-                  <Card className="relative h-full border-blue-200/80 bg-card shadow-sm transition-all duration-200 hover:shadow-md hover:border-blue-300/60 dark:border-blue-900/50 dark:hover:border-blue-700/50">
-                    <ChevronRight className="absolute right-3 top-3 h-4 w-4 text-muted-foreground/40 transition group-hover:translate-x-0.5 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
+                  <Card
+                    className={`relative h-full border-2 shadow-sm transition-all duration-200 hover:shadow-md ${item.cardClass}`}
+                  >
+                    <ChevronRight
+                      className={`absolute right-3 top-3 h-4 w-4 transition group-hover:translate-x-0.5 ${item.chevronClass}`}
+                    />
                     <CardHeader className="pb-2 pr-10">
-                      <div className="mb-1 flex items-center gap-2 text-blue-700 dark:text-blue-400">
+                      <div className={`mb-1 flex items-center gap-2 ${item.labelClass}`}>
                         <item.icon className="h-4 w-4" />
-                        <CardDescription className="font-medium text-blue-700 dark:text-blue-400">
+                        <CardDescription className={`font-medium ${item.labelClass}`}>
                           {item.title}
                         </CardDescription>
                       </div>
                       <CardTitle
                         className={
                           item.largeValue
-                            ? "text-3xl tabular-nums text-blue-800 dark:text-blue-200"
-                            : "text-lg"
+                            ? `text-3xl tabular-nums ${item.valueLargeClass}`
+                            : "text-lg text-white dark:text-white"
                         }
                       >
                         {item.value}
                       </CardTitle>
-                      <p className="text-xs text-muted-foreground">{item.sub}</p>
+                      <p className="text-xs text-white dark:text-white">{item.sub}</p>
                       {item.href === "/student/homework" && homeworkSummaries !== undefined && hwClassTotal > 0 ? (
                         <div className="mt-3 space-y-1.5">
-                          <div className="flex justify-between text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                            <span>Class turned in</span>
-                            <span className="tabular-nums text-foreground">
+                          <div className="flex justify-between text-[10px] font-medium uppercase tracking-wide text-white dark:text-white">
+                            <span>Your homework</span>
+                            <span className="tabular-nums text-white dark:text-white">
                               {hwClassDone}/{hwClassTotal}
                             </span>
                           </div>
                           <Progress
                             value={hwClassProgressPct}
-                            className="h-1.5 bg-blue-500/15 [&>[data-slot=progress-indicator]]:bg-blue-600 dark:[&>[data-slot=progress-indicator]]:bg-blue-400"
+                            className="h-1.5 bg-white/25 [&>[data-slot=progress-indicator]]:bg-white dark:bg-violet-950/50 dark:[&>[data-slot=progress-indicator]]:bg-violet-500"
                           />
                         </div>
                       ) : null}
@@ -358,20 +386,27 @@ export default function StudentDashboardPage(): React.ReactNode {
 
           <div className="grid gap-6 lg:grid-cols-2">
             <StudentDashboardCalendar homework={calendarHomework} events={calendarEvents} />
-            <Card className="border-blue-200/80 shadow-sm dark:border-blue-900/50">
+            <Card
+              id="announcements-section"
+              className="scroll-mt-24 border-2 border-violet-600 bg-violet-600 text-white shadow-sm dark:border-violet-700 dark:bg-violet-950/65 dark:text-white"
+            >
               <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Megaphone className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                <CardTitle className="flex items-center gap-2 text-base text-white dark:text-white">
+                  <Megaphone className="h-4 w-4 text-white dark:text-white" />
                   Announcements
                 </CardTitle>
-                <CardDescription>From your school and class</CardDescription>
+                <CardDescription className="text-white dark:text-white">
+                  From your school and class
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {announcements === undefined && (
-                  <p className="text-sm text-muted-foreground">Loading…</p>
+                  <p className="text-sm text-white dark:text-white">Loading…</p>
                 )}
                 {announcements && announcements.length === 0 && (
-                  <p className="text-sm text-muted-foreground">No announcements right now.</p>
+                  <p className="text-sm text-white dark:text-white">
+                    No announcements right now.
+                  </p>
                 )}
                 {announcements && announcements.length > 0 && (
                   <ScrollArea className="h-[280px] pr-3">
@@ -379,13 +414,14 @@ export default function StudentDashboardPage(): React.ReactNode {
                       {announcements.map((a) => (
                         <li
                           key={a._id}
-                          className="rounded-lg border-b border-transparent px-2 py-2 pb-3 transition-colors last:border-0 last:pb-0 hover:bg-blue-500/[0.04]"
+                          id={`student-announcement-${a._id}`}
+                          className="scroll-mt-28 rounded-lg border-b border-white/15 px-2 py-2 pb-3 transition-colors last:border-0 last:pb-0 hover:bg-white/10 dark:border-transparent dark:hover:bg-violet-500/15"
                         >
-                          <p className="font-medium leading-snug">{a.title}</p>
-                          <p className="mt-1 line-clamp-3 text-sm text-muted-foreground">
+                          <p className="font-medium leading-snug text-white dark:text-white">{a.title}</p>
+                          <p className="mt-1 line-clamp-3 text-sm text-white dark:text-white">
                             {a.content}
                           </p>
-                          <p className="mt-1 text-xs text-muted-foreground">
+                          <p className="mt-1 text-xs text-white dark:text-white">
                             {a.targetType === "school"
                               ? "Whole school"
                               : a.targetName ?? "Class"}{" "}
@@ -402,16 +438,23 @@ export default function StudentDashboardPage(): React.ReactNode {
           </div>
 
           {publishedMarks && publishedMarks.length > 0 && (
-            <Card className="border-blue-200/80 shadow-sm dark:border-blue-900/50">
+            <Card className="border-2 border-violet-600 bg-violet-600 text-white shadow-sm dark:border-violet-800 dark:bg-card dark:text-white">
               <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 pb-2">
                 <div>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <BarChart3 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  <CardTitle className="flex items-center gap-2 text-base text-white dark:text-white">
+                    <BarChart3 className="h-4 w-4 text-white dark:text-white" />
                     Recent results
                   </CardTitle>
-                  <CardDescription>Latest published grades</CardDescription>
+                  <CardDescription className="text-white dark:text-white">
+                    Latest published grades
+                  </CardDescription>
                 </div>
-                <Button variant="outline" size="sm" className="border-blue-200 dark:border-blue-800" asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-lg border-white/50 text-white hover:bg-white/10 dark:border-violet-700 dark:text-white dark:hover:bg-transparent"
+                  asChild
+                >
                   <Link href="/student/results">
                     All results
                     <ChevronRight className="ml-1 h-4 w-4" />
@@ -422,11 +465,11 @@ export default function StudentDashboardPage(): React.ReactNode {
                 {publishedMarks.slice(0, 4).map((m) => (
                   <div
                     key={m._id}
-                    className="rounded-lg border border-border/80 bg-muted/20 px-3 py-2 text-sm"
+                    className="rounded-lg border border-white/25 bg-white/12 px-3 py-2 text-sm text-white dark:border-violet-900/50 dark:bg-violet-950/25 dark:text-white"
                   >
-                    <p className="font-medium">{m.subjectName}</p>
-                    <p className="text-muted-foreground">{m.examName}</p>
-                    <p className="mt-1 text-blue-800 dark:text-blue-200">
+                    <p className="font-medium dark:text-white">{m.subjectName}</p>
+                    <p className="text-white dark:text-white">{m.examName}</p>
+                    <p className="mt-1 font-semibold text-white dark:text-white">
                       {m.isAbsent ? "Absent" : `${m.grade} · ${Math.round(m.percentage)}%`}
                     </p>
                   </div>
@@ -439,12 +482,12 @@ export default function StudentDashboardPage(): React.ReactNode {
             <section className="space-y-4">
               <div>
                 <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
-                  <BookOpen className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  <BookOpen className="h-5 w-5 text-violet-700 dark:text-violet-400" />
                   Upcoming homework
                 </h2>
                 <p className="text-sm text-muted-foreground">Nearest due dates for your class</p>
               </div>
-              <Card className="border-blue-200/80 border-dashed bg-muted/10 dark:border-blue-900/50">
+              <Card className="border-2 border-dashed border-violet-300 bg-violet-50/30 dark:border-violet-800 dark:bg-violet-950/20">
                 <CardContent className="flex flex-col items-center gap-4 py-10 text-center">
                   <StudentIllustration variant="emptyHomework" />
                   <div>
@@ -453,7 +496,7 @@ export default function StudentDashboardPage(): React.ReactNode {
                       No homework is due right now. Check back later or open the homework page.
                     </p>
                   </div>
-                  <Button variant="outline" size="sm" className="border-blue-200 dark:border-blue-800" asChild>
+                  <Button variant="outline" size="sm" className="rounded-lg border-violet-300 dark:border-violet-700" asChild>
                     <Link href="/student/homework">Homework page</Link>
                   </Button>
                 </CardContent>
@@ -466,7 +509,7 @@ export default function StudentDashboardPage(): React.ReactNode {
               <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
-                    <BookOpen className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    <BookOpen className="h-5 w-5 text-violet-700 dark:text-violet-400" />
                     Upcoming homework
                   </h2>
                   <p className="text-sm text-muted-foreground">
@@ -474,17 +517,17 @@ export default function StudentDashboardPage(): React.ReactNode {
                   </p>
                 </div>
                 {hwClassTotal > 0 ? (
-                  <div className="flex items-center gap-3 rounded-lg border border-blue-200/60 bg-blue-500/[0.04] px-3 py-2 dark:border-blue-900/50">
+                  <div className="flex items-center gap-3 rounded-lg border border-violet-500 bg-violet-600 px-3 py-2 text-white dark:border-violet-800 dark:bg-violet-950/35 dark:text-white">
                     <div className="min-w-[100px] space-y-1">
-                      <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-white dark:text-white">
                         Overall
                       </p>
                       <Progress
                         value={hwClassProgressPct}
-                        className="h-2 bg-blue-500/20 [&>[data-slot=progress-indicator]]:bg-blue-600 dark:[&>[data-slot=progress-indicator]]:bg-blue-400"
+                        className="h-2 bg-white/25 [&>[data-slot=progress-indicator]]:bg-white dark:bg-violet-900/50 dark:[&>[data-slot=progress-indicator]]:bg-violet-500"
                       />
                     </div>
-                    <p className="text-sm font-semibold tabular-nums text-blue-900 dark:text-blue-100">
+                    <p className="text-sm font-semibold tabular-nums text-white dark:text-white">
                       {hwClassDone}/{hwClassTotal}
                     </p>
                   </div>
@@ -503,23 +546,24 @@ export default function StudentDashboardPage(): React.ReactNode {
                     }}
                   >
                     <Link href={`/student/homework/${h._id}`} className="group block h-full">
-                      <Card className="h-full border-blue-200/80 bg-card shadow-sm transition-all duration-200 hover:border-blue-400/50 hover:shadow-md dark:border-blue-900/50 dark:hover:border-blue-600/40">
-                        <CardHeader className="pb-2">
+                      <Card className="relative h-full overflow-hidden border-2 border-violet-300 bg-card shadow-sm transition-all duration-200 hover:border-violet-500 hover:shadow-md dark:border-violet-800 dark:hover:border-violet-600">
+                        <div className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-violet-600 dark:bg-violet-500" />
+                        <CardHeader className="pb-2 pt-4">
                           <div className="flex items-start justify-between gap-2">
-                            <CardTitle className="text-base leading-snug line-clamp-2 pr-6 group-hover:text-blue-800 dark:group-hover:text-blue-200">
+                            <CardTitle className="text-base font-bold leading-snug text-foreground line-clamp-2 pr-6 group-hover:text-violet-800 dark:group-hover:text-violet-200">
                               {h.title}
                             </CardTitle>
-                            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50 transition group-hover:translate-x-0.5 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
+                            <ChevronRight className="h-4 w-4 shrink-0 text-violet-700 transition group-hover:translate-x-0.5 dark:text-violet-300" />
                           </div>
                           {h.subjectName ? (
-                            <CardDescription className="text-blue-700 dark:text-blue-400">
+                            <CardDescription className="font-medium text-violet-800 dark:text-violet-200">
                               {h.subjectName}
                             </CardDescription>
                           ) : null}
                         </CardHeader>
                         <CardContent className="space-y-3 pt-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                            <p className="text-sm font-semibold text-violet-950 dark:text-violet-100">
                               Due {new Date(h.dueDate).toLocaleDateString()}
                             </p>
                             {h.isOverdue ? (
@@ -538,7 +582,7 @@ export default function StudentDashboardPage(): React.ReactNode {
                               className={cn("h-2 bg-muted/80", homeworkProgressIndicatorCn(h.submissionStatus))}
                             />
                           </div>
-                          <p className="text-xs font-medium text-blue-700/90 dark:text-blue-300/90">
+                          <p className="text-xs font-bold text-violet-800 dark:text-violet-300">
                             Open assignment →
                           </p>
                         </CardContent>
@@ -547,7 +591,7 @@ export default function StudentDashboardPage(): React.ReactNode {
                   </motion.div>
                 ))}
               </div>
-              <Button variant="link" className="px-0 text-blue-700 dark:text-blue-300" asChild>
+              <Button variant="link" className="px-0 font-semibold text-violet-800 dark:text-violet-300" asChild>
                 <Link href="/student/homework">See all homework</Link>
               </Button>
             </section>
@@ -555,32 +599,36 @@ export default function StudentDashboardPage(): React.ReactNode {
         </div>
 
         <aside className="w-full shrink-0 space-y-6 lg:sticky lg:top-20 lg:basis-[34%] lg:max-w-md">
-          <Card className="border-blue-200/80 shadow-sm dark:border-blue-900/50">
+          <Card className="border-2 border-violet-600 bg-violet-600 text-white shadow-sm dark:border-violet-800 dark:bg-card dark:text-white">
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <CalendarDays className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <CardTitle className="flex items-center gap-2 text-base text-white dark:text-white">
+                <CalendarDays className="h-4 w-4 text-white dark:text-white" />
                 Upcoming events
               </CardTitle>
-              <CardDescription>School calendar</CardDescription>
+              <CardDescription className="text-white dark:text-white">
+                School calendar
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {portalEvents === undefined && (
-                <p className="text-sm text-muted-foreground">Loading…</p>
+                <p className="text-sm text-white dark:text-white">Loading…</p>
               )}
               {portalEvents && portalEvents.length === 0 && (
                 <div className="flex flex-col items-center gap-3 py-2 text-center">
                   <StudentIllustration variant="emptyEvents" className="max-w-[120px] sm:max-w-[140px]" />
-                  <p className="text-sm text-muted-foreground">No upcoming events.</p>
+                  <p className="text-sm text-white dark:text-white">No upcoming events.</p>
                 </div>
               )}
               {portalEvents?.map((e) => (
                 <div
                   key={e._id}
-                  className="rounded-lg border border-border/70 bg-muted/15 px-3 py-2 text-sm transition-all hover:border-blue-300/40 hover:bg-blue-500/[0.06] dark:hover:border-blue-700/40"
+                  className="rounded-lg border border-white/25 bg-white/12 px-3 py-2 text-sm text-white transition-all hover:bg-white/18 dark:border-violet-900/40 dark:bg-muted/15 dark:text-white dark:hover:border-violet-600/50"
                 >
-                  <p className="font-medium leading-snug">{e.eventTitle}</p>
-                  <p className="text-xs capitalize text-muted-foreground">{e.eventType.replace(/_/g, " ")}</p>
-                  <p className="mt-1 text-xs text-blue-800 dark:text-blue-200">
+                  <p className="font-medium leading-snug dark:text-white">{e.eventTitle}</p>
+                  <p className="text-xs capitalize text-white dark:text-white">
+                    {e.eventType.replace(/_/g, " ")}
+                  </p>
+                  <p className="mt-1 text-xs font-medium text-white dark:text-white">
                     {new Date(e.startDate).toLocaleDateString()}
                     {e.isAllDay
                       ? ""
@@ -593,13 +641,13 @@ export default function StudentDashboardPage(): React.ReactNode {
             </CardContent>
           </Card>
 
-          <Card className="border-blue-200/80 shadow-sm dark:border-blue-900/50">
+          <Card className="border-2 border-sky-600 bg-sky-600 text-white shadow-sm dark:border-sky-700 dark:bg-sky-950/65 dark:text-white">
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <CardTitle className="flex items-center gap-2 text-base text-white dark:text-white">
+                <Clock className="h-4 w-4 text-white dark:text-white" />
                 Upcoming classes
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-white dark:text-white">
                 {timetableData === undefined
                   ? "Loading…"
                   : !hasTimetable
@@ -615,7 +663,7 @@ export default function StudentDashboardPage(): React.ReactNode {
               {!hasTimetable && timetableData !== undefined && (
                 <div className="flex flex-col items-center gap-3 py-2 text-center">
                   <StudentIllustration variant="emptyTimetable" className="max-w-[120px] sm:max-w-[140px]" />
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-white dark:text-white">
                     Your timetable will show here when the school publishes it.
                   </p>
                 </div>
@@ -623,56 +671,61 @@ export default function StudentDashboardPage(): React.ReactNode {
               {hasTimetable && upcomingClasses.length === 0 && (
                 <div className="flex flex-col items-center gap-3 py-2 text-center">
                   <StudentIllustration variant="emptyTimetable" className="max-w-[120px] sm:max-w-[140px]" />
-                  <p className="text-sm text-muted-foreground">Enjoy your free time.</p>
+                  <p className="text-sm text-white dark:text-white">Enjoy your free time.</p>
                 </div>
               )}
               {upcomingClasses.map((c, i) => (
                 <div
                   key={`${c.periodName}-${c.startTime}-${i}`}
-                  className="rounded-lg border border-border/70 bg-muted/15 px-3 py-2 text-sm transition-all hover:border-blue-300/40 hover:bg-blue-500/[0.06] dark:hover:border-blue-700/40"
+                  className="rounded-lg border border-white/25 bg-white/12 px-3 py-2 text-sm text-white transition-all hover:bg-white/18 dark:border-sky-900/45 dark:bg-sky-950/35 dark:text-white dark:hover:border-sky-500/50 dark:hover:bg-sky-950/55"
                 >
-                  <p className="text-xs font-medium text-muted-foreground">{c.dayLabel}</p>
-                  <p className="font-medium">{c.subjectName ?? c.periodName}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs font-medium text-white dark:text-white">{c.dayLabel}</p>
+                  <p className="font-medium dark:text-white">{c.subjectName ?? c.periodName}</p>
+                  <p className="text-xs text-white dark:text-white">
                     {c.startTime} – {c.endTime}
                     {c.teacherName ? ` · ${c.teacherName}` : ""}
                   </p>
                 </div>
               ))}
               {hasTimetable && (
-                <Button variant="link" className="h-auto px-0 text-blue-700 dark:text-blue-300" asChild>
+                <Button
+                  variant="link"
+                  className="h-auto px-0 font-semibold text-white hover:text-white/90 dark:text-white"
+                  asChild
+                >
                   <Link href="/student/timetable">Full timetable</Link>
                 </Button>
               )}
             </CardContent>
           </Card>
 
-          <Card className="border-blue-200/80 shadow-sm dark:border-blue-900/50">
+          <Card className="border-2 border-emerald-600 bg-emerald-600 text-white shadow-sm dark:border-emerald-800 dark:bg-emerald-950/58 dark:text-white">
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <CardTitle className="flex items-center gap-2 text-base text-white dark:text-white">
+                <Sparkles className="h-4 w-4 text-white dark:text-white" />
                 Recent activity
               </CardTitle>
-              <CardDescription>Homework, results, and notices</CardDescription>
+              <CardDescription className="text-white dark:text-white">
+                Homework, results, and notices
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {recentActivities.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nothing recent yet.</p>
+                <p className="text-sm text-white dark:text-white">Nothing recent yet.</p>
               ) : (
                 <ul className="space-y-2 text-sm">
                   {recentActivities.map((act, idx) => (
-                    <li key={`${act.at}-${idx}`}>
-                      {act.href === "#" ? (
-                        <span className="text-muted-foreground">{act.label}</span>
-                      ) : (
-                        <Link
-                          href={act.href}
-                          className="text-foreground underline-offset-4 hover:text-blue-700 hover:underline dark:hover:text-blue-300"
-                        >
-                          {act.label}
-                        </Link>
-                      )}
-                      <p className="text-xs text-muted-foreground">
+                    <li
+                      key={`${act.at}-${idx}`}
+                      className="rounded-lg border border-white/25 bg-white/12 px-2.5 py-2 dark:border-emerald-900/40 dark:bg-emerald-950/35"
+                    >
+                      <Link
+                        href={act.href}
+                        className="font-medium text-white underline-offset-4 hover:text-white/90 hover:underline dark:text-white dark:hover:text-white/90"
+                      >
+                        {act.label}
+                      </Link>
+                      <p className="text-xs text-white dark:text-white">
                         {new Date(act.at).toLocaleString()}
                       </p>
                     </li>

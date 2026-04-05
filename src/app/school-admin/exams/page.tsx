@@ -103,10 +103,10 @@ export default function ExamsPage() {
   const [filterTermId, setFilterTermId] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterDepartmentId, setFilterDepartmentId] = useState<string>("all");
-
-  useEffect(() => {
-    if (filterAcademicYearId !== "all") setFilterTermId("all");
-  }, [filterAcademicYearId]);
+  const handleAcademicYearFilterChange = (value: string) => {
+    setFilterAcademicYearId(value);
+    if (value !== "all") setFilterTermId("all");
+  };
 
   const [showAddExam, setShowAddExam] = useState<boolean>(false);
   const [showEditExam, setShowEditExam] = useState<boolean>(false);
@@ -355,7 +355,7 @@ export default function ExamsPage() {
             {academicYears && academicYears.length > 0 && (
               <Select
                 value={filterAcademicYearId}
-                onValueChange={setFilterAcademicYearId}
+                onValueChange={handleAcademicYearFilterChange}
               >
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Academic Year" />

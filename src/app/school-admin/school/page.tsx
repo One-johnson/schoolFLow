@@ -201,7 +201,7 @@ export default function SchoolPage(): React.JSX.Element {
           <CardHeader>
             <CardTitle>No School Created</CardTitle>
             <CardDescription>
-              You haven't created a school yet or your request is still pending
+              You haven&apos;t created a school yet or your request is still pending
             </CardDescription>
           </CardHeader>
           <CardContent>

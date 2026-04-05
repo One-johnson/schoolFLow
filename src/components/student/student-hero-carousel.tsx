@@ -95,7 +95,7 @@ export function StudentHeroCarousel({
   };
 
   return (
-    <div className="rounded-2xl border border-blue-200 bg-blue-50/80 p-6 shadow-sm dark:border-blue-900/50 dark:bg-blue-950/40 sm:p-8">
+    <div className="rounded-2xl border-2 border-violet-500 bg-violet-800 p-6 text-white shadow-sm dark:border-violet-800 dark:bg-violet-950/45 dark:text-white sm:p-8">
       <Carousel
         setApi={setApi}
         opts={{ align: "start", loop: true }}
@@ -110,22 +110,22 @@ export function StudentHeroCarousel({
                   <img
                     src={student.photoUrl}
                     alt=""
-                    className="h-14 w-14 shrink-0 rounded-2xl object-cover shadow-md ring-2 ring-blue-200 ring-offset-2 ring-offset-blue-50 dark:ring-blue-800 dark:ring-offset-blue-950/40"
+                    className="h-14 w-14 shrink-0 rounded-2xl object-cover shadow-md ring-2 ring-violet-300 ring-offset-2 ring-offset-violet-50 dark:ring-violet-700 dark:ring-offset-violet-950/45"
                     width={56}
                     height={56}
                   />
                 ) : (
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-md dark:bg-blue-500">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-white shadow-md dark:bg-violet-600">
                     <GraduationCap className="h-7 w-7" />
                   </div>
                 )}
                 <div>
-                  <p className="mb-1 text-xs font-medium text-blue-700 dark:text-blue-300">{greet}</p>
+                  <p className="mb-1 text-xs font-semibold text-white dark:text-white">{greet}</p>
                   <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-                    <span className="text-blue-800 dark:text-blue-200">{student.firstName}</span>
-                    <span className="text-foreground">, you&apos;re in</span>
+                    <span className="text-white dark:text-white">{student.firstName}</span>
+                    <span className="text-white dark:text-white">, you&apos;re in</span>
                   </h1>
-                  <p className="mt-1 text-sm text-muted-foreground sm:text-base">
+                  <p className="mt-1 text-sm text-white sm:text-base dark:text-white">
                     {student.className} · ID {student.studentId}
                   </p>
                 </div>
@@ -137,36 +137,48 @@ export function StudentHeroCarousel({
           <CarouselItem className="pl-0">
             <div className="flex min-h-[140px] flex-col items-stretch gap-6 sm:flex-row sm:items-center sm:justify-between sm:gap-8">
               <div className="flex min-w-0 items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm dark:bg-blue-500">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/20 text-white shadow-sm dark:bg-violet-600">
                   <LayoutDashboard className="h-6 w-6" />
                 </div>
                 <div className="space-y-2">
-                  <h2 className="text-lg font-semibold tracking-tight sm:text-xl">Today at a glance</h2>
+                  <h2 className="text-lg font-semibold tracking-tight text-white sm:text-xl dark:text-white">
+                    Today at a glance
+                  </h2>
                   {!homeworkLoaded ? (
-                    <p className="text-sm text-muted-foreground">Loading your tasks…</p>
+                    <p className="text-sm text-white dark:text-white">Loading your tasks…</p>
                   ) : (
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-white dark:text-white">
                       {upcomingHwCount === 0
                         ? "No homework due dates coming up. Great job staying on track."
                         : `${upcomingHwCount} homework task${upcomingHwCount === 1 ? "" : "s"} with upcoming due dates.`}
                     </p>
                   )}
                   {!timetableLoaded ? (
-                    <p className="text-sm text-muted-foreground">Loading your timetable…</p>
+                    <p className="text-sm text-white dark:text-white">Loading your timetable…</p>
                   ) : !hasTimetable ? (
-                    <p className="text-sm text-muted-foreground">Your timetable will appear when the school publishes it.</p>
+                    <p className="text-sm text-white dark:text-white">
+                      Your timetable will appear when the school publishes it.
+                    </p>
                   ) : nextClass ? (
-                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                    <p className="text-sm font-medium text-white dark:text-white">
                       Next class:{" "}
-                      <span className="text-foreground">
+                      <span className="text-white dark:text-white">
                         {nextClass.subjectName ?? nextClass.periodName} · {nextClass.startTime} – {nextClass.endTime}
                       </span>
-                      <span className="block text-xs font-normal text-muted-foreground">{nextClass.dayLabel}</span>
+                      <span className="block text-xs font-normal text-white dark:text-white">
+                        {nextClass.dayLabel}
+                      </span>
                     </p>
                   ) : (
-                    <p className="text-sm text-muted-foreground">No more classes in this block—enjoy your time.</p>
+                    <p className="text-sm text-white dark:text-white">
+                      No more classes in this block—enjoy your time.
+                    </p>
                   )}
-                  <Button variant="link" className="h-auto px-0 text-blue-700 dark:text-blue-300" asChild>
+                  <Button
+                    variant="link"
+                    className="h-auto px-0 font-semibold text-white hover:text-white/90 dark:text-white"
+                    asChild
+                  >
                     <Link href="/student/homework">Open homework</Link>
                   </Button>
                 </div>
@@ -178,19 +190,23 @@ export function StudentHeroCarousel({
           <CarouselItem className="pl-0">
             <div className="flex min-h-[140px] flex-col items-stretch gap-6 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex min-w-0 items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm dark:bg-blue-500">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/20 text-white shadow-sm dark:bg-violet-600">
                   <CalendarDays className="h-6 w-6" />
                 </div>
                 <div className="space-y-2">
-                  <h2 className="text-lg font-semibold tracking-tight sm:text-xl">Next school event</h2>
+                  <h2 className="text-lg font-semibold tracking-tight text-white sm:text-xl dark:text-white">
+                    Next school event
+                  </h2>
                   {portalEvents === undefined ? (
-                    <p className="text-sm text-muted-foreground">Loading events…</p>
+                    <p className="text-sm text-white dark:text-white">Loading events…</p>
                   ) : !firstEvent ? (
-                    <p className="text-sm text-muted-foreground">No upcoming school events right now.</p>
+                    <p className="text-sm text-white dark:text-white">
+                      No upcoming school events right now.
+                    </p>
                   ) : (
                     <>
-                      <p className="font-medium leading-snug text-foreground">{firstEvent.eventTitle}</p>
-                      <p className="text-xs capitalize text-muted-foreground">
+                      <p className="font-medium leading-snug text-white dark:text-white">{firstEvent.eventTitle}</p>
+                      <p className="text-xs capitalize text-white dark:text-white">
                         {firstEvent.eventType.replace(/_/g, " ")} · {formatEventWhen(firstEvent)}
                       </p>
                     </>
@@ -204,20 +220,26 @@ export function StudentHeroCarousel({
           <CarouselItem className="pl-0">
             <div className="flex min-h-[140px] flex-col items-stretch gap-6 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex min-w-0 items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm dark:bg-blue-500">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/20 text-white shadow-sm dark:bg-violet-600">
                   <Megaphone className="h-6 w-6" />
                 </div>
                 <div className="min-w-0 space-y-2">
-                  <h2 className="text-lg font-semibold tracking-tight sm:text-xl">Latest announcement</h2>
+                  <h2 className="text-lg font-semibold tracking-tight text-white sm:text-xl dark:text-white">
+                    Latest announcement
+                  </h2>
                   {announcements === undefined ? (
-                    <p className="text-sm text-muted-foreground">Loading announcements…</p>
+                    <p className="text-sm text-white dark:text-white">Loading announcements…</p>
                   ) : !firstAnnouncement ? (
-                    <p className="text-sm text-muted-foreground">No announcements right now.</p>
+                    <p className="text-sm text-white dark:text-white">
+                      No announcements right now.
+                    </p>
                   ) : (
                     <>
-                      <p className="font-medium leading-snug text-foreground">{firstAnnouncement.title}</p>
-                      <p className="line-clamp-2 text-sm text-muted-foreground">{firstAnnouncement.content}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="font-medium leading-snug text-white dark:text-white">{firstAnnouncement.title}</p>
+                      <p className="line-clamp-2 text-sm text-white dark:text-white">
+                        {firstAnnouncement.content}
+                      </p>
+                      <p className="text-xs text-white dark:text-white">
                         {new Date(firstAnnouncement.publishedAt ?? firstAnnouncement.createdAt).toLocaleDateString()}
                       </p>
                     </>
@@ -240,15 +262,19 @@ export function StudentHeroCarousel({
               aria-selected={i === current}
               aria-label={`Slide ${i + 1} of ${count}`}
               className={cn(
-                "h-2 rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2",
-                i === current ? "w-6 bg-blue-600 dark:bg-blue-500" : "w-2 bg-blue-300/70 hover:bg-blue-400/80 dark:bg-blue-700/50",
+                "h-2 rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-violet-600 dark:focus-visible:ring-violet-500 dark:focus-visible:ring-offset-violet-950/45",
+                i === current
+                  ? "w-6 bg-white dark:bg-violet-500"
+                  : "w-2 bg-white/45 hover:bg-white/70 dark:bg-violet-700/60 dark:hover:bg-violet-600",
               )}
               onClick={() => api?.scrollTo(i)}
             />
           ))}
       </div>
 
-      <p className="mt-2 text-center text-[11px] text-muted-foreground sm:hidden">Swipe or tap the dots to see more</p>
+      <p className="mt-2 text-center text-[11px] text-white sm:hidden dark:text-white">
+        Swipe or tap the dots to see more
+      </p>
     </div>
   );
 }

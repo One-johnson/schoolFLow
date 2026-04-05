@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useQuery, useMutation } from 'convex/react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/../convex/_generated/api';
+import type { Id } from '../../../convex/_generated/dataModel';
 import {
   Dialog,
   DialogContent,
@@ -20,13 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Download, Upload, CheckCircle2, AlertCircle, Info } from 'lucide-react';
-import type { Id } from '../../../convex/_generated/dataModel';
-
-import { Badge } from '@/components/ui/badge';
-import { PhotoCell } from '@/components/students/photo-cell';
-import { CSVMarksImportDialog } from './csv-marks-import-dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Table,
   TableBody,
@@ -35,6 +30,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Loader2, Save } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface MarksEntryDialogProps {
   open: boolean;
@@ -43,221 +40,140 @@ interface MarksEntryDialogProps {
   schoolId: string;
 }
 
-interface StudentMark {
+interface Subject {
+  id: string;
+  name: string;
+}
+
+interface StudentRow {
   studentId: string;
   studentName: string;
-  firstName?: string;
-  lastName?: string;
-  photoStorageId?: string;
-  subjects: Record<string, { classScore: number; examScore: number }>;
+  emt1: number;
+  emt2: number;
+  emt3: number;
+  sba: number;
+  project: number;
+  examRaw: number;
+  isAbsent: boolean;
 }
 
-interface Subject {
-  name: string;
-  id?: string;
-  maxMarks: number;
-}
-
-export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: MarksEntryDialogProps) {
+export function MarksEntryDialog({
+  open,
+  onOpenChange,
+  examId,
+  schoolId,
+}: MarksEntryDialogProps) {
   const { toast } = useToast();
   const exam = useQuery(api.exams.getExamById, { examId });
   const allClasses = useQuery(api.classes.getClassesBySchool, { schoolId });
-  const department = useQuery(
-    api.departments.getDepartmentById,
-    exam?.departmentId ? { departmentId: exam.departmentId as Id<'departments'> } : 'skip'
-  );
   const enterMarks = useMutation(api.marks.enterMarks);
 
-  const [selectedClassId, setSelectedClassId] = useState<string>('');
-  const [students, setStudents] = useState<StudentMark[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [loadStudents, setLoadStudents] = useState<boolean>(false);
-  const [csvImportOpen, setCsvImportOpen] = useState<boolean>(false);
+  const [selectedClassId, setSelectedClassId] = useState('');
+  const [selectedSubjectId, setSelectedSubjectId] = useState('');
+  const [studentFilter, setStudentFilter] = useState('');
+  const [rows, setRows] = useState<StudentRow[]>([]);
+  const [loadStudents, setLoadStudents] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Filter classes by exam department
-  const classes = allClasses?.filter((cls) => {
-    if (!exam?.departmentId) return true;
-    return cls.departmentId === exam.departmentId;
-  });
+  const classes = useMemo(() => {
+    return allClasses?.filter((cls) => {
+      if (!exam?.departmentId) return true;
+      return cls.departmentId === exam.departmentId;
+    });
+  }, [allClasses, exam?.departmentId]);
 
-  // Get the selected class to find its classCode
   const selectedClass = classes?.find((c) => c._id === selectedClassId);
-  
-  // Query students from the selected class using classCode
+
   const studentsData = useQuery(
     api.students.getStudentsByClass,
-    loadStudents && selectedClass ? { classId: selectedClass.classCode } : 'skip'
+    loadStudents && selectedClass ? { classId: selectedClass.classCode } : 'skip',
   );
-  
-  // Query existing marks for the selected class
+
   const existingMarks = useQuery(
     api.marks.getClassMarks,
-    selectedClassId && selectedClass ? { examId, classId: selectedClass.classCode } : 'skip'
+    selectedClass ? { examId, classId: selectedClass.classCode } : 'skip',
   );
 
-  const subjects: Subject[] = exam?.subjects ? JSON.parse(exam.subjects) : [];
+  const subjects: Subject[] = useMemo(() => {
+    const raw = exam?.subjects ? JSON.parse(exam.subjects) : [];
+    return raw.map((s: { subjectId: string; subjectName: string }) => ({
+      id: s.subjectId,
+      name: s.subjectName,
+    }));
+  }, [exam?.subjects]);
 
-  // Load draft from localStorage (toast omitted from deps to avoid infinite loop - it's not referentially stable)
   useEffect(() => {
-    if (open && selectedClassId) {
-      const draftKey = `marks-draft-${examId}-${selectedClassId}`;
-      const savedDraft = localStorage.getItem(draftKey);
-      if (savedDraft) {
-        try {
-          const parsed = JSON.parse(savedDraft);
-          setStudents(parsed);
-          toast({
-            title: 'Draft Loaded',
-            description: 'Previous unsaved work has been restored',
-          });
-        } catch (e) {
-          console.error('Failed to parse draft:', e);
-        }
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- toast is intentionally omitted
-  }, [open, selectedClassId, examId]);
-
-  // Auto-save draft to localStorage
-  useEffect(() => {
-    if (students.length > 0 && selectedClassId) {
-      const draftKey = `marks-draft-${examId}-${selectedClassId}`;
-      localStorage.setItem(draftKey, JSON.stringify(students));
-    }
-  }, [students, selectedClassId, examId]);
-
-  // Clear students when class selection changes
-  useEffect(() => {
-    setStudents([]);
+    if (!open) return;
+    setRows([]);
     setLoadStudents(false);
-  }, [selectedClassId]);
+    setStudentFilter('');
+  }, [open, selectedClassId, selectedSubjectId]);
 
-  // Handle loaded students data and merge with existing marks.
-  // Depend only on primitive values (lengths) to avoid infinite loop from Convex returning new array references each render.
-  const studentsDataLen = studentsData?.length ?? -1;
-  const existingMarksLen = existingMarks?.length ?? -1;
   useEffect(() => {
-    if (studentsData && studentsData.length > 0) {
-      const initialMarks: StudentMark[] = studentsData.map((s) => {
-        const subjectsMap: Record<string, { classScore: number; examScore: number }> = {};
-        
-        subjects.forEach((subject) => {
-          const existingMark = existingMarks?.find(
-            (m) => m.studentId === s.studentId && m.subjectName === subject.name
-          );
-          
-          subjectsMap[subject.name] = existingMark 
-            ? { classScore: existingMark.classScore, examScore: existingMark.examScore }
-            : { classScore: 0, examScore: 0 };
-        });
-        
+    if (!studentsData || !selectedSubjectId) return;
+    const subjectMarks = (existingMarks || []).filter(
+      (m) => m.subjectId === selectedSubjectId,
+    );
+    setRows(
+      studentsData.map((s) => {
+        const existing = subjectMarks.find((m) => m.studentId === s._id);
         return {
-          studentId: s.studentId,
+          studentId: s._id,
           studentName: `${s.firstName} ${s.lastName}`,
-          firstName: s.firstName,
-          lastName: s.lastName,
-          photoStorageId: s.photoStorageId,
-          subjects: subjectsMap,
+          emt1: existing?.emt1 ?? 0,
+          emt2: existing?.emt2 ?? 0,
+          emt3: existing?.emt3 ?? 0,
+          sba: existing?.sba ?? 0,
+          project: existing?.project ?? 0,
+          examRaw: existing?.examRaw ?? 0,
+          isAbsent: existing?.isAbsent ?? false,
         };
-      });
-      
-      setStudents(initialMarks);
-      setLoadStudents(false);
-      
-      if (existingMarks && existingMarks.length > 0) {
-        toast({
-          title: 'Existing Marks Loaded',
-          description: `${existingMarks.length} existing mark entries pre-filled`,
-        });
-      }
-    } else if (studentsData && studentsData.length === 0) {
-      toast({
-        title: 'No Students Found',
-        description: 'No students found in the selected class',
-        variant: 'destructive',
-      });
-      setStudents([]);
-      setLoadStudents(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- primitive deps only to avoid Convex ref churn
-  }, [studentsDataLen, existingMarksLen]);
+      }),
+    );
+  }, [studentsData, existingMarks, selectedSubjectId]);
 
-  const handleLoadStudents = (): void => {
-    if (!selectedClassId) {
-      toast({
-        title: 'Validation Error',
-        description: 'Please select a class',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    setLoadStudents(true);
-  };
+  const clamp = (value: number, min: number, max: number) =>
+    Math.min(Math.max(value, min), max);
 
-  const handleMarkChange = (
+  const updateField = (
     studentId: string,
-    subjectName: string,
-    field: 'classScore' | 'examScore',
-    value: string
-  ): void => {
-    const numValue = Number(value);
-    
-    // Validate marks are between 0 and 100
-    if (value !== '' && (numValue < 0 || numValue > 100)) {
-      toast({
-        title: 'Invalid Mark',
-        description: 'Marks must be between 0 and 100',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    setStudents(
-      students.map((s) =>
-        s.studentId === studentId
-          ? {
-              ...s,
-              subjects: {
-                ...s.subjects,
-                [subjectName]: {
-                  ...s.subjects[subjectName],
-                  [field]: value === '' ? 0 : numValue,
-                },
-              },
-            }
-          : s
-      )
+    field: keyof Pick<StudentRow, 'emt1' | 'emt2' | 'emt3' | 'sba' | 'project' | 'examRaw'>,
+    value: string,
+    max: number,
+  ) => {
+    const n = parseFloat(value);
+    const safe = Number.isFinite(n) ? n : 0;
+    setRows((prev) =>
+      prev.map((r) =>
+        r.studentId === studentId ? { ...r, [field]: clamp(safe, 0, max) } : r,
+      ),
     );
   };
 
-  const calculateSubjectTotal = (classScore: number, examScore: number): number => {
-    return classScore + examScore;
+  const toggleAbsent = (studentId: string, checked: boolean) => {
+    setRows((prev) =>
+      prev.map((r) =>
+        r.studentId === studentId
+          ? {
+              ...r,
+              isAbsent: checked,
+              emt1: checked ? 0 : r.emt1,
+              emt2: checked ? 0 : r.emt2,
+              emt3: checked ? 0 : r.emt3,
+              sba: checked ? 0 : r.sba,
+              project: checked ? 0 : r.project,
+              examRaw: checked ? 0 : r.examRaw,
+            }
+          : r,
+      ),
+    );
   };
 
-  const calculateStudentAverage = (studentSubjects: Record<string, { classScore: number; examScore: number }>): number => {
-    const totals = Object.values(studentSubjects).map((s) => s.classScore + s.examScore);
-    const sum = totals.reduce((acc, val) => acc + val, 0);
-    return totals.length > 0 ? sum / totals.length : 0;
-  };
+  const filteredRows = rows.filter((r) =>
+    r.studentName.toLowerCase().includes(studentFilter.toLowerCase()),
+  );
 
-  const getCompletionStatus = (student: StudentMark): { completed: number; total: number } => {
-    let completed = 0;
-    const total = subjects.length;
-    subjects.forEach((subject) => {
-      const marks = student.subjects[subject.name];
-      if (marks && (marks.classScore > 0 || marks.examScore > 0)) {
-        completed++;
-      }
-    });
-    return { completed, total };
-  };
-
-  const isOutOfRange = (value: number, max: number): boolean => {
-    return value > max;
-  };
-
-  const handleSubmit = async (): Promise<void> => {
+  const handleLoadStudents = () => {
     if (!selectedClassId) {
       toast({
         title: 'Validation Error',
@@ -266,179 +182,81 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
       });
       return;
     }
-
-    if (!selectedClass) {
+    if (!selectedSubjectId) {
       toast({
-        title: 'Error',
-        description: 'Selected class not found',
+        title: 'Validation Error',
+        description: 'Please select a subject',
         variant: 'destructive',
       });
       return;
     }
+    setLoadStudents(true);
+  };
+
+  const handleSubmit = async () => {
+    if (!exam || !selectedClass) return;
+    const subject = subjects.find((s) => s.id === selectedSubjectId);
+    if (!subject) return;
 
     setIsSubmitting(true);
     try {
-      let savedCount = 0;
-
-      // Enter marks for each student and subject
-      for (const student of students) {
-        for (const subject of subjects) {
-          const marks = student.subjects[subject.name];
-          if (marks && (marks.classScore > 0 || marks.examScore > 0)) {
-            await enterMarks({
-              schoolId,
-              examId,
-              examCode: exam?.examCode || '',
-              examName: exam?.examName || '',
-              studentId: student.studentId,
-              studentName: student.studentName,
-              classId: selectedClass.classCode,
-              className: selectedClass.className,
-              subjectId: (subject.id || subject.name) as Id<'subjects'>,
-              subjectName: subject.name,
-              classScore: marks.classScore,
-              examScore: marks.examScore,
-              maxMarks: subject.maxMarks || 100,
-              isAbsent: false,
-              enteredBy: schoolId,
-              enteredByRole: 'admin',
-              enteredByName: 'School Admin',
-            });
-            savedCount++;
-          }
-        }
+      for (const r of rows) {
+        await enterMarks({
+          schoolId,
+          examId,
+          examCode: exam.examCode,
+          examName: exam.examName,
+          studentId: r.studentId,
+          studentName: r.studentName,
+          classId: selectedClass.classCode,
+          className: selectedClass.className,
+          subjectId: subject.id,
+          subjectName: subject.name,
+          emt1: r.emt1,
+          emt2: r.emt2,
+          emt3: r.emt3,
+          sba: r.sba,
+          project: r.project,
+          examRaw: r.examRaw,
+          isAbsent: r.isAbsent,
+          enteredBy: schoolId,
+          enteredByRole: 'admin',
+          enteredByName: 'School Admin',
+        });
       }
-
-      // Clear draft after successful save
-      const draftKey = `marks-draft-${examId}-${selectedClassId}`;
-      localStorage.removeItem(draftKey);
-
-      toast({
-        title: 'Success',
-        description: `Marks entered successfully for ${students.length} student${students.length > 1 ? 's' : ''} (${savedCount} entries)`,
-      });
-
+      toast({ title: 'Saved', description: 'Assessment sheet saved successfully.' });
       onOpenChange(false);
-      // Reset state
-      setSelectedClassId('');
-      setStudents([]);
-      setLoadStudents(false);
     } catch (error) {
-      // Enhanced error handling with prominent toast notification
-      const errorMessage = error instanceof Error ? error.message : 'Failed to enter marks';
-      
-      // Determine if this is a lock-related error
-      const isLockError = errorMessage.toLowerCase().includes('locked') || 
-                         errorMessage.toLowerCase().includes('cannot edit');
-      
       toast({
-        title: isLockError ? '🔒 Exam Locked' : 'Error Saving Marks',
-        description: errorMessage,
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to save marks',
         variant: 'destructive',
-        // Removed invalid 'duration' property to fix type error
       });
-      
-      // Dialog stays open so user can see the error and take action
-      // Do not close the dialog or reset state on error
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleExportCSV = (): void => {
-    if (students.length === 0) {
-      toast({
-        title: 'No Data',
-        description: 'Please load students first',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    // Create CSV header
-    const headers = ['Student Name'];
-    subjects.forEach((subject) => {
-      headers.push(`${subject.name} - Class Score`, `${subject.name} - Exam Score`);
-    });
-    headers.push('Average');
-
-    // Create CSV rows
-    const rows = students.map((student) => {
-      const row = [student.studentName];
-      subjects.forEach((subject) => {
-        const marks = student.subjects[subject.name];
-        row.push(String(marks?.classScore || 0), String(marks?.examScore || 0));
-      });
-      row.push(calculateStudentAverage(student.subjects).toFixed(1));
-      return row;
-    });
-
-    // Combine headers and rows
-    const csvContent = [headers, ...rows].map((row) => row.join(',')).join('\n');
-
-    // Download CSV
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `marks-${exam?.examName}-${selectedClass?.className}-${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    toast({
-      title: 'Export Successful',
-      description: 'Marks template exported as CSV',
-    });
-  };
-
-  const handleCSVImport = (data: Array<{ studentId: string; subjects: Record<string, { classScore: number; examScore: number }> }>): void => {
-    // Merge imported data with existing students
-    setStudents(
-      students.map((student) => {
-        const importedStudent = data.find((d) => d.studentId === student.studentId);
-        if (importedStudent) {
-          return {
-            ...student,
-            subjects: importedStudent.subjects,
-          };
-        }
-        return student;
-      })
-    );
-
-    toast({
-      title: 'Import Successful',
-      description: `Marks imported for ${data.length} students`,
-    });
-  };
+  if (!exam) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="min-w-[95vw] max-w-[95vw] w-[95vw] max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            {existingMarks && existingMarks.length > 0 ? 'View & Edit Marks' : 'Enter Marks'} - {exam?.examName}
-            {department && (
-              <span className="text-sm font-normal text-muted-foreground ml-2">
-                ({department.name})
-              </span>
-            )}
-          </DialogTitle>
+          <DialogTitle>Assessment Sheet</DialogTitle>
           <DialogDescription>
-            Exam ID: {exam?.examCode}
-            {department ? ` • Department: ${department.name}` : ''} • Grid view - {existingMarks && existingMarks.length > 0 ? 'Edit existing marks or add new ones' : 'Enter marks for all subjects at once'}
+            EMT1/2/3 (/10 each) + SBA (/10) + Project (/20) = Class (/60), then 50/50 with Exam
+            (/100).
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
-          <div className="flex gap-4 items-end">
-            <div className="space-y-2 flex-1">
-              <Label htmlFor="class">Select Class *</Label>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <Label>Select Class</Label>
               <Select value={selectedClassId} onValueChange={setSelectedClassId}>
-                <SelectTrigger id="class">
-                  <SelectValue placeholder="Choose class" />
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a class" />
                 </SelectTrigger>
                 <SelectContent>
                   {classes?.map((cls) => (
@@ -448,205 +266,199 @@ export function MarksEntryDialog({ open, onOpenChange, examId, schoolId }: Marks
                   ))}
                 </SelectContent>
               </Select>
-              {exam?.departmentId && classes && classes.length === 0 && (
-                <p className="text-xs text-muted-foreground">
-                  No {department?.name ?? 'matching'} classes found
-                </p>
-              )}
             </div>
 
-            {students.length === 0 && (
-              <Button onClick={handleLoadStudents} disabled={!selectedClassId || loadStudents}>
-                {loadStudents && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Load Students
-              </Button>
-            )}
+            <div>
+              <Label>Select Subject</Label>
+              <Select value={selectedSubjectId} onValueChange={setSelectedSubjectId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a subject" />
+                </SelectTrigger>
+                <SelectContent>
+                  {subjects.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-            {students.length > 0 && (
-              <>
-                <Button variant="outline" onClick={() => setCsvImportOpen(true)}>
-                  <Upload className="mr-2 h-4 w-4" />
-                  Import CSV
-                </Button>
-                <Button variant="outline" onClick={handleExportCSV}>
-                  <Download className="mr-2 h-4 w-4" />
-                  Export CSV
-                </Button>
-              </>
-            )}
+            <div>
+              <Label>Filter student</Label>
+              <Input
+                value={studentFilter}
+                onChange={(e) => setStudentFilter(e.target.value)}
+                placeholder="Search by name"
+              />
+            </div>
+
+            <div className="flex items-end">
+              <Button
+                onClick={handleLoadStudents}
+                disabled={!selectedClassId || !selectedSubjectId || loadStudents}
+                className="w-full"
+              >
+                {loadStudents ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  'Load Students'
+                )}
+              </Button>
+            </div>
           </div>
 
-          {students.length > 0 && (
-            <>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
-                <Info className="h-4 w-4" />
-                <span>
-                  Entering marks for {students.length} students across {subjects.length} subjects. 
-                  Changes are auto-saved as drafts.
-                </span>
-              </div>
-
-              <div className="flex-1 rounded-lg border overflow-auto max-h-125">
-                <div className="min-w-max">
-                  <Table>
-                    <TableHeader className="bg-muted sticky top-0 z-10">
-                      <TableRow>
-                        <TableHead className="text-left p-3 font-medium border-r min-w-50">
-                          Student Name
-                        </TableHead>
-                        {subjects.map((subject) => (
-                          <TableHead
-                            key={subject.name}
-                            className="text-center p-3 font-medium border-r"
-                            colSpan={2}
-                          >
-                            <div className="flex flex-col items-center gap-1">
-                              <span>{subject.name}</span>
-                              <span className="text-xs text-muted-foreground font-normal">
-                                Max: {subject.maxMarks}
-                              </span>
-                            </div>
-                          </TableHead>
-                        ))}
-                        <TableHead className="text-center p-3 font-medium min-w-25">
-                          Avg %
-                        </TableHead>
-                        <TableHead className="text-center p-3 font-medium min-w-30">
-                          Status
-                        </TableHead>
+          {rows.length === 0 ? (
+            <div className="text-center py-10 text-muted-foreground">
+              Select class + subject, then load students.
+            </div>
+          ) : (
+            <div className="border rounded-md overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="min-w-[200px]">Student</TableHead>
+                    <TableHead className="w-[70px] text-center">EMT1</TableHead>
+                    <TableHead className="w-[70px] text-center">EMT2</TableHead>
+                    <TableHead className="w-[70px] text-center">EMT3</TableHead>
+                    <TableHead className="w-[70px] text-center">SBA</TableHead>
+                    <TableHead className="w-[80px] text-center">Project</TableHead>
+                    <TableHead className="w-[80px] text-center">Exam</TableHead>
+                    <TableHead className="w-[80px] text-center">Class/60</TableHead>
+                    <TableHead className="w-[70px] text-center">Total/100</TableHead>
+                    <TableHead className="w-[60px] text-center">Absent</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredRows.map((r) => {
+                    const classTotal = r.emt1 + r.emt2 + r.emt3 + r.sba + r.project;
+                    const class50 = (classTotal / 60) * 50;
+                    const exam50 = (r.examRaw / 100) * 50;
+                    const total = class50 + exam50;
+                    return (
+                      <TableRow key={r.studentId}>
+                        <TableCell className="font-medium">{r.studentName}</TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={10}
+                            step={0.5}
+                            value={r.emt1}
+                            disabled={r.isAbsent}
+                            onChange={(e) => updateField(r.studentId, 'emt1', e.target.value, 10)}
+                            className="w-16 text-center h-8 text-sm"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={10}
+                            step={0.5}
+                            value={r.emt2}
+                            disabled={r.isAbsent}
+                            onChange={(e) => updateField(r.studentId, 'emt2', e.target.value, 10)}
+                            className="w-16 text-center h-8 text-sm"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={10}
+                            step={0.5}
+                            value={r.emt3}
+                            disabled={r.isAbsent}
+                            onChange={(e) => updateField(r.studentId, 'emt3', e.target.value, 10)}
+                            className="w-16 text-center h-8 text-sm"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={10}
+                            step={0.5}
+                            value={r.sba}
+                            disabled={r.isAbsent}
+                            onChange={(e) => updateField(r.studentId, 'sba', e.target.value, 10)}
+                            className="w-16 text-center h-8 text-sm"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={20}
+                            step={0.5}
+                            value={r.project}
+                            disabled={r.isAbsent}
+                            onChange={(e) =>
+                              updateField(r.studentId, 'project', e.target.value, 20)
+                            }
+                            className="w-16 text-center h-8 text-sm"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={100}
+                            step={0.5}
+                            value={r.examRaw}
+                            disabled={r.isAbsent}
+                            onChange={(e) =>
+                              updateField(r.studentId, 'examRaw', e.target.value, 100)
+                            }
+                            className="w-16 text-center h-8 text-sm"
+                          />
+                        </TableCell>
+                        <TableCell className="text-center text-sm">
+                          {r.isAbsent ? '-' : classTotal.toFixed(1)}
+                        </TableCell>
+                        <TableCell className="text-center font-medium">
+                          {r.isAbsent ? '-' : total.toFixed(1)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Checkbox
+                            checked={r.isAbsent}
+                            onCheckedChange={(checked) =>
+                              toggleAbsent(r.studentId, checked as boolean)
+                            }
+                          />
+                        </TableCell>
                       </TableRow>
-                      <TableRow className="bg-muted/80">
-                        <TableHead className="p-2 border-r"></TableHead>
-                        {subjects.map((subject) => (
-                          <React.Fragment key={`${subject.name}-headers`}>
-                            <TableHead className="text-xs p-2 font-normal text-muted-foreground">
-                              CA
-                            </TableHead>
-                            <TableHead className="text-xs p-2 font-normal text-muted-foreground border-r">
-                              Exam
-                            </TableHead>
-                          </React.Fragment>
-                        ))}
-                        <TableHead className="p-2"></TableHead>
-                        <TableHead className="p-2"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {students.map((student) => {
-                        const avg = calculateStudentAverage(student.subjects);
-                        const status = getCompletionStatus(student);
-                        const isComplete = status.completed === status.total;
-
-                        return (
-                          <TableRow key={student.studentId} className="hover:bg-muted/30">
-                            <TableCell className="p-3 font-medium border-r">
-                              <div className="flex items-center gap-2">
-                                <PhotoCell
-                                  photoStorageId={student.photoStorageId as Id<'_storage'> | undefined}
-                                  firstName={student.firstName ?? ''}
-                                  lastName={student.lastName ?? ''}
-                                />
-                                <span>{student.studentName}</span>
-                              </div>
-                            </TableCell>
-                            {subjects.map((subject) => {
-                              const marks = student.subjects[subject.name];
-                              const total = calculateSubjectTotal(marks?.classScore || 0, marks?.examScore || 0);
-                              const maxCA = subject.maxMarks * 0.4; // Assuming 40% for CA
-                              const maxExam = subject.maxMarks * 0.6; // Assuming 60% for Exam
-
-                              return (
-                                <React.Fragment key={`${student.studentId}-${subject.name}`}>
-                                  <TableCell className="p-2">
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      max="100"
-                                      value={marks?.classScore || ''}
-                                      onChange={(e) =>
-                                        handleMarkChange(student.studentId, subject.name, 'classScore', e.target.value)
-                                      }
-                                      className={`w-20 text-center ${
-                                        (marks?.classScore || 0) > 100
-                                          ? 'border-red-500 dark:border-red-400'
-                                          : ''
-                                      }`}
-                                      placeholder="0"
-                                    />
-                                  </TableCell>
-                                  <TableCell className="p-2 border-r">
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      max="100"
-                                      value={marks?.examScore || ''}
-                                      onChange={(e) =>
-                                        handleMarkChange(student.studentId, subject.name, 'examScore', e.target.value)
-                                      }
-                                      className={`w-20 text-center ${
-                                        (marks?.examScore || 0) > 100
-                                          ? 'border-red-500 dark:border-red-400'
-                                          : ''
-                                      }`}
-                                      placeholder="0"
-                                    />
-                                  </TableCell>
-                                </React.Fragment>
-                              );
-                            })}
-                            <TableCell className="p-3 text-center font-medium">
-                              {avg.toFixed(1)}%
-                            </TableCell>
-                            <TableCell className="p-3 text-center">
-                              {isComplete ? (
-                                <Badge variant="default" className="gap-1">
-                                  <CheckCircle2 className="h-3 w-3" />
-                                  Complete
-                                </Badge>
-                              ) : (
-                                <Badge variant="secondary" className="gap-1">
-                                  <AlertCircle className="h-3 w-3" />
-                                  {status.completed}/{status.total}
-                                </Badge>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-
-              <div className="flex justify-between items-center pt-2 border-t">
-                <div className="text-sm text-muted-foreground">
-                  💾 Draft auto-saved • {students.length} students • {subjects.length} subjects
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => onOpenChange(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleSubmit} disabled={isSubmitting}>
-                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    <Save className="mr-2 h-4 w-4" />
-                    {existingMarks && existingMarks.length > 0 ? 'Update Marks' : 'Save All Marks'}
-                  </Button>
-                </div>
-              </div>
-            </>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           )}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSubmit} disabled={isSubmitting || rows.length === 0}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Sheet
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </DialogContent>
-
-      <CSVMarksImportDialog
-        open={csvImportOpen}
-        onOpenChange={setCsvImportOpen}
-        subjects={subjects}
-        students={students.map((s) => ({ studentId: s.studentId, studentName: s.studentName }))}
-        onImport={handleCSVImport}
-        examName={exam?.examName}
-        className={selectedClass?.className}
-      />
     </Dialog>
   );
 }

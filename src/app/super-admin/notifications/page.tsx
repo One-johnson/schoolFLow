@@ -244,7 +244,7 @@ export default function NotificationsPage(): React.JSX.Element {
                 All caught up!
               </h3>
               <p className="text-gray-500 dark:text-gray-400 max-w-sm">
-                No notifications at the moment. We'll notify you when something important happens.
+                No notifications at the moment. We&apos;ll notify you when something important happens.
               </p>
             </div>
           ) : (

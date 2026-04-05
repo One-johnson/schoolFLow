@@ -80,8 +80,10 @@ export function useStudentAuth() {
 
   // Same mount hydration as useTeacherAuth / useParentAuth (session cookie → client state).
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate from httpOnly session
-    checkAuth();
+    const t = setTimeout(() => {
+      void checkAuth();
+    }, 0);
+    return () => clearTimeout(t);
   }, [checkAuth]);
 
   const login = async (

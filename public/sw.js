@@ -1,3 +1,46 @@
+// Web Push (VAPID) — show notifications from the server
+self.addEventListener('push', (event) => {
+  let data = { title: 'SchoolFlow', body: '', url: '/' };
+  try {
+    if (event.data) {
+      data = { ...data, ...event.data.json() };
+    }
+  } catch (_) {
+    try {
+      const t = event.data?.text();
+      if (t) data.body = t;
+    } catch (_) {}
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      data: { url: data.url || '/' },
+      tag: data.url || 'schoolflow',
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const raw = event.notification.data?.url || '/';
+  const url =
+    typeof raw === 'string' && (raw.startsWith('http://') || raw.startsWith('https://'))
+      ? raw
+      : new URL(raw.startsWith('/') ? raw : `/${raw}`, self.location.origin).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      for (const c of list) {
+        if (c.url.startsWith(self.location.origin) && 'focus' in c) {
+          return c.focus();
+        }
+      }
+      return self.clients.openWindow(url);
+    })
+  );
+});
+
 const CACHE_NAME = 'schoolflow-teacher-v1';
 const STATIC_ASSETS = [
   '/teacher',

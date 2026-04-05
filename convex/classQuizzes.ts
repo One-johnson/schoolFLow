@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
+import { scheduleWebPushForRecipient } from "./webPush";
 
 const questionInput = v.object({
   question: v.string(),
@@ -27,6 +28,16 @@ function submitDeadlineMs(quiz: QuizScheduleFields, startedAtMs: number): number
     return closeMs + graceMs;
   }
   return closeMs;
+}
+
+function handoutContentTypeFromFileName(fileName: string): string {
+  const lower = fileName.trim().toLowerCase();
+  if (lower.endsWith(".pdf")) return "application/pdf";
+  if (lower.endsWith(".docx")) {
+    return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  }
+  if (lower.endsWith(".doc")) return "application/msword";
+  throw new Error("Handout must be a .pdf, .doc, or .docx file");
 }
 
 type QuizResultsFields = {
@@ -88,6 +99,13 @@ async function notifyStudentAndParentsAboutQuizSubmit(
     recipientRole: "student",
     actionUrl: `/student/quizzes/${opts.quizId}`,
   });
+  await scheduleWebPushForRecipient(ctx, {
+    recipientRole: "student",
+    recipientId: student._id as string,
+    title: "Quiz submitted",
+    body: `You submitted "${opts.quizTitle}". Score: ${opts.score}/${opts.maxScore} (${opts.percent}%).`,
+    url: `/student/quizzes/${opts.quizId}`,
+  });
 
   const parentIds = new Set<string>();
   const links = await ctx.db
@@ -108,6 +126,13 @@ async function notifyStudentAndParentsAboutQuizSubmit(
       recipientId: parentId,
       recipientRole: "parent",
       actionUrl: "/parent",
+    });
+    await scheduleWebPushForRecipient(ctx, {
+      recipientRole: "parent",
+      recipientId: parentId,
+      title: "Quiz completed",
+      body: `${name} submitted "${opts.quizTitle}" (${opts.score}/${opts.maxScore}, ${opts.percent}%).`,
+      url: "/parent",
     });
   }
 }
@@ -139,6 +164,13 @@ async function notifyClassAboutQuiz(
       recipientId: student._id as string,
       recipientRole: "student",
       actionUrl,
+    });
+    await scheduleWebPushForRecipient(ctx, {
+      recipientRole: "student",
+      recipientId: student._id as string,
+      title: "Class quiz",
+      body: `"${title}" is available. Complete it during the open window.`,
+      url: actionUrl,
     });
   }
 }
@@ -317,6 +349,71 @@ export const updateDraft = mutation({
       submitGraceSecondsAfterClose: grace,
       resultsVisibility: visibility,
       updatedAt: now,
+    });
+  },
+});
+
+export const setQuizHandout = mutation({
+  args: {
+    quizId: v.id("classQuizzes"),
+    teacherId: v.string(),
+    storageId: v.string(),
+    fileName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const quiz = await ctx.db.get(args.quizId);
+    if (!quiz || quiz.teacherId !== args.teacherId) {
+      throw new Error("Quiz not found");
+    }
+    if (quiz.status !== "draft") {
+      throw new Error("Handout can only be changed while the quiz is a draft");
+    }
+    const name = args.fileName.trim();
+    if (!name) {
+      throw new Error("File name is required");
+    }
+    const contentType = handoutContentTypeFromFileName(name);
+    const prev = quiz.handoutStorageId;
+    if (prev && prev !== args.storageId) {
+      try {
+        await ctx.storage.delete(prev as Id<"_storage">);
+      } catch {
+        /* ignore missing blob */
+      }
+    }
+    const now = new Date().toISOString();
+    await ctx.db.patch(args.quizId, {
+      handoutStorageId: args.storageId,
+      handoutFileName: name,
+      handoutContentType: contentType,
+      updatedAt: now,
+    });
+  },
+});
+
+export const clearQuizHandout = mutation({
+  args: { quizId: v.id("classQuizzes"), teacherId: v.string() },
+  handler: async (ctx, args) => {
+    const quiz = await ctx.db.get(args.quizId);
+    if (!quiz || quiz.teacherId !== args.teacherId) {
+      throw new Error("Quiz not found");
+    }
+    if (quiz.status !== "draft") {
+      throw new Error("Handout can only be removed while the quiz is a draft");
+    }
+    const prev = quiz.handoutStorageId;
+    if (prev) {
+      try {
+        await ctx.storage.delete(prev as Id<"_storage">);
+      } catch {
+        /* ignore */
+      }
+    }
+    await ctx.db.patch(args.quizId, {
+      handoutStorageId: undefined,
+      handoutFileName: undefined,
+      handoutContentType: undefined,
+      updatedAt: new Date().toISOString(),
     });
   },
 });
@@ -551,11 +648,32 @@ export const listForStudentPortal = query({
         const openEnd = parseIsoMs(quiz.closesAt);
         const inWindow = now >= openStart && now <= openEnd;
         const attempt = byQuiz.get(quiz._id);
+        const attemptSummary =
+          attempt && attempt.status === "submitted"
+            ? {
+                status: attempt.status,
+                startedAt: attempt.startedAt,
+                submittedAt: attempt.submittedAt,
+                score: attempt.score ?? null,
+                maxScore: attempt.maxScore ?? null,
+                percent: attempt.percent ?? null,
+              }
+            : attempt && attempt.status === "in_progress"
+              ? {
+                  status: attempt.status,
+                  startedAt: attempt.startedAt,
+                  submittedAt: null,
+                  score: null,
+                  maxScore: null,
+                  percent: null,
+                }
+              : null;
         return {
           quiz,
           inWindow,
           hasSubmitted: attempt?.status === "submitted",
           inProgress: attempt?.status === "in_progress",
+          attemptSummary,
         };
       })
       .sort((a, b) => parseIsoMs(b.quiz.publishedAt ?? b.quiz.createdAt) - parseIsoMs(a.quiz.publishedAt ?? a.quiz.createdAt));
@@ -608,6 +726,9 @@ export const getTakingSession = query({
       attempt?.status === "in_progress" &&
       deadlineMs !== null &&
       now > deadlineMs;
+    const handoutUrl = quiz.handoutStorageId
+      ? await ctx.storage.getUrl(quiz.handoutStorageId as Id<"_storage">)
+      : null;
     return {
       quiz,
       questions,
@@ -615,6 +736,7 @@ export const getTakingSession = query({
       inWindow,
       submitDeadlineMs: deadlineMs,
       blockedPastDeadline,
+      handoutUrl,
     };
   },
 });

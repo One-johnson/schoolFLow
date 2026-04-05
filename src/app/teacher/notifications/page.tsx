@@ -30,6 +30,7 @@ import {
   Settings,
 } from "lucide-react";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { WebPushPrompt } from "@/components/web-push-prompt";
 
 type NotificationType = "info" | "warning" | "success" | "error";
 
@@ -160,12 +161,15 @@ export default function TeacherNotificationsPage() {
               : "All caught up!"}
           </p>
         </div>
-        {unreadCount !== undefined && unreadCount > 0 && (
-          <Button variant="outline" size="sm" onClick={handleMarkAllAsRead}>
-            <CheckCheck className="h-4 w-4 mr-2" />
-            Mark all read
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2 justify-end">
+          <WebPushPrompt />
+          {unreadCount !== undefined && unreadCount > 0 && (
+            <Button variant="outline" size="sm" onClick={handleMarkAllAsRead}>
+              <CheckCheck className="h-4 w-4 mr-2" />
+              Mark all read
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Stats */}

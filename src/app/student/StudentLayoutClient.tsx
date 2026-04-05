@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useStudentAuth } from "@/hooks/useStudentAuth";
 import { StudentTopHeader } from "@/components/student/top-header";
@@ -16,14 +16,10 @@ import { ConvexProvider, ConvexReactClient } from "convex/react";
 const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
 function StudentLayoutContent({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = useState(false);
   const { student, loading, authenticated, checkAuth } = useStudentAuth();
   const router = useRouter();
   const pathname = usePathname();
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = true;
 
   useEffect(() => {
     checkAuth();
@@ -46,21 +42,7 @@ function StudentLayoutContent({ children }: { children: React.ReactNode }) {
 
   const isLoginRoute = pathname === "/student/login";
 
-  // Before mount, match server output to client first paint (avoids hydration mismatch).
-  if (!mounted) {
-    if (isLoginRoute) {
-      return <>{children}</>;
-    }
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div
-          className="h-10 w-10 animate-spin rounded-full border-2 border-muted border-t-blue-600"
-          role="status"
-          aria-label="Loading"
-        />
-      </div>
-    );
-  }
+  // Note: this is a client-only layout; no mount guard needed.
 
   if (isLoginRoute) {
     return <>{children}</>;

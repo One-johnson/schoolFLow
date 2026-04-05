@@ -55,6 +55,7 @@ const ALL_TABLES: TableNames[] = [
   "platformSettings",
   "subscriptionPlans",
   "notifications",
+  "webPushSubscriptions",
   "auditLogs",
   "schoolCreationRequests",
   "paymentProofs",

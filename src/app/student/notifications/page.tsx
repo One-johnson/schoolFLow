@@ -8,6 +8,7 @@ import { StudentPageHeader } from "@/components/student/student-page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bell, CheckCheck, Megaphone } from "lucide-react";
+import { WebPushPrompt } from "@/components/web-push-prompt";
 import { toast } from "sonner";
 import type { Id } from "../../../../convex/_generated/dataModel";
 
@@ -41,11 +42,13 @@ export default function StudentNotificationsPage(): React.ReactNode {
         subtitle="Homework and reminders from your school"
       />
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
           {rows === undefined ? "Loading…" : `${rows.length} notification${rows.length === 1 ? "" : "s"}`}
           {unread > 0 ? ` · ${unread} unread` : ""}
         </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <WebPushPrompt />
         <Button
           type="button"
           variant="outline"
@@ -57,6 +60,7 @@ export default function StudentNotificationsPage(): React.ReactNode {
           <CheckCheck className="h-4 w-4" />
           Mark all read
         </Button>
+        </div>
       </div>
 
       {rows && rows.length === 0 && (

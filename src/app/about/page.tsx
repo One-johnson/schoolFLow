@@ -128,9 +128,9 @@ const faqs = [
       "We release updates regularly, with bug fixes and improvements as needed and major features on a planned schedule. Updates are automatic and require no downtime. We welcome feedback and feature suggestions from our partners.",
   },
   {
-    question: "Will parents have access to their child's information?",
+    question: "Do parents have access to their child's information?",
     answer:
-      "Yes. We plan to add a parents portal where guardians can securely access information about their ward—attendance, grades, reports, fees, and more. This keeps families informed and engaged in their child's education.",
+      "Yes. SchoolFlow includes a parents portal where guardians securely follow each child in one place—homework, fees, events, announcements, school messages, and notifications—so families stay informed and engaged without extra back-and-forth.",
   },
 ];
 
@@ -166,10 +166,10 @@ const milestones = [
       "We plan to launch SchoolFlow and welcome our first partner schools. Our focus is on exceptional onboarding, support, and growing together with the institutions that place their trust in us.",
   },
   {
-    year: "Coming Soon",
-    title: "Parents Portal",
+    year: "2026",
+    title: "Student & Parents Portals",
     description:
-      "We plan to introduce a parents portal where guardians can access information about their ward—attendance, grades, reports, fees, and more—keeping families informed and engaged in their child's education.",
+      "We added dedicated portals for learners and guardians. Students get timetables, homework, quizzes, results, notifications, and study support; parents get a clear view of each child with fees, events, announcements, and messaging—aligned with how schools run today.",
   },
 ];
 

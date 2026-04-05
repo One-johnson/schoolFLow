@@ -9,9 +9,9 @@ import { useTheme } from "next-themes";
 
 export function LandingHeader(): React.JSX.Element {
   const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -83,24 +83,28 @@ export function LandingHeader(): React.JSX.Element {
             </Link>
           </nav>
 
-          {/* CTA Buttons */}
+          {/* CTA Buttons — wrapper keeps sibling order stable for SSR/hydration; theme only after mount */}
           <div className="hidden md:flex items-center gap-3">
-            {mounted && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-              >
-                {theme === "dark" ? (
-                  <Sun className="h-4 w-4" />
-                ) : (
-                  <Moon className="h-4 w-4" />
-                )}
-              </Button>
-            )}
-            <Link href="/login">
-              <Button size="sm" className="relative overflow-hidden group">
+            <div className="flex size-9 shrink-0 items-center justify-center">
+              {mounted && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                  aria-label={
+                    theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+                  }
+                >
+                  {theme === "dark" ? (
+                    <Sun className="h-4 w-4" />
+                  ) : (
+                    <Moon className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
+            </div>
+            <Button asChild size="sm" className="relative overflow-hidden group">
+              <Link href="/login">
                 <span className="relative z-10">Login</span>
                 <motion.div
                   className="absolute inset-0 bg-primary-foreground/10"
@@ -108,8 +112,8 @@ export function LandingHeader(): React.JSX.Element {
                   whileHover={{ x: 0 }}
                   transition={{ duration: 0.3 }}
                 />
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           </div>
 
           {/* Mobile Menu Button */}
@@ -178,11 +182,11 @@ export function LandingHeader(): React.JSX.Element {
                     {theme === "dark" ? "Light Mode" : "Dark Mode"}
                   </Button>
                 )}
-                <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
-                  <Button size="sm" className="w-full">
+                <Button asChild size="sm" className="w-full">
+                  <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
                     Login
-                  </Button>
-                </Link>
+                  </Link>
+                </Button>
               </div>
             </div>
           </motion.div>
