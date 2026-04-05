@@ -68,6 +68,8 @@ import type * as timetableTemplates from "../timetableTemplates.js";
 import type * as timetables from "../timetables.js";
 import type * as trialManagement from "../trialManagement.js";
 import type * as userSettings from "../userSettings.js";
+import type * as webPush from "../webPush.js";
+import type * as webPushNode from "../webPushNode.js";
 
 import type {
   ApiFromModules,
@@ -136,6 +138,8 @@ declare const fullApi: ApiFromModules<{
   timetables: typeof timetables;
   trialManagement: typeof trialManagement;
   userSettings: typeof userSettings;
+  webPush: typeof webPush;
+  webPushNode: typeof webPushNode;
 }>;
 
 /**

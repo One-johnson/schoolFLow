@@ -154,6 +154,25 @@ export default defineSchema({
     ),
   }).index('by_read', ['read']).index('by_recipient', ['recipientId']),
 
+  /** Browser Web Push (VAPID) subscriptions; recipientId matches notifications.recipientId. */
+  webPushSubscriptions: defineTable({
+    endpoint: v.string(),
+    p256dh: v.string(),
+    auth: v.string(),
+    recipientRole: v.union(
+      v.literal('student'),
+      v.literal('teacher'),
+      v.literal('parent'),
+      v.literal('school_admin'),
+    ),
+    recipientId: v.string(),
+    schoolId: v.string(),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index('by_endpoint', ['endpoint'])
+    .index('by_recipient', ['recipientRole', 'recipientId']),
+
   subscriptionPlans: defineTable({
     name: v.string(),
     description: v.optional(v.string()),
@@ -1166,6 +1185,10 @@ export default defineSchema({
     subjectName: v.optional(v.string()),
     title: v.string(),
     description: v.optional(v.string()),
+    /** Optional reference PDF/Word shown beside MCQs while students take the quiz. */
+    handoutStorageId: v.optional(v.string()),
+    handoutFileName: v.optional(v.string()),
+    handoutContentType: v.optional(v.string()),
     opensAt: v.string(),
     closesAt: v.string(),
     /** Max seconds from Start until submit; omit for no limit (only window applies). */
@@ -1285,6 +1308,16 @@ export default defineSchema({
     className: v.string(), // Denormalized
     subjectId: v.string(),
     subjectName: v.string(), // Denormalized
+    // Ghana assessment components (optional for backward compatibility)
+    emt1: v.optional(v.number()), // /10
+    emt2: v.optional(v.number()), // /10
+    emt3: v.optional(v.number()), // /10
+    sba: v.optional(v.number()), // /10
+    project: v.optional(v.number()), // /20
+    examRaw: v.optional(v.number()), // /100
+    classTotal: v.optional(v.number()), // /60 (emt1+emt2+emt3+sba+project)
+    class50: v.optional(v.number()), // /50 (classTotal/60*50)
+    exam50: v.optional(v.number()), // /50 (examRaw/100*50)
     classScore: v.number(), // Class work/continuous assessment score
     examScore: v.number(), // Exam score
     totalScore: v.number(), // classScore + examScore

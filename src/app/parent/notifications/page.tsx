@@ -10,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Bell, Info, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Id } from '../../../../convex/_generated/dataModel';
+import { WebPushPrompt } from '@/components/web-push-prompt';
 
 const typeIcons = {
   info: Info,
@@ -62,6 +63,9 @@ export default function ParentNotificationsPage() {
         <p className="text-muted-foreground mt-1">
           Your notifications and alerts
         </p>
+        <div className="mt-3">
+          <WebPushPrompt />
+        </div>
       </div>
 
       <Card>

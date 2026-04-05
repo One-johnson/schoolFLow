@@ -39,8 +39,12 @@ interface Subject {
 interface StudentMark {
   studentId: string;
   studentName: string;
-  classScore: number;
-  examScore: number;
+  emt1: number;
+  emt2: number;
+  emt3: number;
+  sba: number;
+  project: number;
+  examRaw: number;
   isAbsent: boolean;
   existingMarkId?: Id<'studentMarks'>;
 }
@@ -54,6 +58,7 @@ export default function TeacherMarksEntryPage() {
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [marks, setMarks] = useState<Map<string, StudentMark>>(new Map());
   const [isSaving, setIsSaving] = useState(false);
+  const [studentFilter, setStudentFilter] = useState('');
 
   const searchParams = useSearchParams();
   const classIdFromUrl = searchParams.get('classId');
@@ -103,8 +108,12 @@ export default function TeacherMarksEntryPage() {
       newMarks.set(student._id, {
         studentId: student._id,
         studentName: `${student.firstName} ${student.lastName}`,
-        classScore: existingMark?.classScore ?? 0,
-        examScore: existingMark?.examScore ?? 0,
+        emt1: existingMark?.emt1 ?? 0,
+        emt2: existingMark?.emt2 ?? 0,
+        emt3: existingMark?.emt3 ?? 0,
+        sba: existingMark?.sba ?? 0,
+        project: existingMark?.project ?? 0,
+        examRaw: existingMark?.examRaw ?? 0,
         isAbsent: existingMark?.isAbsent ?? false,
         existingMarkId: existingMark?._id,
       });
@@ -113,33 +122,25 @@ export default function TeacherMarksEntryPage() {
     setMarks(newMarks);
   }, [students, selectedSubject, existingMarks]);
 
-  const handleClassScoreChange = (studentId: string, value: string) => {
-    const score = parseFloat(value) || 0;
-    const maxClassScore = (selectedSubject?.maxMarks || exam?.totalMarks || 100) * 0.3; // 30% for class score
-    const clampedScore = Math.min(Math.max(0, score), maxClassScore);
+  const clamp = (value: number, min: number, max: number) =>
+    Math.min(Math.max(value, min), max);
 
+  const updateMarkField = (
+    studentId: string,
+    field: keyof Omit<StudentMark, "studentId" | "studentName" | "isAbsent" | "existingMarkId">,
+    value: string,
+    max: number,
+  ) => {
+    const score = parseFloat(value);
+    const safeScore = Number.isFinite(score) ? score : 0;
+    const clamped = clamp(safeScore, 0, max);
     setMarks((prev) => {
-      const newMarks = new Map(prev);
-      const existing = newMarks.get(studentId);
+      const next = new Map(prev);
+      const existing = next.get(studentId);
       if (existing) {
-        newMarks.set(studentId, { ...existing, classScore: clampedScore });
+        next.set(studentId, { ...existing, [field]: clamped });
       }
-      return newMarks;
-    });
-  };
-
-  const handleExamScoreChange = (studentId: string, value: string) => {
-    const score = parseFloat(value) || 0;
-    const maxExamScore = (selectedSubject?.maxMarks || exam?.totalMarks || 100) * 0.7; // 70% for exam score
-    const clampedScore = Math.min(Math.max(0, score), maxExamScore);
-
-    setMarks((prev) => {
-      const newMarks = new Map(prev);
-      const existing = newMarks.get(studentId);
-      if (existing) {
-        newMarks.set(studentId, { ...existing, examScore: clampedScore });
-      }
-      return newMarks;
+      return next;
     });
   };
 
@@ -151,8 +152,12 @@ export default function TeacherMarksEntryPage() {
         newMarks.set(studentId, {
           ...existing,
           isAbsent: checked,
-          classScore: checked ? 0 : existing.classScore,
-          examScore: checked ? 0 : existing.examScore,
+          emt1: checked ? 0 : existing.emt1,
+          emt2: checked ? 0 : existing.emt2,
+          emt3: checked ? 0 : existing.emt3,
+          sba: checked ? 0 : existing.sba,
+          project: checked ? 0 : existing.project,
+          examRaw: checked ? 0 : existing.examRaw,
         });
       }
       return newMarks;
@@ -173,7 +178,7 @@ export default function TeacherMarksEntryPage() {
     setIsSaving(true);
     try {
       const enteredByName = `${teacher.firstName} ${teacher.lastName}`;
-      const maxMarks = selectedSubject.maxMarks || exam.totalMarks;
+      // Ghana assessment model computes totals out of 100 per subject.
 
       for (const [studentId, mark] of marks.entries()) {
         await enterMarks({
@@ -187,12 +192,15 @@ export default function TeacherMarksEntryPage() {
           className: currentClass.className,
           subjectId: selectedSubject.id,
           subjectName: selectedSubject.name,
-          classScore: mark.classScore,
-          examScore: mark.examScore,
-          maxMarks: maxMarks,
+          emt1: mark.emt1,
+          emt2: mark.emt2,
+          emt3: mark.emt3,
+          sba: mark.sba,
+          project: mark.project,
+          examRaw: mark.examRaw,
           isAbsent: mark.isAbsent,
           enteredBy: teacher.id,
-          enteredByRole: 'class_teacher',
+          enteredByRole: 'subject_teacher',
           enteredByName: enteredByName,
         });
       }
@@ -249,9 +257,7 @@ export default function TeacherMarksEntryPage() {
     );
   }
 
-  const maxMarks = selectedSubject?.maxMarks || exam.totalMarks;
-  const maxClassScore = maxMarks * 0.3;
-  const maxExamScore = maxMarks * 0.7;
+  const maxMarks = 100;
 
   return (
     <div className="space-y-4 py-4">
@@ -308,6 +314,18 @@ export default function TeacherMarksEntryPage() {
         </Select>
       </div>
 
+      {/* Student Filter */}
+      {selectedSubject && students && students.length > 0 && (
+        <div>
+          <label className="text-sm font-medium mb-2 block">Filter student</label>
+          <Input
+            value={studentFilter}
+            onChange={(e) => setStudentFilter(e.target.value)}
+            placeholder="Search student name or ID"
+          />
+        </div>
+      )}
+
       {/* Marks Entry Table */}
       {selectedSubject && (
         <Card>
@@ -315,7 +333,7 @@ export default function TeacherMarksEntryPage() {
             <CardTitle className="text-base flex items-center justify-between">
               <span>{selectedSubject.name}</span>
               <span className="text-sm font-normal text-muted-foreground">
-                Max: {maxMarks} (Class: {maxClassScore}, Exam: {maxExamScore})
+                Max: {maxMarks} (Class: 50, Exam: 50)
               </span>
             </CardTitle>
           </CardHeader>
@@ -337,28 +355,39 @@ export default function TeacherMarksEntryPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="min-w-[150px]">Student</TableHead>
-                      <TableHead className="w-[80px] text-center">
-                        Class
-                        <br />
-                        <span className="text-xs font-normal">
-                          (max {maxClassScore})
-                        </span>
-                      </TableHead>
-                      <TableHead className="w-[80px] text-center">
-                        Exam
-                        <br />
-                        <span className="text-xs font-normal">
-                          (max {maxExamScore})
-                        </span>
-                      </TableHead>
+                      <TableHead className="w-[70px] text-center">EMT1</TableHead>
+                      <TableHead className="w-[70px] text-center">EMT2</TableHead>
+                      <TableHead className="w-[70px] text-center">EMT3</TableHead>
+                      <TableHead className="w-[70px] text-center">SBA</TableHead>
+                      <TableHead className="w-[80px] text-center">Project</TableHead>
+                      <TableHead className="w-[80px] text-center">Exam</TableHead>
+                      <TableHead className="w-[80px] text-center">Class/60</TableHead>
                       <TableHead className="w-[70px] text-center">Total</TableHead>
                       <TableHead className="w-[60px] text-center">Absent</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {students.map((student) => {
+                    {students
+                      .filter((student) => {
+                        if (!studentFilter.trim()) return true;
+                        const q = studentFilter.toLowerCase();
+                        const fullName = `${student.firstName} ${student.lastName}`.toLowerCase();
+                        return (
+                          fullName.includes(q) ||
+                          String(student.studentId || '').toLowerCase().includes(q)
+                        );
+                      })
+                      .map((student) => {
                       const mark = marks.get(student._id);
-                      const total = (mark?.classScore || 0) + (mark?.examScore || 0);
+                      const classTotal =
+                        (mark?.emt1 || 0) +
+                        (mark?.emt2 || 0) +
+                        (mark?.emt3 || 0) +
+                        (mark?.sba || 0) +
+                        (mark?.project || 0);
+                      const class50 = (classTotal / 60) * 50;
+                      const exam50 = ((mark?.examRaw || 0) / 100) * 50;
+                      const total = class50 + exam50;
                       return (
                         <TableRow key={student._id}>
                           <TableCell className="font-medium">
@@ -383,11 +412,11 @@ export default function TeacherMarksEntryPage() {
                             <Input
                               type="number"
                               min={0}
-                              max={maxClassScore}
+                              max={10}
                               step={0.5}
-                              value={mark?.classScore || 0}
+                              value={mark?.emt1 || 0}
                               onChange={(e) =>
-                                handleClassScoreChange(student._id, e.target.value)
+                                updateMarkField(student._id, "emt1", e.target.value, 10)
                               }
                               disabled={mark?.isAbsent}
                               className="w-16 text-center h-8 text-sm"
@@ -397,18 +426,77 @@ export default function TeacherMarksEntryPage() {
                             <Input
                               type="number"
                               min={0}
-                              max={maxExamScore}
+                              max={10}
                               step={0.5}
-                              value={mark?.examScore || 0}
+                              value={mark?.emt2 || 0}
                               onChange={(e) =>
-                                handleExamScoreChange(student._id, e.target.value)
+                                updateMarkField(student._id, "emt2", e.target.value, 10)
                               }
                               disabled={mark?.isAbsent}
                               className="w-16 text-center h-8 text-sm"
                             />
                           </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              min={0}
+                              max={10}
+                              step={0.5}
+                              value={mark?.emt3 || 0}
+                              onChange={(e) =>
+                                updateMarkField(student._id, "emt3", e.target.value, 10)
+                              }
+                              disabled={mark?.isAbsent}
+                              className="w-16 text-center h-8 text-sm"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              min={0}
+                              max={10}
+                              step={0.5}
+                              value={mark?.sba || 0}
+                              onChange={(e) =>
+                                updateMarkField(student._id, "sba", e.target.value, 10)
+                              }
+                              disabled={mark?.isAbsent}
+                              className="w-16 text-center h-8 text-sm"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              min={0}
+                              max={20}
+                              step={0.5}
+                              value={mark?.project || 0}
+                              onChange={(e) =>
+                                updateMarkField(student._id, "project", e.target.value, 20)
+                              }
+                              disabled={mark?.isAbsent}
+                              className="w-16 text-center h-8 text-sm"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              min={0}
+                              max={100}
+                              step={0.5}
+                              value={mark?.examRaw || 0}
+                              onChange={(e) =>
+                                updateMarkField(student._id, "examRaw", e.target.value, 100)
+                              }
+                              disabled={mark?.isAbsent}
+                              className="w-16 text-center h-8 text-sm"
+                            />
+                          </TableCell>
+                          <TableCell className="text-center text-sm">
+                            {mark?.isAbsent ? "-" : classTotal.toFixed(1)}
+                          </TableCell>
                           <TableCell className="text-center font-medium">
-                            {mark?.isAbsent ? '-' : total}
+                            {mark?.isAbsent ? '-' : total.toFixed(1)}
                           </TableCell>
                           <TableCell className="text-center">
                             <Checkbox

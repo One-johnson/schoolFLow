@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
@@ -32,7 +32,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Trash2, RotateCcw } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, RotateCcw, FileText, ExternalLink } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -87,6 +87,20 @@ export default function TeacherQuizEditorPage() {
   const updatePublishedQuizSettings = useMutation(api.classQuizzes.updatePublishedQuizSettings);
   const releaseQuizResults = useMutation(api.classQuizzes.releaseQuizResults);
   const resetStudentQuizAttempt = useMutation(api.classQuizzes.resetStudentQuizAttempt);
+  const generateUploadUrl = useMutation(api.photos.generateUploadUrl);
+  const setQuizHandout = useMutation(api.classQuizzes.setQuizHandout);
+  const clearQuizHandout = useMutation(api.classQuizzes.clearQuizHandout);
+
+  const handoutPreviewUrl = useQuery(
+    api.photos.getFileUrl,
+    teacher && data?.quiz?.handoutStorageId
+      ? { storageId: data.quiz.handoutStorageId }
+      : "skip",
+  );
+
+  const handoutFileInputRef = useRef<HTMLInputElement>(null);
+  const [handoutUploading, setHandoutUploading] = useState(false);
+  const [handoutClearing, setHandoutClearing] = useState(false);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -271,6 +285,83 @@ export default function TeacherQuizEditorPage() {
     }
   };
 
+  const prepareHandoutFile = async (file: File): Promise<File> => {
+    const lower = file.name.toLowerCase();
+    if (!lower.endsWith(".doc") && !lower.endsWith(".docx")) {
+      return file;
+    }
+    const fd = new FormData();
+    fd.append("file", file);
+    const conv = await fetch("/api/teacher/class-quiz/handout-to-pdf", {
+      method: "POST",
+      body: fd,
+      credentials: "include",
+    });
+    if (conv.status === 503) {
+      const body = (await conv.json().catch(() => null)) as { code?: string } | null;
+      if (body?.code === "CONVERT_DISABLED") {
+        return file;
+      }
+    }
+    if (!conv.ok) {
+      const errBody = (await conv.json().catch(() => null)) as { error?: string } | null;
+      throw new Error(errBody?.error ?? "Could not convert Word to PDF");
+    }
+    const blob = await conv.blob();
+    const base = file.name.replace(/\.(docx?|DOCX?)$/i, "") || "handout";
+    return new File([blob], `${base}.pdf`, { type: "application/pdf" });
+  };
+
+  const uploadHandout = async (file: File) => {
+    if (!teacher || !data?.quiz) return;
+    setHandoutUploading(true);
+    try {
+      const toStore = await prepareHandoutFile(file);
+      const lowerOrig = file.name.toLowerCase();
+      const wasConverted =
+        (lowerOrig.endsWith(".doc") || lowerOrig.endsWith(".docx")) &&
+        toStore.name.toLowerCase().endsWith(".pdf");
+
+      const uploadUrl = await generateUploadUrl();
+      const res = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": toStore.type || "application/octet-stream" },
+        body: toStore,
+      });
+      if (!res.ok) {
+        throw new Error("Upload failed");
+      }
+      const json = (await res.json()) as { storageId?: string };
+      if (!json.storageId) {
+        throw new Error("Upload did not return storage");
+      }
+      await setQuizHandout({
+        quizId,
+        teacherId: teacher.id,
+        storageId: json.storageId,
+        fileName: toStore.name,
+      });
+      toast.success(wasConverted ? "Handout converted to PDF and saved" : "Handout saved");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not upload handout");
+    } finally {
+      setHandoutUploading(false);
+    }
+  };
+
+  const removeHandout = async () => {
+    if (!teacher || !data?.quiz?.handoutStorageId) return;
+    setHandoutClearing(true);
+    try {
+      await clearQuizHandout({ quizId, teacherId: teacher.id });
+      toast.success("Handout removed");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not remove handout");
+    } finally {
+      setHandoutClearing(false);
+    }
+  };
+
   if (!teacher) {
     return (
       <div className="py-4 space-y-4">
@@ -331,6 +422,30 @@ export default function TeacherQuizEditorPage() {
               )}
             </CardContent>
           </Card>
+
+          {quiz.handoutStorageId && quiz.handoutFileName && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Student handout
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-wrap items-center gap-3">
+                <span className="text-sm font-medium truncate max-w-full">{quiz.handoutFileName}</span>
+                {handoutPreviewUrl ? (
+                  <Button variant="outline" size="sm" asChild>
+                    <a href={handoutPreviewUrl} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                      Open
+                    </a>
+                  </Button>
+                ) : (
+                  <span className="text-xs text-muted-foreground">Loading link…</span>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {quiz.status === "published" && (
             <>
@@ -547,6 +662,76 @@ export default function TeacherQuizEditorPage() {
               <Button onClick={saveMeta} disabled={savingMeta}>
                 {savingMeta ? "Saving…" : "Save details"}
               </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Reference handout (optional)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Upload a PDF or Word file. If your school has Word-to-PDF conversion enabled, Word
+                uploads become PDFs so students can read them in the quiz page; otherwise Word files
+                are stored as downloads. PDFs always show inline beside the questions. Add MCQs that
+                refer to the handout.
+              </p>
+              <input
+                ref={handoutFileInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                className="sr-only"
+                aria-label="Upload quiz handout file"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (f) void uploadHandout(f);
+                }}
+              />
+              {quiz.handoutFileName ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-medium truncate max-w-[min(100%,16rem)]">
+                    {quiz.handoutFileName}
+                  </span>
+                  {handoutPreviewUrl && (
+                    <Button variant="link" className="h-auto p-0 text-sm" asChild>
+                      <a href={handoutPreviewUrl} target="_blank" rel="noopener noreferrer">
+                        Preview
+                      </a>
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={handoutClearing || handoutUploading}
+                    onClick={() => void removeHandout()}
+                  >
+                    {handoutClearing ? "Removing…" : "Remove"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={handoutUploading || handoutClearing}
+                    onClick={() => handoutFileInputRef.current?.click()}
+                  >
+                    {handoutUploading ? "Uploading…" : "Replace"}
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={handoutUploading}
+                  onClick={() => handoutFileInputRef.current?.click()}
+                >
+                  {handoutUploading ? "Uploading…" : "Upload PDF or Word"}
+                </Button>
+              )}
             </CardContent>
           </Card>
 

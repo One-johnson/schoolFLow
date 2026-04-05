@@ -58,21 +58,21 @@ export function StudentDashboardCalendar({
     <div className={cn("space-y-3", className)}>
       <Calendar
         mode="single"
-        className="rounded-xl border border-blue-200/80 bg-card p-2 shadow-sm dark:border-blue-900/50 [--cell-size:2.25rem]"
+        className="rounded-xl border-2 border-violet-300 bg-card p-2 shadow-sm dark:border-violet-800 [--cell-size:2.25rem]"
         modifiers={{
           homeworkDue: (date: Date) => homeworkKeys.has(dateKey(date)),
           schoolEvent: (date: Date) => eventKeys.has(dateKey(date)),
         }}
         modifiersClassNames={{
           homeworkDue:
-            "relative font-medium after:absolute after:bottom-0.5 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-blue-600 dark:after:bg-blue-400",
+            "relative font-medium after:absolute after:bottom-0.5 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-violet-600 dark:after:bg-violet-400",
           schoolEvent:
             "bg-amber-500/15 text-amber-950 dark:bg-amber-500/20 dark:text-amber-100",
         }}
       />
-      <div className="flex flex-wrap gap-4 px-1 text-xs text-muted-foreground">
+      <div className="flex flex-wrap gap-4 px-1 text-xs text-foreground dark:text-muted-foreground">
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-blue-600 dark:bg-blue-400" />
+          <span className="h-2 w-2 rounded-full bg-violet-600 dark:bg-violet-400" />
           Homework due
         </span>
         <span className="inline-flex items-center gap-1.5">

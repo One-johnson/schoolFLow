@@ -79,7 +79,10 @@ export function useTeacherAuth() {
   }, []);
 
   useEffect(() => {
-    checkAuth();
+    const t = setTimeout(() => {
+      void checkAuth();
+    }, 0);
+    return () => clearTimeout(t);
   }, [checkAuth]);
 
   const login = async (

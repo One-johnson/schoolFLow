@@ -1,5 +1,6 @@
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
+import { scheduleWebPushForRecipient } from './webPush';
 
 export const list = query({
   args: {},
@@ -51,6 +52,19 @@ export const create = mutation({
       recipientRole: args.recipientRole,
       actionUrl: args.actionUrl,
     });
+    if (
+      args.recipientRole === 'school_admin' &&
+      args.recipientId &&
+      args.recipientId.length > 0
+    ) {
+      await scheduleWebPushForRecipient(ctx, {
+        recipientRole: 'school_admin',
+        recipientId: args.recipientId,
+        title: args.title,
+        body: args.message,
+        url: args.actionUrl ?? '/school-admin/notifications',
+      });
+    }
     return id;
   },
 });
@@ -205,6 +219,13 @@ export const createTeacherNotification = mutation({
       recipientId: args.teacherId,
       recipientRole: 'teacher',
       actionUrl: args.actionUrl,
+    });
+    await scheduleWebPushForRecipient(ctx, {
+      recipientRole: 'teacher',
+      recipientId: args.teacherId,
+      title: args.title,
+      body: args.message,
+      url: args.actionUrl ?? '/teacher/notifications',
     });
     return id;
   },

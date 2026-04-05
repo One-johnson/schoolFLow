@@ -146,46 +146,46 @@ export default function StudentResultsPage(): React.ReactNode {
     return Array.from(map.entries()).map(([id, label]) => ({ id, label }));
   }, [marks]);
 
-  useEffect(() => {
-    if (filterMode !== "year" || !yearOptions.length) return;
-    if (!selectedYearKey || !yearOptions.some((o) => o.id === selectedYearKey)) {
-      setSelectedYearKey(yearOptions[0].id);
-    }
-  }, [filterMode, yearOptions, selectedYearKey]);
+  const effectiveYearKey =
+    filterMode === "year" && yearOptions.length
+      ? yearOptions.some((o) => o.id === selectedYearKey)
+        ? selectedYearKey
+        : yearOptions[0].id
+      : selectedYearKey;
 
-  useEffect(() => {
-    if (filterMode !== "term" || !termOptions.length) return;
-    if (!selectedTermKey || !termOptions.some((o) => o.id === selectedTermKey)) {
-      setSelectedTermKey(termOptions[0].id);
-    }
-  }, [filterMode, termOptions, selectedTermKey]);
+  const effectiveTermKey =
+    filterMode === "term" && termOptions.length
+      ? termOptions.some((o) => o.id === selectedTermKey)
+        ? selectedTermKey
+        : termOptions[0].id
+      : selectedTermKey;
 
   const filteredMarks = useMemo(() => {
     if (!marks?.length) return [];
     if (filterMode === "all") return marks;
     if (filterMode === "year") {
-      if (!selectedYearKey) return marks;
-      if (selectedYearKey === NONE_KEY) {
+      if (!effectiveYearKey) return marks;
+      if (effectiveYearKey === NONE_KEY) {
         return marks.filter((m) => !m.academicYearId);
       }
-      return marks.filter((m) => m.academicYearId === selectedYearKey);
+      return marks.filter((m) => m.academicYearId === effectiveYearKey);
     }
-    if (!selectedTermKey) return marks;
-    if (selectedTermKey === NONE_KEY) {
+    if (!effectiveTermKey) return marks;
+    if (effectiveTermKey === NONE_KEY) {
       return marks.filter((m) => !m.termId);
     }
-    return marks.filter((m) => m.termId === selectedTermKey);
-  }, [marks, filterMode, selectedYearKey, selectedTermKey]);
+    return marks.filter((m) => m.termId === effectiveTermKey);
+  }, [marks, filterMode, effectiveYearKey, effectiveTermKey]);
 
   const periodLabel = useMemo(() => {
     if (filterMode === "all") return "All published results";
     if (filterMode === "year") {
-      const o = yearOptions.find((x) => x.id === selectedYearKey);
+      const o = yearOptions.find((x) => x.id === effectiveYearKey);
       return o?.name ?? "Academic year";
     }
-    const o = termOptions.find((x) => x.id === selectedTermKey);
+    const o = termOptions.find((x) => x.id === effectiveTermKey);
     return o?.label ?? "Term";
-  }, [filterMode, selectedYearKey, selectedTermKey, yearOptions, termOptions]);
+  }, [filterMode, effectiveYearKey, effectiveTermKey, yearOptions, termOptions]);
 
   const stats = useMemo(() => {
     if (!filteredMarks.length) {
@@ -350,7 +350,7 @@ export default function StudentResultsPage(): React.ReactNode {
                 {filterMode === "year" && yearOptions.length > 0 ? (
                   <div className="space-y-2 min-w-[200px] flex-1">
                     <Label htmlFor="scope-year">Academic year</Label>
-                    <Select value={selectedYearKey} onValueChange={setSelectedYearKey}>
+                    <Select value={effectiveYearKey} onValueChange={setSelectedYearKey}>
                       <SelectTrigger id="scope-year" className="w-full sm:max-w-xs">
                         <SelectValue placeholder="Choose year" />
                       </SelectTrigger>
@@ -367,7 +367,7 @@ export default function StudentResultsPage(): React.ReactNode {
                 {filterMode === "term" && termOptions.length > 0 ? (
                   <div className="space-y-2 min-w-[220px] flex-1">
                     <Label htmlFor="scope-term">Term</Label>
-                    <Select value={selectedTermKey} onValueChange={setSelectedTermKey}>
+                    <Select value={effectiveTermKey} onValueChange={setSelectedTermKey}>
                       <SelectTrigger id="scope-term" className="w-full sm:max-w-md">
                         <SelectValue placeholder="Choose term" />
                       </SelectTrigger>

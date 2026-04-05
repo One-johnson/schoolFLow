@@ -2,6 +2,7 @@ import { v } from 'convex/values';
 import { mutation, query, internalMutation } from './_generated/server';
 import type { MutationCtx } from './_generated/server';
 import type { Id } from './_generated/dataModel';
+import { scheduleWebPushForRecipient } from './webPush';
 
 // Get homework for teacher (their classes only)
 export const getByTeacher = query({
@@ -304,6 +305,13 @@ async function notifyParentsOfHomeworkSubmission(
       recipientRole: 'parent',
       actionUrl,
     });
+    await scheduleWebPushForRecipient(ctx, {
+      recipientRole: 'parent',
+      recipientId: link.parentId as string,
+      title: 'Homework submitted',
+      body: `"${homeworkTitle}" was submitted by your child.`,
+      url: actionUrl,
+    });
   }
 }
 
@@ -531,6 +539,13 @@ async function notifyStudentHomeworkMarked(
     recipientRole: 'student',
     actionUrl: `/student/homework/${homeworkId}`,
   });
+  await scheduleWebPushForRecipient(ctx, {
+    recipientRole: 'student',
+    recipientId: studentId,
+    title: 'Homework marked',
+    body: message,
+    url: `/student/homework/${homeworkId}`,
+  });
 }
 
 // Helper: Notify parents and students when new homework is assigned
@@ -562,6 +577,13 @@ async function notifyClassAboutNewHomework(
       recipientRole: 'student',
       actionUrl: studentActionUrl,
     });
+    await scheduleWebPushForRecipient(ctx, {
+      recipientRole: 'student',
+      recipientId: student._id as string,
+      title: 'New homework',
+      body: `"${title}" was assigned. Open it to read instructions and submit when you're ready.`,
+      url: studentActionUrl,
+    });
   }
 
   const parentIds = new Set<string>();
@@ -586,6 +608,13 @@ async function notifyClassAboutNewHomework(
       recipientId: parentId,
       recipientRole: 'parent',
       actionUrl,
+    });
+    await scheduleWebPushForRecipient(ctx, {
+      recipientRole: 'parent',
+      recipientId: parentId,
+      title: 'New Homework Assigned',
+      body: `"${title}" has been assigned. Your child can view and submit it from their student portal.`,
+      url: actionUrl,
     });
   }
 }
@@ -658,6 +687,13 @@ export const sendHomeworkDueReminders = internalMutation({
           recipientRole: 'parent',
           actionUrl: parentActionUrl,
         });
+        await scheduleWebPushForRecipient(ctx, {
+          recipientRole: 'parent',
+          recipientId: parentId,
+          title: 'Homework Due Soon',
+          body: `"${hw.title}" is due ${hw.dueDate === tomorrowStr ? 'tomorrow' : 'in 2 days'}. Your child can submit it from their student portal.`,
+          url: parentActionUrl,
+        });
         sent++;
       }
 
@@ -688,6 +724,13 @@ export const sendHomeworkDueReminders = internalMutation({
           recipientId: s._id as string,
           recipientRole: 'student',
           actionUrl: studentActionUrl,
+        });
+        await scheduleWebPushForRecipient(ctx, {
+          recipientRole: 'student',
+          recipientId: s._id as string,
+          title: 'Homework due soon',
+          body: `"${hw.title}" is due ${hw.dueDate === tomorrowStr ? 'tomorrow' : 'in 2 days'}. Submit from your homework page when you're ready.`,
+          url: studentActionUrl,
         });
         sent++;
       }

@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
+import { WebPushPrompt } from "@/components/web-push-prompt";
 
 // Unified notification type
 type UnifiedNotification = {
@@ -274,12 +275,15 @@ export default function NotificationsPage(): React.JSX.Element {
             Stay updated with your school activities
           </p>
         </div>
-        {unreadCount > 0 && (
-          <Button onClick={handleMarkAllAsRead} variant="outline">
-            <Check className="mr-2 h-4 w-4" />
-            Mark All as Read
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <WebPushPrompt />
+          {unreadCount > 0 && (
+            <Button onClick={handleMarkAllAsRead} variant="outline">
+              <Check className="mr-2 h-4 w-4" />
+              Mark All as Read
+            </Button>
+          )}
+        </div>
       </div>
 
       <Card>

@@ -1,20 +1,15 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useStudentAuth } from "@/hooks/useStudentAuth";
 import { StudentPageHeader } from "@/components/student/student-page-header";
+import { ClassQuizCard } from "@/components/student/class-quiz-card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ListChecks, ChevronLeft, ChevronRight, Calendar } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { ListChecks, ChevronLeft, Smile, ChevronRight } from "lucide-react";
 import type { Id } from "../../../../convex/_generated/dataModel";
-import {
-  classQuizWindowState,
-  formatClassQuizDateRange,
-} from "@/lib/class-quiz-display";
 
 const PAGE_SIZE = 10;
 
@@ -41,15 +36,13 @@ export default function StudentQuizzesPage() {
   const total = rows?.length ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  useEffect(() => {
-    setPage((p) => Math.min(p, Math.max(0, totalPages - 1)));
-  }, [totalPages]);
+  const safePage = Math.min(page, Math.max(0, totalPages - 1));
 
   const pageRows = useMemo(() => {
     if (!rows) return [];
-    const start = page * PAGE_SIZE;
+    const start = safePage * PAGE_SIZE;
     return rows.slice(start, start + PAGE_SIZE);
-  }, [rows, page]);
+  }, [rows, safePage]);
 
   if (!student) {
     return null;
@@ -58,85 +51,73 @@ export default function StudentQuizzesPage() {
   return (
     <div className="space-y-6 pb-24 pt-2">
       <StudentPageHeader
+        variant="playful"
         title="Class quizzes"
-        subtitle="Teacher-assigned quizzes with a fixed time window. Separate from Study help practice."
+        subtitle="Quizzes from your teacher. Each one opens and closes at set times—different from Study help practice."
         icon={ListChecks}
       />
 
       {rows === undefined ? (
-        <div className="h-40 rounded-xl bg-muted/40 animate-pulse" />
+        <div className="h-44 rounded-2xl bg-gradient-to-r from-violet-100/40 via-muted/40 to-amber-100/40 animate-pulse dark:from-violet-950/30 dark:via-muted/30 dark:to-amber-950/20" />
       ) : rows.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            No class quizzes right now.
+        <Card className="overflow-hidden border-violet-200/70 dark:border-violet-900/40">
+          <CardContent className="flex flex-col items-center gap-3 py-14 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-amber-500 text-white shadow-md">
+              <Smile className="h-7 w-7" />
+            </div>
+            <p className="max-w-sm text-base font-medium text-foreground">
+              No class quizzes right now
+            </p>
+            <p className="max-w-md text-sm text-muted-foreground">
+              When your teacher publishes one, it will show up here. You can still use Study help
+              to practise on your own.
+            </p>
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
-          <div className="space-y-3">
-            {pageRows.map(({ quiz, hasSubmitted, inProgress }) => {
-              const { inWindow, windowLabel } = classQuizWindowState(
-                now,
-                quiz.opensAt,
-                quiz.closesAt,
-              );
-
-              return (
-                <Link key={quiz._id} href={`/student/quizzes/${quiz._id}`}>
-                  <Card className="transition-colors hover:bg-blue-500/5 dark:hover:bg-blue-500/10">
-                    <CardHeader className="pb-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <CardTitle className="text-base font-semibold leading-snug pr-2">
-                          {quiz.title}
-                        </CardTitle>
-                        <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
-                      </div>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {hasSubmitted ? (
-                          <Badge variant="secondary">Submitted</Badge>
-                        ) : inProgress ? (
-                          <Badge className="bg-amber-600 hover:bg-amber-600">In progress</Badge>
-                        ) : null}
-                        <Badge variant={inWindow ? "default" : "outline"}>{windowLabel}</Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-2">
-                        <Calendar className="h-3 w-3" />
-                        {formatClassQuizDateRange(quiz.opensAt, quiz.closesAt)}
-                      </p>
-                    </CardHeader>
-                  </Card>
-                </Link>
-              );
-            })}
+        <div className="space-y-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {pageRows.map(({ quiz, hasSubmitted, inProgress, attemptSummary }) => (
+              <ClassQuizCard
+                key={quiz._id}
+                href={`/student/quizzes/${quiz._id}`}
+                quiz={quiz}
+                hasSubmitted={hasSubmitted}
+                inProgress={inProgress}
+                attemptSummary={attemptSummary}
+                now={now}
+              />
+            ))}
           </div>
           {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-blue-200/60 dark:border-blue-900/50">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-violet-200/60 dark:border-violet-900/50">
               <p className="text-sm text-muted-foreground order-2 sm:order-1">
-                Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} of {total}
+                Showing {safePage * PAGE_SIZE + 1}–
+                {Math.min((safePage + 1) * PAGE_SIZE, total)} of {total}
               </p>
               <div className="flex items-center gap-2 order-1 sm:order-2">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={page <= 0}
+                  disabled={safePage <= 0}
                   onClick={() => setPage((p) => Math.max(0, p - 1))}
-                  className="border-blue-200 dark:border-blue-800"
+                  className="rounded-xl border-violet-200 dark:border-violet-800"
                   aria-label="Previous page"
                 >
                   <ChevronLeft className="h-4 w-4 mr-1" />
                   Previous
                 </Button>
                 <span className="text-sm text-muted-foreground tabular-nums min-w-[5rem] text-center">
-                  Page {page + 1} / {totalPages}
+                  Page {safePage + 1} / {totalPages}
                 </span>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={page >= totalPages - 1}
+                  disabled={safePage >= totalPages - 1}
                   onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-                  className="border-blue-200 dark:border-blue-800"
+                  className="rounded-xl border-violet-200 dark:border-violet-800"
                   aria-label="Next page"
                 >
                   Next

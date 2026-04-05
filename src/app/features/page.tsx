@@ -24,7 +24,9 @@ import {
   Clock,
   GraduationCap,
   ClipboardCheck,
-  BookOpen
+  BookOpen,
+  UsersRound,
+  Backpack
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -255,6 +257,19 @@ const features = [
     color: 'text-emerald-600'
   },
   {
+    icon: Backpack,
+    title: 'Student Portal',
+    description: 'Dedicated space for learners to follow classes, complete work, and see results.',
+    benefits: [
+      'Personal timetable & homework',
+      'Quizzes with clear deadlines & feedback',
+      'Results, grades & performance overview',
+      'Notifications & profile',
+      'Study help and learning resources'
+    ],
+    color: 'text-cyan-600'
+  },
+  {
     icon: ClipboardCheck,
     title: 'Attendance & Timetables',
     description: 'Digital attendance tracking and timetable management across the school.',
@@ -281,15 +296,16 @@ const features = [
     color: 'text-violet-600'
   },
   {
-    icon: Users,
-    title: 'Parents Portal (Coming Soon)',
-    description: 'Guardians will access attendance, grades, fees, and reports for their ward.',
+    icon: UsersRound,
+    title: 'Parents Portal',
+    description:
+      "Guardians stay connected with each child's school life, fees, and work in one secure portal.",
     benefits: [
-      'View child attendance & grades',
-      'Fee status & payment history',
-      'Report cards & progress',
-      'Secure, role-based access',
-      'Stay informed and engaged'
+      'Children overview & individual profiles',
+      'Homework visibility and school messages',
+      'Fees, events, and announcements',
+      'Notifications tuned to your family',
+      'Secure, role-based guardian access'
     ],
     color: 'text-sky-500'
   }
@@ -312,9 +328,14 @@ const heroSlides = [
     description: 'Attendance, gradebook, marks, reports, and messages—built for daily teaching.',
   },
   {
-    badge: 'Coming Soon',
-    headline: 'Parents Portal',
-    description: 'Guardians will access attendance, grades, and fees for their ward.',
+    badge: 'Student Portal',
+    headline: 'Learn On Your Terms',
+    description: 'Timetable, homework, quizzes, results, and notifications—all in one student-friendly hub.',
+  },
+  {
+    badge: 'Parents Portal',
+    headline: 'Stay In The Loop',
+    description: 'Follow homework, fees, events, and messages for each child with secure guardian access.',
   },
 ];
 
@@ -329,7 +350,6 @@ export default function FeaturesPage(): React.JSX.Element {
 
   useEffect(() => {
     if (!emblaApi) return;
-    onSelect();
     emblaApi.on('select', onSelect);
     const autoplay = setInterval(() => emblaApi.scrollNext(), 4500);
     return () => {
