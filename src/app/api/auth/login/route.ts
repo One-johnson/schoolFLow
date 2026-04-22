@@ -183,6 +183,23 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           );
         }
 
+        // Hard lock: deny access if the school is suspended.
+        // (Admin may be active but school suspended; portals should remain locked.)
+        const school = await convex.query(api.schools.getBySchoolId, {
+          schoolId: resolvedAdmin.schoolId,
+        });
+        if (school?.status === "suspended") {
+          return NextResponse.json(
+            {
+              success: false,
+              code: "SCHOOL_SUSPENDED",
+              message:
+                "Your school is currently suspended. The admin portal is locked until the school is reactivated.",
+            },
+            { status: 403 },
+          );
+        }
+
         const sessionToken = `session_${Date.now()}_${Math.random().toString(36).substring(2)}`;
         const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
 

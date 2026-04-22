@@ -72,6 +72,19 @@
   --sidebar-ring: hsl(217.2 91.2% 59.8%);
 }
 
+/* Student portal: replace flat black card/popover surfaces with soft violet-tinted layers */
+.dark .student-portal {
+  --card: hsl(265 22% 12%);
+  --card-foreground: hsl(270 15% 96%);
+  --popover: hsl(265 20% 11%);
+  --popover-foreground: hsl(270 15% 96%);
+}
+
+.student-portal {
+  --card: hsl(270 45% 99.2%);
+  --popover: hsl(270 40% 99.5%);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

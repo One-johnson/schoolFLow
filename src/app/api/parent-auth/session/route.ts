@@ -46,6 +46,26 @@ export async function GET(): Promise<NextResponse> {
 
     const { parent, students } = result;
 
+    // Hard lock: deny access if the school is suspended (also clears the cookie).
+    if (parent.schoolId) {
+      const school = await convex.query(api.schools.getBySchoolId, {
+        schoolId: parent.schoolId,
+      });
+      if (school?.status === "suspended") {
+        await ParentSessionManager.clearSession();
+        return NextResponse.json(
+          {
+            authenticated: false,
+            parent: null,
+            code: "SCHOOL_SUSPENDED",
+            message:
+              "Your school is currently suspended. The parent portal is temporarily unavailable. Please contact your school office.",
+          },
+          { status: 403 },
+        );
+      }
+    }
+
     return NextResponse.json({
       authenticated: true,
       parent: {

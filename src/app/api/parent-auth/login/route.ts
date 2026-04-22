@@ -89,6 +89,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
+    // Hard lock: deny access if the school is suspended.
+    if (parent.schoolId) {
+      const school = await convex.query(api.schools.getBySchoolId, {
+        schoolId: parent.schoolId,
+      });
+      if (school?.status === "suspended") {
+        return NextResponse.json(
+          {
+            success: false,
+            code: "SCHOOL_SUSPENDED",
+            message:
+              "Your school is currently suspended. The parent portal is temporarily unavailable. Please contact your school office.",
+          },
+          { status: 403 },
+        );
+      }
+    }
+
     const isValidPassword = await PasswordManager.verify(
       password,
       parent.password,

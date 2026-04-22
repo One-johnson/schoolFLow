@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, JSX } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Card,
@@ -30,15 +30,24 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function CreateSchoolPage(): React.JSX.Element {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
+  const [schoolType, setSchoolType] = useState<"private" | "public">("private");
   const [formData, setFormData] = useState({
     schoolName: "",
     email: "",
     phone: "",
     address: "",
+    studentCount: "",
   });
   const [loading, setLoading] = useState(false);
 
@@ -70,11 +79,7 @@ export default function CreateSchoolPage(): React.JSX.Element {
     (req) => req.status === "approved",
   );
 
-  useEffect(() => {
-    if (currentAdmin && !currentAdmin.hasActiveSubscription) {
-      router.push("/school-admin/subscription");
-    }
-  }, [currentAdmin, router]);
+  // Note: Public schools don't require subscriptions. Private schools still do.
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -92,7 +97,8 @@ export default function CreateSchoolPage(): React.JSX.Element {
       return;
     }
 
-    if (!activeSubscription) {
+    const needsSubscription = schoolType === "private";
+    if (needsSubscription && !activeSubscription) {
       toast.error("No active subscription found");
       setLoading(false);
       return;
@@ -113,6 +119,10 @@ export default function CreateSchoolPage(): React.JSX.Element {
     }
 
     try {
+      const studentCount =
+        schoolType === "public"
+          ? Math.max(0, parseInt(formData.studentCount || "0", 10) || 0)
+          : activeSubscription!.studentsCount;
       await createSchoolRequest({
         schoolAdminId: currentAdmin._id,
         schoolAdminEmail: currentAdmin.email,
@@ -120,7 +130,8 @@ export default function CreateSchoolPage(): React.JSX.Element {
         email: formData.email,
         phone: formData.phone,
         address: formData.address,
-        studentCount: activeSubscription.studentsCount,
+        studentCount,
+        schoolType,
       });
 
       toast.success("School creation request submitted successfully!", {
@@ -160,7 +171,7 @@ export default function CreateSchoolPage(): React.JSX.Element {
     );
   }
 
-  if (!activeSubscription) {
+  if (schoolType === "private" && !activeSubscription) {
     return (
       <div className="max-w-2xl mx-auto p-6">
         <Card className="border-2 hover:shadow-lg transition-shadow duration-300">
@@ -174,12 +185,29 @@ export default function CreateSchoolPage(): React.JSX.Element {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label>School type</Label>
+                <Select
+                  value={schoolType}
+                  onValueChange={(v) => setSchoolType(v as "private" | "public")}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select school type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="private">Private (subscription required)</SelectItem>
+                    <SelectItem value="public">Public (no subscription)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             <Button
               onClick={() => router.push("/school-admin/subscription")}
               className="w-full"
             >
               View Subscriptions
             </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -382,6 +410,26 @@ export default function CreateSchoolPage(): React.JSX.Element {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* 2-Column Grid for Form Fields */}
               <div className="grid md:grid-cols-2 gap-6">
+                {/* School type */}
+                <div className="space-y-2 md:col-span-2">
+                  <Label className="text-gray-900 font-medium">School type *</Label>
+                  <Select
+                    value={schoolType}
+                    onValueChange={(v) => setSchoolType(v as "private" | "public")}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select school type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="private">Private (subscription required)</SelectItem>
+                      <SelectItem value="public">Public (no subscription)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-500">
+                    Public schools do not require subscriptions but still need super-admin approval.
+                  </p>
+                </div>
+
                 {/* School Name */}
                 <div className="space-y-2">
                   <Label
@@ -444,7 +492,7 @@ export default function CreateSchoolPage(): React.JSX.Element {
                   </div>
                 </div>
 
-                {/* Number of Students (Read-only) */}
+                {/* Number of Students */}
                 <div className="space-y-2">
                   <Label
                     htmlFor="studentCount"
@@ -458,15 +506,31 @@ export default function CreateSchoolPage(): React.JSX.Element {
                       id="studentCount"
                       name="studentCount"
                       type="number"
-                      value={activeSubscription?.studentsCount || 0}
-                      readOnly
-                      className="pl-10 bg-gray-50 border-gray-300 text-gray-700 cursor-not-allowed"
+                      value={
+                        schoolType === "public"
+                          ? formData.studentCount
+                          : String(activeSubscription?.studentsCount ?? 0)
+                      }
+                      onChange={handleChange}
+                      readOnly={schoolType !== "public"}
+                      className={
+                        schoolType === "public"
+                          ? "pl-10 border-gray-300 focus:border-blue-500 hover:border-gray-400 transition-colors"
+                          : "pl-10 bg-gray-50 border-gray-300 text-gray-700 cursor-not-allowed"
+                      }
                     />
                   </div>
-                  <p className="text-xs text-gray-500 flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    Auto-filled from your subscription plan
-                  </p>
+                  {schoolType === "public" ? (
+                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      Enter an estimate for your school.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      Auto-filled from your subscription plan
+                    </p>
+                  )}
                 </div>
               </div>
 

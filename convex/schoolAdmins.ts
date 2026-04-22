@@ -258,6 +258,17 @@ export const updateStatus = mutation({
       });
     }
 
+    if (args.status === 'active' && oldStatus !== 'active') {
+      // If the admin is being reactivated, also reactivate their school (if present).
+      const school = await ctx.db
+        .query('schools')
+        .filter((q) => q.eq(q.field('adminId'), args.id))
+        .first();
+      if (school && school.status === 'suspended') {
+        await ctx.db.patch(school._id, { status: 'active' });
+      }
+    }
+
     return args.id;
   },
 });

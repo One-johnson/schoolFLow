@@ -45,7 +45,7 @@ function StudentLayoutContent({ children }: { children: React.ReactNode }) {
   // Note: this is a client-only layout; no mount guard needed.
 
   if (isLoginRoute) {
-    return <>{children}</>;
+    return <div className="student-portal min-h-svh">{children}</div>;
   }
 
   if (loading) {
@@ -70,7 +70,7 @@ function StudentLayoutContent({ children }: { children: React.ReactNode }) {
     <SidebarProvider>
       <StudentAppSidebar />
 
-      <SidebarInset className="min-h-svh w-full bg-blue-50/40 dark:bg-blue-950/15">
+      <SidebarInset className="student-portal min-h-svh w-full bg-blue-50/40 dark:bg-blue-950/15">
         <StudentMobileChromeProvider>
           <StudentDesktopHeader />
 

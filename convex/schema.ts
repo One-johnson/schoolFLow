@@ -18,6 +18,7 @@ export default defineSchema({
     email: v.string(),
     phone: v.string(),
     address: v.string(),
+    schoolType: v.optional(v.union(v.literal('private'), v.literal('public'))),
     status: v.union(
       v.literal('pending_payment'),
       v.literal('pending_approval'),
@@ -117,6 +118,7 @@ export default defineSchema({
     phone: v.string(),
     address: v.string(),
     studentCount: v.number(),
+    schoolType: v.optional(v.union(v.literal('private'), v.literal('public'))),
     status: v.union(v.literal('pending'), v.literal('approved'), v.literal('rejected')),
     createdAt: v.string(),
     approvedBy: v.optional(v.string()),

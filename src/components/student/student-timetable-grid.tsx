@@ -10,6 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { convertTo12Hour } from "@/lib/timeUtils";
 import { cn } from "@/lib/utils";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
@@ -133,6 +134,74 @@ function categoryCellClasses(
   }
 }
 
+function buildNowNextSummary(
+  todayDay: Day | null,
+  periodsByDay: Record<Day, Doc<"periods">[]>,
+  nowMinutes: number,
+  assignmentByPeriodId: Map<Id<"periods">, StudentTimetableAssignment>,
+): { line: string } {
+  if (!todayDay) {
+    return {
+      line: "No classes scheduled today (weekend).",
+    };
+  }
+  const dayPeriods = periodsByDay[todayDay];
+  let current: Doc<"periods"> | null = null;
+  for (const p of dayPeriods) {
+    const s = parseTimeKey(p.startTime);
+    const e = parseTimeKey(p.endTime);
+    if (nowMinutes >= s && nowMinutes < e) {
+      current = p;
+      break;
+    }
+  }
+
+  const threshold =
+    current?.periodType === "class"
+      ? parseTimeKey(current.endTime)
+      : nowMinutes;
+
+  let nextClass: Doc<"periods"> | null = null;
+  for (const p of dayPeriods) {
+    if (p.periodType !== "class") continue;
+    if (parseTimeKey(p.startTime) >= threshold) {
+      if (current && p._id === current._id) continue;
+      nextClass = p;
+      break;
+    }
+  }
+
+  const formatSlot = (p: Doc<"periods">): string => {
+    if (p.periodType === "break") {
+      const kind = breakKindFromPeriodName(p.periodName);
+      const label = breakSlotPresentation(kind).label;
+      return `${label} (${convertTo12Hour(p.startTime)}–${convertTo12Hour(p.endTime)})`;
+    }
+    const a = assignmentByPeriodId.get(p._id);
+    if (a) {
+      return `${a.subjectName} (${convertTo12Hour(p.startTime)}–${convertTo12Hour(p.endTime)})`;
+    }
+    return `${p.periodName} (${convertTo12Hour(p.startTime)}–${convertTo12Hour(p.endTime)})`;
+  };
+
+  const currentPart = current
+    ? `Now: ${formatSlot(current)}`
+    : "Now: Between periods or outside school hours.";
+
+  let nextPart: string;
+  if (nextClass) {
+    const a = assignmentByPeriodId.get(nextClass._id);
+    const nm = a?.subjectName ?? nextClass.periodName;
+    nextPart = `Next class: ${nm} at ${convertTo12Hour(nextClass.startTime)}`;
+  } else {
+    nextPart = "No further classes today.";
+  }
+
+  return {
+    line: `${currentPart} · ${nextPart}`,
+  };
+}
+
 export function StudentTimetableLegend(): React.JSX.Element {
   return (
     <div className="space-y-2 text-xs text-muted-foreground">
@@ -182,8 +251,13 @@ export function StudentTimetableGrid({
   assignments: StudentTimetableAssignment[];
 }): React.JSX.Element {
   const [nowTick, setNowTick] = useState(0);
+  const [selectedDay, setSelectedDay] = useState<Day>(() => {
+    const t = dateToSchoolDay(new Date());
+    return t ?? "monday";
+  });
+
   useEffect(() => {
-    const id = window.setInterval(() => setNowTick((t) => t + 1), 60_000);
+    const id = window.setInterval(() => setNowTick((t) => t + 1), 30_000);
     return () => window.clearInterval(id);
   }, []);
 
@@ -206,6 +280,17 @@ export function StudentTimetableGrid({
     return m;
   }, [assignments]);
 
+  const nowNext = useMemo(
+    () =>
+      buildNowNextSummary(
+        todayDay,
+        periodsByDay,
+        nowMinutes,
+        assignmentByPeriodId,
+      ),
+    [todayDay, periodsByDay, nowMinutes, assignmentByPeriodId],
+  );
+
   const getPeriodForDayAndName = (day: Day, periodName: string): Doc<"periods"> | undefined =>
     periodsByDay[day].find((p) => p.periodName === periodName);
 
@@ -218,15 +303,48 @@ export function StudentTimetableGrid({
   }
 
   return (
-    <div className="space-y-3">
-      <p className="text-xs text-muted-foreground md:hidden">
-        Swipe sideways to see all days.
-      </p>
-      <div className="rounded-lg border border-violet-200/60 bg-card shadow-sm dark:border-violet-900/50 overflow-x-auto">
-        <Table>
+    <div className="space-y-3 print:max-w-none">
+      <div
+        className="rounded-lg border border-blue-200/70 bg-blue-500/[0.06] px-3 py-2 text-sm text-foreground dark:border-blue-900/50 dark:bg-blue-500/10 print:border print:border-foreground/20 print:bg-white"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {nowNext.line}
+      </div>
+
+      <div className="flex flex-wrap gap-1.5 md:hidden print:hidden">
+        {DAYS.map((day) => {
+          const isToday = todayDay !== null && day === todayDay;
+          return (
+            <Button
+              key={day}
+              type="button"
+              variant={selectedDay === day ? "default" : "outline"}
+              size="sm"
+              className="h-8 capitalize"
+              onClick={() => setSelectedDay(day)}
+            >
+              {day.slice(0, 3)}
+              {isToday ? (
+                <span className="ml-1 text-[10px] font-normal opacity-90">• today</span>
+              ) : null}
+            </Button>
+          );
+        })}
+      </div>
+
+      <div className="rounded-lg border border-violet-200/60 bg-card shadow-sm dark:border-violet-900/50 overflow-x-auto print:rounded-md print:shadow-none print:border-foreground/20 print:[&_[data-slot=table-container]]:overflow-visible">
+        <Table
+          className="print:text-foreground"
+          aria-label="Weekly class timetable"
+        >
           <TableHeader>
             <TableRow className="border-violet-200/50 hover:bg-transparent dark:border-violet-900/40">
-              <TableHead className="min-w-[140px] font-semibold text-foreground">
+              <TableHead
+                scope="col"
+                className="min-w-[140px] font-semibold text-foreground print:bg-muted/30"
+              >
                 Period / time
               </TableHead>
               {DAYS.map((day) => {
@@ -234,8 +352,10 @@ export function StudentTimetableGrid({
                 return (
                   <TableHead
                     key={day}
+                    scope="col"
                     className={cn(
-                      "min-w-[120px] text-center font-semibold capitalize text-foreground",
+                      "min-w-[120px] text-center font-semibold capitalize text-foreground print:table-cell",
+                      day !== selectedDay && "hidden md:table-cell",
                       isTodayCol &&
                         "bg-blue-500/12 text-blue-900 dark:bg-blue-500/18 dark:text-blue-100",
                     )}
@@ -274,9 +394,10 @@ export function StudentTimetableGrid({
                     !isBreak && isCurrentClassSlot && "bg-blue-500/[0.06] dark:bg-blue-500/10",
                   )}
                 >
-                  <TableCell
+                  <TableHead
+                    scope="row"
                     className={cn(
-                      "p-0 align-stretch",
+                      "h-auto p-0 align-stretch print:bg-muted/20",
                       isBreak && breakStyle ? breakStyle.cell : "align-top font-medium",
                       !isBreak && isCurrentClassSlot && "bg-blue-500/10 dark:bg-blue-500/15",
                     )}
@@ -302,13 +423,19 @@ export function StudentTimetableGrid({
                         </span>
                       </div>
                     )}
-                  </TableCell>
+                  </TableHead>
                   {DAYS.map((day) => {
                     const period = getPeriodForDayAndName(day, templatePeriod.periodName);
                     if (!period) {
                       if (isBreak && breakStyle) {
                         return (
-                          <TableCell key={day} className="p-0 align-stretch border-l border-white/10">
+                          <TableCell
+                            key={day}
+                            className={cn(
+                              "p-0 align-stretch border-l border-white/10 print:table-cell",
+                              day !== selectedDay && "hidden md:table-cell",
+                            )}
+                          >
                             <div
                               className={cn(
                                 "flex min-h-[4rem] w-full items-center justify-center px-2 py-3",
@@ -323,14 +450,26 @@ export function StudentTimetableGrid({
                         );
                       }
                       return (
-                        <TableCell key={day} className="text-center text-muted-foreground">
+                        <TableCell
+                          key={day}
+                          className={cn(
+                            "text-center text-muted-foreground print:table-cell",
+                            day !== selectedDay && "hidden md:table-cell",
+                          )}
+                        >
                           —
                         </TableCell>
                       );
                     }
                     if ((isBreak || period.periodType === "break") && breakStyle) {
                       return (
-                        <TableCell key={day} className="p-0 align-stretch border-l border-white/15">
+                        <TableCell
+                          key={day}
+                          className={cn(
+                            "p-0 align-stretch border-l border-white/15 print:table-cell",
+                            day !== selectedDay && "hidden md:table-cell",
+                          )}
+                        >
                           <div
                             className={cn(
                               "flex min-h-[4rem] w-full items-center justify-center px-2 py-3",
@@ -354,7 +493,8 @@ export function StudentTimetableGrid({
                       <TableCell
                         key={day}
                         className={cn(
-                          "p-1.5 align-top",
+                          "p-1.5 align-top print:table-cell",
+                          day !== selectedDay && "hidden md:table-cell",
                           todayDay !== null && day === todayDay && "bg-blue-500/[0.07] dark:bg-blue-500/12",
                         )}
                       >
@@ -378,7 +518,8 @@ export function StudentTimetableGrid({
                             <p className="text-sm font-semibold leading-tight text-foreground">
                               {assign.subjectName}
                             </p>
-                            <p className="text-xs text-muted-foreground leading-snug">
+                            <p className="text-xs text-muted-foreground leading-snug print:text-foreground/80">
+                              <span className="sr-only">Teacher: </span>
                               {assign.teacherName}
                             </p>
                             {assign.subjectCategory ? (

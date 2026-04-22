@@ -36,6 +36,52 @@ export async function GET(): Promise<NextResponse> {
       );
     }
 
+    // Hard lock enforcement for admin portals.
+    if (data.role === "super_admin") {
+      const superAdmin = await convex.query(api.superAdmins.getByEmail, {
+        email: data.email,
+      });
+      if (!superAdmin) {
+        await SessionManager.clearSession();
+        return NextResponse.json(
+          { authenticated: false, session: null },
+          { status: 401 },
+        );
+      }
+      if (superAdmin.status === "suspended") {
+        await SessionManager.clearSession();
+        return NextResponse.json(
+          {
+            authenticated: false,
+            session: null,
+            code: "ACCOUNT_SUSPENDED",
+            message:
+              "Your super admin account is suspended. Please contact the system owner.",
+          },
+          { status: 403 },
+        );
+      }
+    }
+
+    if (data.role === "school_admin" && "schoolId" in data && data.schoolId) {
+      const school = await convex.query(api.schools.getBySchoolId, {
+        schoolId: data.schoolId,
+      });
+      if (school?.status === "suspended") {
+        await SessionManager.clearSession();
+        return NextResponse.json(
+          {
+            authenticated: false,
+            session: null,
+            code: "SCHOOL_SUSPENDED",
+            message:
+              "Your school is currently suspended. The admin portal is locked until the school is reactivated.",
+          },
+          { status: 403 },
+        );
+      }
+    }
+
     return NextResponse.json({
       authenticated: true,
       session: {
