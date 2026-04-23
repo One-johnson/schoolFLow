@@ -9,10 +9,12 @@ import { XCircle, Mail, Phone, ArrowLeft, PlusCircle } from 'lucide-react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { useAuth } from '@/hooks/useAuth';
+import { useSchoolAdminHidesSubscriptionUi } from '@/hooks/useSchoolAdminHidesSubscriptionUi';
 
 export default function SchoolDeletedPage(): React.JSX.Element {
   const router = useRouter();
-     const { user } = useAuth();
+  const { user } = useAuth();
+  const hidesSubscriptionUi = useSchoolAdminHidesSubscriptionUi(user?.userId);
   const [email, setEmail] = useState<string | null>(null);
 
     const currentAdmin = useQuery(
@@ -49,7 +51,7 @@ export default function SchoolDeletedPage(): React.JSX.Element {
             <h3 className="font-semibold text-lg">What Happened:</h3>
             <ul className="space-y-2 text-gray-600 dark:text-gray-400 list-disc list-inside">
               <li>Your school record has been permanently deleted</li>
-              <li>All associated subscriptions have been cancelled</li>
+              <li>Any platform billing tied to that school has been closed</li>
               <li>School data and records have been removed</li>
               <li>Your admin account remains active</li>
             </ul>
@@ -65,7 +67,9 @@ export default function SchoolDeletedPage(): React.JSX.Element {
             </p>
           </div>
 
-          {currentAdmin && currentAdmin.hasActiveSubscription && (
+          {currentAdmin &&
+            currentAdmin.hasActiveSubscription &&
+            !hidesSubscriptionUi && (
             <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-900">
               <AlertDescription className="text-gray-900 dark:text-gray-100">
                 <strong>Good news!</strong> You still have an active subscription. You can use it to create a new school right away.

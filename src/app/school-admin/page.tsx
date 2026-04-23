@@ -61,6 +61,11 @@ export default function SchoolAdminDashboard(): React.JSX.Element {
     currentAdmin?.schoolId ? { schoolId: currentAdmin.schoolId } : "skip",
   );
 
+  const school = useQuery(
+    api.schools.getByAdminId,
+    currentAdmin ? { adminId: currentAdmin._id } : "skip",
+  );
+
   const activeSubscription = subscriptionRequests?.find(
     (req) => req.status === "approved" && !req.isTrial,
   );
@@ -78,23 +83,54 @@ export default function SchoolAdminDashboard(): React.JSX.Element {
 
   const unreadNotifications = notifications?.filter((n) => !n.read).length || 0;
 
-  useEffect(() => {
-    if (currentAdmin && !currentAdmin.hasActiveSubscription) {
-      router.push("/school-admin/subscription");
-    }
-  }, [currentAdmin, router]);
+  const pendingPublicSchoolRequest = schoolCreationRequests?.some(
+    (r) => r.status === "pending" && r.schoolType === "public",
+  );
+
+  const isPublicSchool = school?.schoolType === "public";
+
+  const hideSubscriptionDashboardUi =
+    isPublicSchool ||
+    (schoolCreationRequests?.some(
+      (r) => r.status === "pending" && r.schoolType === "public",
+    ) ??
+      false);
 
   useEffect(() => {
-    if (
-      currentAdmin &&
-      currentAdmin.hasActiveSubscription &&
-      !currentAdmin.hasCreatedSchool
-    ) {
-      if (!pendingSchoolRequest) {
-        router.push("/school-admin/create-school");
-      }
+    if (!currentAdmin || currentAdmin.hasActiveSubscription) return;
+    if (school === undefined || schoolCreationRequests === undefined) return;
+    if (isPublicSchool) return;
+    if (pendingPublicSchoolRequest) return;
+    if (!currentAdmin.hasCreatedSchool) {
+      router.push("/school-admin/create-school");
+      return;
     }
-  }, [currentAdmin, schoolCreationRequests, router, pendingSchoolRequest]);
+    router.push("/school-admin/subscription");
+  }, [
+    currentAdmin,
+    school,
+    schoolCreationRequests,
+    isPublicSchool,
+    pendingPublicSchoolRequest,
+    router,
+  ]);
+
+  useEffect(() => {
+    if (!currentAdmin || currentAdmin.hasCreatedSchool) return;
+    if (schoolCreationRequests === undefined) return;
+    if (pendingSchoolRequest) return;
+    const mayCreateSchool =
+      currentAdmin.hasActiveSubscription || isPublicSchool;
+    if (mayCreateSchool) {
+      router.push("/school-admin/create-school");
+    }
+  }, [
+    currentAdmin,
+    schoolCreationRequests,
+    isPublicSchool,
+    pendingSchoolRequest,
+    router,
+  ]);
 
   if (currentAdmin === undefined) {
     return (
@@ -206,7 +242,7 @@ export default function SchoolAdminDashboard(): React.JSX.Element {
       </div>
 
       {/* Trial Warning */}
-      {activeTrial && getDaysRemaining() <= 7 && (
+      {!hideSubscriptionDashboardUi && activeTrial && getDaysRemaining() <= 7 && (
         <Card className="border-yellow-500 bg-yellow-50">
           <CardContent className="flex items-center gap-4 p-4">
             <AlertCircle className="h-5 w-5 text-yellow-600" />
@@ -302,7 +338,7 @@ export default function SchoolAdminDashboard(): React.JSX.Element {
       </div>
 
       {/* Trial Progress */}
-      {activeTrial && (
+      {!hideSubscriptionDashboardUi && activeTrial && (
         <Card>
           <CardContent className="p-6">
             <div className="space-y-4">
@@ -374,7 +410,7 @@ export default function SchoolAdminDashboard(): React.JSX.Element {
       </div>
 
       {/* Subscription Details - Keep for reference */}
-      {(activeSubscription || activeTrial) && (
+      {!hideSubscriptionDashboardUi && (activeSubscription || activeTrial) && (
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">

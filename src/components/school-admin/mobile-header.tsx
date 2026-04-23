@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { useSchoolAdminHidesSubscriptionUi } from '@/hooks/useSchoolAdminHidesSubscriptionUi';
 import { 
   LayoutDashboard, 
   School, 
@@ -55,6 +56,10 @@ const menuItems = [
 
 export function MobileHeader(): React.JSX.Element {
   const { user, logout } = useAuth();
+  const hidesSubscriptionUi = useSchoolAdminHidesSubscriptionUi(user?.userId);
+  const visibleMenuItems = hidesSubscriptionUi
+    ? menuItems.filter((item) => item.url !== '/school-admin/subscription')
+    : menuItems;
   const notifications = useQuery(
     api.notifications.getNotificationsBySchoolAdmin,
     user?.userId ? { recipientId: user.userId } : 'skip'
@@ -91,7 +96,7 @@ export function MobileHeader(): React.JSX.Element {
           
           <div className="flex flex-col h-[calc(100vh-5rem)]">
             <nav className="flex-1 p-4 space-y-1">
-              {menuItems.map((item) => {
+              {visibleMenuItems.map((item) => {
                 const isActive = pathname === item.url;
                 return (
                   <Link

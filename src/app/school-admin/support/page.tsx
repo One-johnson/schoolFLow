@@ -21,38 +21,53 @@ import { TicketStatusBadge, TicketPriorityBadge, TicketCategoryBadge } from '@/c
 import { TicketDetailDialog } from '@/components/support/ticket-detail-dialog';
 import { TicketForm } from '@/components/support/ticket-form';
 import { useAuth } from '@/hooks/useAuth';
+import { useSchoolAdminHidesSubscriptionUi } from '@/hooks/useSchoolAdminHidesSubscriptionUi';
 import { formatDistanceToNow } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { SupportTicket } from '@/types';
 
-const faqs = [
+const FAQ_ITEMS: Array<{
+  id: string;
+  question: string;
+  answer: string;
+  hideForPublicSchool?: boolean;
+}> = [
   {
+    id: 'create-school',
     question: 'How do I create a school?',
     answer:
       'Navigate to the "Create School" page from your dashboard. Fill in all required information including school name, contact details, and student count. Once submitted, your school creation request will be reviewed by Super Admins.',
   },
   {
+    id: 'payment-proof',
     question: 'How do I submit payment proof?',
+    hideForPublicSchool: true,
     answer:
       'Go to the Payment page, select your payment method (Mobile Money or Bank Transfer), enter your transaction details, and upload a screenshot of your payment confirmation. Super Admins will verify your payment within 24-48 hours.',
   },
   {
+    id: 'manage-subscription',
     question: 'How do I manage my subscription?',
+    hideForPublicSchool: true,
     answer:
       'Visit the Subscription page to view your current plan, payment history, and billing information. You can also view your trial status and subscription renewal dates here.',
   },
   {
+    id: 'update-school',
     question: 'How do I update school details?',
     answer:
       'Access the "My School" page where you can view and update your school information including contact details, address, and student count. Some changes may require Super Admin approval.',
   },
   {
+    id: 'contact-support',
     question: 'How do I contact support?',
     answer:
       'You can submit a support ticket directly from this page by clicking the "Submit Ticket" tab. Our support team typically responds within 24 hours. For urgent issues, mark your ticket as "High Priority" or "Urgent".',
   },
   {
+    id: 'trial-terms',
     question: 'What are the trial terms?',
+    hideForPublicSchool: true,
     answer:
       'New school admins receive a 14-day free trial period. During this time, you can explore all features and create your school. After the trial expires, you will need to submit payment to continue accessing the platform.',
   },
@@ -61,6 +76,7 @@ const faqs = [
 export default function SchoolAdminSupportPage(): React.JSX.Element {
   const router = useRouter();
   const { user } = useAuth();
+  const hidesSubscriptionUi = useSchoolAdminHidesSubscriptionUi(user?.userId);
   const [selectedTicketId, setSelectedTicketId] = useState<Id<'supportTickets'> | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('tickets');
@@ -153,6 +169,11 @@ export default function SchoolAdminSupportPage(): React.JSX.Element {
   const handleTicketSuccess = (): void => {
     setActiveTab('tickets');
   };
+
+  const visibleFaqs = useMemo(() => {
+    if (!hidesSubscriptionUi) return FAQ_ITEMS;
+    return FAQ_ITEMS.filter((f) => !f.hideForPublicSchool);
+  }, [hidesSubscriptionUi]);
 
   if (schoolAdmin === undefined) {
     return (
@@ -306,8 +327,8 @@ export default function SchoolAdminSupportPage(): React.JSX.Element {
             </CardHeader>
             <CardContent>
               <Accordion type="single" collapsible className="w-full">
-                {faqs.map((faq, index) => (
-                  <AccordionItem key={index} value={`item-${index}`}>
+                {visibleFaqs.map((faq) => (
+                  <AccordionItem key={faq.id} value={faq.id}>
                     <AccordionTrigger>{faq.question}</AccordionTrigger>
                     <AccordionContent>{faq.answer}</AccordionContent>
                   </AccordionItem>
@@ -333,24 +354,28 @@ export default function SchoolAdminSupportPage(): React.JSX.Element {
                     Learn how to set up your school and get started with SchoolFlow
                   </p>
                 </div>
-                <div className="p-4 border dark:border-gray-800 rounded-lg">
-                  <h3 className="font-semibold">Payment Methods & Proof Submission</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    How to submit payment proof and what payment methods are accepted
-                  </p>
-                </div>
+                {!hidesSubscriptionUi && (
+                  <div className="p-4 border dark:border-gray-800 rounded-lg">
+                    <h3 className="font-semibold">Payment Methods & Proof Submission</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                      How to submit payment proof and what payment methods are accepted
+                    </p>
+                  </div>
+                )}
                 <div className="p-4 border dark:border-gray-800 rounded-lg">
                   <h3 className="font-semibold">Managing Your School</h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                     Update school information, manage staff, and track students
                   </p>
                 </div>
-                <div className="p-4 border dark:border-gray-800 rounded-lg">
-                  <h3 className="font-semibold">Understanding Subscription Plans</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    Learn about available plans, pricing, and billing cycles
-                  </p>
-                </div>
+                {!hidesSubscriptionUi && (
+                  <div className="p-4 border dark:border-gray-800 rounded-lg">
+                    <h3 className="font-semibold">Understanding Subscription Plans</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                      Learn about available plans, pricing, and billing cycles
+                    </p>
+                  </div>
+                )}
                 <div className="p-4 border dark:border-gray-800 rounded-lg">
                   <h3 className="font-semibold">Common Issues & Solutions</h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">

@@ -14,10 +14,12 @@ import { User, Mail, Phone, Building2, Calendar, Shield } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
+import { useSchoolAdminHidesSubscriptionUi } from '@/hooks/useSchoolAdminHidesSubscriptionUi';
 
 export default function ProfilePage(): React.JSX.Element {
   const router = useRouter();
   const { user, checkAuth } = useAuth();
+  const hidesSubscriptionUi = useSchoolAdminHidesSubscriptionUi(user?.userId);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -158,15 +160,17 @@ export default function ProfilePage(): React.JSX.Element {
               </div>
             </div>
 
-            <div className="flex items-start gap-3">
-              <Shield className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div>
-                <p className="text-sm font-medium">Subscription</p>
-                <p className="text-sm text-muted-foreground">
-                  {currentAdmin.hasActiveSubscription ? 'Active' : 'Inactive'}
-                </p>
+            {!hidesSubscriptionUi && (
+              <div className="flex items-start gap-3">
+                <Shield className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium">Subscription</p>
+                  <p className="text-sm text-muted-foreground">
+                    {currentAdmin.hasActiveSubscription ? 'Active' : 'Inactive'}
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="flex items-start gap-3">
               <Building2 className="h-5 w-5 text-muted-foreground mt-0.5" />

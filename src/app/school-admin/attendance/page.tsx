@@ -97,10 +97,11 @@ export default function AttendancePage(): React.JSX.Element {
   const allowAdminToMark = attendanceSettings?.allowAdminToMarkAttendance ?? true;
 
   useEffect(() => {
-    if (currentAdmin && !currentAdmin.hasActiveSubscription) {
-      router.push('/school-admin/subscription');
-    }
-  }, [currentAdmin, router]);
+    if (!currentAdmin || currentAdmin.hasActiveSubscription) return;
+    if (school === undefined) return;
+    if (school?.schoolType === 'public') return;
+    router.push('/school-admin/subscription');
+  }, [currentAdmin, school, router]);
 
   if (currentAdmin === undefined) {
     return (

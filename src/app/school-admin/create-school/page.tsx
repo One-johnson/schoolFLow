@@ -349,8 +349,8 @@ export default function CreateSchoolPage(): React.JSX.Element {
           </p>
         </div>
 
-        {/* Active Subscription Card */}
-        {activeSubscription && (
+        {/* Active Subscription Card (private schools only; public has no platform subscription) */}
+        {schoolType === "private" && activeSubscription && (
           <Card className="bg-white border-2 border-blue-500 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-gray-900">

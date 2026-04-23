@@ -63,6 +63,13 @@ export default function SchoolPage(): React.JSX.Element {
   );
   const school = schools?.find((s) => s.adminId === currentAdmin?._id);
 
+  const hidesSubscriptionActions =
+    school?.schoolType === 'public' ||
+    (schoolCreationRequests?.some(
+      (r) => r.status === 'pending' && r.schoolType === 'public',
+    ) ??
+      false);
+
   // School logo photos
   const schoolPhotos = useQuery(
     api.photos.getPhotosByEntity,
@@ -430,9 +437,11 @@ export default function SchoolPage(): React.JSX.Element {
         </CardHeader>
         <CardContent>
           <div className="grid gap-3 md:grid-cols-2">
-            <Button variant="outline" onClick={() => router.push('/school-admin/subscription')}>
-              View Subscription
-            </Button>
+            {!hidesSubscriptionActions && (
+              <Button variant="outline" onClick={() => router.push('/school-admin/subscription')}>
+                View Subscription
+              </Button>
+            )}
             <Button variant="outline" onClick={() => router.push('/school-admin/profile')}>
               Update Profile
             </Button>
