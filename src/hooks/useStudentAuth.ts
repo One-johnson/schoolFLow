@@ -69,14 +69,20 @@ export function useStudentAuth() {
           authenticated: false,
         });
       }
-    } catch {
+    } catch (error) {
+      const code = axios.isAxiosError<{ code?: string }>(error)
+        ? error.response?.data?.code
+        : undefined;
+      if (axios.isAxiosError(error) && error.response?.status === 403 && code === "SCHOOL_SUSPENDED") {
+        router.replace("/student/suspended");
+      }
       setState({
         student: null,
         loading: false,
         authenticated: false,
       });
     }
-  }, []);
+  }, [router]);
 
   // Same mount hydration as useTeacherAuth / useParentAuth (session cookie → client state).
   useEffect(() => {

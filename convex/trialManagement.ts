@@ -50,6 +50,11 @@ async function checkTrialsLogic(ctx: MutationCtx) {
       .query('schools')
       .filter((q) => q.eq(q.field('adminId'), admin._id))
       .first();
+
+    // Safety: trial/billing automation should never act on public schools.
+    if (school?.schoolType === 'public') {
+      continue;
+    }
     
     // Check for warnings (7, 3, 1 days before expiry)
     if (daysUntilExpiry === 7 || daysUntilExpiry === 3 || daysUntilExpiry === 1) {

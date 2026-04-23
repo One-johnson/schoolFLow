@@ -1330,7 +1330,26 @@ export const getTimetableForStudentPortal = query({
       .first();
 
     if (!timetable) {
-      return { timetable: null, periods: [], assignments: [] };
+      return {
+        timetable: null,
+        periods: [],
+        assignments: [],
+        academicYearLabel: null,
+        termLabel: null,
+      };
+    }
+
+    let academicYearLabel: string | null = null;
+    let termLabel: string | null = null;
+    if (timetable.academicYearId) {
+      const ay = await ctx.db.get(
+        timetable.academicYearId as Id<"academicYears">,
+      );
+      academicYearLabel = ay?.yearName ?? null;
+    }
+    if (timetable.termId) {
+      const term = await ctx.db.get(timetable.termId as Id<"terms">);
+      termLabel = term?.termName ?? null;
     }
 
     const periods = await ctx.db
@@ -1354,7 +1373,13 @@ export const getTimetableForStudentPortal = query({
       }),
     );
 
-    return { timetable, periods, assignments: assignmentsWithSubjectMeta };
+    return {
+      timetable,
+      periods,
+      assignments: assignmentsWithSubjectMeta,
+      academicYearLabel,
+      termLabel,
+    };
   },
 });
 

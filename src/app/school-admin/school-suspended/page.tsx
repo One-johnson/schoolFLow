@@ -9,10 +9,12 @@ import { Ban, Mail, Phone, ArrowLeft } from 'lucide-react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { useAuth } from '@/hooks/useAuth';
+import { useSchoolAdminHidesSubscriptionUi } from '@/hooks/useSchoolAdminHidesSubscriptionUi';
 
 export default function SchoolSuspendedPage(): React.JSX.Element {
   const router = useRouter();
   const { user } = useAuth();
+  const hidesSubscriptionUi = useSchoolAdminHidesSubscriptionUi(user?.userId);
 
   const [email, setEmail] = useState<string | null>(null);
 
@@ -53,7 +55,9 @@ const currentAdmin = useQuery(
               <li>Access to school management features is temporarily blocked</li>
               <li>All your school data is safely preserved</li>
               <li>Students and staff cannot access school resources</li>
-              <li>Your subscription status may be affected</li>
+              {!hidesSubscriptionUi && (
+                <li>Your subscription status may be affected</li>
+              )}
             </ul>
           </div>
 

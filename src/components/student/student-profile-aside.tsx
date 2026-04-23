@@ -16,6 +16,8 @@ import {
   ChevronRight,
   Calendar,
   Shield,
+  Inbox,
+  BellOff,
 } from "lucide-react";
 import type { Id } from "../../../convex/_generated/dataModel";
 
@@ -108,9 +110,18 @@ export function StudentProfileAside({
               <div className="h-10 rounded-md bg-muted/60" />
             </div>
           ) : dueSoon.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-1">
-              No upcoming deadlines right now.
-            </p>
+            <div className="rounded-lg border border-dashed border-border/70 bg-muted/25 px-3 py-5 text-center">
+              <Inbox
+                className="mx-auto mb-2 h-8 w-8 text-muted-foreground/55"
+                aria-hidden
+              />
+              <p className="text-sm text-muted-foreground">
+                No upcoming deadlines right now.
+              </p>
+              <Button variant="link" asChild className="mt-1 h-auto p-0 text-violet-700 dark:text-violet-300">
+                <Link href="/student/homework">View homework</Link>
+              </Button>
+            </div>
           ) : (
             <ul className="space-y-1">
               {dueSoon.map((h) => (
@@ -157,7 +168,16 @@ export function StudentProfileAside({
               <div className="h-9 rounded-md bg-muted/60" />
             </div>
           ) : recentUpdates.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-1">No notifications yet.</p>
+            <div className="rounded-lg border border-dashed border-border/70 bg-muted/25 px-3 py-5 text-center">
+              <BellOff
+                className="mx-auto mb-2 h-8 w-8 text-muted-foreground/55"
+                aria-hidden
+              />
+              <p className="text-sm text-muted-foreground">No notifications yet.</p>
+              <Button variant="link" asChild className="mt-1 h-auto p-0 text-violet-700 dark:text-violet-300">
+                <Link href="/student/notifications">Open updates</Link>
+              </Button>
+            </div>
           ) : (
             <ul className="space-y-2">
               {recentUpdates.map((n) => (

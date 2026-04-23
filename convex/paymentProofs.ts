@@ -281,6 +281,15 @@ export const approve = mutation({
         hasActiveSubscription: true,
         status: 'active',
       });
+
+      // Auto-reactivate the school if it exists and was suspended.
+      const school = await ctx.db
+        .query('schools')
+        .filter((q) => q.eq(q.field('adminId'), admin._id))
+        .first();
+      if (school && school.status === 'suspended') {
+        await ctx.db.patch(school._id, { status: 'active' });
+      }
     }
 
     // Notify school admin

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 
@@ -25,12 +25,7 @@ export function useAuth() {
     authenticated: false,
   });
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/immutability
-    checkAuth();
-  }, []);
-
-  const checkAuth = async (): Promise<void> => {
+  const checkAuth = useCallback(async (): Promise<void> => {
     try {
       const { data } = await axios.get<{
         authenticated: boolean;
@@ -52,13 +47,26 @@ export function useAuth() {
       }
     } catch (error) {
       console.error("Auth check error:", error);
+      const code = axios.isAxiosError<{ code?: string }>(error)
+        ? error.response?.data?.code
+        : undefined;
+      if (axios.isAxiosError(error) && error.response?.status === 403 && code === "SCHOOL_SUSPENDED") {
+        router.replace("/school-admin/suspended");
+      }
       setAuthState({
         user: null,
         loading: false,
         authenticated: false,
       });
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      void checkAuth();
+    }, 0);
+    return () => clearTimeout(t);
+  }, [checkAuth]);
 
   const logout = async (): Promise<void> => {
     try {

@@ -1,6 +1,6 @@
 'use client';
 
-import { JSX, useState } from 'react';
+import { JSX, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,7 +40,37 @@ export default function SubscriptionPage(): React.JSX.Element {
     currentAdmin ? { schoolAdminId: currentAdmin._id } : 'skip'
   );
 
+  const school = useQuery(
+    api.schools.getByAdminId,
+    currentAdmin ? { adminId: currentAdmin._id } : 'skip'
+  );
+
+  const schoolCreationRequests = useQuery(
+    api.schoolCreationRequests.getByAdmin,
+    currentAdmin ? { schoolAdminId: currentAdmin._id } : 'skip'
+  );
+
   const createSubscriptionRequest = useMutation(api.subscriptionRequests.create);
+
+  const pendingPublicSchoolRequest =
+    schoolCreationRequests?.some(
+      (r) => r.status === 'pending' && r.schoolType === 'public',
+    ) ?? false;
+
+  useEffect(() => {
+    if (!currentAdmin || school === undefined || schoolCreationRequests === undefined) {
+      return;
+    }
+    if (school?.schoolType === 'public' || pendingPublicSchoolRequest) {
+      router.replace('/school-admin');
+    }
+  }, [
+    currentAdmin,
+    school,
+    schoolCreationRequests,
+    pendingPublicSchoolRequest,
+    router,
+  ]);
 
   const activeSubscription = subscriptionRequests?.find(
     (req) => req.status === 'approved'
@@ -92,7 +122,7 @@ export default function SubscriptionPage(): React.JSX.Element {
     }
   };
 
-  if (!currentAdmin) {
+  if (!currentAdmin || school === undefined || schoolCreationRequests === undefined) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="text-center space-y-4">
@@ -102,6 +132,14 @@ export default function SubscriptionPage(): React.JSX.Element {
             <p className="text-muted-foreground">Preparing your subscription options...</p>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (school?.schoolType === 'public' || pendingPublicSchoolRequest) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
       </div>
     );
   }

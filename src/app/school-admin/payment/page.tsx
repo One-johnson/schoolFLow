@@ -42,10 +42,12 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
+import { useSchoolAdminHidesSubscriptionUi } from "@/hooks/useSchoolAdminHidesSubscriptionUi";
 
 export default function PaymentPage(): React.JSX.Element {
   const router = useRouter();
   const { user } = useAuth();
+  const hidesSubscriptionUi = useSchoolAdminHidesSubscriptionUi(user?.userId);
   const [paymentMethod, setPaymentMethod] = useState<
     "mobile_money" | "bank_transfer"
   >("mobile_money");
@@ -182,12 +184,20 @@ export default function PaymentPage(): React.JSX.Element {
           <CardHeader>
             <CardTitle>No Pending Payment</CardTitle>
             <CardDescription>
-              You don&apos;t have any pending subscription payments
+              {hidesSubscriptionUi
+                ? "You have no fee payments pending for the platform."
+                : "You don't have any pending subscription payments"}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => router.push("/school-admin/subscription")}>
-              View Subscriptions
+            <Button
+              onClick={() =>
+                router.push(
+                  hidesSubscriptionUi ? "/school-admin" : "/school-admin/subscription",
+                )
+              }
+            >
+              {hidesSubscriptionUi ? "Back to dashboard" : "View subscriptions"}
             </Button>
           </CardContent>
         </Card>

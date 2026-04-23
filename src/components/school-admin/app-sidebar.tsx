@@ -60,6 +60,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/hooks/useAuth';
+import { useSchoolAdminHidesSubscriptionUi } from '@/hooks/useSchoolAdminHidesSubscriptionUi';
 import { toast } from 'sonner';
 
 const standaloneNavItems = [
@@ -148,8 +149,23 @@ function isPathInGroup(
 export function AppSidebar(): React.JSX.Element {
   const pathname = usePathname();
   const router = useRouter();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  const hidesSubscriptionUi = useSchoolAdminHidesSubscriptionUi(user?.userId);
   const [showLogoutDialog, setShowLogoutDialog] = useState<boolean>(false);
+
+  const visibleNavGroups = React.useMemo(() => {
+    if (!hidesSubscriptionUi) return navGroups;
+    return navGroups.map((group) =>
+      group.label === 'Finance'
+        ? {
+            ...group,
+            items: group.items.filter(
+              (item) => item.url !== '/school-admin/subscription',
+            ),
+          }
+        : group,
+    );
+  }, [hidesSubscriptionUi]);
 
   const handleLogout = async (): Promise<void> => {
     await logout();
@@ -189,7 +205,7 @@ export function AppSidebar(): React.JSX.Element {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
-                {navGroups.map((group) => {
+                {visibleNavGroups.map((group) => {
                   const GroupIcon = group.icon;
                   const hasActiveChild = isPathInGroup(pathname, group.items);
                   return (

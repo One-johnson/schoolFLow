@@ -11,6 +11,7 @@ export const create = mutation({
     phone: v.string(),
     address: v.string(),
     studentCount: v.number(),
+    schoolType: v.optional(v.union(v.literal('private'), v.literal('public'))),
   },
   handler: async (ctx, args) => {
     const id = await ctx.db.insert('schoolCreationRequests', {
@@ -21,6 +22,7 @@ export const create = mutation({
       phone: args.phone,
       address: args.address,
       studentCount: args.studentCount,
+      schoolType: args.schoolType,
       status: 'pending',
       createdAt: new Date().toISOString(),
     });
@@ -90,12 +92,15 @@ export const approve = mutation({
       approvedAt: new Date().toISOString(),
     });
 
-    // Get subscription request to get plan details
-    const subscriptionRequest = await ctx.db
-      .query('subscriptionRequests')
-      .withIndex('by_admin', (q) => q.eq('schoolAdminId', request.schoolAdminId))
-      .filter((q) => q.eq(q.field('status'), 'approved'))
-      .first();
+    const schoolType = (request.schoolType ?? 'private') as 'private' | 'public';
+    const subscriptionRequest =
+      schoolType === 'private'
+        ? await ctx.db
+            .query('subscriptionRequests')
+            .withIndex('by_admin', (q) => q.eq('schoolAdminId', request.schoolAdminId))
+            .filter((q) => q.eq(q.field('status'), 'approved'))
+            .first()
+        : null;
 
     // Use the school admin's existing school ID (set when super admin created them) — do not change it
     const admin = await ctx.db.get(request.schoolAdminId as Id<'schoolAdmins'>);
@@ -110,15 +115,19 @@ export const approve = mutation({
       phone: request.phone,
       address: request.address,
       status: 'active',
+      schoolType,
       adminId: request.schoolAdminId,
       adminName: request.schoolAdminEmail,
       studentCount: request.studentCount,
-      subscriptionPlan: subscriptionRequest?.planName || 'Trial',
-      monthlyFee: subscriptionRequest?.totalAmount || 0,
+      subscriptionPlan:
+        schoolType === 'public'
+          ? 'Public'
+          : subscriptionRequest?.planName || 'Trial',
+      monthlyFee: schoolType === 'public' ? 0 : subscriptionRequest?.totalAmount || 0,
       registrationDate: new Date().toISOString(),
       approvalDate: new Date().toISOString(),
-      paymentVerified: true,
-      paymentDate: new Date().toISOString(),
+      paymentVerified: schoolType === 'public' ? false : true,
+      paymentDate: schoolType === 'public' ? undefined : new Date().toISOString(),
     });
 
     // Mark that the admin has created their school (do not overwrite their schoolId)

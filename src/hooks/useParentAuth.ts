@@ -85,14 +85,20 @@ export function useParentAuth() {
           authenticated: false,
         });
       }
-    } catch {
+    } catch (error) {
+      const code = axios.isAxiosError<{ code?: string }>(error)
+        ? error.response?.data?.code
+        : undefined;
+      if (axios.isAxiosError(error) && error.response?.status === 403 && code === "SCHOOL_SUSPENDED") {
+        router.replace("/parent/suspended");
+      }
       setState({
         parent: null,
         loading: false,
         authenticated: false,
       });
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     const t = setTimeout(() => {
