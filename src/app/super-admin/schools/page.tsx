@@ -241,18 +241,6 @@ export default function SchoolsPage(): React.JSX.Element {
         });
         toast.success(`${ids.length} school(s) deleted successfully`);
         setSelectedSchools([]);
-      } else if (actionType === 'bulk-reactivate') {
-        const ids = selectedSchools.map((s) => s._id);
-        const n = await bulkReactivate({
-          ids,
-          reason: actionReason || undefined,
-        });
-        if (n === 0) {
-          toast.error('No suspended schools in the selection to reactivate');
-        } else {
-          toast.success(`${n} school(s) reactivated successfully`);
-        }
-        setSelectedSchools([]);
       }
       setShowActionDialog(false);
       setTargetSchool(null);
