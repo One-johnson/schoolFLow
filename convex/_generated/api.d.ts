@@ -57,6 +57,7 @@ import type * as subjects from "../subjects.js";
 import type * as subscriptionPlans from "../subscriptionPlans.js";
 import type * as subscriptionRequests from "../subscriptionRequests.js";
 import type * as subscriptions from "../subscriptions.js";
+import type * as superAdminDashboard from "../superAdminDashboard.js";
 import type * as superAdmins from "../superAdmins.js";
 import type * as support from "../support.js";
 import type * as supportTickets from "../supportTickets.js";
@@ -127,6 +128,7 @@ declare const fullApi: ApiFromModules<{
   subscriptionPlans: typeof subscriptionPlans;
   subscriptionRequests: typeof subscriptionRequests;
   subscriptions: typeof subscriptions;
+  superAdminDashboard: typeof superAdminDashboard;
   superAdmins: typeof superAdmins;
   support: typeof support;
   supportTickets: typeof supportTickets;

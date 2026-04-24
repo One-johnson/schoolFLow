@@ -12,6 +12,7 @@ import { AppSidebar } from '@/components/school-admin/app-sidebar';
 import { DesktopHeader } from '@/components/school-admin/desktop-header';
 import { MobileHeader } from '@/components/school-admin/mobile-header';
 import { SchoolAdminOnboardingSheet } from '@/components/school-admin/onboarding-sheet';
+import { isSchoolAdminBillingRenewalPath } from '@/lib/school-admin-billing-paths';
 
 export default function SchoolAdminLayout({
   children,
@@ -23,15 +24,6 @@ export default function SchoolAdminLayout({
   const { authenticated, loading, user } = useAuth();
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
-
-  // Pages a suspended/inactive admin is still allowed to visit
-  const ALLOWED_WHEN_SUSPENDED = [
-    '/school-admin/access-blocked',
-    '/school-admin/school-suspended',
-    '/school-admin/school-deleted',
-    '/school-admin/subscription',
-    '/school-admin/payment',
-  ];
 
   const schoolAdmin = useQuery(
     api.schoolAdmins.getById,
@@ -48,7 +40,11 @@ export default function SchoolAdminLayout({
     if (!loading && schoolAdmin !== undefined) {
       setCheckingStatus(false);
 
-      if (schoolAdmin && schoolAdmin.hasSeenOnboarding !== true) {
+      if (
+        schoolAdmin &&
+        schoolAdmin.hasSeenOnboarding !== true &&
+        schoolAdmin.status !== 'suspended'
+      ) {
         setShowOnboarding(true);
       }
     }
@@ -78,10 +74,20 @@ export default function SchoolAdminLayout({
 
   // Check school status and redirect if suspended or deleted
   useEffect(() => {
-    if (school && !checkingStatus) {
+    if (school && !checkingStatus && schoolAdmin) {
       if (school.status === 'suspended') {
-        router.push('/school-admin/school-suspended');
-        return;
+        // Trial/subscription lapse often suspends both admin and school — allow billing routes.
+        if (
+          schoolAdmin.status === 'suspended' &&
+          !isSchoolAdminBillingRenewalPath(pathname)
+        ) {
+          router.replace('/school-admin/subscription');
+          return;
+        }
+        if (schoolAdmin.status !== 'suspended') {
+          router.push('/school-admin/school-suspended');
+          return;
+        }
       }
       // Check if school is marked as deleted (also handles legacy "deleted" property)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -90,24 +96,23 @@ export default function SchoolAdminLayout({
         return;
       }
     }
-  }, [school, router, checkingStatus]);
+  }, [school, schoolAdmin, router, checkingStatus, pathname]);
 
-  // Block suspended or inactive admins from accessing protected pages.
-  // This is the primary guard — it catches trial expiry even when no school has been created yet.
+  // Suspended admins: billing-only renewal (subscription / payment). Inactive: access-blocked only.
   useEffect(() => {
     if (checkingStatus || !schoolAdmin) return;
 
-    if (
-      (schoolAdmin.status === 'suspended' || schoolAdmin.status === 'inactive') &&
-      !ALLOWED_WHEN_SUSPENDED.includes(pathname)
-    ) {
-      const reason =
-        schoolAdmin.status === 'suspended'
-          ? 'Your trial has expired and your account has been suspended. Please subscribe to continue.'
-          : 'Your account has been deactivated.';
-      router.push(
-        `/school-admin/access-blocked?status=${schoolAdmin.status}&reason=${encodeURIComponent(reason)}`
-      );
+    if (schoolAdmin.status === 'inactive') {
+      if (pathname !== '/school-admin/access-blocked') {
+        router.push(
+          `/school-admin/access-blocked?status=inactive&reason=${encodeURIComponent('Your account has been deactivated.')}`
+        );
+      }
+      return;
+    }
+
+    if (schoolAdmin.status === 'suspended' && !isSchoolAdminBillingRenewalPath(pathname)) {
+      router.replace('/school-admin/subscription');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schoolAdmin, checkingStatus, pathname, router]);
@@ -129,6 +134,8 @@ export default function SchoolAdminLayout({
     '/school-admin/access-blocked',
     '/school-admin/school-suspended',
     '/school-admin/school-deleted',
+    '/school-admin/subscription',
+    '/school-admin/payment',
   ].some((p) => pathname.startsWith(p));
   const showBackButton = !isDashboard && !hideBackButton;
 

@@ -129,17 +129,27 @@ export function DesktopHeader(): React.JSX.Element {
 
   const notifications = useQuery(
     api.notifications.getNotificationsBySchoolAdmin,
-    user?.userId ? { recipientId: user.userId } : 'skip'
+    user?.userId && !user?.billingOnly ? { recipientId: user.userId } : 'skip'
   );
   const unreadCount = notifications?.filter((n) => !n.read).length || 0;
 
   // Data for search
-  const students = useQuery(api.students.getStudentsBySchool, { schoolId: user?.schoolId || '' });
-  const teachers = useQuery(api.teachers.getTeachersBySchool, { schoolId: user?.schoolId || '' });
-  const departments = useQuery(api.departments.getDepartmentsBySchool, { schoolId: user?.schoolId || '' });
+  const students = useQuery(
+    api.students.getStudentsBySchool,
+    user?.schoolId && !user?.billingOnly ? { schoolId: user.schoolId } : 'skip'
+  );
+  const teachers = useQuery(
+    api.teachers.getTeachersBySchool,
+    user?.schoolId && !user?.billingOnly ? { schoolId: user.schoolId } : 'skip'
+  );
+  const departments = useQuery(
+    api.departments.getDepartmentsBySchool,
+    user?.schoolId && !user?.billingOnly ? { schoolId: user.schoolId } : 'skip'
+  );
 
   // ⌘K / Ctrl+K shortcut
   useEffect(() => {
+    if (user?.billingOnly) return;
     const handler = (e: KeyboardEvent): void => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
@@ -148,7 +158,7 @@ export function DesktopHeader(): React.JSX.Element {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, []);
+  }, [user?.billingOnly]);
 
   const departmentMap = useMemo(() => {
     if (!departments) return new Map<string, string>();
@@ -194,6 +204,69 @@ export function DesktopHeader(): React.JSX.Element {
     setShowSearch(false);
     setShowDetail(true);
   };
+
+  if (user?.billingOnly) {
+    return (
+      <>
+        <header className="hidden md:flex h-14 items-center gap-4 border-b bg-background px-6 sticky top-0 z-10">
+          <SidebarTrigger />
+          <p className="flex-1 min-w-0 text-sm text-muted-foreground">
+            Complete subscription renewal to restore full admin access.
+          </p>
+          <Button variant="outline" size="sm" onClick={() => router.push('/school-admin/subscription')}>
+            Subscription
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => router.push('/school-admin/payment')}>
+            Payment
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="gap-2 cursor-pointer hover:bg-accent">
+                <Avatar className="h-8 w-8 cursor-pointer">
+                  <AvatarFallback className="cursor-pointer">
+                    {user?.email ? getInitials(user.email) : 'SA'}
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+                {theme === 'dark' ? (
+                  <Sun className="mr-2 h-4 w-4" />
+                ) : (
+                  <Moon className="mr-2 h-4 w-4" />
+                )}
+                {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => setShowLogoutDialog(true)}
+                className="text-red-600 dark:text-red-400"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Logout
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </header>
+
+        <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirm Logout</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to logout? You will be redirected to the home page.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleLogout}>Logout</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </>
+    );
+  }
 
   return (
     <>

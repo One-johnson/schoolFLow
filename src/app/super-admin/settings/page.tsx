@@ -167,7 +167,7 @@ export default function SettingsPage(): React.JSX.Element {
 
   if (!platformSettingsData || !userSettingsData) {
     return (
-      <div className="space-y-6">
+      <div className="min-w-0 max-w-full space-y-6">
         <div>
           <Skeleton className="h-9 w-64 mb-2" />
           <Skeleton className="h-5 w-96" />
@@ -178,13 +178,13 @@ export default function SettingsPage(): React.JSX.Element {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">System Settings</h1>
         <p className="text-gray-500 dark:text-gray-400 mt-1">Configure platform settings and preferences</p>
       </div>
 
-      <Tabs defaultValue="platform" className="w-full">
+      <Tabs defaultValue="platform" className="min-w-0 max-w-full w-full">
         <TabsList>
           <TabsTrigger value="platform">Platform</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
@@ -192,7 +192,7 @@ export default function SettingsPage(): React.JSX.Element {
           <TabsTrigger value="billing">Billing</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="platform">
+        <TabsContent value="platform" className="min-w-0 max-w-full">
           <Card>
             <CardHeader>
               <CardTitle>Platform Configuration</CardTitle>
@@ -267,7 +267,7 @@ export default function SettingsPage(): React.JSX.Element {
           </Card>
         </TabsContent>
 
-        <TabsContent value="notifications">
+        <TabsContent value="notifications" className="min-w-0 max-w-full">
           <Card>
             <CardHeader>
               <CardTitle>Notification Preferences</CardTitle>
@@ -343,7 +343,7 @@ export default function SettingsPage(): React.JSX.Element {
           </Card>
         </TabsContent>
 
-        <TabsContent value="security">
+        <TabsContent value="security" className="min-w-0 max-w-full">
           <Card>
             <CardHeader>
               <CardTitle>Security Settings</CardTitle>
@@ -417,7 +417,7 @@ export default function SettingsPage(): React.JSX.Element {
           </Card>
         </TabsContent>
 
-        <TabsContent value="billing">
+        <TabsContent value="billing" className="min-w-0 max-w-full">
           <Card>
             <CardHeader>
               <CardTitle>Billing Configuration</CardTitle>

@@ -300,7 +300,7 @@ export default function ActivityPage(): React.JSX.Element {
 
   if (!loginHistory || !activeSessions) {
     return (
-      <div className="space-y-6">
+      <div className="min-w-0 max-w-full space-y-6">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-96 w-full" />
       </div>
@@ -308,7 +308,7 @@ export default function ActivityPage(): React.JSX.Element {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Activity & Sessions</h1>
         <p className="text-gray-500 dark:text-gray-400 mt-1">
@@ -316,7 +316,7 @@ export default function ActivityPage(): React.JSX.Element {
         </p>
       </div>
 
-      <Tabs defaultValue="activity" className="space-y-6">
+      <Tabs defaultValue="activity" className="min-w-0 max-w-full space-y-6">
         <TabsList className="grid w-full max-w-md grid-cols-2">
           <TabsTrigger value="activity" className="gap-2">
             <ActivityIcon className="h-4 w-4" />
@@ -328,9 +328,9 @@ export default function ActivityPage(): React.JSX.Element {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="activity" className="space-y-6">
+        <TabsContent value="activity" className="min-w-0 max-w-full space-y-6">
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-xs font-medium text-muted-foreground">
@@ -384,11 +384,11 @@ export default function ActivityPage(): React.JSX.Element {
           </div>
 
           {/* Device Breakdown */}
-          <Card>
+          <Card className="min-w-0 overflow-hidden">
             <CardHeader>
               <CardTitle>Device Breakdown</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="min-w-0">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="flex items-center gap-2">
                   <Monitor className="h-5 w-5 text-blue-600" />
@@ -423,11 +423,11 @@ export default function ActivityPage(): React.JSX.Element {
           </Card>
 
           {/* Login History Table */}
-          <Card>
+          <Card className="min-w-0 overflow-hidden">
             <CardHeader>
               <CardTitle>Recent Activity ({loginHistory.length})</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="min-w-0">
               <DataTable
                 storageKey="super-activity-login"
                 columns={loginColumns}
@@ -439,9 +439,9 @@ export default function ActivityPage(): React.JSX.Element {
           </Card>
         </TabsContent>
 
-        <TabsContent value="sessions" className="space-y-6">
+        <TabsContent value="sessions" className="min-w-0 max-w-full space-y-6">
           {/* Session Stats Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-xs font-medium text-muted-foreground">
@@ -489,7 +489,7 @@ export default function ActivityPage(): React.JSX.Element {
           </div>
 
           {/* Session Management Actions */}
-          <div className="flex items-center justify-between bg-gray-100 dark:bg-gray-800 p-4 rounded-lg">
+          <div className="flex min-w-0 max-w-full flex-wrap items-center justify-between gap-4 bg-gray-100 dark:bg-gray-800 p-4 rounded-lg">
             <div>
               <p className="text-sm font-medium">Session Management</p>
               <p className="text-xs text-muted-foreground mt-1">
@@ -507,11 +507,11 @@ export default function ActivityPage(): React.JSX.Element {
           </div>
 
           {/* Active Sessions Table */}
-          <Card>
+          <Card className="min-w-0 overflow-hidden">
             <CardHeader>
               <CardTitle>Active Sessions ({activeSessions.length})</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="min-w-0">
               <DataTable
                 storageKey="super-activity-sessions"
                 columns={sessionColumns}

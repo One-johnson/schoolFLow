@@ -397,8 +397,8 @@ export default function SubscriptionsPage(): React.JSX.Element {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
+    <div className="min-w-0 max-w-full space-y-6 p-6">
+      <div className="flex min-w-0 max-w-full items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Subscription Management</h1>
           <p className="text-gray-600">Manage subscription plans and track school subscriptions</p>
@@ -503,7 +503,7 @@ export default function SubscriptionsPage(): React.JSX.Element {
         </Dialog>
       </div>
 
-      <Tabs defaultValue="plans" className="space-y-6">
+      <Tabs defaultValue="plans" className="min-w-0 max-w-full space-y-6">
         <TabsList>
           <TabsTrigger value="plans" className="gap-2">
             <CreditCard className="h-4 w-4" />
@@ -517,7 +517,7 @@ export default function SubscriptionsPage(): React.JSX.Element {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="plans" className="space-y-4">
+        <TabsContent value="plans" className="min-w-0 max-w-full space-y-4">
           {subscriptionPlans.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
@@ -529,7 +529,7 @@ export default function SubscriptionsPage(): React.JSX.Element {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid min-w-0 gap-4 md:grid-cols-2 lg:grid-cols-3">
               {subscriptionPlans.map((plan) => (
                 <Card key={plan._id} className="hover:shadow-lg transition-shadow">
                   <CardHeader>
@@ -705,10 +705,10 @@ export default function SubscriptionsPage(): React.JSX.Element {
           )}
         </TabsContent>
 
-        <TabsContent value="subscriptions" className="space-y-4">
-          <Card>
+        <TabsContent value="subscriptions" className="min-w-0 max-w-full space-y-4">
+          <Card className="min-w-0 overflow-hidden">
             <CardHeader>
-              <div className="flex items-center justify-between flex-wrap gap-4">
+              <div className="flex min-w-0 items-center justify-between flex-wrap gap-4">
                 <div>
                   <CardTitle>School Subscriptions</CardTitle>
                   <CardDescription>Track all school subscription requests and trial periods</CardDescription>
@@ -742,7 +742,7 @@ export default function SubscriptionsPage(): React.JSX.Element {
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="min-w-0">
               {subscriptionRequests.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12">
                   <Users className="h-12 w-12 text-gray-400" />

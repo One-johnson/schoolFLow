@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -16,6 +16,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { toast } from "sonner";
+import { filterAuditLogsToSuperAdminActivity } from "@/lib/super-admin-audit";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import axios from "axios";
 
@@ -53,7 +54,13 @@ export default function ProfilePage(): React.JSX.Element {
   });
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
-  const activityLogs = useQuery(api.auditLogs.list);
+  const allActivityLogs = useQuery(api.auditLogs.list);
+  const superAdminsForAudit = useQuery(api.superAdmins.list);
+  const activityLogs = useMemo(() => {
+    if (!allActivityLogs || !superAdminsForAudit) return [];
+    const ids = superAdminsForAudit.map((a) => a._id as string);
+    return filterAuditLogsToSuperAdminActivity(allActivityLogs, ids).slice(0, 30);
+  }, [allActivityLogs, superAdminsForAudit]);
   const updateProfile = useMutation(api.auth.updateProfile);
 
   useEffect(() => {
@@ -111,7 +118,7 @@ export default function ProfilePage(): React.JSX.Element {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
           Profile Management
@@ -121,14 +128,14 @@ export default function ProfilePage(): React.JSX.Element {
         </p>
       </div>
 
-      <Tabs defaultValue="profile" className="w-full">
+      <Tabs defaultValue="profile" className="min-w-0 max-w-full w-full">
         <TabsList>
           <TabsTrigger value="profile">Profile Information</TabsTrigger>
           <TabsTrigger value="password">Change Password</TabsTrigger>
           <TabsTrigger value="activity">Activity Log</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="profile">
+        <TabsContent value="profile" className="min-w-0 max-w-full">
           <Card>
             <CardHeader>
               <CardTitle>Profile Information</CardTitle>
@@ -173,7 +180,7 @@ export default function ProfilePage(): React.JSX.Element {
           </Card>
         </TabsContent>
 
-        <TabsContent value="password">
+        <TabsContent value="password" className="min-w-0 max-w-full">
           <Card>
             <CardHeader>
               <CardTitle>Change Password</CardTitle>
@@ -297,23 +304,23 @@ export default function ProfilePage(): React.JSX.Element {
           </Card>
         </TabsContent>
 
-        <TabsContent value="activity">
-          <Card>
+        <TabsContent value="activity" className="min-w-0 max-w-full">
+          <Card className="min-w-0 overflow-hidden">
             <CardHeader>
               <CardTitle>Activity Log</CardTitle>
               <CardDescription>
-                Your recent activity on the platform
+                Recent actions by super admins (platform administration only)
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="min-w-0">
               <div className="space-y-3">
                 {activityLogs?.slice(0, 10).map((log) => (
                   <div
                     key={log._id}
                     className="border-b pb-3 last:border-0 dark:border-gray-800"
                   >
-                    <div className="flex items-start justify-between">
-                      <div>
+                    <div className="flex min-w-0 items-start justify-between gap-2">
+                      <div className="min-w-0">
                         <p className="font-medium text-sm">{log.action}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                           {log.details}
@@ -322,7 +329,7 @@ export default function ProfilePage(): React.JSX.Element {
                           {new Date(log.timestamp).toLocaleString()}
                         </p>
                       </div>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                      <span className="shrink-0 text-xs text-gray-500 dark:text-gray-400">
                         {log.entity}
                       </span>
                     </div>

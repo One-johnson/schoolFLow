@@ -150,6 +150,7 @@ export function AppSidebar(): React.JSX.Element {
   const pathname = usePathname();
   const router = useRouter();
   const { logout, user } = useAuth();
+  const billingOnly = user?.billingOnly === true;
   const hidesSubscriptionUi = useSchoolAdminHidesSubscriptionUi(user?.userId);
   const [showLogoutDialog, setShowLogoutDialog] = useState<boolean>(false);
 
@@ -172,6 +173,79 @@ export function AppSidebar(): React.JSX.Element {
     toast.success('Logged out successfully');
     router.push('/');
   };
+
+  if (billingOnly) {
+    return (
+      <>
+        <Sidebar>
+          <SidebarHeader>
+            <Link
+              href="/"
+              className="flex items-center gap-2 px-4 py-3 hover:opacity-80 transition-opacity"
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+                <GraduationCap className="h-5 w-5 text-primary-foreground" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm font-semibold">SchoolFlow</span>
+                <span className="text-xs text-muted-foreground">Renew subscription</span>
+              </div>
+            </Link>
+          </SidebarHeader>
+          <SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupLabel>Billing</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={pathname === '/school-admin/subscription'}>
+                      <Link href="/school-admin/subscription">
+                        <CreditCard className="h-4 w-4" />
+                        <span>Subscription</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={pathname === '/school-admin/payment'}>
+                      <Link href="/school-admin/payment">
+                        <DollarSign className="h-4 w-4" />
+                        <span>Payment</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </SidebarContent>
+          <SidebarFooter>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton onClick={() => setShowLogoutDialog(true)}>
+                  <LogOut className="h-4 w-4" />
+                  <span>Logout</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarFooter>
+        </Sidebar>
+
+        <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirm Logout</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to logout? You will be redirected to the home page.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleLogout}>Logout</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </>
+    );
+  }
 
   return (
     <>

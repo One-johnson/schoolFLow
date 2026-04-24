@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ConvexHttpClient } from 'convex/browser';
 import { api } from '../../../../../convex/_generated/api';
+import type { Id } from '../../../../../convex/_generated/dataModel';
 import { SessionManager } from '../../../../lib/session';
 
 function getConvexClient(): ConvexHttpClient {
@@ -63,22 +64,50 @@ export async function GET(): Promise<NextResponse> {
       }
     }
 
-    if (data.role === "school_admin" && "schoolId" in data && data.schoolId) {
-      const school = await convex.query(api.schools.getBySchoolId, {
-        schoolId: data.schoolId,
+    let billingOnly = false;
+
+    if (data.role === 'school_admin' && 'schoolId' in data && data.schoolId) {
+      const schoolAdmin = await convex.query(api.schoolAdmins.getById, {
+        id: data.userId as Id<'schoolAdmins'>,
       });
-      if (school?.status === "suspended") {
+      if (!schoolAdmin) {
+        await SessionManager.clearSession();
+        return NextResponse.json(
+          { authenticated: false, session: null },
+          { status: 401 },
+        );
+      }
+      if (schoolAdmin.status === 'inactive') {
         await SessionManager.clearSession();
         return NextResponse.json(
           {
             authenticated: false,
             session: null,
-            code: "SCHOOL_SUSPENDED",
-            message:
-              "Your school is currently suspended. The admin portal is locked until the school is reactivated.",
+            code: 'ACCOUNT_INACTIVE',
+            message: 'Your account has been deactivated. Please contact support.',
           },
           { status: 403 },
         );
+      }
+      if (schoolAdmin.status === 'suspended') {
+        billingOnly = true;
+      } else {
+        const school = await convex.query(api.schools.getBySchoolId, {
+          schoolId: data.schoolId,
+        });
+        if (school?.status === 'suspended') {
+          await SessionManager.clearSession();
+          return NextResponse.json(
+            {
+              authenticated: false,
+              session: null,
+              code: 'SCHOOL_SUSPENDED',
+              message:
+                'Your school is currently suspended. The admin portal is locked until the school is reactivated.',
+            },
+            { status: 403 },
+          );
+        }
       }
     }
 
@@ -90,6 +119,7 @@ export async function GET(): Promise<NextResponse> {
         role: data.role,
         schoolId: 'schoolId' in data ? data.schoolId : undefined,
         adminRole: 'adminRole' in data ? data.adminRole : undefined,
+        ...(billingOnly ? { billingOnly: true as const } : {}),
       },
     });
   } catch (error) {

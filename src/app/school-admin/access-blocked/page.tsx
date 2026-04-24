@@ -101,6 +101,12 @@ export default function AccessBlockedPage({
           </div>
 
           <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+            {status === "suspended" && (
+              <p className="rounded-md border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/40 p-3 text-blue-900 dark:text-blue-100">
+                <strong>To renew:</strong> use <strong>Sign in</strong> on the home page. You will be taken to
+                Subscription so you can choose a plan and complete payment.
+              </p>
+            )}
             <p>
               If you believe this is a mistake, please contact the system
               administrator.

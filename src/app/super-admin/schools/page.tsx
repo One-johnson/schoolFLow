@@ -8,7 +8,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { DataTable, createSortableHeader, createSelectColumn } from '../../../components/ui/data-table';
 import type { SchoolStatus } from '@/types';
 import { toast } from 'sonner';
-import { CheckCircle,  Ban, Loader2, Trash2 } from 'lucide-react';
+import { CheckCircle, Ban, Loader2, Trash2, FileDown, MoreVertical } from 'lucide-react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import type { Id } from '../../../../convex/_generated/dataModel';
@@ -20,7 +20,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { FileDown } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -247,41 +246,55 @@ export default function SchoolsPage(): React.JSX.Element {
       {
         id: 'actions',
         header: 'Actions',
-        cell: ({ row }) => (
-          <div className="flex gap-2">
-            {row.original.status === 'pending_approval' && row.original.paymentVerified && (
-              <Button size="sm" onClick={() => handleApprove(row.original._id)} className="gap-1">
-                <CheckCircle className="h-4 w-4" />
-                Approve
-              </Button>
-            )}
-            {row.original.status === 'active' && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => openSuspendDialog(row.original)}
-                className="gap-1"
-              >
-                <Ban className="h-4 w-4" />
-                Suspend
-              </Button>
-            )}
-            {row.original.status !== 'pending_approval' && (
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => openDeleteDialog(row.original)}
-                className="gap-1"
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete
-              </Button>
-            )}
-          </div>
-        ),
+        cell: ({ row }) => {
+          const school = row.original;
+          const showApprove = school.status === 'pending_approval' && school.paymentVerified;
+          const showSuspend = school.status === 'active';
+          const showDelete = school.status !== 'pending_approval';
+          const hasActions = showApprove || showSuspend || showDelete;
+
+          return (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  disabled={!hasActions}
+                  aria-label="School actions"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                {showApprove && (
+                  <DropdownMenuItem onClick={() => handleApprove(school._id)}>
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Approve
+                  </DropdownMenuItem>
+                )}
+                {showSuspend && (
+                  <DropdownMenuItem onClick={() => openSuspendDialog(school)}>
+                    <Ban className="mr-2 h-4 w-4" />
+                    Suspend
+                  </DropdownMenuItem>
+                )}
+                {showDelete && (
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => openDeleteDialog(school)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          );
+        },
       },
     ],
-    [handleApprove]
+    [handleApprove, openSuspendDialog, openDeleteDialog]
   );
 
   const filteredData = useMemo(() => {
@@ -370,7 +383,7 @@ This action cannot be undone. All data will be lost.`,
 
   if (!schools) {
     return (
-      <div className="space-y-6">
+      <div className="min-w-0 max-w-full space-y-6">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-96 w-full" />
       </div>
@@ -380,8 +393,8 @@ This action cannot be undone. All data will be lost.`,
   const dialogContent = getDialogContent();
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
+    <div className="min-w-0 max-w-full space-y-6">
+      <div className="flex min-w-0 max-w-full items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Schools</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">Manage all registered schools</p>
@@ -401,7 +414,7 @@ This action cannot be undone. All data will be lost.`,
         </DropdownMenu>
       </div>
 
-      <div className="flex gap-4">
+      <div className="flex min-w-0 max-w-full gap-4">
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-50">
             <SelectValue placeholder="Filter by status" />
@@ -444,11 +457,11 @@ This action cannot be undone. All data will be lost.`,
         </div>
       )}
 
-      <Card>
+      <Card className="min-w-0 overflow-hidden">
         <CardHeader>
           <CardTitle>All Schools ({filteredData.length})</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="min-w-0">
           <DataTable
             storageKey="super-schools"
             columns={columns}

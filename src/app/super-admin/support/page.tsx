@@ -204,8 +204,8 @@ export default function SupportPage(): React.JSX.Element {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
+    <div className="min-w-0 max-w-full space-y-6">
+      <div className="flex min-w-0 max-w-full items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Support & Help</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">Manage support requests and help resources</p>
@@ -225,7 +225,7 @@ export default function SupportPage(): React.JSX.Element {
         </DropdownMenu>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
@@ -283,17 +283,17 @@ export default function SupportPage(): React.JSX.Element {
         </Card>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="min-w-0 max-w-full w-full">
         <TabsList>
           <TabsTrigger value="tickets">Support Tickets</TabsTrigger>
           <TabsTrigger value="faq">FAQ</TabsTrigger>
           <TabsTrigger value="docs">Documentation</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="tickets">
-          <Card>
+        <TabsContent value="tickets" className="min-w-0 max-w-full">
+          <Card className="min-w-0 overflow-hidden">
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
                 <CardTitle>Support Requests ({filteredTickets.length})</CardTitle>
                 <div className="flex gap-2">
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -325,7 +325,7 @@ export default function SupportPage(): React.JSX.Element {
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="min-w-0">
               <DataTable
                 storageKey="super-support"
                 columns={columns}
@@ -339,7 +339,7 @@ export default function SupportPage(): React.JSX.Element {
           </Card>
         </TabsContent>
 
-        <TabsContent value="faq">
+        <TabsContent value="faq" className="min-w-0 max-w-full">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -360,7 +360,7 @@ export default function SupportPage(): React.JSX.Element {
           </Card>
         </TabsContent>
 
-        <TabsContent value="docs">
+        <TabsContent value="docs" className="min-w-0 max-w-full">
           <Card>
             <CardHeader>
               <CardTitle>Documentation</CardTitle>

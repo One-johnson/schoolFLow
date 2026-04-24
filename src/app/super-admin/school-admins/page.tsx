@@ -611,7 +611,7 @@ export default function SchoolAdminsPage(): React.JSX.Element {
 
   if (!admins) {
     return (
-      <div className="space-y-6">
+      <div className="min-w-0 max-w-full space-y-6">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-96 w-full" />
       </div>
@@ -619,8 +619,8 @@ export default function SchoolAdminsPage(): React.JSX.Element {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
+    <div className="min-w-0 max-w-full space-y-6">
+      <div className="flex min-w-0 max-w-full items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">School Admins</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">Manage school administrator accounts</p>
@@ -827,7 +827,7 @@ export default function SchoolAdminsPage(): React.JSX.Element {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card className="border-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground">Total Admins</CardTitle>
@@ -875,9 +875,9 @@ export default function SchoolAdminsPage(): React.JSX.Element {
         </Card>
       </div>
 
-      <Card>
+      <Card className="min-w-0 overflow-hidden">
         <CardHeader>
-          <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex min-w-0 items-center justify-between flex-wrap gap-4">
             <CardTitle>All School Admins ({filteredAdmins.length})</CardTitle>
             <div className="flex items-center gap-2">
               <Label htmlFor="status-filter" className="text-sm font-medium">Filter by Status:</Label>
@@ -918,7 +918,7 @@ export default function SchoolAdminsPage(): React.JSX.Element {
             )}
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="min-w-0">
           <DataTable
             storageKey="super-school-admins"
             columns={columns}

@@ -25,9 +25,9 @@ export default function ReportsPage(): React.JSX.Element {
 
   if (!stats || !reportData) {
     return (
-      <div className="space-y-6">
+      <div className="min-w-0 max-w-full space-y-6">
         <Skeleton className="h-8 w-48" />
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid min-w-0 grid-cols-1 gap-6 md:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-32 w-full" />
           ))}
@@ -38,7 +38,7 @@ export default function ReportsPage(): React.JSX.Element {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Reports & Analytics</h1>
         <p className="text-gray-500 dark:text-gray-400 mt-1">
@@ -46,7 +46,7 @@ export default function ReportsPage(): React.JSX.Element {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid min-w-0 grid-cols-1 gap-6 md:grid-cols-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
@@ -123,6 +123,7 @@ export default function ReportsPage(): React.JSX.Element {
                 <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">No growth data yet</p>
               </div>
             ) : (
+              <div className="min-w-0 w-full">
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={reportData}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -139,15 +140,16 @@ export default function ReportsPage(): React.JSX.Element {
                   />
                 </LineChart>
               </ResponsiveContainer>
+              </div>
             )}
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="min-w-0 overflow-hidden">
           <CardHeader>
             <CardTitle>Revenue Growth</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="min-w-0">
             {reportData.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-[300px] gap-3">
                 <div className="relative">
@@ -190,6 +192,7 @@ export default function ReportsPage(): React.JSX.Element {
               <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">No enrollment data yet</p>
             </div>
           ) : (
+            <div className="min-w-0 w-full">
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={reportData}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -206,6 +209,7 @@ export default function ReportsPage(): React.JSX.Element {
                 />
               </LineChart>
             </ResponsiveContainer>
+            </div>
           )}
         </CardContent>
       </Card>

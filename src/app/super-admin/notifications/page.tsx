@@ -155,8 +155,8 @@ export default function NotificationsPage(): React.JSX.Element {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="min-w-0 max-w-full space-y-6">
+      <div className="flex min-w-0 max-w-full flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Notifications</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">
@@ -208,9 +208,9 @@ export default function NotificationsPage(): React.JSX.Element {
         </div>
       )}
 
-      <Card>
+      <Card className="min-w-0 overflow-hidden">
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-4">
             <CardTitle className="flex items-center gap-2">
               <Bell className="h-5 w-5" />
               All Notifications
@@ -231,7 +231,7 @@ export default function NotificationsPage(): React.JSX.Element {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="min-w-0">
           {notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="relative mb-6">

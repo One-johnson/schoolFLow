@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function SubscriptionPage(): React.JSX.Element {
@@ -148,6 +149,17 @@ export default function SubscriptionPage(): React.JSX.Element {
     <div className="min-h-screen bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8">
         {/* Header Section */}
+        {currentAdmin?.status === 'suspended' && (
+          <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-900 text-left">
+            <Shield className="h-4 w-4 text-amber-700 dark:text-amber-400" />
+            <AlertTitle className="text-amber-900 dark:text-amber-100">Account suspended — renew to restore access</AlertTitle>
+            <AlertDescription className="text-amber-800 dark:text-amber-200/90">
+              Select a plan below. After choosing a paid plan, use the Payment page to submit proof if required. When a
+              super admin verifies your payment, your account and school will be reactivated automatically.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <div className="text-center space-y-4 pt-4">
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-2">
             <Sparkles className="h-4 w-4" />

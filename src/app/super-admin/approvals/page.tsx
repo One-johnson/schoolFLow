@@ -214,7 +214,7 @@ export default function ApprovalsPage(): React.JSX.Element {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="min-w-0 max-w-full space-y-6 p-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Approvals</h1>
         <p className="text-muted-foreground mt-2">
@@ -222,7 +222,7 @@ export default function ApprovalsPage(): React.JSX.Element {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid min-w-0 gap-4 sm:grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pending payments</CardTitle>
@@ -245,7 +245,7 @@ export default function ApprovalsPage(): React.JSX.Element {
         </Card>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="min-w-0 max-w-full space-y-4">
         <TabsList>
           <TabsTrigger value="payments">
             <FileText className="mr-2 h-4 w-4" />
@@ -267,7 +267,7 @@ export default function ApprovalsPage(): React.JSX.Element {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="payments" className="space-y-4">
+        <TabsContent value="payments" className="min-w-0 max-w-full space-y-4">
           {!pendingPayments ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -280,9 +280,9 @@ export default function ApprovalsPage(): React.JSX.Element {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4">
+            <div className="grid min-w-0 gap-4">
               {pendingPayments.map((payment: PaymentProof) => (
-                <Card key={payment._id}>
+                <Card key={payment._id} className="min-w-0 overflow-hidden">
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div>
@@ -353,7 +353,7 @@ export default function ApprovalsPage(): React.JSX.Element {
           )}
         </TabsContent>
 
-        <TabsContent value="schools" className="space-y-4">
+        <TabsContent value="schools" className="min-w-0 max-w-full space-y-4">
           {!pendingSchools ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -366,9 +366,9 @@ export default function ApprovalsPage(): React.JSX.Element {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4">
+            <div className="grid min-w-0 gap-4">
               {pendingSchools.map((school: SchoolCreationRequest) => (
-                <Card key={school._id}>
+                <Card key={school._id} className="min-w-0 overflow-hidden">
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div>

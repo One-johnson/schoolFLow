@@ -289,6 +289,25 @@ export const bulkDelete = mutation({
   },
 });
 
+type SchoolKind = 'private' | 'public';
+
+function effectiveSchoolType(school: { schoolType?: SchoolKind }): SchoolKind {
+  return school.schoolType ?? 'private';
+}
+
+function emptyBySchoolTypeStats() {
+  return {
+    totalSchools: 0,
+    activeSchools: 0,
+    pendingApproval: 0,
+    totalStudents: 0,
+    monthlyRevenue: 0,
+    totalRevenue: 0,
+    pendingPayments: 0,
+    activeAdmins: 0,
+  };
+}
+
 export const getDashboardStats = query({
   args: {},
   handler: async (ctx) => {
@@ -296,11 +315,40 @@ export const getDashboardStats = query({
     const admins = await ctx.db.query('schoolAdmins').collect();
     const subscriptions = await ctx.db.query('subscriptions').collect();
 
+    const schoolTypeBySchoolId = new Map(
+      schools.map((s) => [s.schoolId, effectiveSchoolType(s)] as const)
+    );
+
     const activeSchoolsList = schools.filter((s) => s.status === 'active');
     const totalStudents = activeSchoolsList.reduce((sum, s) => sum + s.studentCount, 0);
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1;
+
+    const bySchoolType = {
+      private: emptyBySchoolTypeStats(),
+      public: emptyBySchoolTypeStats(),
+    } satisfies Record<SchoolKind, ReturnType<typeof emptyBySchoolTypeStats>>;
+
+    for (const s of schools) {
+      const t = effectiveSchoolType(s);
+      bySchoolType[t].totalSchools++;
+      if (s.status === 'active') {
+        bySchoolType[t].activeSchools++;
+        bySchoolType[t].totalStudents += s.studentCount;
+      }
+      if (s.status === 'pending_approval') {
+        bySchoolType[t].pendingApproval++;
+      }
+    }
+
+    for (const a of admins) {
+      if (a.status !== 'active') continue;
+      const school = schools.find((sch) => sch.schoolId === a.schoolId);
+      const t = school ? effectiveSchoolType(school) : 'private';
+      bySchoolType[t].activeAdmins++;
+    }
+
     const monthlyRevenue = subscriptions
       .filter((s) => s.status === 'verified')
       .reduce((sum, s) => {
@@ -311,6 +359,23 @@ export const getDashboardStats = query({
         return sum;
       }, 0);
 
+    for (const sub of subscriptions) {
+      const t = schoolTypeBySchoolId.get(sub.schoolId) ?? 'private';
+      if (sub.status === 'verified') {
+        bySchoolType[t].totalRevenue += sub.totalAmount ?? 0;
+        const dateStr = sub.verifiedDate ?? sub.paymentDate;
+        if (dateStr) {
+          const d = new Date(dateStr);
+          if (d.getFullYear() === currentYear && d.getMonth() + 1 === currentMonth) {
+            bySchoolType[t].monthlyRevenue += sub.totalAmount ?? 0;
+          }
+        }
+      }
+      if (sub.status === 'pending') {
+        bySchoolType[t].pendingPayments++;
+      }
+    }
+
     return {
       totalSchools: schools.length,
       activeSchools: activeSchoolsList.length,
@@ -320,6 +385,7 @@ export const getDashboardStats = query({
       monthlyRevenue,
       activeAdmins: admins.filter((a) => a.status === 'active').length,
       pendingPayments: subscriptions.filter((s) => s.status === 'pending').length,
+      bySchoolType,
     };
   },
 });
@@ -349,18 +415,33 @@ export const getDashboardChartData = query({
     const subscriptions = await ctx.db.query('subscriptions').collect();
     const months = last12MonthKeys();
 
+    const schoolTypeBySchoolId = new Map(
+      schools.map((s) => [s.schoolId, effectiveSchoolType(s)] as const)
+    );
+
     const revenueByMonth = months.map((monthKey) => {
       const [year, month] = monthKey.split('-').map(Number);
-      const revenue = subscriptions
-        .filter((s) => s.status === 'verified')
-        .reduce((sum, s) => {
-          const dateStr = s.verifiedDate ?? s.paymentDate;
-          if (!dateStr) return sum;
-          const d = new Date(dateStr);
-          if (d.getFullYear() === year && d.getMonth() + 1 === month) return sum + (s.totalAmount ?? 0);
-          return sum;
-        }, 0);
-      return { month: monthLabel(monthKey), monthKey, revenue };
+      let revenuePrivate = 0;
+      let revenuePublic = 0;
+      for (const s of subscriptions) {
+        if (s.status !== 'verified') continue;
+        const dateStr = s.verifiedDate ?? s.paymentDate;
+        if (!dateStr) continue;
+        const d = new Date(dateStr);
+        if (d.getFullYear() !== year || d.getMonth() + 1 !== month) continue;
+        const amt = s.totalAmount ?? 0;
+        const t = schoolTypeBySchoolId.get(s.schoolId) ?? 'private';
+        if (t === 'public') revenuePublic += amt;
+        else revenuePrivate += amt;
+      }
+      const revenue = revenuePrivate + revenuePublic;
+      return {
+        month: monthLabel(monthKey),
+        monthKey,
+        revenue,
+        revenuePrivate,
+        revenuePublic,
+      };
     });
 
     const schoolGrowthByMonth = months.map((monthKey) => {
@@ -369,13 +450,33 @@ export const getDashboardChartData = query({
         const d = new Date(s.registrationDate);
         return d.getFullYear() === year && d.getMonth() + 1 === month;
       });
-      const active = newSchools.filter((s) => s.status === 'active').length;
-      const pending = newSchools.filter((s) => s.status === 'pending_approval' || s.status === 'pending_payment').length;
+      const activePrivate = newSchools.filter(
+        (s) => s.status === 'active' && effectiveSchoolType(s) === 'private'
+      ).length;
+      const activePublic = newSchools.filter(
+        (s) => s.status === 'active' && effectiveSchoolType(s) === 'public'
+      ).length;
+      const pendingPrivate = newSchools.filter(
+        (s) =>
+          (s.status === 'pending_approval' || s.status === 'pending_payment') &&
+          effectiveSchoolType(s) === 'private'
+      ).length;
+      const pendingPublic = newSchools.filter(
+        (s) =>
+          (s.status === 'pending_approval' || s.status === 'pending_payment') &&
+          effectiveSchoolType(s) === 'public'
+      ).length;
+      const active = activePrivate + activePublic;
+      const pending = pendingPrivate + pendingPublic;
       return {
         month: monthLabel(monthKey),
         monthKey,
         active,
         pending,
+        activePrivate,
+        activePublic,
+        pendingPrivate,
+        pendingPublic,
         newSchools: newSchools.length,
       };
     });
@@ -386,10 +487,24 @@ export const getDashboardChartData = query({
     const enrollmentByMonth = months.map((monthKey) => {
       const [year, month] = monthKey.split('-').map(Number);
       const endOfMonth = new Date(year, month, 0);
-      const enrolled = schools
-        .filter((s) => s.status === 'active' && new Date(s.registrationDate) <= endOfMonth)
+      const activeAtMonth = schools.filter(
+        (s) => s.status === 'active' && new Date(s.registrationDate) <= endOfMonth
+      );
+      const enrolledPrivate = activeAtMonth
+        .filter((s) => effectiveSchoolType(s) === 'private')
         .reduce((sum, s) => sum + s.studentCount, 0);
-      return { month: monthLabel(monthKey), monthKey, enrolled, target: enrollmentTarget };
+      const enrolledPublic = activeAtMonth
+        .filter((s) => effectiveSchoolType(s) === 'public')
+        .reduce((sum, s) => sum + s.studentCount, 0);
+      const enrolled = enrolledPrivate + enrolledPublic;
+      return {
+        month: monthLabel(monthKey),
+        monthKey,
+        enrolled,
+        enrolledPrivate,
+        enrolledPublic,
+        target: enrollmentTarget,
+      };
     });
 
     return {

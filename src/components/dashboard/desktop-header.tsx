@@ -97,13 +97,13 @@ export function DesktopHeader(): React.JSX.Element {
 
   return (
     <>
-      <header className="hidden md:flex items-center justify-between px-6 py-4 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-50">
-        <div className="flex items-center gap-4">
+      <header className="hidden min-w-0 max-w-full shrink-0 md:flex md:items-center md:justify-between md:gap-4 px-6 py-4 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 z-50">
+        <div className="flex min-w-0 items-center gap-4">
           <SidebarTrigger />
           
           <Button
             variant="outline"
-            className="gap-2 text-gray-900 dark:text-white justify-start w-64"
+            className="min-w-0 w-64 max-w-full shrink gap-2 justify-start text-gray-900 dark:text-white"
             onClick={() => setShowSearch(true)}
           >
             <Search className="h-4 w-4" />
@@ -114,11 +114,11 @@ export function DesktopHeader(): React.JSX.Element {
           </Button>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex min-w-0 shrink-0 items-center gap-4">
           <Button 
             variant="ghost" 
             size="icon" 
-            className="relative cursor-pointer" 
+            className="relative shrink-0 cursor-pointer" 
             onClick={() => router.push('/super-admin/notifications')}
           >
             <Bell className="h-5 w-5 text-gray-900 dark:text-white" />
@@ -131,12 +131,12 @@ export function DesktopHeader(): React.JSX.Element {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="gap-2">
-                <Avatar className="h-8 w-8">
+              <Button variant="ghost" className="min-w-0 max-w-[min(20rem,40vw)] gap-2">
+                <Avatar className="h-8 w-8 shrink-0">
                   <AvatarImage src="" alt={user?.email || 'User'} />
                   <AvatarFallback>{user?.email ? getInitials(user.email) : 'SA'}</AvatarFallback>
                 </Avatar>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">{user?.email}</span>
+                <span className="truncate text-sm font-medium text-gray-900 dark:text-white">{user?.email}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
