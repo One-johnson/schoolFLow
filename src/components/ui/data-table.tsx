@@ -177,8 +177,8 @@ export function DataTable<TData, TValue>({
   }, [rowSelection, onSelectionChange, table]);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2 flex-wrap">
+    <div className="min-w-0 max-w-full space-y-4">
+      <div className="flex min-w-0 max-w-full items-center gap-2 flex-wrap">
         {searchKey && (
           <Input
             placeholder={searchPlaceholder}
@@ -258,7 +258,7 @@ export function DataTable<TData, TValue>({
           </Button>
         )}
       </div>
-      <div className="rounded-md border dark:border-gray-800 overflow-x-auto">
+      <div className="min-w-0 max-w-full rounded-md border dark:border-gray-800 [&_[data-slot=table-container]]:rounded-md">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -306,8 +306,8 @@ export function DataTable<TData, TValue>({
           </TableBody>
         </Table>
       </div>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between py-4">
-        <div className="flex items-center gap-4">
+      <div className="flex min-w-0 max-w-full flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 flex-wrap items-center gap-4">
           <span className="text-sm text-muted-foreground">
             {selectedCount} of {table.getFilteredRowModel().rows.length} row(s) selected.
           </span>
@@ -332,7 +332,7 @@ export function DataTable<TData, TValue>({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex min-w-0 shrink-0 items-center space-x-2">
           <Button
             variant="outline"
             size="sm"

@@ -126,8 +126,8 @@ export default function AuditLogsPage(): React.JSX.Element {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
+    <div className="min-w-0 max-w-full space-y-6">
+      <div className="flex min-w-0 max-w-full items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Audit Logs</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">
@@ -149,7 +149,7 @@ export default function AuditLogsPage(): React.JSX.Element {
         </DropdownMenu>
       </div>
 
-      <div className="flex gap-4">
+      <div className="flex min-w-0 max-w-full gap-4">
         <Select value={entityFilter} onValueChange={setEntityFilter} disabled={!logs}>
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Filter by entity" />
@@ -164,14 +164,14 @@ export default function AuditLogsPage(): React.JSX.Element {
         </Select>
       </div>
 
-      <Card>
+      <Card className="min-w-0 overflow-hidden">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
             Activity Logs ({logs ? filteredData.length : '...'})
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="min-w-0">
           {!logs ? (
             <div className="space-y-3">
               <Skeleton className="h-10 w-full" />

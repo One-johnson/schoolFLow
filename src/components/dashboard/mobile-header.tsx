@@ -64,7 +64,7 @@ export function MobileHeader(): React.JSX.Element {
   };
 
   return (
-    <header className="flex md:hidden items-center justify-between px-4 py-3 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-50">
+    <header className="flex shrink-0 md:hidden items-center justify-between px-4 py-3 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 z-50">
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
         <SheetTrigger asChild>
           <Button variant="ghost" size="icon">

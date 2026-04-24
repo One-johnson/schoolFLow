@@ -176,25 +176,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           );
         }
 
-        if (resolvedAdmin.status === 'suspended') {
-          return NextResponse.json(
-            { success: false, message: 'Your account has been suspended. Your trial may have expired.' },
-            { status: 403 }
-          );
-        }
-
-        // Hard lock: deny access if the school is suspended.
-        // (Admin may be active but school suspended; portals should remain locked.)
         const school = await convex.query(api.schools.getBySchoolId, {
           schoolId: resolvedAdmin.schoolId,
         });
-        if (school?.status === "suspended") {
+
+        const isBillingRenewal = resolvedAdmin.status === 'suspended';
+
+        // Hard lock: active (or pending) admin cannot use portal if school is suspended by super admin.
+        // Suspended admins may still sign in to renew (school may also be suspended after trial lapse).
+        if (!isBillingRenewal && school?.status === 'suspended') {
           return NextResponse.json(
             {
               success: false,
-              code: "SCHOOL_SUSPENDED",
+              code: 'SCHOOL_SUSPENDED',
               message:
-                "Your school is currently suspended. The admin portal is locked until the school is reactivated.",
+                'Your school is currently suspended. The admin portal is locked until the school is reactivated.',
             },
             { status: 403 },
           );
@@ -241,7 +237,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           success: true,
           message: 'Login successful',
           role: 'school_admin',
-          redirectTo: '/school-admin',
+          redirectTo: isBillingRenewal ? '/school-admin/subscription' : '/school-admin',
+          billingOnly: isBillingRenewal,
         });
       } else {
         // Track failed login

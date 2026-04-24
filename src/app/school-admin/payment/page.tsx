@@ -151,7 +151,7 @@ export default function PaymentPage(): React.JSX.Element {
       toast.success(
         "Payment proof submitted successfully! Awaiting admin approval.",
       );
-      router.push("/school-admin");
+      router.push(user?.billingOnly ? "/school-admin/subscription" : "/school-admin");
     } catch (error) {
       toast.error("Failed to submit payment proof");
       console.error(error);

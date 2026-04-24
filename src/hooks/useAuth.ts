@@ -9,6 +9,9 @@ export interface User {
   email: string;
   role: "super_admin" | "school_admin";
   schoolId?: string;
+  adminRole?: string;
+  /** Present when school admin is suspended but may access subscription/payment renewal flows. */
+  billingOnly?: boolean;
 }
 
 export interface AuthState {

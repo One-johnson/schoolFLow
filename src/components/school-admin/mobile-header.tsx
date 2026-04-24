@@ -11,12 +11,13 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useSchoolAdminHidesSubscriptionUi } from '@/hooks/useSchoolAdminHidesSubscriptionUi';
-import { 
-  LayoutDashboard, 
-  School, 
-  CreditCard, 
-  User, 
-  Settings 
+import {
+  LayoutDashboard,
+  School,
+  CreditCard,
+  User,
+  Settings,
+  DollarSign,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { JSX } from 'react';
@@ -54,15 +55,23 @@ const menuItems = [
   },
 ];
 
+const billingOnlyMenuItems = [
+  { title: 'Subscription', icon: CreditCard, url: '/school-admin/subscription' },
+  { title: 'Payment', icon: DollarSign, url: '/school-admin/payment' },
+];
+
 export function MobileHeader(): React.JSX.Element {
   const { user, logout } = useAuth();
+  const billingOnly = user?.billingOnly === true;
   const hidesSubscriptionUi = useSchoolAdminHidesSubscriptionUi(user?.userId);
-  const visibleMenuItems = hidesSubscriptionUi
-    ? menuItems.filter((item) => item.url !== '/school-admin/subscription')
-    : menuItems;
+  const visibleMenuItems = billingOnly
+    ? billingOnlyMenuItems
+    : hidesSubscriptionUi
+      ? menuItems.filter((item) => item.url !== '/school-admin/subscription')
+      : menuItems;
   const notifications = useQuery(
     api.notifications.getNotificationsBySchoolAdmin,
-    user?.userId ? { recipientId: user.userId } : 'skip'
+    user?.userId && !billingOnly ? { recipientId: user.userId } : 'skip'
   );
   const unreadCount = notifications?.filter((n) => !n.read).length || 0;
   const pathname = usePathname();
@@ -89,7 +98,9 @@ export function MobileHeader(): React.JSX.Element {
               </div>
               <div className="flex flex-col text-left">
                 <SheetTitle className="text-base font-semibold">SchoolFlow</SheetTitle>
-                <span className="text-xs text-muted-foreground">School Admin Portal</span>
+                <span className="text-xs text-muted-foreground">
+                  {billingOnly ? 'Renew subscription' : 'School Admin Portal'}
+                </span>
               </div>
             </div>
           </SheetHeader>
@@ -136,24 +147,28 @@ export function MobileHeader(): React.JSX.Element {
         </SheetContent>
       </Sheet>
 
-      <div className="flex-1">
-        <h1 className="text-lg font-semibold">SchoolFlow</h1>
+      <div className="flex-1 min-w-0">
+        <h1 className="text-lg font-semibold truncate">
+          {billingOnly ? 'Renew access' : 'SchoolFlow'}
+        </h1>
       </div>
 
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" className="relative" asChild>
-          <Link href="/school-admin/notifications">
-            <Bell className="h-5 w-5" />
-            {unreadCount > 0 && (
-              <Badge
-                variant="destructive"
-                className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
-              >
-                {unreadCount}
-              </Badge>
-            )}
-          </Link>
-        </Button>
+        {!billingOnly && (
+          <Button variant="ghost" size="icon" className="relative" asChild>
+            <Link href="/school-admin/notifications">
+              <Bell className="h-5 w-5" />
+              {unreadCount > 0 && (
+                <Badge
+                  variant="destructive"
+                  className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+                >
+                  {unreadCount}
+                </Badge>
+              )}
+            </Link>
+          </Button>
+        )}
         <Avatar className="h-8 w-8">
           <AvatarFallback>SA</AvatarFallback>
         </Avatar>

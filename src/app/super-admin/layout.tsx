@@ -39,16 +39,20 @@ export default function SuperAdminLayout({
   }
 
   return (
-    <SidebarProvider>
-      <div className="hidden md:block">
+    <SidebarProvider className="h-svh min-h-0 min-w-0 max-w-full overflow-x-hidden overflow-y-hidden">
+      <div className="hidden min-h-0 shrink-0 self-stretch md:block">
         <AppSidebar />
       </div>
-      <SidebarInset className="w-full">
+      <SidebarInset className="h-full min-h-0 w-full max-w-full min-w-0 overflow-hidden">
         <ClientOnly>
-          <DesktopHeader />
-          <MobileHeader />
+          <div className="shrink-0">
+            <DesktopHeader />
+            <MobileHeader />
+          </div>
         </ClientOnly>
-        <main className="p-4 md:p-8">{children}</main>
+        <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain p-4 md:p-8">
+          {children}
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );

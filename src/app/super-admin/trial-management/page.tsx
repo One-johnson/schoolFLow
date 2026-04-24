@@ -70,9 +70,9 @@ export default function TrialManagementPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="min-w-0 max-w-full space-y-6 p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex min-w-0 max-w-full flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">Trial Management</h1>
           <p className="text-gray-600 mt-1">
@@ -120,7 +120,7 @@ export default function TrialManagementPage() {
       </Card>
 
       {/* Statistics Cards Placeholder */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid min-w-0 grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
         {/* Total Active Trials */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

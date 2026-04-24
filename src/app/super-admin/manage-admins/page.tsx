@@ -141,9 +141,9 @@ export default function ManageAdminsPage(): React.JSX.Element {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="min-w-0 max-w-full space-y-6 p-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Manage Admins</h1>
           <p className="text-gray-600 mt-1">
@@ -157,7 +157,7 @@ export default function ManageAdminsPage(): React.JSX.Element {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid min-w-0 gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Admins</CardTitle>
@@ -213,7 +213,7 @@ export default function ManageAdminsPage(): React.JSX.Element {
             A list of all super admin accounts with their roles and status
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="min-w-0">
           <Table>
             <TableHeader>
               <TableRow>
