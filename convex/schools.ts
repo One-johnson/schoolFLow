@@ -102,6 +102,45 @@ export const suspendSchool = mutation({
   },
 });
 
+export const reactivateSchool = mutation({
+  args: {
+    id: v.id('schools'),
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const school = await ctx.db.get(args.id);
+    if (!school) throw new Error('School not found');
+    if (school.status !== 'suspended') {
+      throw new Error('Only suspended schools can be reactivated');
+    }
+
+    await ctx.db.patch(args.id, {
+      status: 'active',
+    });
+
+    const admin = await ctx.db
+      .query('schoolAdmins')
+      .filter((q) => q.eq(q.field('schoolId'), school.adminId))
+      .first();
+
+    if (admin) {
+      await ctx.db.insert('notifications', {
+        title: 'School reactivated',
+        message: args.reason
+          ? `Your school "${school.name}" is active again. ${args.reason}`
+          : `Your school "${school.name}" has been reactivated. You and your users can access the system again.`,
+        type: 'success',
+        timestamp: new Date().toISOString(),
+        read: false,
+        recipientId: admin._id,
+        recipientRole: 'school_admin',
+      });
+    }
+
+    return args.id;
+  },
+});
+
 export const deleteSchool = mutation({
   args: {
     id: v.id('schools'),
@@ -228,6 +267,43 @@ export const bulkSuspend = mutation({
     }
 
     return args.ids.length;
+  },
+});
+
+export const bulkReactivate = mutation({
+  args: {
+    ids: v.array(v.id('schools')),
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    let count = 0;
+    for (const id of args.ids) {
+      const school = await ctx.db.get(id);
+      if (!school || school.status !== 'suspended') continue;
+
+      await ctx.db.patch(id, { status: 'active' });
+      count += 1;
+
+      const admin = await ctx.db
+        .query('schoolAdmins')
+        .filter((q) => q.eq(q.field('schoolId'), school.adminId))
+        .first();
+
+      if (admin) {
+        await ctx.db.insert('notifications', {
+          title: 'School reactivated',
+          message: args.reason
+            ? `Your school "${school.name}" is active again. ${args.reason}`
+            : `Your school "${school.name}" has been reactivated. You and your users can access the system again.`,
+          type: 'success',
+          timestamp: new Date().toISOString(),
+          read: false,
+          recipientId: admin._id,
+          recipientRole: 'school_admin',
+        });
+      }
+    }
+    return count;
   },
 });
 

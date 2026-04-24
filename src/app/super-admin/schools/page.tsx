@@ -8,7 +8,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { DataTable, createSortableHeader, createSelectColumn } from '../../../components/ui/data-table';
 import type { SchoolStatus } from '@/types';
 import { toast } from 'sonner';
-import { CheckCircle, Ban, Loader2, Trash2, FileDown, MoreVertical } from 'lucide-react';
+import { CheckCircle, Ban, Loader2, Trash2, FileDown, MoreVertical, RefreshCw } from 'lucide-react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import type { Id } from '../../../../convex/_generated/dataModel';
@@ -58,14 +58,22 @@ interface School {
   paymentDate?: string;
 }
 
-type ActionType = 'suspend' | 'delete' | 'bulk-suspend' | 'bulk-delete';
+type ActionType =
+  | 'suspend'
+  | 'reactivate'
+  | 'delete'
+  | 'bulk-suspend'
+  | 'bulk-delete'
+  | 'bulk-reactivate';
 
 export default function SchoolsPage(): React.JSX.Element {
   const schools = useQuery(api.schools.list);
   const updateSchoolStatus = useMutation(api.schools.updateStatus);
   const suspendSchool = useMutation(api.schools.suspendSchool);
+  const reactivateSchool = useMutation(api.schools.reactivateSchool);
   const deleteSchool = useMutation(api.schools.deleteSchool);
   const bulkSuspend = useMutation(api.schools.bulkSuspend);
+  const bulkReactivate = useMutation(api.schools.bulkReactivate);
   const bulkDelete = useMutation(api.schools.bulkDelete);
   const createAuditLog = useMutation(api.auditLogs.create);
   
@@ -108,6 +116,13 @@ export default function SchoolsPage(): React.JSX.Element {
     setShowActionDialog(true);
   };
 
+  const openReactivateDialog = (school: School): void => {
+    setTargetSchool(school);
+    setActionType('reactivate');
+    setActionReason('');
+    setShowActionDialog(true);
+  };
+
   const openDeleteDialog = (school: School): void => {
     setTargetSchool(school);
     setActionType('delete');
@@ -123,6 +138,12 @@ export default function SchoolsPage(): React.JSX.Element {
 
   const openBulkDeleteDialog = (): void => {
     setActionType('bulk-delete');
+    setActionReason('');
+    setShowActionDialog(true);
+  };
+
+  const openBulkReactivateDialog = (): void => {
+    setActionType('bulk-reactivate');
     setActionReason('');
     setShowActionDialog(true);
   };
@@ -145,6 +166,21 @@ export default function SchoolsPage(): React.JSX.Element {
           ipAddress: '192.168.1.1',
         });
         toast.success('School suspended successfully');
+      } else if (actionType === 'reactivate' && targetSchool) {
+        await reactivateSchool({
+          id: targetSchool._id,
+          reason: actionReason || undefined,
+        });
+        await createAuditLog({
+          userId: 'super_admin',
+          userName: 'Super Admin',
+          action: 'Reactivated School',
+          entity: 'School',
+          entityId: targetSchool._id,
+          details: actionReason || 'School reactivated',
+          ipAddress: '192.168.1.1',
+        });
+        toast.success('School reactivated successfully');
       } else if (actionType === 'delete' && targetSchool) {
         await deleteSchool({
           id: targetSchool._id,
@@ -168,6 +204,35 @@ export default function SchoolsPage(): React.JSX.Element {
         });
         toast.success(`${ids.length} school(s) suspended successfully`);
         setSelectedSchools([]);
+      } else if (actionType === 'bulk-reactivate') {
+        const suspendedIds = selectedSchools
+          .filter((s) => s.status === 'suspended')
+          .map((s) => s._id);
+        if (suspendedIds.length === 0) {
+          toast.error('No suspended schools in the current selection');
+        } else {
+          const reactivated = await bulkReactivate({
+            ids: suspendedIds,
+            reason: actionReason || undefined,
+          });
+          for (const id of suspendedIds) {
+            await createAuditLog({
+              userId: 'super_admin',
+              userName: 'Super Admin',
+              action: 'Reactivated School',
+              entity: 'School',
+              entityId: id,
+              details: actionReason || 'Bulk school reactivation',
+              ipAddress: '192.168.1.1',
+            });
+          }
+          toast.success(
+            reactivated === suspendedIds.length
+              ? `${reactivated} school(s) reactivated successfully`
+              : `${reactivated} of ${suspendedIds.length} school(s) reactivated`,
+          );
+        }
+        setSelectedSchools([]);
       } else if (actionType === 'bulk-delete') {
         const ids = selectedSchools.map((s) => s._id);
         await bulkDelete({
@@ -176,13 +241,31 @@ export default function SchoolsPage(): React.JSX.Element {
         });
         toast.success(`${ids.length} school(s) deleted successfully`);
         setSelectedSchools([]);
+      } else if (actionType === 'bulk-reactivate') {
+        const ids = selectedSchools.map((s) => s._id);
+        const n = await bulkReactivate({
+          ids,
+          reason: actionReason || undefined,
+        });
+        if (n === 0) {
+          toast.error('No suspended schools in the selection to reactivate');
+        } else {
+          toast.success(`${n} school(s) reactivated successfully`);
+        }
+        setSelectedSchools([]);
       }
       setShowActionDialog(false);
       setTargetSchool(null);
       setActionReason('');
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
-      toast.error(`Failed to ${actionType === 'suspend' || actionType === 'bulk-suspend' ? 'suspend' : 'delete'} school(s)`);
+      const actionWord =
+        actionType === 'suspend' || actionType === 'bulk-suspend'
+          ? 'suspend'
+          : actionType === 'reactivate' || actionType === 'bulk-reactivate'
+            ? 'reactivate'
+            : 'delete';
+      toast.error(`Failed to ${actionWord} school(s)`);
     } finally {
       setIsProcessing(false);
     }
@@ -250,8 +333,9 @@ export default function SchoolsPage(): React.JSX.Element {
           const school = row.original;
           const showApprove = school.status === 'pending_approval' && school.paymentVerified;
           const showSuspend = school.status === 'active';
+          const showReactivate = school.status === 'suspended';
           const showDelete = school.status !== 'pending_approval';
-          const hasActions = showApprove || showSuspend || showDelete;
+          const hasActions = showApprove || showSuspend || showReactivate || showDelete;
 
           return (
             <DropdownMenu>
@@ -279,6 +363,12 @@ export default function SchoolsPage(): React.JSX.Element {
                     Suspend
                   </DropdownMenuItem>
                 )}
+                {showReactivate && (
+                  <DropdownMenuItem onClick={() => openReactivateDialog(school)}>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Reactivate
+                  </DropdownMenuItem>
+                )}
                 {showDelete && (
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
@@ -294,7 +384,7 @@ export default function SchoolsPage(): React.JSX.Element {
         },
       },
     ],
-    [handleApprove, openSuspendDialog, openDeleteDialog]
+    [handleApprove, openSuspendDialog, openReactivateDialog, openDeleteDialog]
   );
 
   const filteredData = useMemo(() => {
@@ -337,8 +427,18 @@ export default function SchoolsPage(): React.JSX.Element {
 • Notify the school admin
 • Preserve all data for reactivation
 
-The school admin can reactivate by contacting support.`,
+Use **Reactivate** in the row menu (or select rows and **Reactivate Selected**) when the school should be active again.`,
         actionLabel: 'Suspend School',
+      };
+    } else if (actionType === 'reactivate') {
+      return {
+        title: 'Reactivate School',
+        description: `Restore access for "${targetSchool?.name}"?
+
+• School status will be set to active
+• The school admin will be notified
+• Teachers, students, and parents can use the school again`,
+        actionLabel: 'Reactivate School',
       };
     } else if (actionType === 'delete') {
       return {
@@ -364,6 +464,16 @@ This action cannot be undone. All school data will be lost.`,
 
 Schools can be reactivated later.`,
         actionLabel: `Suspend ${selectedSchools.length} Schools`,
+      };
+    } else if (actionType === 'bulk-reactivate') {
+      const suspendedCount = selectedSchools.filter((s) => s.status === 'suspended').length;
+      return {
+        title: `Reactivate ${suspendedCount} suspended school(s)`,
+        description: `Only schools with status "suspended" in this selection will be reactivated (${suspendedCount} of ${selectedSchools.length} selected).
+
+• Each school will be set to active
+• Each school admin will be notified`,
+        actionLabel: `Reactivate ${suspendedCount} school(s)`,
       };
     } else {
       return {
@@ -434,7 +544,7 @@ This action cannot be undone. All data will be lost.`,
           <p className="text-sm font-medium">
             {selectedSchools.length} school(s) selected
           </p>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button
               size="sm"
               variant="outline"
@@ -444,6 +554,17 @@ This action cannot be undone. All data will be lost.`,
               <Ban className="h-4 w-4" />
               Suspend Selected
             </Button>
+            {selectedSchools.some((s) => s.status === 'suspended') && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={openBulkReactivateDialog}
+                className="gap-2"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Reactivate Selected
+              </Button>
+            )}
             <Button
               size="sm"
               variant="destructive"
@@ -501,7 +622,9 @@ This action cannot be undone. All data will be lost.`,
               className={
                 actionType === 'delete' || actionType === 'bulk-delete'
                   ? 'bg-red-600 hover:bg-red-700'
-                  : ''
+                  : actionType === 'reactivate' || actionType === 'bulk-reactivate'
+                    ? 'bg-green-600 hover:bg-green-700'
+                    : ''
               }
             >
               {isProcessing ? (
